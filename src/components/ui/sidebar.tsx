@@ -35,12 +35,12 @@ export default function Sidebar() {
   const menuItems = [
     {
       key: '/analyze',
-      icon: <MessageOutlined />,
+      icon: <MessageOutlined style={{ fontSize: '18px' }} />,
       label: 'Analyze',
     },
     {
       key: '/history',
-      icon: <HistoryOutlined />,
+      icon: <HistoryOutlined style={{ fontSize: '18px' }} />,
       label: 'History',
     },
   ];
@@ -85,6 +85,7 @@ export default function Sidebar() {
               background: 'transparent',
               border: 'none',
               color: '#d9d9d9',
+              fontSize: '16px',
             }}
             theme="dark"
           />

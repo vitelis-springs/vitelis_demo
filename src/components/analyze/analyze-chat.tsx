@@ -11,6 +11,7 @@ import {
   Space,
   Avatar,
   Spin,
+  message as antMessage,
 } from 'antd';
 import {
   SendOutlined,
@@ -19,6 +20,8 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import { useState, useRef, useEffect } from 'react';
+import { chatService, Message as ChatMessage } from '../../services/chatService';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -33,16 +36,13 @@ interface Message {
 
 export default function AnalyzeChat() {
   const { email } = useAuthStore();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: 'Hello! I\'m your AI assistant. How can I help you analyze something today?',
-      role: 'assistant',
-      timestamp: new Date(),
-    }
-  ]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [isLoadingChat, setIsLoadingChat] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -52,6 +52,56 @@ export default function AnalyzeChat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize chat - either load existing or prepare for new
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        setIsLoadingChat(true);
+        const chatId = searchParams.get('chatId');
+
+        if (chatId) {
+          // Load existing chat
+          const chatData = await chatService.getChat(chatId, email);
+          setCurrentChatId(chatId);
+          
+          // Convert database messages to local format
+          const localMessages: Message[] = chatData.messages.map(msg => ({
+            id: msg._id,
+            content: msg.content,
+            role: msg.role,
+            timestamp: new Date(msg.timestamp),
+          }));
+          
+          setMessages(localMessages);
+          
+          // Update URL to show chat ID
+          router.replace(`/analyze?chatId=${chatId}`);
+        } else {
+          // Prepare for new chat - don't create in DB yet
+          setCurrentChatId(null);
+          // Show welcome message from assistant (not saved to DB yet)
+          setMessages([
+            {
+              id: 'welcome',
+              content: 'What company you analyze?',
+              role: 'assistant',
+              timestamp: new Date(),
+            }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+        antMessage.error('Failed to initialize chat');
+      } finally {
+        setIsLoadingChat(false);
+      }
+    };
+
+    if (email) {
+      initializeChat();
+    }
+  }, [email, searchParams]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -63,21 +113,73 @@ export default function AnalyzeChat() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        content: generateAIResponse(inputValue),
-        role: 'assistant',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, aiResponse]);
+    try {
+      let chatId = currentChatId;
+
+      // Create new chat if this is the first message
+      if (!chatId) {
+        const chat = await chatService.createChat(
+          email,
+          'New Analysis Session',
+          inputValue.substring(0, 50) + (inputValue.length > 50 ? '...' : ''),
+          inputValue
+        );
+        chatId = chat._id;
+        setCurrentChatId(chatId);
+        router.replace(`/analyze?chatId=${chatId}`);
+        
+        // Save the welcome message to database first (earlier timestamp)
+        const welcomeTimestamp = new Date(Date.now() - 1000); // 1 second earlier
+        await chatService.addMessage(chatId, 'What company you analyze?', 'assistant', email, welcomeTimestamp);
+        
+        // Note: User message is already saved by createChat, so we don't need to save it again
+        
+        // Update local messages to include the welcome message from database and user message
+        setMessages([
+          {
+            id: 'welcome-db',
+            content: 'What company you analyze?',
+            role: 'assistant',
+            timestamp: welcomeTimestamp,
+          },
+          userMessage
+        ]);
+      } else {
+        // Save user message to existing chat
+        await chatService.addMessage(chatId, inputValue, 'user', email);
+        // Add user message to local state for existing chats
+        setMessages(prev => [...prev, userMessage]);
+      }
+
+      // Simulate AI response
+      setTimeout(async () => {
+        const aiResponse = generateAIResponse(inputValue);
+        
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: aiResponse,
+          role: 'assistant',
+          timestamp: new Date(),
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+        setIsLoading(false);
+
+        // Save AI response to database
+        try {
+          await chatService.addMessage(chatId!, aiResponse, 'assistant', email);
+        } catch (error) {
+          console.error('Error saving AI message:', error);
+        }
+      }, 1500);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      antMessage.error('Failed to send message');
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const generateAIResponse = (userInput: string): string => {
@@ -103,6 +205,29 @@ export default function AnalyzeChat() {
     }
   };
 
+  if (isLoadingChat) {
+    return (
+      <Layout style={{ minHeight: '100vh', background: '#141414' }}>
+        <Sidebar />
+        <Layout style={{ marginLeft: 280, background: '#141414' }}>
+          <Content style={{ 
+            padding: '0',
+            background: '#141414',
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Space direction="vertical" size="large" align="center">
+              <Spin size="large" />
+              <Text style={{ color: '#8c8c8c' }}>Loading chat...</Text>
+            </Space>
+          </Content>
+        </Layout>
+      </Layout>
+    );
+  }
+
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
       <Sidebar />
@@ -118,14 +243,56 @@ export default function AnalyzeChat() {
           <div style={{ 
             padding: '20px 24px',
             borderBottom: '1px solid #303030',
-            background: '#1f1f1f'
+            background: '#1f1f1f',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
           }}>
-            <Title level={3} style={{ margin: 0, color: '#58bfce' }}>
-              AI Analysis Assistant
-            </Title>
-            <Text style={{ color: '#8c8c8c' }}>
-              Ask me anything and I'll help you analyze it
-            </Text>
+            <div>
+              <Title level={3} style={{ margin: 0, color: '#58bfce' }}>
+                AI Analysis Assistant
+              </Title>
+              <Text style={{ color: '#8c8c8c' }}>
+                Ask me anything and I'll help you analyze it
+                {currentChatId && (
+                  <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
+                    (Chat ID: {currentChatId})
+                  </span>
+                )}
+              </Text>
+            </div>
+            <Button
+              type="primary"
+              onClick={async () => {
+                try {
+                  setIsLoadingChat(true);
+                  setCurrentChatId(null);
+                  setMessages([
+                    {
+                      id: 'welcome',
+                      content: 'What company you analyze?',
+                      role: 'assistant',
+                      timestamp: new Date(),
+                    }
+                  ]);
+                  router.replace('/analyze');
+                } catch (error) {
+                  console.error('Error creating new chat:', error);
+                  antMessage.error('Failed to create new chat');
+                } finally {
+                  setIsLoadingChat(false);
+                }
+              }}
+              style={{
+                background: '#58bfce',
+                border: 'none',
+                borderRadius: '8px',
+                height: '40px',
+                padding: '0 20px'
+              }}
+            >
+              New Chat
+            </Button>
           </div>
 
           {/* Chat Messages */}
@@ -136,6 +303,7 @@ export default function AnalyzeChat() {
             display: 'flex',
             flexDirection: 'column',
             gap: '16px'
+            
           }}>
             {messages.map((message) => (
               <div

@@ -2,49 +2,61 @@
 
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/auth-store';
-
-// Hardcoded credentials
-const VALID_CREDENTIALS = {
-  email: 'vitelis@vitelis.com',
-  password: 'SJHfoo589495164'
-};
+import Image from 'next/image';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const login = useAuthStore((state) => state.login);
+  const { login } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setLoading(true);
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Check credentials
-    if (email === VALID_CREDENTIALS.email && password === VALID_CREDENTIALS.password) {
-      login(email);
-    } else {
-      setError('Invalid email or password');
+    try {
+      // Check credentials (hardcoded for demo)
+      if (email === 'vitelis@vitelis.com' && password === 'SJHfoo589495164') {
+        login(email);
+      } else {
+        throw new Error('Invalid credentials');
+      }
+    } catch (err) {
+      setError('Invalid credentials. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       background: '#141414',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '20px'
+      position: 'relative'
     }}>
-      <div style={{ 
-        maxWidth: '400px', 
+      {/* Logo positioned absolutely */}
+      <div style={{
+        position: 'absolute',
+        top: '40px',
+        left: '40px',
+        zIndex: 10
+      }}>
+        <Image
+          src="/logo.png"
+          alt="Vitelis Logo"
+          width={150}
+          height={50}
+          style={{ objectFit: 'contain' }}
+        />
+      </div>
+
+      <div style={{
+        maxWidth: '400px',
         width: '100%',
         background: '#1f1f1f',
         borderRadius: '16px',
@@ -53,11 +65,11 @@ export default function LoginForm() {
         border: '1px solid #303030'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ 
-            marginBottom: '8px', 
-            color: '#58bfce',
+          <h1 style={{
             fontSize: '28px',
-            fontWeight: '600'
+            fontWeight: '600',
+            margin: '0 0 8px 0',
+            color: '#d9d9d9'
           }}>
             Welcome Back
           </h1>
@@ -66,21 +78,21 @@ export default function LoginForm() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {error && (
-            <div style={{
-              padding: '12px',
-              marginBottom: '16px',
-              background: '#2a1f1f',
-              border: '1px solid #434343',
-              borderRadius: '6px',
-              color: '#ff7875',
-              fontSize: '14px'
-            }}>
-              {error}
-            </div>
-          )}
+        {error && (
+          <div style={{
+            padding: '12px',
+            marginBottom: '16px',
+            background: '#2a1f1f',
+            border: '1px solid #434343',
+            borderRadius: '6px',
+            color: '#ff7875',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
 
+        <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{
               display: 'block',
@@ -181,7 +193,19 @@ export default function LoginForm() {
           </button>
         </form>
 
-       
+        <div style={{ 
+          marginTop: '24px', 
+          padding: '16px', 
+          background: '#262626', 
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: '#8c8c8c',
+          border: '1px solid #434343'
+        }}>
+          <strong style={{ color: '#d9d9d9' }}>Demo Credentials:</strong><br />
+          Email: vitelis@vitelis.com<br />
+          Password: SJHfoo589495164
+        </div>
       </div>
     </div>
   );
