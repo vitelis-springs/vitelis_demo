@@ -202,9 +202,7 @@ export default function LoginForm() {
           color: '#8c8c8c',
           border: '1px solid #434343'
         }}>
-          <strong style={{ color: '#d9d9d9' }}>Demo Credentials:</strong><br />
-          Email: vitelis@vitelis.com<br />
-          Password: SJHfoo589495164
+         
         </div>
       </div>
     </div>
