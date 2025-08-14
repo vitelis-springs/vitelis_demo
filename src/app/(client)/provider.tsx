@@ -1,28 +1,34 @@
 // app/providers.jsx
 
-"use client";
+'use client';
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { ReactQueryStreamedHydration } from "@tanstack/react-query-next-experimental";
-import React from "react";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ConfigProvider } from 'antd';
+import { useState } from 'react';
+import { antdTheme, antdLightTheme } from '../../config/theme';
 
-export function Providers(props: { children: React.ReactNode }) {
-  const [queryClient] = React.useState(
+export default function Provider({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 1000,
+            staleTime: 60 * 1000,
           },
         },
-      }),
+      })
   );
+
+  // Use dark theme by default
+  const [isDarkTheme] = useState(true);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ReactQueryStreamedHydration>{props.children}</ReactQueryStreamedHydration>
-      {<ReactQueryDevtools initialIsOpen={false} />}
+      <ConfigProvider theme={isDarkTheme ? antdTheme : antdLightTheme}>
+        {children}
+      </ConfigProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }

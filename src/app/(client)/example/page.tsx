@@ -6,6 +6,9 @@ export default function ExamplePage() {
       <h1 className="mb-4 text-3xl">Example Components</h1>
       <ul className="flex flex-col items-center gap-4 text-blue-400">
         <li>
+          <Link href="/example/antd-demo">Ant Design Demo</Link>
+        </li>
+        <li>
           <Link href="/example/dynamic/123">Dynamic Example</Link>
         </li>
         <li>
