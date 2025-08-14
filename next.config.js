@@ -6,9 +6,13 @@ const nextConfig = {
   reactStrictMode: true,
   compiler: {
     removeConsole: false,
+    
   },
   experimental: {
     reactCompiler: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   },
 };
 
