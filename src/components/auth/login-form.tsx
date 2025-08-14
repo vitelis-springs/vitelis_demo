@@ -193,17 +193,7 @@ export default function LoginForm() {
           </button>
         </form>
 
-        <div style={{ 
-          marginTop: '24px', 
-          padding: '16px', 
-          background: '#262626', 
-          borderRadius: '8px',
-          fontSize: '14px',
-          color: '#8c8c8c',
-          border: '1px solid #434343'
-        }}>
-         
-        </div>
+    
       </div>
     </div>
   );
