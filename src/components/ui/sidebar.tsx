@@ -15,6 +15,7 @@ import {
   HistoryOutlined,
   UserOutlined,
   LogoutOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -36,7 +37,12 @@ export default function Sidebar() {
     {
       key: '/analyze',
       icon: <MessageOutlined style={{ fontSize: '18px' }} />,
-      label: 'Analyze',
+      label: 'Analyze Chat',
+    },
+    {
+      key: '/analyze-quiz',
+      icon: <FileTextOutlined style={{ fontSize: '18px' }} />,
+      label: 'Analyze Quiz',
     },
     {
       key: '/history',
