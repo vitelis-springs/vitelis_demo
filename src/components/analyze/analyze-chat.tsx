@@ -64,9 +64,9 @@ export default function AnalyzeChat() {
   const questions = [
     "What is the name of the company you want to analyze?",
     "What is the main business line or industry of this company?",
-    "In which country is this company headquartered?",
+    "In which country does this company operate?",
     "What is the specific use case or area you want to analyze? (e.g., Leadership, Marketing, Finance, Operations)",
-    "What is your preferred timeline for this analysis? (e.g., First quarter, Q1, Next 3 months)"
+    "What is your preferred timeline for this analysis? (e.g., Q1 2025, Q1 2024 - Q3 2025)"
   ];
 
   const scrollToBottom = () => {
