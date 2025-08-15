@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/auth-store';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuthStore();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +22,9 @@ export default function LoginForm() {
       // Check credentials (hardcoded for demo)
       if (email === 'vitelis@vitelis.com' && password === 'SJHfoo589495164') {
         login(email);
+        console.log('Login successful, redirecting...');
+        // Redirect to dashboard or main page after successful login
+        router.push('/');
       } else {
         throw new Error('Invalid credentials');
       }
