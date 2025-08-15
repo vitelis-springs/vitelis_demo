@@ -39,9 +39,10 @@ interface AnalyzeQuizData {
 
 interface AnalyzeQuizProps {
   onComplete?: (data: AnalyzeQuizData) => void;
+  userEmail?: string;
 }
 
-export default function AnalyzeQuiz({ onComplete }: AnalyzeQuizProps) {
+export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps) {
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -162,8 +163,24 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     setLoading(true);
     
     try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Save to database
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...values,
+          userId: userEmail || 'anonymous'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save analysis data');
+      }
+
+      const result = await response.json();
+      console.log('Analysis saved:', result);
       
       setQuizData(values);
       setShowResults(true);
@@ -415,6 +432,7 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
                     fontSize: '16px',
                     padding: '12px 16px'
                   }}
+                  onPressEnter={handleNext}
                 />
               ) : currentQuestion.type === 'select' ? (
                 <Select
@@ -428,6 +446,10 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
                   dropdownStyle={{
                     background: '#1f1f1f',
                     border: '1px solid #434343'
+                  }}
+                  onSelect={() => {
+                    // Auto-advance to next step when option is selected
+                    setTimeout(handleNext, 100);
                   }}
                 >
                   {currentQuestion.options?.map((option, index) => (

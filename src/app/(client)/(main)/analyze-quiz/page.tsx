@@ -8,6 +8,7 @@ import { Spin, message } from 'antd';
 
 export default function AnalyzeQuizPage() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const email = useAuthStore((state) => state.email);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,5 +51,5 @@ export default function AnalyzeQuizPage() {
     return null; // Don't render anything while redirecting
   }
 
-  return <AnalyzeQuiz onComplete={handleQuizComplete} />;
+  return <AnalyzeQuiz onComplete={handleQuizComplete} userEmail={email} />;
 }
