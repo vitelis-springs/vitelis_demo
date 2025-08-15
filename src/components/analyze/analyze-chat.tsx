@@ -34,6 +34,14 @@ interface Message {
   timestamp: Date;
 }
 
+interface AnalysisData {
+  companyName: string;
+  businessLine: string;
+  country: string;
+  useCase: string;
+  timeline: string;
+}
+
 export default function AnalyzeChat() {
   const { email } = useAuthStore();
   const router = useRouter();
@@ -43,7 +51,23 @@ export default function AnalyzeChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isLoadingChat, setIsLoadingChat] = useState(true);
+  const [analysisData, setAnalysisData] = useState<AnalysisData>({
+    companyName: '',
+    businessLine: '',
+    country: '',
+    useCase: '',
+    timeline: ''
+  });
+  const [currentQuestion, setCurrentQuestion] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const questions = [
+    "What is the name of the company you want to analyze?",
+    "What is the main business line or industry of this company?",
+    "In which country is this company headquartered?",
+    "What is the specific use case or area you want to analyze? (e.g., Leadership, Marketing, Finance, Operations)",
+    "What is your preferred timeline for this analysis? (e.g., First quarter, Q1, Next 3 months)"
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -73,23 +97,27 @@ export default function AnalyzeChat() {
             timestamp: new Date(msg.timestamp),
           }));
           
-          setMessages(localMessages);
-          
-          // Update URL to show chat ID
-          router.replace(`/analyze?chatId=${chatId}`);
-        } else {
-          // Prepare for new chat - don't create in DB yet
-          setCurrentChatId(null);
-          // Show welcome message from assistant (not saved to DB yet)
-          setMessages([
-            {
-              id: 'welcome',
-              content: 'What company you analyze?',
-              role: 'assistant',
-              timestamp: new Date(),
-            }
-          ]);
-        }
+                      setMessages(localMessages);
+            
+            // Determine current question based on message count
+            const questionCount = localMessages.filter(msg => msg.role === 'user').length;
+            setCurrentQuestion(questionCount);
+          } else {
+            // Prepare for new chat - don't create in DB yet
+            setCurrentChatId(null);
+            // Show welcome message from assistant (not saved to DB yet)
+            setMessages([
+              {
+                id: 'welcome',
+                content: `Welcome! I'll help you analyze a company. Let me gather some information first.
+
+**Question 1 of 5:** What is the name of the company you want to analyze?`,
+                role: 'assistant',
+                timestamp: new Date(),
+              }
+            ]);
+            setCurrentQuestion(0); // Reset question counter for new chat
+          }
       } catch (error) {
         console.error('Error initializing chat:', error);
         antMessage.error('Failed to initialize chat');
@@ -133,7 +161,9 @@ export default function AnalyzeChat() {
         
         // Save the welcome message to database first (earlier timestamp)
         const welcomeTimestamp = new Date(Date.now() - 1000); // 1 second earlier
-        await chatService.addMessage(chatId, 'What company you analyze?', 'assistant', email, welcomeTimestamp);
+        await chatService.addMessage(chatId, `Welcome! I'll help you analyze a company. Let me gather some information first.
+
+**Question 1 of 5:** What is the name of the company you want to analyze?`, 'assistant', email, welcomeTimestamp);
         
         // Note: User message is already saved by createChat, so we don't need to save it again
         
@@ -141,7 +171,9 @@ export default function AnalyzeChat() {
         setMessages([
           {
             id: 'welcome-db',
-            content: 'What company you analyze?',
+            content: `Welcome! I'll help you analyze a company. Let me gather some information first.
+
+**Question 1 of 5:** What is the name of the company you want to analyze?`,
             role: 'assistant',
             timestamp: welcomeTimestamp,
           },
@@ -154,9 +186,57 @@ export default function AnalyzeChat() {
         setMessages(prev => [...prev, userMessage]);
       }
 
+      // Handle structured data collection
+      const userInput = userMessage.content;
+      let isComplete = false;
+
+      // Update analysis data based on current question
+      switch (currentQuestion) {
+        case 0:
+          setAnalysisData(prev => ({ ...prev, companyName: userInput }));
+          break;
+        case 1:
+          setAnalysisData(prev => ({ ...prev, businessLine: userInput }));
+          break;
+        case 2:
+          setAnalysisData(prev => ({ ...prev, country: userInput }));
+          break;
+        case 3:
+          setAnalysisData(prev => ({ ...prev, useCase: userInput }));
+          break;
+        case 4:
+          setAnalysisData(prev => ({ ...prev, timeline: userInput }));
+          isComplete = true;
+          break;
+      }
+
       // Simulate AI response
       setTimeout(async () => {
-        const aiResponse = generateAIResponse(inputValue);
+        let aiResponse = '';
+        
+        if (isComplete) {
+          // Show the collected data and provide analysis
+          const collectedData = { ...analysisData, [currentQuestion === 0 ? 'companyName' : 
+            currentQuestion === 1 ? 'businessLine' : 
+            currentQuestion === 2 ? 'country' : 
+            currentQuestion === 3 ? 'useCase' : 'timeline']: userInput };
+          
+          aiResponse = `Perfect! I've collected all the information. Here's what I have:
+
+**Company Analysis Data:**
+\`\`\`json
+${JSON.stringify(collectedData, null, 2)}
+\`\`\`
+
+Now I'll analyze ${collectedData.companyName} (${collectedData.businessLine}) based on your ${collectedData.useCase} requirements for the ${collectedData.timeline} timeline.
+
+Let me start the analysis...`;
+        } else {
+          // Ask next question
+          const nextQuestionIndex = currentQuestion + 1;
+          aiResponse = `**Question ${nextQuestionIndex + 1} of 5:** ${questions[nextQuestionIndex]}`;
+          setCurrentQuestion(nextQuestionIndex);
+        }
         
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -229,15 +309,16 @@ export default function AnalyzeChat() {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#141414' }}>
+    <Layout style={{ height: '100vh', background: '#141414', overflow: 'hidden' }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: '#141414' }}>
+      <Layout style={{ marginLeft: 280, background: '#141414', height: '100vh', overflow: 'hidden' }}>
         <Content style={{ 
           padding: '0',
           background: '#141414',
-          minHeight: '100vh',
+          height: '100vh',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          overflow: 'hidden'
         }}>
           {/* Header */}
           <div style={{ 
@@ -246,7 +327,9 @@ export default function AnalyzeChat() {
             background: '#1f1f1f',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            flexShrink: 0,
+            minHeight: '80px'
           }}>
             <div>
               <Title level={3} style={{ margin: 0, color: '#58bfce' }}>
@@ -267,10 +350,20 @@ export default function AnalyzeChat() {
                 try {
                   setIsLoadingChat(true);
                   setCurrentChatId(null);
+                  setCurrentQuestion(0);
+                  setAnalysisData({
+                    companyName: '',
+                    businessLine: '',
+                    country: '',
+                    useCase: '',
+                    timeline: ''
+                  });
                   setMessages([
                     {
                       id: 'welcome',
-                      content: 'What company you analyze?',
+                      content: `Welcome! I'll help you analyze a company. Let me gather some information first.
+
+**Question 1 of 5:** What is the name of the company you want to analyze?`,
                       role: 'assistant',
                       timestamp: new Date(),
                     }
@@ -299,12 +392,33 @@ export default function AnalyzeChat() {
           <div style={{ 
             flex: 1, 
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: '20px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px'
-            
-          }}>
+            gap: '16px',
+            minHeight: 0,
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#303030 #1f1f1f'
+          }}
+          className="chat-messages-container"
+          >
+            <style jsx>{`
+              .chat-messages-container::-webkit-scrollbar {
+                width: 8px;
+              }
+              .chat-messages-container::-webkit-scrollbar-track {
+                background: #1f1f1f;
+                border-radius: 4px;
+              }
+              .chat-messages-container::-webkit-scrollbar-thumb {
+                background: #303030;
+                border-radius: 4px;
+              }
+              .chat-messages-container::-webkit-scrollbar-thumb:hover {
+                background: #434343;
+              }
+            `}</style>
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -391,7 +505,8 @@ export default function AnalyzeChat() {
           <div style={{ 
             padding: '20px 24px',
             borderTop: '1px solid #303030',
-            background: '#1f1f1f'
+            background: '#1f1f1f',
+            flexShrink: 0
           }}>
             <div style={{
               maxWidth: '800px',
