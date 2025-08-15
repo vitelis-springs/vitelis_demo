@@ -1,29 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AnalyzeService, AnalyzeData } from '../../../../services/analyzeService';
-import { connectToDatabase } from '../../../../lib/mongodb';
+import { AnalyzeService, AnalyzeData } from '../../../services/analyzeService';
+import connectDB from '../../../lib/mongodb';
 
 export async function POST(request: NextRequest) {
   try {
-    await connectToDatabase();
+    await connectDB();
     
     const body = await request.json();
-    const { companyName, businessLine, country, useCase, timeline, userId } = body;
+    const { 
+      companyName, 
+      businessLine, 
+      country, 
+      useCase, 
+      timeline, 
+      userId, 
+      status = 'progress',
+      currentStep = 0,
+      analyzeId 
+    } = body;
 
-    // Validate required fields
-    if (!companyName || !businessLine || !country || !useCase || !timeline) {
+    // If analyzeId is provided, update existing record
+    if (analyzeId) {
+      const updateData: Partial<AnalyzeData> = {};
+      
+      if (companyName !== undefined) updateData.companyName = companyName;
+      if (businessLine !== undefined) updateData.businessLine = businessLine;
+      if (country !== undefined) updateData.country = country;
+      if (useCase !== undefined) updateData.useCase = useCase;
+      if (timeline !== undefined) updateData.timeline = timeline;
+      if (status !== undefined) updateData.status = status;
+      if (currentStep !== undefined) updateData.currentStep = currentStep;
+
+      const analyze = await AnalyzeService.updateAnalyze(analyzeId, updateData);
+      
+      if (!analyze) {
+        return NextResponse.json(
+          { error: 'Analyze record not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: analyze
+      });
+    }
+
+    // Create new record - only require at least one field to be filled
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'User ID is required' },
         { status: 400 }
       );
     }
 
     const analyzeData: AnalyzeData = {
-      companyName,
-      businessLine,
-      country,
-      useCase,
-      timeline,
-      userId
+      companyName: companyName || '',
+      businessLine: businessLine || '',
+      country: country || '',
+      useCase: useCase || '',
+      timeline: timeline || '',
+      userId,
+      status,
+      currentStep
     };
 
     const analyze = await AnalyzeService.createAnalyze(analyzeData);
@@ -44,7 +83,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    await connectToDatabase();
+    await connectDB();
     
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -83,7 +122,7 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    await connectToDatabase();
+    await connectDB();
     
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

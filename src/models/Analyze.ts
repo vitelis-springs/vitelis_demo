@@ -7,6 +7,8 @@ export interface IAnalyze extends Document {
   useCase: string;
   timeline: string;
   userId?: string;
+  status: 'progress' | 'finished';
+  currentStep: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -14,33 +16,47 @@ export interface IAnalyze extends Document {
 const AnalyzeSchema: Schema = new Schema({
   companyName: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   businessLine: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   country: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   useCase: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   timeline: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   userId: {
     type: String,
     required: false,
     trim: true
+  },
+  status: {
+    type: String,
+    enum: ['progress', 'finished'],
+    default: 'progress'
+  },
+  currentStep: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

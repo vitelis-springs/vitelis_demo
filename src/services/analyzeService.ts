@@ -7,6 +7,8 @@ export interface AnalyzeData {
   useCase: string;
   timeline: string;
   userId?: string;
+  status?: 'progress' | 'finished';
+  currentStep?: number;
 }
 
 export class AnalyzeService {
@@ -66,6 +68,31 @@ export class AnalyzeService {
     } catch (error) {
       console.error('Error updating analyze record:', error);
       throw new Error('Failed to update analyze record');
+    }
+  }
+
+  // Get analyze by ID for progress continuation
+  static async getAnalyzeById(id: string): Promise<IAnalyze | null> {
+    try {
+      return await Analyze.findById(id).exec();
+    } catch (error) {
+      console.error('Error fetching analyze record:', error);
+      throw new Error('Failed to fetch analyze record');
+    }
+  }
+
+  // Get latest progress for a user
+  static async getLatestProgress(userId: string): Promise<IAnalyze | null> {
+    try {
+      return await Analyze.findOne({ 
+        userId, 
+        status: 'progress' 
+      })
+      .sort({ updatedAt: -1 })
+      .exec();
+    } catch (error) {
+      console.error('Error fetching latest progress:', error);
+      throw new Error('Failed to fetch latest progress');
     }
   }
 
