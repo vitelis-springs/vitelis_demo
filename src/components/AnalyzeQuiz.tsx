@@ -26,6 +26,8 @@ import {
   ClockCircleOutlined,
   TrophyOutlined
 } from '@ant-design/icons';
+import N8NApiClient from 'config/client/n8n.api';
+import { useRunWorkflow } from '@hooks/api/useN8NService';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -61,6 +63,13 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const {
+    mutateAsync,
+    isPending,
+    isError,
+    error
+  } = useRunWorkflow();
 
   // Load progress on component mount
   useEffect(() => {
@@ -122,7 +131,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
             currentStep: 0
           }),
         });
-
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.data) {
@@ -295,6 +303,19 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     setLoading(true);
     
     try {
+      // Call N8N workflow
+      const result = await mutateAsync({
+        data: {
+          companyName: values.companyName,
+          businessLine: values.businessLine,
+          country: values.country,
+          useCase: values.useCase,
+          timeline: values.timeline
+        }
+      });
+      
+      console.log('N8N workflow result:', result);
+      
       // Save as finished
       await saveProgress(values, steps.length, 'finished');
       
@@ -328,6 +349,30 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       useCase: '',
       timeline: ''
     });
+  };
+
+  // Temporary function to test N8N workflow with pre-installed data
+  const handleTestWorkflow = async () => {
+    try {
+      antMessage.info('Testing N8N workflow with pre-installed data...');
+      
+      const result = await mutateAsync({
+        data: {
+          companyName: "Adidas",
+          businessLine: "Sportswear",
+          country: "Germany",
+          useCase: "Leadership",
+          timeline: "First quarter"
+        }
+      });
+      
+      console.log('N8N workflow test result:', result);
+      antMessage.success('N8N workflow test completed successfully!');
+      
+    } catch (error) {
+      console.error('N8N workflow test failed:', error);
+      antMessage.error('N8N workflow test failed');
+    }
   };
 
   const currentQuestion = questions[currentStep];
@@ -644,11 +689,28 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
               Reset
             </Button>
             
+            {/* Temporary test button */}
+            <Button
+              size="large"
+              onClick={handleTestWorkflow}
+              loading={isPending}
+              style={{
+                background: '#722ed1',
+                border: '1px solid #722ed1',
+                color: '#ffffff',
+                borderRadius: '8px',
+                height: '48px',
+                padding: '0 24px'
+              }}
+            >
+              Test N8N Workflow
+            </Button>
+            
             <Button
               type="primary"
               size="large"
               onClick={handleNext}
-              loading={loading}
+              loading={loading || isPending}
               icon={currentStep === steps.length - 1 ? <SendOutlined /> : undefined}
               style={{
                 background: '#58bfce',

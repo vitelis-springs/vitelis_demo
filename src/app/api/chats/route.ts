@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '../../../lib/mongodb';
-import Chat from '../../../models/Chat';
-import Message from '../../../models/Message';
+import Chat from '../../server/models/Chat';
+import Message from '../../server/models/Message';
 
 // GET /api/chats - Get all chats for a user
 export async function GET(request: NextRequest) {

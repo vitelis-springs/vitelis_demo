@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AnalyzeService, AnalyzeData } from '../../../services/analyzeService';
+import { AnalyzeService, AnalyzeData } from '../../server/services/analyzeService';
 import connectDB from '../../../lib/mongodb';
 
 export async function POST(request: NextRequest) {

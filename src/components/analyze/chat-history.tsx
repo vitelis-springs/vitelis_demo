@@ -24,7 +24,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
-import { chatService, Chat } from '../../services/chatService';
+import { chatService, Chat } from '../../app/server/services/chatService';
 import { useRouter } from 'next/navigation';
 
 const { Content } = Layout;

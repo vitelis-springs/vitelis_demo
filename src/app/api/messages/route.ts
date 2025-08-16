@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '../../../lib/mongodb';
-import Message from '../../../models/Message';
-import Chat from '../../../models/Chat';
+import Message from '../../server/models/Message';
+import Chat from '../../server/models/Chat';
 
 // POST /api/messages - Add a new message to a chat
 export async function POST(request: NextRequest) {
