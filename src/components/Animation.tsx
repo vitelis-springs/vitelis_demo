@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Steps, Card, Button, Space, Typography, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Steps, Card, Button, Space, Typography, message, Spin } from 'antd';
 import { 
   UserOutlined, 
   SolutionOutlined, 
@@ -9,90 +9,116 @@ import {
   SmileOutlined,
   CheckCircleOutlined 
 } from '@ant-design/icons';
+import { useGetExecutionDetails } from '@hooks/api/useN8NService';
 
 const { Title, Text } = Typography;
 
 interface AnimationProps {
   title?: string;
   description?: string;
+  executionId: string;
   onComplete?: () => void;
 }
 
 export default function Animation({ 
-  title = "Animated Steps Demo", 
-  description = "Interactive step-by-step animation component",
+  title = "Analysis in Progress", 
+  description = "Your company analysis is being processed. This may take a few minutes.",
+  executionId,
   onComplete
 }: AnimationProps) {
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(false);
+  
+  // Poll execution details
+  const { data: executionDetails, isLoading: isLoadingExecution } = useGetExecutionDetails(
+    executionId,
+    {
+      refetchInterval: 5000, // Poll every 3 seconds
+      enabled: !!executionId
+    }
+  );
 
   const steps = [
     {
-      title: 'User Input',
-      description: 'Enter your information',
+      title: 'Started',
+      description: 'Workflow initiated',
       icon: <UserOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 1: User Information</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 1: Workflow Started</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            This is the first step where users can input their basic information.
-            The form will collect essential details to proceed with the process.
+            Your analysis request has been received and the workflow has been initiated.
+            Execution ID: {executionId}
           </Text>
         </Card>
       )
     },
     {
       title: 'Processing',
-      description: 'Analyzing your data',
+      description: 'Analyzing data',
       icon: <SolutionOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
           <Title level={4} style={{ color: '#d9d9d9' }}>Step 2: Data Processing</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Your information is being processed and analyzed. This step involves
-            data validation and preparation for the next phase.
+            Your company data is being processed and analyzed. This step involves
+            data validation and preparation for the analysis phase.
+            {executionDetails?.customData?.step && (
+              <div style={{ marginTop: '8px' }}>
+                <Text style={{ color: '#58bfce' }}>Current step: {executionDetails.customData.step}</Text>
+              </div>
+            )}
           </Text>
         </Card>
       )
     },
     {
-      title: 'Loading',
-      description: 'Please wait...',
+      title: 'Analysis',
+      description: 'Running analysis',
       icon: <LoadingOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 3: Loading & Processing</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 3: Analysis Running</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            The system is now loading and processing your request. This may take
-            a few moments depending on the complexity of your data.
+            The AI analysis is now running. This may take a few minutes depending
+            on the complexity of your analysis.
+            {executionDetails?.customData?.step && (
+              <div style={{ marginTop: '8px' }}>
+                <Text style={{ color: '#58bfce' }}>Current step: {executionDetails.customData.step}</Text>
+              </div>
+            )}
           </Text>
         </Card>
       )
     },
     {
-      title: 'Review',
-      description: 'Review results',
+      title: 'Finalizing',
+      description: 'Preparing results',
       icon: <SmileOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 4: Review Results</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 4: Finalizing Results</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Review the processed results and confirm that everything looks correct.
-            You can make adjustments if needed before finalizing.
+            The analysis is being finalized and results are being prepared for display.
+            {executionDetails?.customData?.step && (
+              <div style={{ marginTop: '8px' }}>
+                <Text style={{ color: '#58bfce' }}>Current step: {executionDetails.customData.step}</Text>
+              </div>
+            )}
           </Text>
         </Card>
       )
     },
     {
       title: 'Complete',
-      description: 'All done!',
+      description: 'Analysis ready',
       icon: <CheckCircleOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 5: Completion</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 5: Analysis Complete</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Congratulations! The process has been completed successfully.
-            Your data has been processed and saved. You can now proceed with your next steps.
+            Congratulations! Your company analysis has been completed successfully.
+            The results are ready for review.
           </Text>
         </Card>
       )
@@ -137,6 +163,39 @@ export default function Animation({
       maxWidth: '800px',
       margin: '0 auto'
     }}>
+      <style jsx>{`
+        .animation-steps .ant-steps-item-title {
+          white-space: normal !important;
+          word-wrap: break-word !important;
+          line-height: 1.2 !important;
+          max-width: 100px !important;
+          text-align: center !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          min-height: 40px !important;
+        }
+        
+        .animation-steps .ant-steps-item-description {
+          white-space: normal !important;
+          word-wrap: break-word !important;
+          line-height: 1.2 !important;
+          max-width: 100px !important;
+          text-align: center !important;
+          font-size: 12px !important;
+        }
+        
+        .animation-steps .ant-steps-item {
+          flex: 1 !important;
+          min-width: 0 !important;
+        }
+        
+        .animation-steps .ant-steps-item-container {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+        }
+      `}</style>
       <Card 
         style={{ 
           background: '#1f1f1f', 
@@ -162,10 +221,11 @@ export default function Animation({
             status: index < current ? 'finish' : index === current ? 'process' : 'wait'
           }))}
           style={{ marginBottom: '24px' }}
+          className="animation-steps"
         />
 
         <div style={{ marginTop: '24px' }}>
-          {steps[current].content}
+          {steps[current]?.content}
         </div>
 
         <div style={{ 

@@ -357,6 +357,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       <Animation 
         title="Analysis in Progress"
         description="Your company analysis is being processed. This may take a few minutes."
+        executionId={executionId}
         onComplete={handleAnimationComplete}
       />
     );
