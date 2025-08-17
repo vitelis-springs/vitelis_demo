@@ -68,36 +68,24 @@ export const useGetExecutionDetails = (executionId: string | null, options?: {
         throw new Error('Execution ID is required');
       }
       
-      // Make a direct API call to get the full execution details
-      const response = await fetch(`${process.env.NEXT_PUBLIC_N8N_API_URL || 'https://vitelis.app.n8n.cloud/'}api/v1/executions/${executionId}?includeData=true`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(process.env.NEXT_PUBLIC_N8N_API_KEY && {
-            'X-N8N-API-KEY': process.env.NEXT_PUBLIC_N8N_API_KEY
-          })
-        }
-      });
+      console.log('🌐 Client: Fetching execution details for ID:', executionId);
+      
+      // Use our server-side API endpoint instead of direct N8N API call
+      const response = await fetch(`/api/n8n/execution/${executionId}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch execution details: ${response.status}`);
       }
       
-      const execution = await response.json();
+      const result = await response.json();
       
-      // Transform the API response to match our interface
-      return {
-        id: execution.id,
-        finished: execution.finished || false,
-        mode: execution.mode || 'manual',
-        retryOf: execution.retryOf || null,
-        retrySuccessId: execution.retrySuccessId || null,
-        status: execution.status,
-        createdAt: execution.createdAt || execution.startedAt || new Date().toISOString(),
-        startedAt: execution.startedAt || new Date().toISOString(),
-        stoppedAt: execution.stoppedAt || null,
-        customData: execution.customData || {},
-        data: execution.data
-      };
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to fetch execution details');
+      }
+      
+      console.log('📥 Client: Execution details received:', result.data);
+      
+      return result.data;
     },
     enabled: !!executionId && (options?.enabled !== false),
     refetchInterval: options?.refetchInterval || 5000, // Poll every 5 seconds by default

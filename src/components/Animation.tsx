@@ -17,6 +17,7 @@ interface AnimationProps {
   title?: string;
   description?: string;
   executionId: string;
+  companyName?: string;
   onComplete?: () => void;
 }
 
@@ -24,6 +25,7 @@ export default function Animation({
   title = "Analysis in Progress", 
   description = "Your company analysis is being processed. This may take a few minutes.",
   executionId,
+  companyName,
   onComplete
 }: AnimationProps) {
   const [current, setCurrent] = useState(0);
@@ -47,8 +49,9 @@ export default function Animation({
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
           <Title level={4} style={{ color: '#d9d9d9' }}>Step 1: Workflow Started</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Your analysis request has been received and the workflow has been initiated.
-            Execution ID: {executionId}
+            Your analysis request for <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text> has been received and the workflow has been initiated.
+            <br />
+            Execution ID: <Text style={{ color: '#58bfce' }}>{executionId}</Text>
           </Text>
         </Card>
       )
@@ -205,10 +208,13 @@ export default function Animation({
       >
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>
-            {title}
+            {companyName ? `Analysis in Progress: ${companyName}` : title}
           </Title>
           <Text style={{ color: '#8c8c8c' }}>
-            {description}
+            {companyName 
+              ? `Your analysis for ${companyName} is being processed. This may take a few minutes.`
+              : description
+            }
           </Text>
         </div>
 

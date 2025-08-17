@@ -358,6 +358,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         title="Analysis in Progress"
         description="Your company analysis is being processed. This may take a few minutes."
         executionId={executionId}
+        companyName={quizData.companyName}
         onComplete={handleAnimationComplete}
       />
     );
