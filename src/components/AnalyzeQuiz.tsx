@@ -84,7 +84,7 @@ const isTest = true
   const { createAnalyze, updateAnalyze } = useAnalyzeService();
   const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId);
 
-const executionQuery=useGetExecutionDetails(executionId, {enabled: !executionId&&false})
+const executionQuery=useGetExecutionDetails(executionId, {enabled: !!executionId})
   console.log("execution id", executionId)
   console.log("execution query", executionQuery)
   console.log("execution query data", executionQuery?.data)
@@ -338,6 +338,12 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       
       // Only save as finished if N8N workflow was successful
       if (result && result.success !== false) {
+        // Extract executionId from the result
+        if (result.executionId) {
+          console.log('Setting execution ID:', result.executionId);
+          setExecutionId(result.executionId.toString());
+        }
+        
         await saveProgress(completeData, steps.length, 'finished');
       } else {
         // Save as progress if N8N workflow failed
