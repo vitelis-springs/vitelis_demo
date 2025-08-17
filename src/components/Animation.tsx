@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Steps, Card, Button, Space, Typography, message, Spin } from 'antd';
+import { Steps, Card, Button, Space, Typography, message, Spin, Layout } from 'antd';
 import { 
   UserOutlined, 
   SolutionOutlined, 
@@ -10,6 +10,7 @@ import {
   CheckCircleOutlined 
 } from '@ant-design/icons';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
+import Sidebar from './ui/sidebar';
 
 const { Title, Text } = Typography;
 

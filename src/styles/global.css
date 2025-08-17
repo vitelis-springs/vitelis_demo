@@ -51,6 +51,22 @@ a {
   scrollbar-color: rgb(32, 32, 32) rgb(20, 20, 20);
 }
 
+/* Fix Ant Design Layout issues */
+.ant-layout {
+  box-sizing: border-box !important;
+}
+
+.ant-layout-content {
+  box-sizing: border-box !important;
+  padding: 24px !important;
+}
+
+/* Ensure proper content width */
+.ant-layout-content > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 
 
 /* Utility classes */

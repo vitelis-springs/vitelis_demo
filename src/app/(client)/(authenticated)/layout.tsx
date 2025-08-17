@@ -11,7 +11,7 @@ export default function AuthenticatedLayout({ children }: { children: ReactNode 
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
       <Sidebar />
       <Content style={{
-        padding: 0,
+        padding: '24px 40px',
         background: '#141414',
         width: '100%'
       }}>

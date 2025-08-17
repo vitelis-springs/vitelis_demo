@@ -111,7 +111,7 @@ export default function AnalysisHistory() {
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ maxWidth: '1200px', width: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div style={{ 
               marginBottom: '24px',

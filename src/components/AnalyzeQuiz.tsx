@@ -382,7 +382,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+          <div style={{ maxWidth: '900px', width: '100%', display: 'flex', justifyContent: 'center' }}>
             <Card style={{ background: '#1f1f1f', border: '1px solid #303030', borderRadius: '12px' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -424,7 +424,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
               <Title level={3} style={{ color: '#d9d9d9', marginBottom: '8px' }}>{currentQuestion.label}</Title>
             </div>
 
-            <Form form={form} layout="vertical" initialValues={quizData} style={{ maxWidth: '500px', margin: '0 auto' }}>
+            <Form form={form} layout="vertical" initialValues={quizData} style={{ maxWidth: '500px', width: '100%' }}>
               <Form.Item name={currentQuestion.name} rules={[{ required: currentQuestion.required, message: 'This field is required' }]}>
                 {currentQuestion.type === 'input' ? (
                   <Input
