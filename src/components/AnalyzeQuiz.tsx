@@ -63,7 +63,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   
   const router = useRouter();
   const searchParams = useSearchParams();
-
+const isTest = true
   const {
     mutateAsync,
     isPending,
@@ -312,6 +312,7 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
           useCase: values.useCase,
           timeline: values.timeline
         }
+        , isTest
       });
       
       console.log('N8N workflow result:', result);
@@ -363,7 +364,8 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
           country: "Germany",
           useCase: "Leadership",
           timeline: "First quarter"
-        }
+        },
+        isTest
       });
       
       console.log('N8N workflow test result:', result);

@@ -108,7 +108,7 @@ export class N8NApiClient {
         // Add API key if available
         const apiKey = process.env.NEXT_PUBLIC_N8N_API_KEY;
         if (apiKey) {
-          config.headers.Authorization = `Bearer ${apiKey}`;
+          config.headers['X-N8N-API-KEY'] = `${apiKey}`;
         }
         return config;
       },
@@ -232,10 +232,14 @@ export class N8NApiClient {
     country: string;
     useCase: string;
     timeline: string;
-  }): Promise<any> {
+  }, isTest: boolean = false): Promise<any> {
+    const endpoint = isTest 
+      ? '/form-test/8bc7a70d-a943-4b97-b242-a722aa42b944'
+      : '/form/8bc7a70d-a943-4b97-b242-a722aa42b944';
+    
     return this.request<any>({
       method: 'POST',
-      url: '/form/8bc7a70d-a943-4b97-b242-a722aa42b944',
+      url: endpoint,
       data,
     });
   }

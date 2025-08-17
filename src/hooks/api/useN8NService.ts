@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import N8NApiClient, { N8NApiError } from '@/config/client/n8n.api';
+import N8NApiClient, { N8NApiError } from '../../config/client/n8n.api';
 
 // Create API client instance
 const n8nApi = new N8NApiClient();
@@ -16,8 +16,9 @@ export const useRunWorkflow = () => {
         useCase: string;
         timeline: string;
       } | any;
+      isTest?: boolean;
     }) => {
-      const { workflowId, data } = params;
+      const { workflowId, data, isTest = false } = params;
       
       // If no workflowId provided, use the default form endpoint
       if (!workflowId) {
@@ -27,7 +28,7 @@ export const useRunWorkflow = () => {
           country: string;
           useCase: string;
           timeline: string;
-        });
+        }, isTest);
       }
       
       // If workflowId provided, use the trigger workflow method
