@@ -9,9 +9,11 @@ import {
   Typography, 
   Form,
   message as antMessage,
+  notification,
   Steps,
   Space,
-  Spin
+  Spin,
+  Alert
 } from 'antd';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -59,6 +61,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [executionId, setExecutionId] = useState('')
   const [analyze, setAnalize] = useState<IAnalyze|null>(null);
+  const [notificationKey, setNotificationKey] = useState<string>('');
   const [quizData, setQuizData] = useState<AnalyzeQuizData>({
     companyName: '',
     businessLine: '',
@@ -82,7 +85,9 @@ const isTest = true
   const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId);
 
 const executionQuery=useGetExecutionDetails(executionId, {enabled: !executionId&&false})
-
+  console.log("execution id", executionId)
+  console.log("execution query", executionQuery)
+  console.log("execution query data", executionQuery?.data)
   // Load progress on component mount
   useEffect(() => {
     const loadProgress = async () => {
@@ -152,6 +157,12 @@ const executionQuery=useGetExecutionDetails(executionId, {enabled: !executionId&
       }
     } catch (error) {
       console.error('Error creating new analyze record:', error);
+      showNotification(
+        'error',
+        'Failed to Create Analysis Record',
+        'Unable to create a new analysis record. Please try again.',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      );
     }
   };
 
@@ -174,6 +185,12 @@ const executionQuery=useGetExecutionDetails(executionId, {enabled: !executionId&
       await updateAnalyze.mutateAsync(updateData);
     } catch (error) {
       console.error('Error saving progress:', error);
+      showNotification(
+        'warning',
+        'Failed to Save Progress',
+        'Unable to save your progress. Your data may not be persisted.',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      );
     }
   };
 
@@ -309,16 +326,33 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       
       console.log('Submitting complete data to N8N:', completeData);
       
-      // Call N8N workflow
+            // Call N8N workflow
       const result = await mutateAsync({
         data: completeData,
         isTest
       });
       
+      
+      
       console.log('N8N workflow result:', result);
       
-      // Save as finished
-      await saveProgress(completeData, steps.length, 'finished');
+      // Only save as finished if N8N workflow was successful
+      if (result && result.success !== false) {
+        await saveProgress(completeData, steps.length, 'finished');
+      } else {
+        // Save as progress if N8N workflow failed
+        await saveProgress(completeData, steps.length, 'progress');
+        
+        // Show error notification
+        showNotification(
+          'error',
+          'N8N Workflow Failed',
+          'The analysis workflow did not complete successfully. Your progress has been saved.',
+          'Workflow returned unsuccessful result'
+        );
+        
+        return; // Don't proceed to animation and results
+      }
       
       setQuizData(completeData);
       
@@ -329,12 +363,22 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       antMessage.success('Analysis request submitted successfully! Starting analysis...');
       
       // Call the onComplete callback if provided
-      if (onComplete) {
-        onComplete(completeData);
-      }
+      // if (onComplete) {
+      //   onComplete(completeData);
+      // }
       
     } catch (error) {
       console.error('Error submitting analysis request:', error);
+      
+      // Show detailed notification for N8N workflow failures
+      showNotification(
+        'error',
+        'N8N Workflow Execution Failed',
+        'Unable to start the analysis workflow. This could be due to network issues, server problems, or invalid data.',
+        error instanceof Error ? error.message : 'Unknown workflow error occurred'
+      );
+      
+      // Also show a brief message
       antMessage.error('Failed to submit analysis request');
     } finally {
       setLoading(false);
@@ -367,6 +411,42 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     setShowResults(true);
   };
 
+  // Notification functions
+  const showNotification = (type: 'error' | 'warning' | 'info' | 'success', title: string, message: string, details?: string) => {
+    const key = `notification-${Date.now()}`;
+    setNotificationKey(key);
+    
+    notification[type]({
+      key,
+      message: title,
+      description: (
+        <div>
+          <div style={{ marginBottom: details ? '8px' : '0' }}>
+            {message}
+          </div>
+          {details && (
+            <div style={{ 
+              background: '#f5f5f5', 
+              padding: '8px', 
+              borderRadius: '4px',
+              border: '1px solid #d9d9d9',
+              fontSize: '12px',
+              fontFamily: 'monospace',
+              wordBreak: 'break-word'
+            }}>
+              {details}
+            </div>
+          )}
+        </div>
+      ),
+      duration: type === 'error' ? 8 : 4,
+      placement: 'topRight',
+      style: {
+        maxWidth: '400px'
+      }
+    });
+  };
+
   // Temporary function to test N8N workflow with pre-installed data
   const handleTestWorkflow = async () => {
     try {
@@ -388,6 +468,14 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       
     } catch (error) {
       console.error('N8N workflow test failed:', error);
+      
+      showNotification(
+        'error',
+        'N8N Workflow Test Failed',
+        'The test workflow execution failed. This could indicate issues with the N8N service or network connectivity.',
+        error instanceof Error ? error.message : 'Unknown test error occurred'
+      );
+      
       antMessage.error('N8N workflow test failed');
     }
   };
