@@ -46,11 +46,11 @@ interface AnalyzeQuizProps {
 }
 
 const STEPS = [
-  { title: 'Company Name', icon: <UserOutlined />, description: 'Enter the company name' },
-  { title: 'Business Line', icon: <TrophyOutlined />, description: 'Select the industry' },
-  { title: 'Country', icon: <GlobalOutlined />, description: 'Choose the country' },
-  { title: 'Use Case', icon: <FileTextOutlined />, description: 'Select analysis type' },
-  { title: 'Timeline', icon: <ClockCircleOutlined />, description: 'Choose the period' }
+  { title: 'Company', icon: <UserOutlined /> },
+  { title: 'Business', icon: <TrophyOutlined /> },
+  { title: 'Country', icon: <GlobalOutlined /> },
+  { title: 'Use Case', icon: <FileTextOutlined /> },
+  { title: 'Timeline', icon: <ClockCircleOutlined /> }
 ];
 
 const QUESTIONS = [
@@ -381,11 +381,11 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
             current={currentStep}
             items={STEPS.map((step, index) => ({
               title: step.title,
-              description: step.description,
               icon: step.icon,
               status: index < currentStep ? 'finish' : index === currentStep ? 'process' : 'wait'
             }))}
             style={{ marginBottom: '24px' }}
+            className="custom-steps"
           />
           <div style={{ textAlign: 'center' }}>
             <Text style={{ color: '#8c8c8c' }}>Step {currentStep + 1} of {STEPS.length}</Text>

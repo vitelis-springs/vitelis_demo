@@ -51,6 +51,30 @@ a {
   scrollbar-color: rgb(32, 32, 32) rgb(20, 20, 20);
 }
 
+/* Custom Steps styles for word wrapping */
+.custom-steps .ant-steps-item-title {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  line-height: 1.2 !important;
+  max-width: 120px !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 40px !important;
+}
+
+.custom-steps .ant-steps-item {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.custom-steps .ant-steps-item-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
 /* Utility classes */
 .flex {
   display: flex;
