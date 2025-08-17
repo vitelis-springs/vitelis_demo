@@ -1,100 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AnalyzeServiceServer, AnalyzeData } from '../../server/services/analyzeService.server';
-import connectDB from '../../../lib/mongodb';
-
-export async function POST(request: NextRequest) {
-  try {
-    await connectDB();
-    
-    const body = await request.json();
-    const { 
-      companyName, 
-      businessLine, 
-      country, 
-      useCase, 
-      timeline, 
-      userId, 
-      status = 'progress',
-      currentStep = 0,
-      analyzeId 
-    } = body;
-
-    // If analyzeId is provided, update existing record
-    if (analyzeId) {
-      const updateData: Partial<AnalyzeData> = {};
-      
-      if (companyName !== undefined) updateData.companyName = companyName;
-      if (businessLine !== undefined) updateData.businessLine = businessLine;
-      if (country !== undefined) updateData.country = country;
-      if (useCase !== undefined) updateData.useCase = useCase;
-      if (timeline !== undefined) updateData.timeline = timeline;
-      if (status !== undefined) updateData.status = status;
-      if (currentStep !== undefined) updateData.currentStep = currentStep;
-
-      const analyze = await AnalyzeServiceServer.updateAnalyze(analyzeId, updateData);
-      
-      if (!analyze) {
-        return NextResponse.json(
-          { error: 'Analyze record not found' },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: analyze
-      });
-    }
-
-    // Create new record - only require at least one field to be filled
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const analyzeData: AnalyzeData = {
-      companyName: companyName || '',
-      businessLine: businessLine || '',
-      country: country || '',
-      useCase: useCase || '',
-      timeline: timeline || '',
-      userId,
-      status,
-      currentStep
-    };
-
-    const analyze = await AnalyzeServiceServer.createAnalyze(analyzeData);
-
-    return NextResponse.json({
-      success: true,
-      data: analyze
-    });
-
-  } catch (error) {
-    console.error('Error in analyze POST:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
+import { AnalyzeServiceServer } from '../../server/services/analyzeService.server';
 
 export async function GET(request: NextRequest) {
   try {
-    await connectDB();
-    
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
     const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
 
     if (id) {
-      // Get specific analyze record
+      // Get specific analyze by ID
       const analyze = await AnalyzeServiceServer.getAnalyzeById(id);
       if (!analyze) {
         return NextResponse.json(
-          { error: 'Analyze record not found' },
+          { success: false, message: 'Analyze record not found' },
           { status: 404 }
         );
       }
@@ -102,19 +20,49 @@ export async function GET(request: NextRequest) {
     }
 
     if (userId) {
-      // Get analyzes for specific user
+      // Get all analyzes for a user
       const analyzes = await AnalyzeServiceServer.getAnalyzesByUser(userId);
       return NextResponse.json({ success: true, data: analyzes });
     }
 
-    // Get all analyzes (for admin purposes)
+    // Get all analyzes (admin)
     const analyzes = await AnalyzeServiceServer.getAllAnalyzes();
     return NextResponse.json({ success: true, data: analyzes });
 
   } catch (error) {
-    console.error('Error in analyze GET:', error);
+    console.error('Error in GET /api/analyze:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { analyzeId, ...data } = body;
+
+    if (analyzeId) {
+      // Update existing analyze
+      const updatedAnalyze = await AnalyzeServiceServer.updateAnalyze(analyzeId, data);
+      if (!updatedAnalyze) {
+        return NextResponse.json(
+          { success: false, message: 'Analyze record not found' },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ success: true, data: updatedAnalyze });
+    } else {
+      // Create new analyze
+      const newAnalyze = await AnalyzeServiceServer.createAnalyze(data);
+      return NextResponse.json({ success: true, data: newAnalyze });
+    }
+
+  } catch (error) {
+    console.error('Error in POST /api/analyze:', error);
+    return NextResponse.json(
+      { success: false, message: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -122,33 +70,30 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    await connectDB();
-    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Missing analyze ID' },
+        { success: false, message: 'ID is required' },
         { status: 400 }
       );
     }
 
-    const success = await AnalyzeServiceServer.deleteAnalyze(id);
-    
-    if (!success) {
+    const deleted = await AnalyzeServiceServer.deleteAnalyze(id);
+    if (!deleted) {
       return NextResponse.json(
-        { error: 'Analyze record not found' },
+        { success: false, message: 'Analyze record not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Analyze record deleted' });
 
   } catch (error) {
-    console.error('Error in analyze DELETE:', error);
+    console.error('Error in DELETE /api/analyze:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, message: 'Internal server error' },
       { status: 500 }
     );
   }

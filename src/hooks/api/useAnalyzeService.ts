@@ -37,6 +37,9 @@ const analyzeApi = {
     }
 
     const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to create analyze record');
+    }
     return result.data;
   },
 
@@ -49,6 +52,9 @@ const analyzeApi = {
     }
 
     const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to fetch analyze record');
+    }
     return result.data;
   },
 
@@ -61,6 +67,9 @@ const analyzeApi = {
     }
 
     const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to fetch analyze records');
+    }
     return result.data;
   },
 
@@ -73,6 +82,9 @@ const analyzeApi = {
     }
 
     const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to fetch analyze records');
+    }
     return result.data;
   },
 
@@ -91,6 +103,9 @@ const analyzeApi = {
     }
 
     const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to update analyze record');
+    }
     return result.data;
   },
 
@@ -104,6 +119,10 @@ const analyzeApi = {
       throw new Error('Failed to delete analyze record');
     }
 
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to delete analyze record');
+    }
     return true;
   },
 };

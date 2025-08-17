@@ -1,4 +1,5 @@
 import Analyze, { IAnalyze } from '../models/Analyze';
+import connectDB from '../../../lib/mongodb';
 
 export interface AnalyzeData {
   companyName: string;
@@ -18,6 +19,7 @@ export class AnalyzeServiceServer {
   // Create a new analyze record
   static async createAnalyze(data: AnalyzeData): Promise<IAnalyze> {
     try {
+      await connectDB();
       const analyze = new Analyze(data);
       return await analyze.save();
     } catch (error) {

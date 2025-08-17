@@ -96,6 +96,20 @@ const executionQuery=useGetExecutionDetails(executionId, {enabled: !!executionId
         
         if (urlAnalyzeId) {
           setAnalyzeId(urlAnalyzeId);
+        } else {
+          // If no analyzeId in URL, reset to fresh quiz state
+          setAnalyzeId(null);
+          setCurrentStep(0);
+          setShowResults(false);
+          setShowAnimation(false);
+          setQuizData({
+            companyName: '',
+            businessLine: '',
+            country: '',
+            useCase: '',
+            timeline: ''
+          });
+          form.resetFields();
         }
         // No longer create new record automatically - will be created when first question is answered
       } catch (error) {
@@ -106,7 +120,7 @@ const executionQuery=useGetExecutionDetails(executionId, {enabled: !!executionId
     };
 
     loadProgress();
-  }, [searchParams, userEmail, router]);
+  }, [searchParams, userEmail, router, form]);
 
   // Handle analyze data when it loads
   useEffect(() => {
@@ -315,13 +329,10 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     setLoading(true);
     
     try {
-      // Use the complete quizData instead of just the current step values
+      // Create complete data by merging quizData with current step values
       const completeData = {
-        companyName: quizData.companyName,
-        businessLine: quizData.businessLine,
-        country: quizData.country,
-        useCase: quizData.useCase,
-        timeline: quizData.timeline
+        ...quizData,
+        ...values // This ensures the current step's values override any old values
       };
       
       console.log('Submitting complete data to N8N:', completeData);
@@ -342,6 +353,27 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
         if (result.executionId) {
           console.log('Setting execution ID:', result.executionId);
           setExecutionId(result.executionId.toString());
+          
+          // Update analyze record with execution ID
+          if (analyzeId) {
+            try {
+              await updateAnalyze.mutateAsync({
+                id: analyzeId,
+                executionId: result.executionId.toString(),
+                executionStatus: 'started',
+                executionStep: 0
+              });
+              console.log('Updated analyze record with execution ID:', result.executionId);
+            } catch (error) {
+              console.error('Failed to update analyze record with execution ID:', error);
+              showNotification(
+                'warning',
+                'Execution ID Update Failed',
+                'Workflow started successfully but failed to save execution ID to database.',
+                error instanceof Error ? error.message : 'Unknown error occurred'
+              );
+            }
+          }
         }
         
         await saveProgress(completeData, steps.length, 'finished');
