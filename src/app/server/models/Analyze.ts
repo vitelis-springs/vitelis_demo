@@ -9,6 +9,9 @@ export interface IAnalyze extends Document {
   userId?: string;
   status: 'progress' | 'finished';
   currentStep: number;
+  executionId?: string;
+  executionStatus?: 'started' | 'inProgress' | 'finished' | 'errored';
+  executionStep?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +60,22 @@ const AnalyzeSchema: Schema = new Schema({
   currentStep: {
     type: Number,
     default: 0
+  },
+  executionId: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  executionStatus: {
+    type: String,
+    enum: ['started', 'inProgress', 'finished', 'errored'],
+    default: null,
+    required: false,
+  },
+  executionStep: {
+    type: Number,
+    default: 0,
+    required: false,
   }
 }, {
   timestamps: true

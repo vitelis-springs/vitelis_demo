@@ -50,7 +50,7 @@ export const useRunWorkflow = () => {
       }
       
       // If workflowId provided, use the trigger workflow method
-      return n8nApi.triggerWorkflow(workflowId, data);
+      return n8nApi.startWorkflow( data);
     },
     onError: (error: N8NApiError) => {
       console.error('Failed to run workflow:', error);

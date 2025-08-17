@@ -132,7 +132,7 @@ export default function Sidebar() {
               icon={<LogoutOutlined />}
               onClick={handleLogout}
               style={{ width: '100%' }}
-            >odxriffmg[osxeddirjg]
+            >
               Logout
             </Button>
           </Space>
