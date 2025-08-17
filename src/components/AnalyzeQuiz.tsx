@@ -60,8 +60,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   const [analyzeId, setAnalyzeId] = useState<string | null>(null);
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [executionId, setExecutionId] = useState('')
-  const [analyze, setAnalize] = useState<IAnalyze|null>(null);
-  const [notificationKey, setNotificationKey] = useState<string>('');
   const [quizData, setQuizData] = useState<AnalyzeQuizData>({
     companyName: '',
     businessLine: '',
@@ -70,6 +68,8 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     timeline: ''
   });
   
+ 
+
   const router = useRouter();
   const searchParams = useSearchParams();
 const isTest = true
@@ -85,9 +85,9 @@ const isTest = true
   const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId);
 
 const executionQuery=useGetExecutionDetails(executionId, {enabled: !!executionId})
-  console.log("execution id", executionId)
-  console.log("execution query", executionQuery)
-  console.log("execution query data", executionQuery?.data)
+  // console.log("execution id", executionId)
+  // console.log("execution query", executionQuery)
+  // console.log("execution query data", executionQuery?.data)
   // Load progress on component mount
   useEffect(() => {
     const loadProgress = async () => {
@@ -134,9 +134,11 @@ const executionQuery=useGetExecutionDetails(executionId, {enabled: !!executionId
         timeline: analyzeData.timeline || ''
       });
       
-      // If currentStep is 5 (all questions completed) or status is finished, show results
-      if (analyzeData.currentStep >= 5 || analyzeData.status === 'finished') {
+      // Only show results if currentStep is 5 AND status is finished (workflow completed successfully)
+      if (analyzeData.currentStep >= 5 && analyzeData.status === 'finished') {
         setShowResults(true);
+      } else {
+        setShowResults(false);
       }
     }
   }, [analyzeData]);
@@ -304,14 +306,15 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       if (currentStep === 0 && !analyzeId) {
         await createNewAnalyzeRecord(updatedQuizData);
       } else {
-        // Save progress after each step
-        await saveProgress(updatedQuizData, currentStep + 1, 'progress');
+        // Save progress after each step (but don't exceed the total number of steps)
+        const nextStep = Math.min(currentStep + 1, steps.length);
+        await saveProgress(updatedQuizData, nextStep, 'progress');
       }
       
       if (currentStep < steps.length - 1) {
         setCurrentStep(currentStep + 1);
       } else {
-        // Final step - submit
+        // Final step - submit (don't increment step)
         await handleSubmit(values);
       }
     } catch (error) {
@@ -347,41 +350,58 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       
       console.log('N8N workflow result:', result);
       
-      // Only save as finished if N8N workflow was successful
-      if (result && result.success !== false) {
-        // Extract executionId from the result
-        if (result.executionId) {
-          console.log('Setting execution ID:', result.executionId);
-          setExecutionId(result.executionId.toString());
-          
-          // Update analyze record with execution ID
-          if (analyzeId) {
-            try {
-              await updateAnalyze.mutateAsync({
-                id: analyzeId,
-                executionId: result.executionId.toString(),
-                executionStatus: 'started',
-                executionStep: 0
-              });
-              console.log('Updated analyze record with execution ID:', result.executionId);
-            } catch (error) {
-              console.error('Failed to update analyze record with execution ID:', error);
-              showNotification(
-                'warning',
-                'Execution ID Update Failed',
-                'Workflow started successfully but failed to save execution ID to database.',
-                error instanceof Error ? error.message : 'Unknown error occurred'
-              );
-            }
+      // Only proceed if N8N workflow was successful AND has executionId
+      if (result && result.success !== false && result.executionId) {
+        console.log('Setting execution ID:', result.executionId);
+        setExecutionId(result.executionId.toString());
+        
+        // Update analyze record with execution ID
+        if (analyzeId) {
+          try {
+            await updateAnalyze.mutateAsync({
+              id: analyzeId,
+              executionId: result.executionId.toString(),
+              executionStatus: 'started',
+              executionStep: 0
+            });
+            console.log('Updated analyze record with execution ID:', result.executionId);
+          } catch (error) {
+            console.error('Failed to update analyze record with execution ID:', error);
+            showNotification(
+              'warning',
+              'Execution ID Update Failed',
+              'Workflow started successfully but failed to save execution ID to database.',
+              error instanceof Error ? error.message : 'Unknown error occurred'
+            );
           }
         }
         
-        await saveProgress(completeData, steps.length, 'finished');
-      } else {
-        // Save as progress if N8N workflow failed
-        await saveProgress(completeData, steps.length, 'progress');
+        await saveProgress(completeData, currentStep, 'finished');
         
-        // Show error notification
+        setQuizData(completeData);
+        
+        // Show animation instead of immediate results
+        setShowAnimation(true);
+        
+        // Show success message
+        antMessage.success('Analysis request submitted successfully! Starting analysis...');
+      } else {
+        // Handle case where workflow succeeded but no executionId
+        if (result && result.success !== false && !result.executionId) {
+          showNotification(
+            'warning',
+            'Workflow Started Without Execution ID',
+            'The workflow started successfully but no execution ID was returned. Please try again.',
+            'Missing execution ID in workflow response'
+          );
+          console.log("Workflow started but no execution ID received. Please try again", result)
+          antMessage.warning('Workflow started but no execution ID received. Please try again.');
+          return; // Stay on current page, no state changes
+        }
+        
+        // Handle case where workflow failed - save as progress, not finished
+        await saveProgress(completeData, currentStep, 'progress');
+        
         showNotification(
           'error',
           'N8N Workflow Failed',
@@ -389,16 +409,9 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
           'Workflow returned unsuccessful result'
         );
         
+        antMessage.error('Failed to submit analysis request');
         return; // Don't proceed to animation and results
       }
-      
-      setQuizData(completeData);
-      
-      // Show animation instead of immediate results
-      setShowAnimation(true);
-      
-      // Show success message
-      antMessage.success('Analysis request submitted successfully! Starting analysis...');
       
       // Call the onComplete callback if provided
       // if (onComplete) {
@@ -449,34 +462,11 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     setShowResults(true);
   };
 
-  // Notification functions
+  // Simple notification wrapper using Ant Design's notification directly
   const showNotification = (type: 'error' | 'warning' | 'info' | 'success', title: string, message: string, details?: string) => {
-    const key = `notification-${Date.now()}`;
-    setNotificationKey(key);
-    
     notification[type]({
-      key,
       message: title,
-      description: (
-        <div>
-          <div style={{ marginBottom: details ? '8px' : '0' }}>
-            {message}
-          </div>
-          {details && (
-            <div style={{ 
-              background: '#f5f5f5', 
-              padding: '8px', 
-              borderRadius: '4px',
-              border: '1px solid #d9d9d9',
-              fontSize: '12px',
-              fontFamily: 'monospace',
-              wordBreak: 'break-word'
-            }}>
-              {details}
-            </div>
-          )}
-        </div>
-      ),
+      description: details ? `${message}\n\n${details}` : message,
       duration: type === 'error' ? 8 : 4,
       placement: 'topRight',
       style: {
@@ -575,7 +565,7 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       />
     );
   }
-
+ 
   // Early return if showing results
   if (showResults) {
     return <AnalyzeResult quizData={quizData} onReset={handleReset} />;
