@@ -384,8 +384,18 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
               icon: step.icon,
               status: index < currentStep ? 'finish' : index === currentStep ? 'process' : 'wait'
             }))}
-            style={{ marginBottom: '24px' }}
-            className="custom-steps"
+            style={{ 
+              marginBottom: '24px',
+              '--steps-title-white-space': 'normal',
+              '--steps-title-word-wrap': 'break-word',
+              '--steps-title-line-height': '1.2',
+              '--steps-title-max-width': '120px',
+              '--steps-title-text-align': 'center',
+              '--steps-title-display': 'flex',
+              '--steps-title-align-items': 'center',
+              '--steps-title-justify-content': 'center',
+              '--steps-title-min-height': '40px'
+            } as React.CSSProperties}
           />
           <div style={{ textAlign: 'center' }}>
             <Text style={{ color: '#8c8c8c' }}>Step {currentStep + 1} of {STEPS.length}</Text>
