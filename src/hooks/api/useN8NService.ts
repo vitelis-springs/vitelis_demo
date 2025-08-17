@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import N8NApiClient, { N8NApiError } from '../../config/client/n8n.api';
+import N8NApiClient from '../../config/client/n8n.api';
 
 // Create API client instance
 const n8nApi = new N8NApiClient();
@@ -52,9 +52,7 @@ export const useRunWorkflow = () => {
       // If workflowId provided, use the trigger workflow method
       return n8nApi.startWorkflow( data);
     },
-    onError: (error: N8NApiError) => {
-      console.error('Failed to run workflow:', error);
-    },
+    retry: false, // Отключаем автоматические повторы
   });
 };
 
@@ -104,7 +102,6 @@ export const useGetExecutionDetails = (executionId: string | null, options?: {
     enabled: !!executionId && (options?.enabled !== false),
     refetchInterval: options?.refetchInterval || 5000, // Poll every 5 seconds by default
     refetchIntervalInBackground: true,
-    retry: 3,
-    retryDelay: 1000,
+    retry: false, // Отключаем автоматические повторы
   });
 };

@@ -8,11 +8,11 @@ import {
   Button, 
   Typography, 
   Form,
-  message as antMessage,
   notification,
   Steps,
   Space,
-  Spin
+  Spin,
+  App
 } from 'antd';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -96,6 +96,7 @@ const QUESTIONS = [
 ];
 
 export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps) {
+  const { notification: appNotification } = App.useApp();
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -152,7 +153,8 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   }, [analyzeData]);
 
   const showNotification = (type: 'error' | 'warning' | 'info' | 'success', title: string, message: string) => {
-    notification[type]({
+    console.log('🔔 Showing notification:', { type, title, message });
+    appNotification[type]({
       message: title,
       description: message,
       duration: type === 'error' ? 8 : 4,
@@ -238,7 +240,10 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     setLoading(true);
     try {
       const completeData = { ...quizData, ...values };
+      console.log('🚀 Starting N8N workflow with data:', completeData);
+      
       const result = await mutateAsync({ data: completeData, isTest });
+      console.log('✅ N8N workflow result:', result);
       
       if (result && result.success !== false && result.executionId) {
         setExecutionId(result.executionId.toString());
@@ -253,15 +258,22 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         await saveProgress(completeData, currentStep, 'finished');
         setQuizData(completeData);
         setShowAnimation(true);
-        antMessage.success('Analysis request submitted successfully!');
+        showNotification('success', 'Success', 'Analysis request submitted successfully!');
       } else {
         await saveProgress(completeData, currentStep, 'progress');
         showNotification('error', 'N8N Workflow Failed', 'The analysis workflow did not complete successfully.');
-        antMessage.error('Failed to submit analysis request');
       }
     } catch (error) {
+      console.error('❌ N8N workflow error:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined
+      });
+      
+      console.log('🔔 About to show notifications...');
       showNotification('error', 'N8N Workflow Execution Failed', 'Unable to start the analysis workflow.');
-      antMessage.error('Failed to submit analysis request');
+      console.log('🔔 Notifications should be visible now');
     } finally {
       setLoading(false);
     }

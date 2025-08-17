@@ -4,7 +4,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App } from 'antd';
 import { useState } from 'react';
 import { antdTheme, antdLightTheme } from '../../config/theme';
 
@@ -26,7 +26,9 @@ export default function Provider({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={isDarkTheme ? antdTheme : antdLightTheme}>
-        {children}
+        <App>
+          {children}
+        </App>
       </ConfigProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
