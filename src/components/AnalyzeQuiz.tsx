@@ -28,9 +28,12 @@ import { useRunWorkflow, useGetExecutionDetails } from '@hooks/api/useN8NService
 import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
 import Animation from './Animation';
 import AnalyzeResult from './AnalyzeResult';
+import Sidebar from './ui/sidebar';
+import { Layout } from 'antd';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+const { Content } = Layout;
 
 interface AnalyzeQuizData {
   companyName: string;
@@ -369,8 +372,18 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   }
 
   return (
-    <div style={{ padding: '24px', background: '#141414', minHeight: '100vh', maxWidth: '900px', margin: '0 auto' }}>
-      <Card style={{ background: '#1f1f1f', border: '1px solid #303030', borderRadius: '12px' }}>
+    <Layout style={{ minHeight: '100vh', background: '#141414' }}>
+      <Sidebar />
+      <Layout style={{ marginLeft: 280, background: '#141414' }}>
+        <Content style={{ 
+          padding: '24px',
+          background: '#141414',
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+            <Card style={{ background: '#1f1f1f', border: '1px solid #303030', borderRadius: '12px' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>Company Analysis Quiz</Title>
@@ -529,7 +542,10 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
           </Card>
           
         )}
-      </Card>
-    </div>
+            </Card>
+          </div>
+        </Content>
+      </Layout>
+    </Layout>
   );
 }
