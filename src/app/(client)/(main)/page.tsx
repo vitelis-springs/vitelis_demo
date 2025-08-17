@@ -11,7 +11,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      router.push('/analyze');
+      router.push('/analyze-quiz');
     }
   }, [isLoggedIn, router]);
 

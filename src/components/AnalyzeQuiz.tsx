@@ -13,7 +13,6 @@ import {
   Space,
   Spin
 } from 'antd';
-import ReactMarkdown from 'react-markdown';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   SearchOutlined, 
@@ -28,6 +27,8 @@ import {
 } from '@ant-design/icons';
 import N8NApiClient from 'config/client/n8n.api';
 import { useRunWorkflow } from '@hooks/api/useN8NService';
+import Animation from './Animation';
+import AnalyzeResult from './AnalyzeResult';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -51,6 +52,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showAnimation, setShowAnimation] = useState(false);
   const [analyzeId, setAnalyzeId] = useState<string | null>(null);
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [quizData, setQuizData] = useState<AnalyzeQuizData>({
@@ -94,7 +96,8 @@ const isTest = true
                 timeline: analyze.timeline || ''
               });
               
-              if (analyze.status === 'finished') {
+              // If currentStep is 5 (all questions completed) or status is finished, show results
+              if (analyze.currentStep >= 5 || analyze.status === 'finished') {
                 setShowResults(true);
               }
             }
@@ -328,10 +331,12 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       await saveProgress(completeData, steps.length, 'finished');
       
       setQuizData(completeData);
-      setShowResults(true);
+      
+      // Show animation instead of immediate results
+      setShowAnimation(true);
       
       // Show success message
-      antMessage.success('Analysis request submitted successfully!');
+      antMessage.success('Analysis request submitted successfully! Starting analysis...');
       
       // Call the onComplete callback if provided
       if (onComplete) {
@@ -350,6 +355,8 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     form.resetFields();
     setCurrentStep(0);
     setShowResults(false);
+    setShowAnimation(false);
+    setAnalyzeId(null);
     setQuizData({
       companyName: '',
       businessLine: '',
@@ -357,6 +364,17 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       useCase: '',
       timeline: ''
     });
+    
+    // Remove analyzeId from URL
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('analyzeId');
+    router.replace(newUrl.pathname + newUrl.search, { scroll: false });
+  };
+
+  const handleAnimationComplete = () => {
+    // When animation completes, show the results
+    setShowAnimation(false);
+    setShowResults(true);
   };
 
   // Temporary function to test N8N workflow with pre-installed data
@@ -386,6 +404,26 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
 
   const currentQuestion = questions[currentStep];
 
+  // Safety check for currentQuestion - if currentStep is 5 or higher, it means quiz is completed
+  if (!currentQuestion && currentStep < 5) {
+    return (
+      <div style={{ 
+        padding: '24px', 
+        background: '#141414', 
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <Card style={{ background: '#1f1f1f', border: '1px solid #303030' }}>
+          <Title level={3} style={{ color: '#d9d9d9' }}>
+            Error: Question not found
+          </Title>
+        </Card>
+      </div>
+    );
+  }
+
   // Loading state while progress is being loaded
   if (isLoadingProgress) {
     return (
@@ -409,137 +447,22 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     );
   }
 
-  // Safety check for currentQuestion
-  if (!currentQuestion) {
+
+
+  // Show animation when workflow is submitted
+  if (showAnimation) {
     return (
-      <div style={{ 
-        padding: '24px', 
-        background: '#141414', 
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <Card style={{ background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={3} style={{ color: '#d9d9d9' }}>
-            Error: Question not found
-          </Title>
-        </Card>
-      </div>
+      <Animation 
+        title="Analysis in Progress"
+        description="Your company analysis is being processed. This may take a few minutes."
+        onComplete={handleAnimationComplete}
+      />
     );
   }
 
   // Early return if showing results
   if (showResults) {
-    return (
-      <div style={{ 
-        padding: '24px', 
-        background: '#141414', 
-        minHeight: '100vh',
-        maxWidth: '1200px',
-        margin: '0 auto'
-      }}>
-        <Card 
-          style={{ 
-            background: '#1f1f1f', 
-            border: '1px solid #303030',
-            borderRadius: '12px'
-          }}
-        >
-          {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>
-              Analysis Report Generated
-            </Title>
-            <Text style={{ color: '#8c8c8c' }}>
-              Your comprehensive analysis report is ready
-            </Text>
-          </div>
-
-          {/* Quiz Data Summary */}
-          <Card
-            style={{
-              background: '#262626',
-              border: '1px solid #434343',
-              borderRadius: '8px',
-              marginBottom: '32px'
-            }}
-            bodyStyle={{ padding: '20px' }}
-          >
-            <Title level={4} style={{ color: '#58bfce', marginBottom: '16px' }}>
-              <CheckCircleOutlined style={{ marginRight: '8px' }} />
-              Analysis Parameters
-            </Title>
-            <div style={{ color: '#d9d9d9' }}>
-              <p><strong>Company:</strong> {quizData.companyName}</p>
-              <p><strong>Business Line:</strong> {quizData.businessLine}</p>
-              <p><strong>Country:</strong> {quizData.country}</p>
-              <p><strong>Use Case:</strong> {quizData.useCase}</p>
-              <p><strong>Timeline:</strong> {quizData.timeline}</p>
-            </div>
-          </Card>
-
-          {/* Markdown Report */}
-          <Card
-            style={{
-              background: '#262626',
-              border: '1px solid #434343',
-              borderRadius: '8px',
-              marginBottom: '32px'
-            }}
-            bodyStyle={{ padding: '32px' }}
-          >
-            <div style={{ 
-              color: '#d9d9d9',
-              fontSize: '14px',
-              lineHeight: '1.6'
-            }}>
-              <ReactMarkdown
-                components={{
-                  h1: ({children}) => <h1 style={{color: '#58bfce', fontSize: '24px', marginBottom: '16px', marginTop: '24px'}}>{children}</h1>,
-                  h2: ({children}) => <h2 style={{color: '#58bfce', fontSize: '20px', marginBottom: '12px', marginTop: '20px'}}>{children}</h2>,
-                  h3: ({children}) => <h3 style={{color: '#58bfce', fontSize: '18px', marginBottom: '10px', marginTop: '16px'}}>{children}</h3>,
-                  h4: ({children}) => <h4 style={{color: '#58bfce', fontSize: '16px', marginBottom: '8px', marginTop: '14px'}}>{children}</h4>,
-                  p: ({children}) => <p style={{marginBottom: '12px'}}>{children}</p>,
-                  strong: ({children}) => <strong style={{color: '#ffffff'}}>{children}</strong>,
-                  table: ({children}) => <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>{children}</table>,
-                  th: ({children}) => <th style={{border: '1px solid #434343', padding: '8px', textAlign: 'left', backgroundColor: '#1f1f1f', color: '#58bfce'}}>{children}</th>,
-                  td: ({children}) => <td style={{border: '1px solid #434343', padding: '8px', color: '#d9d9d9'}}>{children}</td>,
-                  ul: ({children}) => <ul style={{marginBottom: '12px', paddingLeft: '20px'}}>{children}</ul>,
-                  ol: ({children}) => <ol style={{marginBottom: '12px', paddingLeft: '20px'}}>{children}</ol>,
-                  li: ({children}) => <li style={{marginBottom: '4px'}}>{children}</li>,
-                  blockquote: ({children}) => <blockquote style={{borderLeft: '4px solid #58bfce', paddingLeft: '16px', margin: '16px 0', fontStyle: 'italic', color: '#8c8c8c'}}>{children}</blockquote>,
-                  code: ({children}) => <code style={{backgroundColor: '#1f1f1f', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace'}}>{children}</code>,
-                  pre: ({children}) => <pre style={{backgroundColor: '#1f1f1f', padding: '16px', borderRadius: '8px', overflow: 'auto', marginBottom: '16px'}}>{children}</pre>
-                }}
-              >
-                {preparedAnswer}
-              </ReactMarkdown>
-            </div>
-          </Card>
-
-          {/* Action Buttons */}
-          <div style={{ textAlign: 'center' }}>
-            <Space>
-              <Button
-                size="large"
-                onClick={handleReset}
-                style={{
-                  background: '#1f1f1f',
-                  border: '1px solid #434343',
-                  color: '#d9d9d9',
-                  borderRadius: '8px',
-                  height: '48px',
-                  padding: '0 24px'
-                }}
-              >
-                Start New Analysis
-              </Button>
-            </Space>
-          </div>
-        </Card>
-      </div>
-    );
+    return <AnalyzeResult quizData={quizData} onReset={handleReset} />;
   }
 
   return (
@@ -587,82 +510,85 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
           </div>
         </div>
 
-        {/* Question Form */}
-        <Card
-          style={{
-            background: '#262626',
-            border: '1px solid #434343',
-            borderRadius: '8px',
-            marginBottom: '32px'
-          }}
-          bodyStyle={{ padding: '32px' }}
-        >
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <Title level={3} style={{ color: '#d9d9d9', marginBottom: '8px' }}>
-              {currentQuestion.label}
-            </Title>
-          </div>
-
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={quizData}
-            style={{ maxWidth: '500px', margin: '0 auto' }}
+        {/* Question Form - Only show if currentStep is less than 5 and currentQuestion exists */}
+        {currentStep < 5 && currentQuestion && (
+          <Card
+            style={{
+              background: '#262626',
+              border: '1px solid #434343',
+              borderRadius: '8px',
+              marginBottom: '32px'
+            }}
+            bodyStyle={{ padding: '32px' }}
           >
-            <Form.Item
-              name={currentQuestion.name}
-              rules={[{ required: currentQuestion.required, message: 'This field is required' }]}
-            >
-              {currentQuestion.type === 'input' ? (
-                <Input
-                  placeholder={currentQuestion.placeholder}
-                  size="large"
-                  style={{
-                    background: '#1f1f1f',
-                    border: '1px solid #434343',
-                    borderRadius: '8px',
-                    color: '#d9d9d9',
-                    fontSize: '16px',
-                    padding: '12px 16px'
-                  }}
-                  onPressEnter={handleNext}
-                />
-              ) : currentQuestion.type === 'select' ? (
-                <Select
-                  placeholder={currentQuestion.placeholder}
-                  size="large"
-                  style={{
-                    background: '#1f1f1f',
-                    border: '1px solid #434343',
-                    borderRadius: '8px'
-                  }}
-                  dropdownStyle={{
-                    background: '#1f1f1f',
-                    border: '1px solid #434343'
-                  }}
-                  onSelect={() => {
-                    // Auto-advance to next step when option is selected
-                    setTimeout(handleNext, 100);
-                  }}
-                >
-                  {currentQuestion.options?.map((option, index) => (
-                    <Option key={index} value={option}>
-                      <Text style={{ color: '#d9d9d9' }}>{option}</Text>
-                    </Option>
-                  ))}
-                </Select>
-              ) : null}
-            </Form.Item>
-          </Form>
-        </Card>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <Title level={3} style={{ color: '#d9d9d9', marginBottom: '8px' }}>
+                {currentQuestion.label}
+              </Title>
+            </div>
 
-        {/* Navigation Buttons */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginTop: '24px'
-        }}>
+            <Form
+              form={form}
+              layout="vertical"
+              initialValues={quizData}
+              style={{ maxWidth: '500px', margin: '0 auto' }}
+            >
+              <Form.Item
+                name={currentQuestion.name}
+                rules={[{ required: currentQuestion.required, message: 'This field is required' }]}
+              >
+                {currentQuestion.type === 'input' ? (
+                  <Input
+                    placeholder={currentQuestion.placeholder}
+                    size="large"
+                    style={{
+                      background: '#1f1f1f',
+                      border: '1px solid #434343',
+                      borderRadius: '8px',
+                      color: '#d9d9d9',
+                      fontSize: '16px',
+                      padding: '12px 16px'
+                    }}
+                    onPressEnter={handleNext}
+                  />
+                ) : currentQuestion.type === 'select' ? (
+                  <Select
+                    placeholder={currentQuestion.placeholder}
+                    size="large"
+                    style={{
+                      background: '#1f1f1f',
+                      border: '1px solid #434343',
+                      borderRadius: '8px'
+                    }}
+                    dropdownStyle={{
+                      background: '#1f1f1f',
+                      border: '1px solid #434343'
+                    }}
+                    onSelect={() => {
+                      // Auto-advance to next step when option is selected
+                      setTimeout(handleNext, 100);
+                    }}
+                  >
+                    {currentQuestion.options?.map((option, index) => (
+                      <Option key={index} value={option}>
+                        <Text style={{ color: '#d9d9d9' }}>{option}</Text>
+                      </Option>
+                    ))}
+                  </Select>
+                ) : null}
+              </Form.Item>
+            </Form>
+          </Card>
+        )}
+
+        {/* Navigation Buttons - Only show if form is visible */}
+        {currentStep < 5 && currentQuestion && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginTop: '24px'
+          }}>
           <div>
             {currentStep > 0 && (
               <Button
@@ -733,6 +659,7 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
             </Button>
           </Space>
         </div>
+        )}
 
         {/* Progress Summary */}
         {Object.values(quizData).some(value => value) && (

@@ -34,11 +34,11 @@ export default function Sidebar() {
   };
 
   const menuItems = [
-    {
-      key: '/analyze',
-      icon: <MessageOutlined style={{ fontSize: '18px' }} />,
-      label: 'Analyze Chat',
-    },
+    // {
+    //   key: '/analyze',
+    //   icon: <MessageOutlined style={{ fontSize: '18px' }} />,
+    //   label: 'Analyze Chat',
+    // },
     {
       key: '/analyze-quiz',
       icon: <FileTextOutlined style={{ fontSize: '18px' }} />,
@@ -68,7 +68,7 @@ export default function Sidebar() {
         zIndex: 1000,
       }}
     >
-      <div style={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', margin: 0 }}>
         {/* Logo */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <Image

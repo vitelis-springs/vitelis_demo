@@ -15,11 +15,13 @@ const { Title, Text } = Typography;
 interface AnimationProps {
   title?: string;
   description?: string;
+  onComplete?: () => void;
 }
 
 export default function Animation({ 
   title = "Animated Steps Demo", 
-  description = "Interactive step-by-step animation component" 
+  description = "Interactive step-by-step animation component",
+  onComplete
 }: AnimationProps) {
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -105,8 +107,16 @@ export default function Animation({
       setLoading(false);
     }
     
-    setCurrent(current + 1);
-    message.success(`Moved to step ${current + 2}`);
+    const nextStep = current + 1;
+    setCurrent(nextStep);
+    message.success(`Moved to step ${nextStep + 1}`);
+    
+    // If we've reached the end, call onComplete
+    if (nextStep === steps.length - 1) {
+      setTimeout(() => {
+        onComplete?.();
+      }, 2000); // Wait 2 seconds after reaching the last step
+    }
   };
 
   const prev = () => {
