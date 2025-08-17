@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuthStore } from '../../../../stores/auth-store';
-import ChatHistory from '../../../../components/analyze/chat-history';
+import AnalysisHistory from '../../../../components/analyze/analysis-history';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spin } from 'antd';
@@ -44,5 +44,5 @@ export default function HistoryPage() {
     return null; // Don't render anything while redirecting
   }
 
-  return <ChatHistory />;
+  return <AnalysisHistory />;
 }

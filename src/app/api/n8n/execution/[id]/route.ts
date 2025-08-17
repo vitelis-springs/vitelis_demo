@@ -42,7 +42,7 @@ export async function GET(
     }
 
     const execution = await response.json();
-    console.log('✅ Server: N8N execution details received:', execution);
+    console.log('✅ Server: N8N execution details received:', execution.customData);
 
     return NextResponse.json({
       success: true,

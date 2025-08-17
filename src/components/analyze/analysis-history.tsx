@@ -19,40 +19,44 @@ import {
   UserOutlined,
   RobotOutlined,
   ClockCircleOutlined,
-  MessageOutlined,
+  FileTextOutlined,
   DeleteOutlined,
   ReloadOutlined,
+  CheckCircleOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
-import { chatService, Chat } from '../../app/server/services/chatService';
+import { useAnalyzeService, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
 import { useRouter } from 'next/navigation';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-export default function ChatHistory() {
+export default function AnalysisHistory() {
   const { email } = useAuthStore();
   const router = useRouter();
-  const [chatSessions, setChatSessions] = useState<Chat[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [analyses, setAnalyses] = useState<any[]>([]);
+  const { deleteAnalyze } = useAnalyzeService();
+  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(email || null);
 
-  const fetchChats = async () => {
+  const fetchAnalyses = async () => {
     try {
-      setLoading(true);
-      const chats = await chatService.getChats(email);
-      setChatSessions(chats);
+      await refetch();
     } catch (error) {
-      console.error('Error fetching chats:', error);
-      antMessage.error('Failed to fetch chat history');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching analyses:', error);
+      antMessage.error('Failed to fetch analysis history');
     }
   };
 
   useEffect(() => {
-    if (email) {
-      fetchChats();
+    console.log('📊 AnalysisHistory: analysesData changed:', analysesData);
+    if (analysesData) {
+      setAnalyses(analysesData);
     }
+  }, [analysesData]);
+
+  useEffect(() => {
+    console.log('📊 AnalysisHistory: email changed:', email);
   }, [email]);
 
   const formatTimeAgo = (dateString: string): string => {
@@ -74,24 +78,26 @@ export default function ChatHistory() {
     }
   };
 
-  const handleDeleteSession = async (sessionId: string) => {
+  const handleDeleteAnalysis = async (analysisId: string) => {
     try {
-      await chatService.deleteChat(sessionId, email);
-      setChatSessions(prev => prev.filter(session => session._id !== sessionId));
-      antMessage.success('Chat deleted successfully');
+      await deleteAnalyze.mutateAsync(analysisId);
+      setAnalyses(prev => prev.filter(analysis => analysis._id !== analysisId));
+      antMessage.success('Analysis deleted successfully');
     } catch (error) {
-      console.error('Error deleting chat:', error);
-      antMessage.error('Failed to delete chat');
+      console.error('Error deleting analysis:', error);
+      antMessage.error('Failed to delete analysis');
     }
   };
 
   const handleRefreshHistory = () => {
-    fetchChats();
+    if (email) {
+      refetch();
+    }
   };
 
-  const handleChatClick = (chatId: string) => {
-    // Navigate to analyze page with chat ID
-    router.push(`/analyze?chatId=${chatId}`);
+  const handleAnalysisClick = (analysisId: string) => {
+    // Navigate to analyze quiz page with analysis ID
+    router.push(`/analyze-quiz?analyzeId=${analysisId}`);
   };
 
   return (
@@ -117,16 +123,16 @@ export default function ChatHistory() {
             }}>
               <div>
                 <Title level={2} style={{ margin: 0, color: '#58bfce' }}>
-                  Chat History
+                  Analysis History
                 </Title>
                 <Text style={{ color: '#8c8c8c' }}>
-                  Your previous conversations and analysis sessions
+                  Your previous company analysis sessions
                 </Text>
               </div>
               <Button
                 icon={<ReloadOutlined />}
                 onClick={handleRefreshHistory}
-                loading={loading}
+                                    loading={isLoadingAnalyses}
                 style={{
                   background: '#1f1f1f',
                   border: '1px solid #303030',
@@ -147,7 +153,7 @@ export default function ChatHistory() {
                   min-width: 600px !important;
                 }
               `}</style>
-              {loading ? (
+              {isLoadingAnalyses ? (
                 <Card
                   style={{
                     background: '#1f1f1f',
@@ -159,18 +165,18 @@ export default function ChatHistory() {
                 >
                   <Space direction="vertical" size="large">
                     <Spin size="large" />
-                    <Text style={{ color: '#8c8c8c' }}>Loading chat history...</Text>
+                    <Text style={{ color: '#8c8c8c' }}>Loading analysis history...</Text>
                   </Space>
                 </Card>
-              ) : chatSessions.length > 0 ? (
+              ) : analyses.length > 0 ? (
                 <div style={{ minWidth: '400px' }}>
                   <List
-                    dataSource={chatSessions}
+                    dataSource={analyses}
                     style={{ 
                       minWidth: '400px',
                       width: '100%'
                     }}
-                    renderItem={(session) => (
+                    renderItem={(analysis) => (
                       <List.Item
                         style={{
                           background: '#1f1f1f',
@@ -191,24 +197,33 @@ export default function ChatHistory() {
                           e.currentTarget.style.background = '#1f1f1f';
                           e.currentTarget.style.borderColor = '#303030';
                         }}
-                        onClick={() => handleChatClick(session._id)}
+                        onClick={() => handleAnalysisClick(analysis._id)}
                       >
                         <List.Item.Meta
                           avatar={
                             <Avatar
                               size={48}
-                              icon={<MessageOutlined />}
+                              icon={<FileTextOutlined />}
                               style={{ backgroundColor: '#58bfce' }}
                             />
                           }
                           title={
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Text strong style={{ color: '#d9d9d9', fontSize: '16px' }}>
-                                {session.title}
+                                {analysis.companyName || 'Unnamed Company'}
                               </Text>
                               <Space>
-                                <Tag color="blue" style={{ fontSize: '12px' }}>
-                                  {session.messageCount} messages
+                                <Tag 
+                                  color={analysis.status === 'finished' ? 'green' : analysis.status === 'progress' ? 'blue' : 'orange'} 
+                                  style={{ fontSize: '12px' }}
+                                >
+                                  {analysis.status === 'finished' ? (
+                                    <><CheckCircleOutlined /> Completed</>
+                                  ) : analysis.status === 'progress' ? (
+                                    <><LoadingOutlined /> In Progress</>
+                                  ) : (
+                                    'Draft'
+                                  )}
                                 </Tag>
                                 <Button
                                   type="text"
@@ -217,7 +232,7 @@ export default function ChatHistory() {
                                   danger
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDeleteSession(session._id);
+                                    handleDeleteAnalysis(analysis._id);
                                   }}
                                   style={{ color: '#ff4d4f' }}
                                 />
@@ -226,16 +241,29 @@ export default function ChatHistory() {
                           }
                           description={
                             <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                              <Text style={{ color: '#8c8c8c', fontSize: '14px' }}>
-                                {session.preview}
-                              </Text>
-                              <Text style={{ color: '#8c8c8c', fontSize: '12px' }}>
-                                Last message: {session.lastMessage.substring(0, 60)}...
-                              </Text>
+                              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                                <Text style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                                  <strong>Business:</strong> {analysis.businessLine || 'N/A'}
+                                </Text>
+                                <Text style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                                  <strong>Country:</strong> {analysis.country || 'N/A'}
+                                </Text>
+                                <Text style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                                  <strong>Use Case:</strong> {analysis.useCase || 'N/A'}
+                                </Text>
+                                <Text style={{ color: '#8c8c8c', fontSize: '12px' }}>
+                                  <strong>Timeline:</strong> {analysis.timeline || 'N/A'}
+                                </Text>
+                              </div>
+                              {analysis.executionId && (
+                                <Text style={{ color: '#58bfce', fontSize: '12px' }}>
+                                  Execution ID: {analysis.executionId}
+                                </Text>
+                              )}
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: '12px' }} />
                                 <Text style={{ color: '#8c8c8c', fontSize: '12px' }}>
-                                  {formatTimeAgo(session.updatedAt)}
+                                  {formatTimeAgo(analysis.updatedAt)}
                                 </Text>
                               </div>
                             </Space>
@@ -259,7 +287,7 @@ export default function ChatHistory() {
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                     description={
                       <Text style={{ color: '#8c8c8c' }}>
-                        No chat history found. Start a new conversation to see it here.
+                        No analysis history found. Start a new company analysis to see it here.
                       </Text>
                     }
                   />
@@ -268,7 +296,7 @@ export default function ChatHistory() {
             </div>
 
             {/* Stats Card - Reduced height */}
-            {chatSessions.length > 0 && (
+            {analyses.length > 0 && (
               <Card
                 style={{
                   background: '#1f1f1f',
@@ -282,21 +310,21 @@ export default function ChatHistory() {
                 <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
                   <div>
                     <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                      {chatSessions.length}
+                      {analyses.length}
                     </Text>
-                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Total Sessions</div>
+                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Total Analyses</div>
                   </div>
                   <div>
                     <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                      {chatSessions.reduce((sum, session) => sum + session.messageCount, 0)}
+                      {analyses.filter(a => a.status === 'finished').length}
                     </Text>
-                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Total Messages</div>
+                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Completed</div>
                   </div>
                   <div>
                     <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                      {Math.round(chatSessions.reduce((sum, session) => sum + session.messageCount, 0) / chatSessions.length)}
+                      {analyses.filter(a => a.status === 'progress').length}
                     </Text>
-                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Avg Messages</div>
+                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>In Progress</div>
                   </div>
                 </div>
               </Card>
