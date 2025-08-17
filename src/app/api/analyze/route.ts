@@ -40,21 +40,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('📝 API: POST request received');
     const body = await request.json();
     const { analyzeId, ...data } = body;
+    console.log('📝 API: Request body parsed:', { analyzeId, data });
 
     if (analyzeId) {
       // Update existing analyze
+      console.log('🔄 API: Updating analyze with ID:', analyzeId);
       const updatedAnalyze = await AnalyzeServiceServer.updateAnalyze(analyzeId, data);
+      console.log('📥 API: Update result from service:', updatedAnalyze);
+      
       if (!updatedAnalyze) {
+        console.log('❌ API: Analyze record not found');
         return NextResponse.json(
           { success: false, message: 'Analyze record not found' },
           { status: 404 }
         );
       }
+      console.log('✅ API: Update successful, returning:', updatedAnalyze);
       return NextResponse.json({ success: true, data: updatedAnalyze });
     } else {
       // Create new analyze
+      console.log('🆕 API: Creating new analyze');
       const newAnalyze = await AnalyzeServiceServer.createAnalyze(data);
       return NextResponse.json({ success: true, data: newAnalyze });
     }

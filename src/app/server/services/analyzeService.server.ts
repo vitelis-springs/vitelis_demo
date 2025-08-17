@@ -55,6 +55,7 @@ export class AnalyzeServiceServer {
   // Get a specific analyze record by ID
   static async getAnalyzeById(id: string): Promise<IAnalyze | null> {
     try {
+      await connectDB();
       return await Analyze.findById(id).exec();
     } catch (error) {
       console.error('Error fetching analyze record:', error);
@@ -65,13 +66,21 @@ export class AnalyzeServiceServer {
   // Update an analyze record
   static async updateAnalyze(id: string, data: Partial<AnalyzeData>): Promise<IAnalyze | null> {
     try {
-      return await Analyze.findByIdAndUpdate(
+      console.log('🔄 Server: Starting updateAnalyze with:', { id, data });
+      await connectDB();
+      console.log('🔗 Server: Database connected');
+      
+      const UPDATE_RESULT = await Analyze.findByIdAndUpdate(
         id,
         { ...data, updatedAt: new Date() },
         { new: true }
       ).exec();
+      
+      console.log('📊 Server: UPDATE_RESULT:', UPDATE_RESULT);
+      console.log('✅ Server: Update completed successfully');
+      return UPDATE_RESULT;
     } catch (error) {
-      console.error('Error updating analyze record:', error);
+      console.error('❌ Server: Error updating analyze record:', error);
       throw new Error('Failed to update analyze record');
     }
   }

@@ -153,7 +153,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   }, [analyzeData]);
 
   const showNotification = (type: 'error' | 'warning' | 'info' | 'success', title: string, message: string) => {
-    console.log('🔔 Showing notification:', { type, title, message });
     appNotification[type]({
       message: title,
       description: message,
@@ -248,12 +247,21 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       if (result && result.success !== false && result.executionId) {
         setExecutionId(result.executionId.toString());
         if (analyzeId) {
-          await updateAnalyze.mutateAsync({
+          console.log('🔄 Component: About to call updateAnalyze with:', {
             id: analyzeId,
             executionId: result.executionId.toString(),
             executionStatus: 'started',
             executionStep: 0
           });
+          
+          const updatedAnalyze = await updateAnalyze.mutateAsync({
+            id: analyzeId,
+            executionId: result.executionId.toString(),
+            executionStatus: 'started',
+            executionStep: 0
+          });
+          
+          console.log('✅ Component: updateAnalyze completed:', updatedAnalyze);
         }
         await saveProgress(completeData, currentStep, 'finished');
         setQuizData(completeData);
@@ -271,9 +279,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         name: error instanceof Error ? error.name : undefined
       });
       
-      console.log('🔔 About to show notifications...');
       showNotification('error', 'N8N Workflow Execution Failed', 'Unable to start the analysis workflow.');
-      console.log('🔔 Notifications should be visible now');
     } finally {
       setLoading(false);
     }
@@ -484,6 +490,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
               {quizData.timeline && <p><strong>Timeline:</strong> {quizData.timeline}</p>}
             </div>
           </Card>
+          
         )}
       </Card>
     </div>

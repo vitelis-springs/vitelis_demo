@@ -90,22 +90,34 @@ const analyzeApi = {
 
   // Update analyze record
   async update({ id, ...data }: UpdateAnalyzeData): Promise<IAnalyze> {
+    console.log('🌐 Client: Starting update request with:', { id, data });
+    const requestBody = { analyzeId: id, ...data };
+    console.log('📤 Client: Request body:', requestBody);
+    
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ analyzeId: id, ...data }),
+      body: JSON.stringify(requestBody),
     });
-
+    
+    console.log('📡 Client: Response status:', response.status);
+    
     if (!response.ok) {
+      console.error('❌ Client: Response not ok:', response.status, response.statusText);
       throw new Error('Failed to update analyze record');
     }
 
     const result = await response.json();
+    console.log('📥 Client: Response result:', result);
+    
     if (!result.success) {
+      console.error('❌ Client: API returned error:', result.message);
       throw new Error(result.message || 'Failed to update analyze record');
     }
+    
+    console.log('✅ Client: Update successful, returning data:', result.data);
     return result.data;
   },
 
