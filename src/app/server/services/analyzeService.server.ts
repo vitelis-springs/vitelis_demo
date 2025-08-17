@@ -9,9 +9,12 @@ export interface AnalyzeData {
   userId?: string;
   status?: 'progress' | 'finished';
   currentStep?: number;
+  executionId?: string;
+  executionStatus?: 'started' | 'inProgress' | 'finished' | 'errored';
+  executionStep?: number;
 }
 
-export class AnalyzeService {
+export class AnalyzeServiceServer {
   // Create a new analyze record
   static async createAnalyze(data: AnalyzeData): Promise<IAnalyze> {
     try {
@@ -68,16 +71,6 @@ export class AnalyzeService {
     } catch (error) {
       console.error('Error updating analyze record:', error);
       throw new Error('Failed to update analyze record');
-    }
-  }
-
-  // Get analyze by ID for progress continuation
-  static async getAnalyzeById(id: string): Promise<IAnalyze | null> {
-    try {
-      return await Analyze.findById(id).exec();
-    } catch (error) {
-      console.error('Error fetching analyze record:', error);
-      throw new Error('Failed to fetch analyze record');
     }
   }
 

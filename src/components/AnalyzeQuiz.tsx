@@ -26,9 +26,11 @@ import {
   TrophyOutlined
 } from '@ant-design/icons';
 import N8NApiClient from 'config/client/n8n.api';
-import { useRunWorkflow } from '@hooks/api/useN8NService';
+import {useGetExecutionDetails, useRunWorkflow} from '@hooks/api/useN8NService';
+import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
 import Animation from './Animation';
 import AnalyzeResult from './AnalyzeResult';
+import {IAnalyze} from "../app/server/models/Analyze";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -55,6 +57,8 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   const [showAnimation, setShowAnimation] = useState(false);
   const [analyzeId, setAnalyzeId] = useState<string | null>(null);
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
+  const [executionId, setExecutionId] = useState('')
+  const [analyze, setAnalize] = useState<IAnalyze|null>(null);
   const [quizData, setQuizData] = useState<AnalyzeQuizData>({
     companyName: '',
     businessLine: '',
@@ -73,6 +77,12 @@ const isTest = true
     error
   } = useRunWorkflow();
 
+  // Analyze service hooks
+  const { createAnalyze, updateAnalyze } = useAnalyzeService();
+  const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId);
+
+const executionQuery=useGetExecutionDetails(executionId, {enabled: !executionId&&false})
+
   // Load progress on component mount
   useEffect(() => {
     const loadProgress = async () => {
@@ -80,28 +90,7 @@ const isTest = true
         const urlAnalyzeId = searchParams.get('analyzeId');
         
         if (urlAnalyzeId) {
-          // Load specific analyze record from URL
-          const response = await fetch(`/api/analyze?id=${urlAnalyzeId}`);
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.data) {
-              const analyze = result.data;
-              setAnalyzeId(analyze._id);
-              setCurrentStep(analyze.currentStep || 0);
-              setQuizData({
-                companyName: analyze.companyName || '',
-                businessLine: analyze.businessLine || '',
-                country: analyze.country || '',
-                useCase: analyze.useCase || '',
-                timeline: analyze.timeline || ''
-              });
-              
-              // If currentStep is 5 (all questions completed) or status is finished, show results
-              if (analyze.currentStep >= 5 || analyze.status === 'finished') {
-                setShowResults(true);
-              }
-            }
-          }
+          setAnalyzeId(urlAnalyzeId);
         }
         // No longer create new record automatically - will be created when first question is answered
       } catch (error) {
@@ -114,36 +103,52 @@ const isTest = true
     loadProgress();
   }, [searchParams, userEmail, router]);
 
+  // Handle analyze data when it loads
+  useEffect(() => {
+    if (analyzeData) {
+      setCurrentStep(analyzeData.currentStep || 0);
+      setQuizData({
+        companyName: analyzeData.companyName || '',
+        businessLine: analyzeData.businessLine || '',
+        country: analyzeData.country || '',
+        useCase: analyzeData.useCase || '',
+        timeline: analyzeData.timeline || ''
+      });
+      
+      // If currentStep is 5 (all questions completed) or status is finished, show results
+      if (analyzeData.currentStep >= 5 || analyzeData.status === 'finished') {
+        setShowResults(true);
+      }
+    }
+  }, [analyzeData]);
+
   // Create new analyze record function
   const createNewAnalyzeRecord = async (data: Partial<AnalyzeQuizData>) => {
     try {
       console.log('Creating new analyze record...');
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          userId: userEmail || 'anonymous',
-          status: 'progress',
-          currentStep: 1
-        }),
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          const newAnalyzeId = result.data._id;
-          console.log('New analyze ID:', newAnalyzeId);
-          setAnalyzeId(newAnalyzeId);
-          // Update URL with analyze ID
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.set('analyzeId', newAnalyzeId);
-          console.log('Updating URL to:', newUrl.toString());
-          router.replace(newUrl.pathname + newUrl.search, { scroll: false });
-        }
-      } else {
-        console.error('Failed to create analyze record:', response.status);
+      
+      const newAnalyzeData = {
+        companyName: data.companyName || '',
+        businessLine: data.businessLine || '',
+        country: data.country || '',
+        useCase: data.useCase || '',
+        timeline: data.timeline || '',
+        userId: userEmail || 'anonymous',
+        status: 'progress' as const,
+        currentStep: 1
+      };
+
+      const result = await createAnalyze.mutateAsync(newAnalyzeData);
+      
+      if (result) {
+        const newAnalyzeId = result._id as string;
+        console.log('New analyze ID:', newAnalyzeId);
+        setAnalyzeId(newAnalyzeId);
+        // Update URL with analyze ID
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('analyzeId', newAnalyzeId);
+        console.log('Updating URL to:', newUrl.toString());
+        router.replace(newUrl.pathname + newUrl.search, { scroll: false });
       }
     } catch (error) {
       console.error('Error creating new analyze record:', error);
@@ -153,35 +158,20 @@ const isTest = true
   // Save progress function
   const saveProgress = async (data: Partial<AnalyzeQuizData>, step: number, status: 'progress' | 'finished' = 'progress') => {
     try {
-      const payload = {
-        ...data,
-        userId: userEmail || 'anonymous',
+      if (!analyzeId) return;
+
+      const updateData = {
+        id: analyzeId,
+        companyName: data.companyName || '',
+        businessLine: data.businessLine || '',
+        country: data.country || '',
+        useCase: data.useCase || '',
+        timeline: data.timeline || '',
         currentStep: step,
-        status,
-        ...(analyzeId && { analyzeId })
+        status
       };
 
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          const newAnalyzeId = result.data._id;
-          if (!analyzeId) {
-            setAnalyzeId(newAnalyzeId);
-            // Update URL with analyze ID
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('analyzeId', newAnalyzeId);
-            router.replace(newUrl.pathname + newUrl.search, { scroll: false });
-          }
-        }
-      }
+      await updateAnalyze.mutateAsync(updateData);
     } catch (error) {
       console.error('Error saving progress:', error);
     }
@@ -425,7 +415,7 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
   }
 
   // Loading state while progress is being loaded
-  if (isLoadingProgress) {
+  if (isLoadingProgress || (analyzeId && isLoadingAnalyze)) {
     return (
       <div style={{ 
         padding: '24px', 
@@ -645,7 +635,7 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
               type="primary"
               size="large"
               onClick={handleNext}
-              loading={loading || isPending}
+              loading={loading || isPending || createAnalyze.isPending || updateAnalyze.isPending}
               icon={currentStep === steps.length - 1 ? <SendOutlined /> : undefined}
               style={{
                 background: '#58bfce',

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AnalyzeService, AnalyzeData } from '../../server/services/analyzeService';
+import { AnalyzeServiceServer, AnalyzeData } from '../../server/services/analyzeService.server';
 import connectDB from '../../../lib/mongodb';
 
 export async function POST(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       if (status !== undefined) updateData.status = status;
       if (currentStep !== undefined) updateData.currentStep = currentStep;
 
-      const analyze = await AnalyzeService.updateAnalyze(analyzeId, updateData);
+      const analyze = await AnalyzeServiceServer.updateAnalyze(analyzeId, updateData);
       
       if (!analyze) {
         return NextResponse.json(
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       currentStep
     };
 
-    const analyze = await AnalyzeService.createAnalyze(analyzeData);
+    const analyze = await AnalyzeServiceServer.createAnalyze(analyzeData);
 
     return NextResponse.json({
       success: true,
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     if (id) {
       // Get specific analyze record
-      const analyze = await AnalyzeService.getAnalyzeById(id);
+      const analyze = await AnalyzeServiceServer.getAnalyzeById(id);
       if (!analyze) {
         return NextResponse.json(
           { error: 'Analyze record not found' },
@@ -103,12 +103,12 @@ export async function GET(request: NextRequest) {
 
     if (userId) {
       // Get analyzes for specific user
-      const analyzes = await AnalyzeService.getAnalyzesByUser(userId);
+      const analyzes = await AnalyzeServiceServer.getAnalyzesByUser(userId);
       return NextResponse.json({ success: true, data: analyzes });
     }
 
     // Get all analyzes (for admin purposes)
-    const analyzes = await AnalyzeService.getAllAnalyzes();
+    const analyzes = await AnalyzeServiceServer.getAllAnalyzes();
     return NextResponse.json({ success: true, data: analyzes });
 
   } catch (error) {
@@ -134,7 +134,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const success = await AnalyzeService.deleteAnalyze(id);
+    const success = await AnalyzeServiceServer.deleteAnalyze(id);
     
     if (!success) {
       return NextResponse.json(
