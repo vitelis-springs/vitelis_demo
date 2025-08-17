@@ -139,13 +139,7 @@ export class N8NApiClient {
     }
   }
 
-  // Workflow methods
-  async getWorkflows(): Promise<N8NWorkflow[]> {
-    return this.request<N8NWorkflow[]>({
-      method: 'GET',
-      url: '/api/v1/workflows',
-    });
-  }
+  
 
   async getWorkflow(id: string): Promise<N8NWorkflow> {
     return this.request<N8NWorkflow>({
@@ -154,52 +148,8 @@ export class N8NApiClient {
     });
   }
 
-  async createWorkflow(workflow: Partial<N8NWorkflow>): Promise<N8NWorkflow> {
-    return this.request<N8NWorkflow>({
-      method: 'POST',
-      url: '/api/v1/workflows',
-      data: workflow,
-    });
-  }
+  
 
-  async updateWorkflow(id: string, workflow: Partial<N8NWorkflow>): Promise<N8NWorkflow> {
-    return this.request<N8NWorkflow>({
-      method: 'PUT',
-      url: `/api/v1/workflows/${id}`,
-      data: workflow,
-    });
-  }
-
-  async deleteWorkflow(id: string): Promise<void> {
-    return this.request<void>({
-      method: 'DELETE',
-      url: `/api/v1/workflows/${id}`,
-    });
-  }
-
-  async activateWorkflow(id: string): Promise<N8NWorkflow> {
-    return this.request<N8NWorkflow>({
-      method: 'POST',
-      url: `/api/v1/workflows/${id}/activate`,
-    });
-  }
-
-  async deactivateWorkflow(id: string): Promise<N8NWorkflow> {
-    return this.request<N8NWorkflow>({
-      method: 'POST',
-      url: `/api/v1/workflows/${id}/deactivate`,
-    });
-  }
-
-  // Execution methods
-  async getExecutions(workflowId?: string): Promise<N8NExecution[]> {
-    const params = workflowId ? { workflowId } : {};
-    return this.request<N8NExecution[]>({
-      method: 'GET',
-      url: '/api/v1/executions',
-      params,
-    });
-  }
 
   async getExecution(id: string): Promise<N8NExecution> {
     return this.request<N8NExecution>({
@@ -208,22 +158,7 @@ export class N8NApiClient {
     });
   }
 
-  async triggerWorkflow(workflowId: string, data?: any): Promise<N8NExecution> {
-    return this.request<N8NExecution>({
-      method: 'POST',
-      url: `/api/v1/workflows/${workflowId}/trigger`,
-      data,
-    });
-  }
-
-  // Webhook methods
-  async triggerWebhook(webhookId: string, data?: any): Promise<N8NWebhookResponse> {
-    return this.request<N8NWebhookResponse>({
-      method: 'POST',
-      url: `/webhook/${webhookId}`,
-      data,
-    });
-  }
+ 
 
   // Start workflow with form data
   async startWorkflow(data: {
@@ -234,8 +169,8 @@ export class N8NApiClient {
     timeline: string;
   }, isTest: boolean = false): Promise<any> {
     const endpoint = isTest 
-      ? '/form-test/8bc7a70d-a943-4b97-b242-a722aa42b944'
-      : '/form/8bc7a70d-a943-4b97-b242-a722aa42b944';
+      ? '/webhook-test/dfbf30af-cc93-4e3f-bc19-755c8c3d57f4'
+      : '/webhook/dfbf30af-cc93-4e3f-bc19-755c8c3d57f4';
     
     return this.request<any>({
       method: 'POST',
@@ -244,21 +179,7 @@ export class N8NApiClient {
     });
   }
 
-  // Health check
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
-    return this.request<{ status: string; timestamp: string }>({
-      method: 'GET',
-      url: '/healthz',
-    });
-  }
-
-  // Get API info
-  async getApiInfo(): Promise<any> {
-    return this.request<any>({
-      method: 'GET',
-      url: '/api/v1',
-    });
-  }
+  
 }
 
 // Export the class for custom instances
