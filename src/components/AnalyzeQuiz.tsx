@@ -99,60 +99,53 @@ const isTest = true
               }
             }
           }
-        } else {
-          // No analyzeId in URL - create new record immediately
-          await createNewAnalyzeRecord();
         }
+        // No longer create new record automatically - will be created when first question is answered
       } catch (error) {
         console.error('Error loading progress:', error);
-        // Create new analyze record if error occurs
-        await createNewAnalyzeRecord();
       } finally {
         setIsLoadingProgress(false);
       }
     };
 
-    const createNewAnalyzeRecord = async () => {
-      try {
-        console.log('Creating new analyze record...');
-        const response = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            companyName: '',
-            businessLine: '',
-            country: '',
-            useCase: '',
-            timeline: '',
-            userId: userEmail || 'anonymous',
-            status: 'progress',
-            currentStep: 0
-          }),
-        });
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            const newAnalyzeId = result.data._id;
-            console.log('New analyze ID:', newAnalyzeId);
-            setAnalyzeId(newAnalyzeId);
-            // Update URL with analyze ID immediately
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('analyzeId', newAnalyzeId);
-            console.log('Updating URL to:', newUrl.toString());
-            router.replace(newUrl.pathname + newUrl.search, { scroll: false });
-          }
-        } else {
-          console.error('Failed to create analyze record:', response.status);
-        }
-      } catch (error) {
-        console.error('Error creating new analyze record:', error);
-      }
-    };
-
     loadProgress();
   }, [searchParams, userEmail, router]);
+
+  // Create new analyze record function
+  const createNewAnalyzeRecord = async (data: Partial<AnalyzeQuizData>) => {
+    try {
+      console.log('Creating new analyze record...');
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          userId: userEmail || 'anonymous',
+          status: 'progress',
+          currentStep: 1
+        }),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const newAnalyzeId = result.data._id;
+          console.log('New analyze ID:', newAnalyzeId);
+          setAnalyzeId(newAnalyzeId);
+          // Update URL with analyze ID
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('analyzeId', newAnalyzeId);
+          console.log('Updating URL to:', newUrl.toString());
+          router.replace(newUrl.pathname + newUrl.search, { scroll: false });
+        }
+      } else {
+        console.error('Failed to create analyze record:', response.status);
+      }
+    } catch (error) {
+      console.error('Error creating new analyze record:', error);
+    }
+  };
 
   // Save progress function
   const saveProgress = async (data: Partial<AnalyzeQuizData>, step: number, status: 'progress' | 'finished' = 'progress') => {
@@ -275,12 +268,21 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     try {
       const values = await form.validateFields();
       
+      console.log('Form values for step', currentStep, ':', values);
+      
       // Update quiz data
       const updatedQuizData = { ...quizData, ...values };
       setQuizData(updatedQuizData);
       
-      // Save progress after each step
-      await saveProgress(updatedQuizData, currentStep + 1, 'progress');
+      console.log('Updated quiz data:', updatedQuizData);
+      
+      // If this is the first question and no analyzeId exists, create the record
+      if (currentStep === 0 && !analyzeId) {
+        await createNewAnalyzeRecord(updatedQuizData);
+      } else {
+        // Save progress after each step
+        await saveProgress(updatedQuizData, currentStep + 1, 'progress');
+      }
       
       if (currentStep < steps.length - 1) {
         setCurrentStep(currentStep + 1);
@@ -303,24 +305,29 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
     setLoading(true);
     
     try {
+      // Use the complete quizData instead of just the current step values
+      const completeData = {
+        companyName: quizData.companyName,
+        businessLine: quizData.businessLine,
+        country: quizData.country,
+        useCase: quizData.useCase,
+        timeline: quizData.timeline
+      };
+      
+      console.log('Submitting complete data to N8N:', completeData);
+      
       // Call N8N workflow
       const result = await mutateAsync({
-        data: {
-          companyName: values.companyName,
-          businessLine: values.businessLine,
-          country: values.country,
-          useCase: values.useCase,
-          timeline: values.timeline
-        }
-        , isTest
+        data: completeData,
+        isTest
       });
       
       console.log('N8N workflow result:', result);
       
       // Save as finished
-      await saveProgress(values, steps.length, 'finished');
+      await saveProgress(completeData, steps.length, 'finished');
       
-      setQuizData(values);
+      setQuizData(completeData);
       setShowResults(true);
       
       // Show success message
@@ -328,7 +335,7 @@ const preparedAnswer = `\n\n# Leadership Company Analysis Report: Adidas Germany
       
       // Call the onComplete callback if provided
       if (onComplete) {
-        onComplete(values);
+        onComplete(completeData);
       }
       
     } catch (error) {
