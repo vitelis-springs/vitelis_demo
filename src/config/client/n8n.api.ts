@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 const N8N_API_URL = process.env.NEXT_PUBLIC_N8N_API_URL || 'https://vitelis.app.n8n.cloud/';
+const N8N_TRIGGER_URL = process.env.NEXT_PUBLIC_N8N_TRIGGER || 'https://vitelis.app.n8n.cloud/webhook/dfbf30af-cc93-4e3f-bc19-755c8c3d57f4';
 
 export interface N8NWorkflow {
   id: string;
@@ -89,21 +90,22 @@ export class N8NApiClient {
     useCase: string;
     timeline: string;
   }, isTest: boolean = false): Promise<any> {
-    const endpoint = isTest 
-      ? '/webhook-test/dfbf30af-cc93-4e3f-bc19-755c8c3d57f4'
-      : '/webhook/dfbf30af-cc93-4e3f-bc19-755c8c3d57f4';
+    // Use the environment variable for the trigger URL
+    const triggerUrl = N8N_TRIGGER_URL;
     
-    console.log('🌐 Making N8N API request to:', this.baseURL + endpoint);
+    console.log('🌐 Making N8N API request to:', triggerUrl);
     console.log('📤 Request data:', data);
     
-    const result = await this.request<any>({
-      method: 'POST',
-      url: endpoint,
-      data,
+    // Make direct request to the trigger URL instead of using baseURL
+    const response = await axios.post(triggerUrl, data, {
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
     
-    console.log('📥 N8N API response:', result);
-    return result;
+    console.log('📥 N8N API response:', response.data);
+    return response.data;
   }
 }
 
