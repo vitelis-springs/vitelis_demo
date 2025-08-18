@@ -7,7 +7,12 @@ import {
   SolutionOutlined, 
   LoadingOutlined, 
   SmileOutlined,
-  CheckCircleOutlined 
+  CheckCircleOutlined,
+  SearchOutlined,
+  SafetyCertificateOutlined,
+  BarChartOutlined,
+  FileTextOutlined,
+  AuditOutlined
 } from '@ant-design/icons';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
 import { useGetAnalyze } from '@hooks/api/useAnalyzeService';
@@ -37,35 +42,30 @@ export default function Animation({
   const [loading, setLoading] = useState(false);
   
   // Poll execution details
-  const { data: executionDetails, isLoading: isLoadingExecution } = useGetExecutionDetails(
-    executionId,
-    {
-      refetchInterval: 5000, // Poll every 5 seconds
-      enabled: !!executionId
-    }
-  );
+  // const { data: executionDetails } = useGetExecutionDetails(
+  //   executionId,
+  //   {
+  //     refetchInterval: 5000, // Poll every 5 seconds
+  //     enabled: !!executionId
+  //   }
+  // );
 
   // Poll analyze data from database every 5 seconds
-  const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId || null, {
+  const { data: analyzeData } = useGetAnalyze(analyzeId || null, {
     refetchInterval: 5000, // Poll every 5 seconds
     enabled: !!analyzeId
   });
 
-  // Log analyze data every time it changes
-  useEffect(() => {
-    if (analyzeData) {
-      console.log('📊 Animation: Analyze data from DB:', analyzeData);
-    }
-  }, [analyzeData]);
+
 
   const steps = [
     {
-      title: 'Started',
+      title: 'Initialising',
       description: 'Workflow initiated',
       icon: <UserOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 1: Workflow Started</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 1: Initialising</Title>
           <Text style={{ color: '#8c8c8c' }}>
             Your analysis request for <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text> has been received and the workflow has been initiated.
             <br />
@@ -75,18 +75,18 @@ export default function Animation({
       )
     },
     {
-      title: 'Processing',
-      description: 'Analyzing data',
-      icon: <SolutionOutlined />,
+      title: 'Research',
+      description: 'Gathering data',
+      icon: <SearchOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 2: Data Processing</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 2: Research</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Your company data is being processed and analyzed. This step involves
-            data validation and preparation for the analysis phase.
-            {executionDetails?.customData?.step && (
+            Researching and gathering comprehensive data about <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text>.
+            This includes financial data, market analysis, and industry insights.
+            {analyzeData?.executionStep && analyzeData.executionStep >= 1 && (
               <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current step: {executionDetails.customData.step}</Text>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
               </div>
             )}
           </Text>
@@ -94,18 +94,18 @@ export default function Animation({
       )
     },
     {
-      title: 'Analysis',
-      description: 'Running analysis',
-      icon: <LoadingOutlined />,
+      title: 'Sources Validation',
+      description: 'Validating sources',
+      icon: <SafetyCertificateOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 3: Analysis Running</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 3: Sources Validation</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            The AI analysis is now running. This may take a few minutes depending
-            on the complexity of your analysis.
-            {executionDetails?.customData?.step && (
+            Validating and cross-referencing all data sources to ensure accuracy and reliability.
+            This step ensures the quality of information used in the analysis.
+            {analyzeData?.executionStep && analyzeData.executionStep >= 2 && (
               <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current step: {executionDetails.customData.step}</Text>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
               </div>
             )}
           </Text>
@@ -113,41 +113,79 @@ export default function Animation({
       )
     },
     {
-
-      title: 'Finalizing',
-      description: 'Preparing results',
-      icon: <SmileOutlined />,
+      title: 'Scoring',
+      description: 'Calculating scores',
+      icon: <BarChartOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 4: Finalizing Results</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 4: Scoring</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            The analysis is being finalized and results are being prepared for display.
-            {executionDetails?.customData?.step && (
+            Applying scoring algorithms and metrics to evaluate the company's performance
+            across various dimensions and criteria.
+            {analyzeData?.executionStep && analyzeData.executionStep >= 3 && (
               <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current step: {executionDetails.customData.step}</Text>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
               </div>
             )}
           </Text>
         </Card>
-
-        
       )
     },
     {
-      title: 'Complete',
-      description: 'Analysis ready',
-      icon: <CheckCircleOutlined />,
+      title: 'Report Building',
+      description: 'Generating report',
+      icon: <FileTextOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 5: Analysis Complete</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 5: Report Building</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Congratulations! Your company analysis has been completed successfully.
-            The results are ready for review.
+            Compiling all findings and insights into a comprehensive analysis report.
+            This includes visualizations, recommendations, and detailed analysis.
+            {analyzeData?.executionStep && analyzeData.executionStep >= 4 && (
+              <div style={{ marginTop: '8px' }}>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
+              </div>
+            )}
+          </Text>
+        </Card>
+      )
+    },
+    {
+      title: 'Result Evaluation',
+      description: 'Final review',
+      icon: <AuditOutlined />,
+      content: (
+        <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 6: Result Evaluation</Title>
+          <Text style={{ color: '#8c8c8c' }}>
+            Final quality check and evaluation of the analysis results.
+            Ensuring all insights are accurate and actionable.
+            {analyzeData?.executionStep && analyzeData.executionStep >= 5 && (
+              <div style={{ marginTop: '8px' }}>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
+              </div>
+            )}
           </Text>
         </Card>
       )
     }
   ];
+
+  // Log analyze data every time it changes and update current step based on executionStep
+  useEffect(() => {
+    if (analyzeData) {
+      console.log('📊 Animation: Analyze data from DB:', analyzeData);
+      
+      // Update current step based on executionStep from database
+      if (analyzeData.executionStep !== undefined) {
+        const newStep = Math.min(analyzeData.executionStep, steps.length - 1);
+        if (newStep !== current) {
+          console.log(`🔄 Animation: Updating step from ${current} to ${newStep} based on executionStep: ${analyzeData.executionStep}`);
+          setCurrent(newStep);
+        }
+      }
+    }
+  }, [analyzeData, current, steps.length]);
 
   const next = async () => {
     if (current === 2) {
