@@ -47,7 +47,7 @@ export default function Sidebar() {
     {
       key: '/history',
       icon: <HistoryOutlined style={{ fontSize: '18px' }} />,
-      label: 'History',
+      label: 'My Reports',
     },
   ];
 
