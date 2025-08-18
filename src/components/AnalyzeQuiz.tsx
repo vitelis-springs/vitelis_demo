@@ -9,7 +9,6 @@ import {
   Typography, 
   Form,
   notification,
-  Steps,
   Space,
   Spin,
   App
@@ -17,12 +16,7 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   SendOutlined,
-  CheckCircleOutlined,
-  UserOutlined,
-  GlobalOutlined,
-  ClockCircleOutlined,
-  TrophyOutlined,
-  FileTextOutlined
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { useRunWorkflow, useGetExecutionDetails } from '@hooks/api/useN8NService';
 import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
@@ -48,39 +42,31 @@ interface AnalyzeQuizProps {
   userEmail?: string;
 }
 
-const STEPS = [
-  { title: 'Company', icon: <UserOutlined /> },
-  { title: 'Business', icon: <TrophyOutlined /> },
-  { title: 'Country', icon: <GlobalOutlined /> },
-  { title: 'Use Case', icon: <FileTextOutlined /> },
-  { title: 'Timeline', icon: <ClockCircleOutlined /> }
-];
-
-const QUESTIONS = [
+const FORM_FIELDS = [
   {
     name: 'companyName',
-    label: 'What is the name of the company you want to analyze?',
+    label: 'Company Name',
     type: 'input',
     placeholder: 'e.g., Adidas, Nike, Apple...',
     required: true
   },
   {
     name: 'businessLine',
-    label: 'What is the main business line or industry of this company?',
+    label: 'Business Line / Industry',
     type: 'input',
     placeholder: 'e.g., Sportswear, Technology, Automotive...',
     required: true
   },
   {
     name: 'country',
-    label: 'In which country does this company operate?',
+    label: 'Country',
     type: 'input',
     placeholder: 'e.g., Germany, United States, Japan...',
     required: true
   },
   {
     name: 'useCase',
-    label: 'What is the specific use case or area you want to analyze?',
+    label: 'Use Case / Analysis Area',
     type: 'select',
     placeholder: 'Select a use case...',
     options: [
@@ -91,7 +77,7 @@ const QUESTIONS = [
   },
   {
     name: 'timeline',
-    label: 'What is your preferred timeline for this analysis?',
+    label: 'Timeline',
     type: 'input',
     placeholder: 'e.g., Q1 2025, Q1 2024 - Q3 2025...',
     required: true
@@ -101,7 +87,6 @@ const QUESTIONS = [
 export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps) {
   const { notification: appNotification } = App.useApp();
   const [form] = Form.useForm();
-  const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showAnimation, setShowAnimation] = useState(false);
@@ -127,7 +112,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       setAnalyzeId(urlAnalyzeId);
     } else {
       setAnalyzeId(null);
-      setCurrentStep(0);
       setShowResults(false);
       setShowAnimation(false);
       setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '' });
@@ -153,7 +137,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         });
         setShowAnimation(true);
         setShowResults(false);
-      } else if (analyzeData.currentStep >= 5 || analyzeData.status === 'finished') {
+      } else if (analyzeData.status === 'finished') {
         console.log('📋 Component: Analysis completed, showing results');
         setShowResults(true);
         setShowAnimation(false);
@@ -166,7 +150,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         });
       } else {
         console.log('📝 Component: Loading quiz progress');
-        setCurrentStep(analyzeData.currentStep || 0);
         setShowResults(false);
         setShowAnimation(false);
         setQuizData({
@@ -198,8 +181,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         useCase: data.useCase || '',
         timeline: data.timeline || '',
         userId: userEmail || 'anonymous',
-        status: 'progress' as const,
-        currentStep: 1
+        status: 'progress' as const
       };
 
       const result = await createAnalyze.mutateAsync(newAnalyzeData);
@@ -215,7 +197,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     }
   };
 
-  const saveProgress = async (data: Partial<AnalyzeQuizData>, step: number, status: 'progress' | 'finished' = 'progress') => {
+  const saveProgress = async (data: Partial<AnalyzeQuizData>, status: 'progress' | 'finished' = 'progress') => {
     try {
       if (!analyzeId) return;
       const updateData = {
@@ -225,7 +207,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         country: data.country || '',
         useCase: data.useCase || '',
         timeline: data.timeline || '',
-        currentStep: step,
         status
       };
       await updateAnalyze.mutateAsync(updateData);
@@ -234,36 +215,23 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     }
   };
 
-  const handleNext = async () => {
+  const handleFormSubmit = async () => {
     try {
       const values = await form.validateFields();
       const updatedQuizData = { ...quizData, ...values };
       setQuizData(updatedQuizData);
       
-      if (currentStep === 0 && !analyzeId) {
+      if (!analyzeId) {
         await createNewAnalyzeRecord(updatedQuizData);
-      } else {
-        const nextStep = Math.min(currentStep + 1, STEPS.length - 1);
-        await saveProgress(updatedQuizData, nextStep, 'progress');
       }
       
-      if (currentStep < STEPS.length - 1) {
-        setCurrentStep(currentStep + 1);
-      } else {
-        await handleSubmit(values);
-      }
+      await handleWorkflowSubmit(values);
     } catch (error) {
       console.error('Validation failed:', error);
     }
   };
 
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleSubmit = async (values: AnalyzeQuizData) => {
+  const handleWorkflowSubmit = async (values: AnalyzeQuizData) => {
     setLoading(true);
     try {
       const completeData = { ...quizData, ...values };
@@ -278,25 +246,23 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
           console.log('🔄 Component: About to call updateAnalyze with:', {
             id: analyzeId,
             executionId: result.executionId.toString(),
-            executionStatus: 'started',
-            executionStep: 0
+            executionStatus: 'started'
           });
           
           const updatedAnalyze = await updateAnalyze.mutateAsync({
             id: analyzeId,
             executionId: result.executionId.toString(),
-            executionStatus: 'started',
-            executionStep: 1
+            executionStatus: 'started'
           });
           
           console.log('✅ Component: updateAnalyze completed:', updatedAnalyze);
         }
-        await saveProgress(completeData, currentStep, 'finished');
+        await saveProgress(completeData, 'finished');
         setQuizData(completeData);
         setShowAnimation(true);
         showNotification('success', 'Success', 'Analysis request submitted successfully!');
       } else {
-        await saveProgress(completeData, currentStep, 'progress');
+        await saveProgress(completeData, 'progress');
         showNotification('error', 'N8N Workflow Failed', 'The analysis workflow did not complete successfully.');
       }
     } catch (error) {
@@ -315,7 +281,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
 
   const handleReset = () => {
     form.resetFields();
-    setCurrentStep(0);
     setShowResults(false);
     setShowAnimation(false);
     setAnalyzeId(null);
@@ -330,17 +295,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     setShowResults(true);
   };
 
-  const currentQuestion = QUESTIONS[currentStep];
 
-  if (!currentQuestion && currentStep < 5) {
-    return (
-      <div style={{ padding: '24px', background: '#141414', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Card style={{ background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={3} style={{ color: '#d9d9d9' }}>Error: Question not found</Title>
-        </Card>
-      </div>
-    );
-  }
 
   if (isLoadingProgress || (analyzeId && isLoadingAnalyze)) {
     return (
@@ -382,53 +337,28 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ maxWidth: '900px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: '100%' }}>
             <Card style={{ background: '#1f1f1f', border: '1px solid #303030', borderRadius: '12px' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>Company Analysis Quiz</Title>
-          <Text style={{ color: '#8c8c8c' }}>Step-by-step analysis request form</Text>
+          <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>Company Analysis Form</Title>
+          <Text style={{ color: '#8c8c8c' }}>Complete analysis request form</Text>
         </div>
 
-        {/* Steps */}
-        <div style={{ marginBottom: '32px' }}>
-          <Steps
-            current={currentStep}
-            items={STEPS.map((step, index) => ({
-              title: step.title,
-              icon: step.icon,
-              status: index < currentStep ? 'finish' : index === currentStep ? 'process' : 'wait'
-            }))}
-            style={{ 
-              marginBottom: '24px',
-              '--steps-title-white-space': 'normal',
-              '--steps-title-word-wrap': 'break-word',
-              '--steps-title-line-height': '1.2',
-              '--steps-title-max-width': '120px',
-              '--steps-title-text-align': 'center',
-              '--steps-title-display': 'flex',
-              '--steps-title-align-items': 'center',
-              '--steps-title-justify-content': 'center',
-              '--steps-title-min-height': '40px'
-            } as React.CSSProperties}
-          />
-          <div style={{ textAlign: 'center' }}>
-            <Text style={{ color: '#8c8c8c' }}>Step {currentStep + 1} of {STEPS.length}</Text>
-          </div>
-        </div>
-
-        {/* Question Form */}
-        {currentStep < 5 && currentQuestion && (
-          <Card style={{ background: '#262626', border: '1px solid #434343', borderRadius: '8px', marginBottom: '32px' }} bodyStyle={{ padding: '32px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <Title level={3} style={{ color: '#d9d9d9', marginBottom: '8px' }}>{currentQuestion.label}</Title>
-            </div>
-
-            <Form form={form} layout="vertical" initialValues={quizData} style={{ maxWidth: '500px', width: '100%' }}>
-              <Form.Item name={currentQuestion.name} rules={[{ required: currentQuestion.required, message: 'This field is required' }]}>
-                {currentQuestion.type === 'input' ? (
+        {/* Form */}
+        <Card style={{ background: '#262626', border: '1px solid #434343', borderRadius: '8px', marginBottom: '32px' }} bodyStyle={{ padding: '32px' }}>
+          <Form form={form} layout="vertical" initialValues={quizData} style={{ maxWidth: '600px', width: '100%', margin: '0 auto' }}>
+            {FORM_FIELDS.map((field) => (
+              <Form.Item 
+                key={field.name}
+                name={field.name} 
+                label={<Text style={{ color: '#d9d9d9', fontSize: '16px', fontWeight: '500' }}>{field.label}</Text>}
+                rules={[{ required: field.required, message: 'This field is required' }]}
+                style={{ marginBottom: '24px' }}
+              >
+                {field.type === 'input' ? (
                   <Input
-                    placeholder={currentQuestion.placeholder}
+                    placeholder={field.placeholder}
                     size="large"
                     style={{
                       background: '#1f1f1f',
@@ -439,11 +369,10 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
                       padding: '12px 16px',
                       height: '48px'
                     }}
-                    onPressEnter={handleNext}
                   />
-                ) : currentQuestion.type === 'select' ? (
+                ) : field.type === 'select' ? (
                   <Select
-                    placeholder={currentQuestion.placeholder}
+                    placeholder={field.placeholder}
                     size="large"
                     style={{
                       background: '#1f1f1f',
@@ -453,9 +382,8 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
                       width: '100%'
                     }}
                     dropdownStyle={{ background: '#1f1f1f', border: '1px solid #434343' }}
-                    onSelect={() => setTimeout(handleNext, 100)}
                   >
-                    {currentQuestion.options?.map((option, index) => (
+                    {field.options?.map((option, index) => (
                       <Option key={index} value={option}>
                         <Text style={{ color: '#d9d9d9' }}>{option}</Text>
                       </Option>
@@ -463,67 +391,44 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
                   </Select>
                 ) : null}
               </Form.Item>
-            </Form>
-          </Card>
-        )}
+            ))}
+          </Form>
+        </Card>
 
-        {/* Navigation Buttons */}
-        {currentStep < 5 && currentQuestion && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
-            <div>
-              {currentStep > 0 && (
-                <Button
-                  size="large"
-                  onClick={handlePrev}
-                  style={{
-                    background: '#1f1f1f',
-                    border: '1px solid #434343',
-                    color: '#d9d9d9',
-                    borderRadius: '8px',
-                    height: '48px',
-                    padding: '0 24px'
-                  }}
-                >
-                  Previous
-                </Button>
-              )}
-            </div>
-
-            <Space>
-              <Button
-                size="large"
-                onClick={handleReset}
-                style={{
-                  background: '#1f1f1f',
-                  border: '1px solid #434343',
-                  color: '#d9d9d9',
-                  borderRadius: '8px',
-                  height: '48px',
-                  padding: '0 24px'
-                }}
-              >
-                Reset
-              </Button>
-              
-              <Button
-                type="primary"
-                size="large"
-                onClick={handleNext}
-                loading={loading || isPending || createAnalyze.isPending || updateAnalyze.isPending}
-                icon={currentStep === STEPS.length - 1 ? <SendOutlined /> : undefined}
-                style={{
-                  background: '#58bfce',
-                  border: '1px solid #58bfce',
-                  borderRadius: '8px',
-                  height: '48px',
-                  padding: '0 24px'
-                }}
-              >
-                {currentStep === STEPS.length - 1 ? 'Generate Analysis' : 'Next'}
-              </Button>
-            </Space>
-          </div>
-        )}
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '24px' }}>
+          <Button
+            size="large"
+            onClick={handleReset}
+            style={{
+              background: '#1f1f1f',
+              border: '1px solid #434343',
+              color: '#d9d9d9',
+              borderRadius: '8px',
+              height: '48px',
+              padding: '0 24px'
+            }}
+          >
+            Reset
+          </Button>
+          
+          <Button
+            type="primary"
+            size="large"
+            onClick={handleFormSubmit}
+            loading={loading || isPending || createAnalyze.isPending || updateAnalyze.isPending}
+            icon={<SendOutlined />}
+            style={{
+              background: '#58bfce',
+              border: '1px solid #58bfce',
+              borderRadius: '8px',
+              height: '48px',
+              padding: '0 24px'
+            }}
+          >
+            Generate Analysis
+          </Button>
+        </div>
 
         {/* Progress Summary */}
         {Object.values(quizData).some(value => value) && (
