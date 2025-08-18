@@ -12,6 +12,7 @@ export interface IAnalyze extends Document {
   executionId?: string;
   executionStatus?: 'started' | 'inProgress' | 'finished' | 'errored';
   executionStep?: number;
+  resultText?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -76,6 +77,11 @@ const AnalyzeSchema: Schema = new Schema({
     type: Number,
     default: 0,
     required: false,
+  },
+  resultText: {
+    type: String,
+    required: false,
+    trim: true
   }
 }, {
   timestamps: true

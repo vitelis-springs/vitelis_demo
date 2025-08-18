@@ -14,6 +14,7 @@ export interface AnalyzeData {
   executionId?: string;
   executionStatus?: 'started' | 'inProgress' | 'finished' | 'errored';
   executionStep?: number;
+  resultText?: string;
 }
 
 export interface UpdateAnalyzeData extends Partial<AnalyzeData> {
