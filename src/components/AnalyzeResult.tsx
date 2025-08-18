@@ -3,6 +3,8 @@
 import React from 'react';
 import { Card, Typography, Space, Button, Layout } from 'antd';
 import ReactMarkdown from 'react-markdown';
+import remarkToc from 'remark-toc';
+import remarkGfm from 'remark-gfm';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import Sidebar from './ui/sidebar';
 
@@ -99,6 +101,10 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
             lineHeight: '1.6'
           }}>
             <ReactMarkdown
+              remarkPlugins={[
+                remarkGfm,
+                [remarkToc, { tight: true, maxDepth: 3 }]
+              ]}
               components={{
                 h1: ({children}) => <h1 style={{color: '#58bfce', fontSize: '24px', marginBottom: '16px', marginTop: '24px'}}>{children}</h1>,
                 h2: ({children}) => <h2 style={{color: '#58bfce', fontSize: '20px', marginBottom: '12px', marginTop: '20px'}}>{children}</h2>,
@@ -106,9 +112,42 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
                 h4: ({children}) => <h4 style={{color: '#58bfce', fontSize: '16px', marginBottom: '8px', marginTop: '14px'}}>{children}</h4>,
                 p: ({children}) => <p style={{marginBottom: '12px'}}>{children}</p>,
                 strong: ({children}) => <strong style={{color: '#ffffff'}}>{children}</strong>,
-                table: ({children}) => <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '16px'}}>{children}</table>,
-                th: ({children}) => <th style={{border: '1px solid #434343', padding: '8px', textAlign: 'left', backgroundColor: '#1f1f1f', color: '#58bfce'}}>{children}</th>,
-                td: ({children}) => <td style={{border: '1px solid #434343', padding: '8px', color: '#d9d9d9'}}>{children}</td>,
+                table: ({children}) => (
+                  <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
+                    <table style={{
+                      width: '100%', 
+                      borderCollapse: 'collapse', 
+                      marginBottom: '16px',
+                      minWidth: '600px'
+                    }}>
+                      {children}
+                    </table>
+                  </div>
+                ),
+                th: ({children}) => (
+                  <th style={{
+                    border: '1px solid #434343', 
+                    padding: '12px 8px', 
+                    textAlign: 'left', 
+                    backgroundColor: '#1f1f1f', 
+                    color: '#58bfce',
+                    fontWeight: 'bold',
+                    fontSize: '14px'
+                  }}>
+                    {children}
+                  </th>
+                ),
+                td: ({children}) => (
+                  <td style={{
+                    border: '1px solid #434343', 
+                    padding: '12px 8px', 
+                    color: '#d9d9d9',
+                    fontSize: '14px',
+                    verticalAlign: 'top'
+                  }}>
+                    {children}
+                  </td>
+                ),
                 ul: ({children}) => <ul style={{marginBottom: '12px', paddingLeft: '20px'}}>{children}</ul>,
                 ol: ({children}) => <ol style={{marginBottom: '12px', paddingLeft: '20px'}}>{children}</ol>,
                 li: ({children}) => <li style={{marginBottom: '4px'}}>{children}</li>,
