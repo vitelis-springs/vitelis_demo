@@ -31,33 +31,27 @@ export async function POST(request: NextRequest) {
       status: 'finished'
     });
     
-    // First update the record
-    const updateResult = await Analyze.findOneAndUpdate(
-      { executionId: executionId.toString() },
-      { 
-        $set: {
-          resultText: data,
-          executionStatus: 'finished',
-          status: 'finished'
-        }
-      },
-      { 
-        new: true, // Return the updated document
-        runValidators: true
-      }
-    );
+    // Find the record first
+    const analyzeRecord = await Analyze.findOne({ executionId: executionId.toString() });
 
-    if (!updateResult) {
+    if (!analyzeRecord) {
       return NextResponse.json({
         success: false,
         error: 'Analyze record not found with the provided executionId'
       }, { status: 200 });
     }
 
-    console.log('🔄 Webhook Result: Update operation result:', updateResult);
+    console.log('🔄 Webhook Result: Found record before update:', analyzeRecord);
 
-    // Then fetch the complete record to ensure we get all fields
-    const updatedAnalyze = await Analyze.findOne({ executionId: executionId.toString() });
+    // Update the fields
+    analyzeRecord.resultText = data;
+    analyzeRecord.executionStatus = 'finished';
+    analyzeRecord.status = 'finished';
+
+    // Save the updated record
+    const updatedAnalyze = await analyzeRecord.save();
+
+    console.log('🔄 Webhook Result: Save operation result:', updatedAnalyze);
 
     console.log(`✅ Webhook Result: Updated resultText for executionId: ${executionId}`);
     console.log('📤 Webhook Result: Final updated analyze record:', updatedAnalyze);
