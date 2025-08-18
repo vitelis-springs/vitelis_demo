@@ -187,35 +187,11 @@ export default function Animation({
     }
   }, [analyzeData, current, steps.length]);
 
-  const next = async () => {
-    if (current === 2) {
-      // Simulate loading for step 3
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setLoading(false);
-    }
-    
-    const nextStep = current + 1;
-    setCurrent(nextStep);
-    message.success(`Moved to step ${nextStep + 1}`);
-    
-    // If we've reached the end, call onComplete
-    if (nextStep === steps.length - 1) {
-      setTimeout(() => {
-        onComplete?.();
-      }, 2000); // Wait 2 seconds after reaching the last step
-    }
-  };
 
-  const prev = () => {
-    setCurrent(current - 1);
-    message.info(`Moved back to step ${current}`);
-  };
 
-  const reset = () => {
-    setCurrent(0);
-    message.info('Reset to first step');
-  };
+
+
+
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
@@ -303,18 +279,7 @@ export default function Animation({
                 
                
                 
-                {current === steps.length - 1 && (
-                  <Button 
-                    type="primary"
-                    onClick={reset}
-                    style={{
-                      background: '#52c41a',
-                      border: '1px solid #52c41a'
-                    }}
-                  >
-                    Reset
-                  </Button>
-                )}
+              
               </div>
 
               <div style={{ 
