@@ -31,28 +31,38 @@ export async function POST(request: NextRequest) {
       status: 'finished'
     });
     
-    const updatedAnalyze = await Analyze.findOneAndUpdate(
+    // First update the record
+    const updateResult = await Analyze.findOneAndUpdate(
       { executionId: executionId.toString() },
       { 
-        resultText: data,
-        executionStatus: 'finished',
-        status: 'finished'
+        $set: {
+          resultText: data,
+          executionStatus: 'finished',
+          status: 'finished'
+        }
       },
       { 
         new: true, // Return the updated document
-        runValidators: true 
+        runValidators: true
       }
     );
 
-    if (!updatedAnalyze) {
+    if (!updateResult) {
       return NextResponse.json({
         success: false,
         error: 'Analyze record not found with the provided executionId'
       }, { status: 200 });
     }
 
+    console.log('🔄 Webhook Result: Update operation result:', updateResult);
+
+    // Then fetch the complete record to ensure we get all fields
+    const updatedAnalyze = await Analyze.findOne({ executionId: executionId.toString() });
+
     console.log(`✅ Webhook Result: Updated resultText for executionId: ${executionId}`);
     console.log('📤 Webhook Result: Final updated analyze record:', updatedAnalyze);
+    console.log('📤 Webhook Result: resultText field value:', updatedAnalyze.resultText);
+    console.log('📤 Webhook Result: All fields in updated record:', Object.keys(updatedAnalyze.toObject()));
 
     return NextResponse.json({
       success: true,
