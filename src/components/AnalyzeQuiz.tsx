@@ -347,7 +347,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
 
         {/* Form */}
         <Card style={{ background: '#262626', border: '1px solid #434343', borderRadius: '8px', marginBottom: '32px' }} bodyStyle={{ padding: '32px' }}>
-          <Form form={form} layout="vertical" initialValues={quizData} style={{ maxWidth: '600px', width: '100%', margin: '0 auto' }}>
+          <Form form={form} layout="vertical" initialValues={quizData} style={{ width: '100%' }}>
             {FORM_FIELDS.map((field) => (
               <Form.Item 
                 key={field.name}
