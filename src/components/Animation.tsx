@@ -83,12 +83,8 @@ export default function Animation({
           <Title level={4} style={{ color: '#d9d9d9' }}>Step 2: Research</Title>
           <Text style={{ color: '#8c8c8c' }}>
             Researching and gathering comprehensive data about <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text>.
-            This includes financial data, market analysis, and industry insights.
-            {analyzeData?.executionStep && analyzeData.executionStep >= 1 && (
-              <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
-              </div>
-            )}
+          
+           
           </Text>
         </Card>
       )
