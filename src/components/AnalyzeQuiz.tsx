@@ -105,7 +105,10 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   
   const { mutateAsync, isPending } = useRunWorkflow();
   const { createAnalyze, updateAnalyze } = useAnalyzeService();
-  const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId);
+  const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId, {
+    refetchInterval: 5000, // Poll every 5 seconds
+    enabled: !!analyzeId
+  });
 
   // Load progress from URL
   useEffect(() => {

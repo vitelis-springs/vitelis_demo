@@ -1,11 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Card, Typography, Space, Button } from 'antd';
+import { Card, Typography, Space, Button, Layout } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import { CheckCircleOutlined } from '@ant-design/icons';
+import Sidebar from './ui/sidebar';
 
 const { Title, Text } = Typography;
+const { Content } = Layout;
 
 interface AnalyzeQuizData {
   companyName: string;
@@ -26,20 +28,24 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
   const reportContent = resultText || `\n\n# Analysis Report\n\nNo analysis results available yet. Please wait for the analysis to complete.`;
 
   return (
-    <div style={{ 
-      padding: '24px', 
-      background: '#141414', 
-      minHeight: '100vh',
-      maxWidth: '1200px',
-      margin: '0 auto'
-    }}>
-      <Card 
-        style={{ 
-          background: '#1f1f1f', 
-          border: '1px solid #303030',
-          borderRadius: '12px'
-        }}
-      >
+    <Layout style={{ minHeight: '100vh', background: '#141414' }}>
+      <Sidebar />
+      <Layout style={{ marginLeft: 280, background: '#141414' }}>
+        <Content style={{ 
+          padding: '24px',
+          background: '#141414',
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <div style={{ width: '100%' }}>
+            <Card 
+              style={{ 
+                background: '#1f1f1f', 
+                border: '1px solid #303030',
+                borderRadius: '12px'
+              }}
+            >
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>
@@ -130,8 +136,11 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
               Start New Analysis
             </Button>
           </Space>
+            </div>
+          </Card>
         </div>
-      </Card>
-    </div>
+      </Content>
+    </Layout>
+  </Layout>
   );
 }
