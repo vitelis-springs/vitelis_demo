@@ -182,11 +182,15 @@ export const useAnalyzeService = () => {
 };
 
 // Get analyze by ID hook
-export const useGetAnalyze = (id: string | null) => {
+export const useGetAnalyze = (id: string | null, options?: {
+  refetchInterval?: number;
+  enabled?: boolean;
+}) => {
   return useQuery({
     queryKey: ['analyze', id],
     queryFn: () => analyzeApi.getById(id!),
-    enabled: !!id,
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    refetchInterval: options?.refetchInterval,
   });
 };
 

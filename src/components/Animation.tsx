@@ -10,6 +10,7 @@ import {
   CheckCircleOutlined 
 } from '@ant-design/icons';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
+import { useGetAnalyze } from '@hooks/api/useAnalyzeService';
 import Sidebar from './ui/sidebar';
 
 const { Title, Text } = Typography;
@@ -20,6 +21,7 @@ interface AnimationProps {
   description?: string;
   executionId: string;
   companyName?: string;
+  analyzeId?: string;
   onComplete?: () => void;
 }
 
@@ -28,6 +30,7 @@ export default function Animation({
   description = "Your company analysis is being processed. This may take a few minutes.",
   executionId,
   companyName,
+  analyzeId,
   onComplete
 }: AnimationProps) {
   const [current, setCurrent] = useState(0);
@@ -37,10 +40,23 @@ export default function Animation({
   const { data: executionDetails, isLoading: isLoadingExecution } = useGetExecutionDetails(
     executionId,
     {
-      refetchInterval: 5000, // Poll every 3 seconds
+      refetchInterval: 5000, // Poll every 5 seconds
       enabled: !!executionId
     }
   );
+
+  // Poll analyze data from database every 5 seconds
+  const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(analyzeId || null, {
+    refetchInterval: 5000, // Poll every 5 seconds
+    enabled: !!analyzeId
+  });
+
+  // Log analyze data every time it changes
+  useEffect(() => {
+    if (analyzeData) {
+      console.log('📊 Animation: Analyze data from DB:', analyzeData);
+    }
+  }, [analyzeData]);
 
   const steps = [
     {
