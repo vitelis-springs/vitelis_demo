@@ -97,6 +97,7 @@ export default function Animation({
       )
     },
     {
+
       title: 'Finalizing',
       description: 'Preparing results',
       icon: <SmileOutlined />,
@@ -112,6 +113,8 @@ export default function Animation({
             )}
           </Text>
         </Card>
+
+        
       )
     },
     {
