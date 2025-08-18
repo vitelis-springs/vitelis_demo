@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Steps, Card, Button, Space, Typography, message, Spin, Layout } from 'antd';
+import { Steps, Card, Button, Space, Typography, message, Spin, Layout, Progress } from 'antd';
 import { 
   UserOutlined, 
   SolutionOutlined, 
@@ -321,15 +321,7 @@ export default function Animation({
                   }
                 }
 
-                /* Progress shimmer animation */
-                @keyframes progress-shimmer {
-                  0% {
-                    transform: translateX(-100%);
-                  }
-                  100% {
-                    transform: translateX(100%);
-                  }
-                }
+
 
                 /* Processing dots animation */
                 @keyframes processing-dots {
@@ -368,39 +360,26 @@ export default function Animation({
                 className="animation-steps"
               />
 
-              {/* Animated progress indicator */}
+              {/* Progress indicator using Ant Design Progress component */}
               <div style={{ 
                 marginTop: '16px', 
                 marginBottom: '16px',
                 padding: '0 20px'
               }}>
-                <div style={{
-                  width: '100%',
-                  height: '4px',
-                  backgroundColor: '#303030',
-                  borderRadius: '2px',
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}>
-                  <div style={{
-                    width: `${((current + 1) / steps.length) * 100}%`,
-                    height: '100%',
-                    backgroundColor: '#58bfce',
-                    borderRadius: '2px',
-                    transition: 'width 0.5s ease-in-out',
-                    position: 'relative'
-                  }}>
-                    <div style={{
-                      position: 'absolute',
-                      top: '0',
-                      right: '0',
-                      width: '20px',
-                      height: '100%',
-                      background: 'linear-gradient(90deg, transparent, rgba(88, 191, 206, 0.8), transparent)',
-                      animation: 'progress-shimmer 2s ease-in-out infinite'
-                    }} />
-                  </div>
-                </div>
+                <Progress
+                  percent={Math.round(((current + 1) / steps.length) * 100)}
+                  strokeColor={{
+                    '0%': '#58bfce',
+                    '25%': '#1890ff',
+                    '50%': '#52c41a',
+                    '75%': '#faad14',
+                    '100%': '#f5222d',
+                  }}
+                  trailColor="#303030"
+                  strokeWidth={8}
+                  showInfo={false}
+                  status="active"
+                />
               </div>
 
               <div style={{ marginTop: '24px' }}>
@@ -426,7 +405,7 @@ export default function Animation({
                 textAlign: 'center' 
               }}>
                 <Text style={{ color: '#8c8c8c' }}>
-                  Step {current + 1} of {steps.length}
+                  Step {current + 1} of {steps.length} • {Math.round(((current + 1) / steps.length) * 100)}% Complete
                 </Text>
                 <div style={{ 
                   marginTop: '8px',
