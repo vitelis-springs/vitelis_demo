@@ -127,40 +127,37 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     if (analyzeData) {
       console.log('📊 Component: Analyze data loaded:', analyzeData);
       
+      // Set quiz data from analyze data
+      setQuizData({
+        companyName: analyzeData.companyName || '',
+        businessLine: analyzeData.businessLine || '',
+        country: analyzeData.country || '',
+        useCase: analyzeData.useCase || '',
+        timeline: analyzeData.timeline || ''
+      });
+      
+      // Check if we have resultText - show results immediately
+      if (analyzeData.resultText) {
+        console.log('📋 Component: Found resultText, showing results immediately');
+        setShowResults(true);
+        setShowAnimation(false);
+        return;
+      }
+      
+      // Check if we have executionId - show animation
       if (analyzeData.executionId) {
-        console.log('🎬 Component: Found executionId, showing animation immediately');
+        console.log('🎬 Component: Found executionId, showing animation');
         setExecutionId(analyzeData.executionId);
-        setQuizData({
-          companyName: analyzeData.companyName || '',
-          businessLine: analyzeData.businessLine || '',
-          country: analyzeData.country || '',
-          useCase: analyzeData.useCase || '',
-          timeline: analyzeData.timeline || ''
-        });
         setShowAnimation(true);
         setShowResults(false);
       } else if (analyzeData.status === 'finished') {
         console.log('📋 Component: Analysis completed, showing results');
         setShowResults(true);
         setShowAnimation(false);
-        setQuizData({
-          companyName: analyzeData.companyName || '',
-          businessLine: analyzeData.businessLine || '',
-          country: analyzeData.country || '',
-          useCase: analyzeData.useCase || '',
-          timeline: analyzeData.timeline || ''
-        });
       } else {
         console.log('📝 Component: Loading quiz progress');
         setShowResults(false);
         setShowAnimation(false);
-        setQuizData({
-          companyName: analyzeData.companyName || '',
-          businessLine: analyzeData.businessLine || '',
-          country: analyzeData.country || '',
-          useCase: analyzeData.useCase || '',
-          timeline: analyzeData.timeline || ''
-        });
       }
     }
   }, [analyzeData]);
@@ -332,7 +329,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   }
 
   if (showResults) {
-    return <AnalyzeResult quizData={quizData} onReset={handleReset} />;
+    return <AnalyzeResult quizData={quizData} resultText={analyzeData?.resultText} onReset={handleReset} />;
   }
 
   return (
