@@ -174,7 +174,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     });
   };
 
-  const createNewAnalyzeRecord = async (data: Partial<AnalyzeQuizData>) => {
+  const createNewAnalyzeRecord = async (data: Partial<AnalyzeQuizData>): Promise<string | null> => {
     try {
       const newAnalyzeData = {
         companyName: data.companyName || '',
@@ -193,9 +193,12 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.set('analyzeId', newAnalyzeId);
         router.replace(newUrl.pathname + newUrl.search, { scroll: false });
+        return newAnalyzeId;
       }
+      return null;
     } catch (error) {
       showNotification('error', 'Failed to Create Analysis Record', 'Unable to create a new analysis record.');
+      return null;
     }
   };
 
@@ -223,17 +226,19 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       const updatedQuizData = { ...quizData, ...values };
       setQuizData(updatedQuizData);
       
-      if (!analyzeId) {
-        await createNewAnalyzeRecord(updatedQuizData);
+      let currentAnalyzeId = analyzeId;
+      if (!currentAnalyzeId) {
+        const newAnalyzeId = await createNewAnalyzeRecord(updatedQuizData);
+        currentAnalyzeId = newAnalyzeId;
       }
       
-      await handleWorkflowSubmit(values);
+      await handleWorkflowSubmit(values, currentAnalyzeId);
     } catch (error) {
       console.error('Validation failed:', error);
     }
   };
 
-  const handleWorkflowSubmit = async (values: AnalyzeQuizData) => {
+  const handleWorkflowSubmit = async (values: AnalyzeQuizData, analyzeIdToUse?: string | null) => {
     setLoading(true);
     try {
       const completeData = { ...quizData, ...values };
@@ -244,15 +249,16 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       
       if (result && result.success !== false && result.executionId) {
         setExecutionId(result.executionId.toString());
-        if (analyzeId) {
+        const currentAnalyzeId = analyzeIdToUse || analyzeId;
+        if (currentAnalyzeId) {
           console.log('🔄 Component: About to call updateAnalyze with:', {
-            id: analyzeId,
+            id: currentAnalyzeId,
             executionId: result.executionId.toString(),
             executionStatus: 'started'
           });
           
           const updatedAnalyze = await updateAnalyze.mutateAsync({
-            id: analyzeId,
+            id: currentAnalyzeId,
             executionId: result.executionId.toString(),
             executionStatus: 'started'
           });
