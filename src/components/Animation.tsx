@@ -14,8 +14,6 @@ import {
   FileTextOutlined,
   AuditOutlined
 } from '@ant-design/icons';
-import { useGetExecutionDetails } from '@hooks/api/useN8NService';
-import { useGetAnalyze } from '@hooks/api/useAnalyzeService';
 import Sidebar from './ui/sidebar';
 
 const { Title, Text } = Typography;
@@ -26,7 +24,7 @@ interface AnimationProps {
   description?: string;
   executionId: string;
   companyName?: string;
-  analyzeId?: string;
+  executionStep?: number;
   onComplete?: () => void;
 }
 
@@ -35,12 +33,13 @@ export default function Animation({
   description = "Your company analysis is being processed. This may take a few minutes.",
   executionId,
   companyName,
-  analyzeId,
+  executionStep,
   onComplete
 }: AnimationProps) {
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(false);
-  
+
+
   // Poll execution details
   // const { data: executionDetails } = useGetExecutionDetails(
   //   executionId,
@@ -49,14 +48,6 @@ export default function Animation({
   //     enabled: !!executionId
   //   }
   // );
-
-  // Poll analyze data from database every 5 seconds
-  const { data: analyzeData } = useGetAnalyze(analyzeId || null, {
-    refetchInterval: 5000, // Poll every 5 seconds
-    enabled: !!analyzeId
-  });
-
-
 
   const steps = [
     {
@@ -99,9 +90,9 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Validating and cross-referencing all data sources to ensure accuracy and reliability.
             This step ensures the quality of information used in the analysis.
-            {analyzeData?.executionStep && analyzeData.executionStep >= 2 && (
+            {executionStep && executionStep >= 2 && (
               <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
               </div>
             )}
           </Text>
@@ -118,9 +109,9 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Applying scoring algorithms and metrics to evaluate the company's performance
             across various dimensions and criteria.
-            {analyzeData?.executionStep && analyzeData.executionStep >= 3 && (
+            {executionStep && executionStep >= 3 && (
               <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
               </div>
             )}
           </Text>
@@ -137,9 +128,9 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Compiling all findings and insights into a comprehensive analysis report.
             This includes visualizations, recommendations, and detailed analysis.
-            {analyzeData?.executionStep && analyzeData.executionStep >= 4 && (
+            {executionStep && executionStep >= 4 && (
               <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
               </div>
             )}
           </Text>
@@ -156,9 +147,9 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Final quality check and evaluation of the analysis results.
             Ensuring all insights are accurate and actionable.
-            {analyzeData?.executionStep && analyzeData.executionStep >= 5 && (
+            {executionStep && executionStep >= 5 && (
               <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {analyzeData.executionStep}</Text>
+                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
               </div>
             )}
           </Text>
@@ -167,21 +158,16 @@ export default function Animation({
     }
   ];
 
-  // Log analyze data every time it changes and update current step based on executionStep
+  // Update current step based on executionStep prop
   useEffect(() => {
-    if (analyzeData) {
-      console.log('📊 Animation: Analyze data from DB:', analyzeData);
-      
-      // Update current step based on executionStep from database
-      if (analyzeData.executionStep !== undefined) {
-        const newStep = Math.min(analyzeData.executionStep, steps.length - 1);
-        if (newStep !== current) {
-          console.log(`🔄 Animation: Updating step from ${current} to ${newStep} based on executionStep: ${analyzeData.executionStep}`);
-          setCurrent(newStep);
-        }
+    if (executionStep !== undefined) {
+      const newStep = Math.min(executionStep, steps.length - 1);
+      if (newStep !== current) {
+        console.log(`🔄 Animation: Updating step from ${current} to ${newStep} based on executionStep: ${executionStep}`);
+        setCurrent(newStep);
       }
     }
-  }, [analyzeData, current, steps.length]);
+  }, [executionStep, current, steps.length]);
 
 
 
