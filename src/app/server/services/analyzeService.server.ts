@@ -1,5 +1,5 @@
 import Analyze, { IAnalyze } from '../models/Analyze';
-import connectDB from '../../../lib/mongodb';
+import { ensureDBConnection } from '../../../lib/mongodb';
 
 export interface AnalyzeData {
   companyName: string;
@@ -19,7 +19,6 @@ export class AnalyzeServiceServer {
   // Create a new analyze record
   static async createAnalyze(data: AnalyzeData): Promise<IAnalyze> {
     try {
-      await connectDB();
       const analyze = new Analyze(data);
       return await analyze.save();
     } catch (error) {
@@ -31,6 +30,7 @@ export class AnalyzeServiceServer {
   // Get all analyze records for a user
   static async getAnalyzesByUser(userId: string): Promise<IAnalyze[]> {
     try {
+      await ensureDBConnection();
       return await Analyze.find({ userId })
         .sort({ createdAt: -1 })
         .exec();
@@ -55,7 +55,6 @@ export class AnalyzeServiceServer {
   // Get a specific analyze record by ID
   static async getAnalyzeById(id: string): Promise<IAnalyze | null> {
     try {
-      await connectDB();
       return await Analyze.findById(id).exec();
     } catch (error) {
       console.error('Error fetching analyze record:', error);
@@ -67,8 +66,6 @@ export class AnalyzeServiceServer {
   static async updateAnalyze(id: string, data: Partial<AnalyzeData>): Promise<IAnalyze | null> {
     try {
       console.log('🔄 Server: Starting updateAnalyze with:', { id, data });
-      await connectDB();
-      console.log('🔗 Server: Database connected');
       
       const UPDATE_RESULT = await Analyze.findByIdAndUpdate(
         id,

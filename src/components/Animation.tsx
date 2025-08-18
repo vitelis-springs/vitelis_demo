@@ -74,7 +74,6 @@ export default function Animation({
           <Title level={4} style={{ color: '#d9d9d9' }}>Step 2: Research</Title>
           <Text style={{ color: '#8c8c8c' }}>
             Researching and gathering comprehensive data about <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text>.
-          
            
           </Text>
         </Card>
@@ -90,11 +89,7 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Validating and cross-referencing all data sources to ensure accuracy and reliability.
             This step ensures the quality of information used in the analysis.
-            {executionStep && executionStep >= 2 && (
-              <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
-              </div>
-            )}
+        
           </Text>
         </Card>
       )
@@ -109,11 +104,7 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Applying scoring algorithms and metrics to evaluate the company's performance
             across various dimensions and criteria.
-            {executionStep && executionStep >= 3 && (
-              <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
-              </div>
-            )}
+        
           </Text>
         </Card>
       )
@@ -128,11 +119,7 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Compiling all findings and insights into a comprehensive analysis report.
             This includes visualizations, recommendations, and detailed analysis.
-            {executionStep && executionStep >= 4 && (
-              <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
-              </div>
-            )}
+          
           </Text>
         </Card>
       )
@@ -147,11 +134,7 @@ export default function Animation({
           <Text style={{ color: '#8c8c8c' }}>
             Final quality check and evaluation of the analysis results.
             Ensuring all insights are accurate and actionable.
-            {executionStep && executionStep >= 5 && (
-              <div style={{ marginTop: '8px' }}>
-                <Text style={{ color: '#58bfce' }}>Current execution step: {executionStep}</Text>
-              </div>
-            )}
+          
           </Text>
         </Card>
       )

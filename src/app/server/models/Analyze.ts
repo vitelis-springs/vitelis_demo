@@ -90,4 +90,6 @@ const AnalyzeSchema: Schema = new Schema({
 // Create index for better query performance
 AnalyzeSchema.index({ userId: 1, createdAt: -1 });
 
-export default mongoose.models.Analyze || mongoose.model<IAnalyze>('Analyze', AnalyzeSchema);
+const Analyze = mongoose.models.Analyze || mongoose.model<IAnalyze>('Analyze', AnalyzeSchema);
+
+export default Analyze;

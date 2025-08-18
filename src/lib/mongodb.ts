@@ -41,4 +41,20 @@ async function connectDB() {
   return cached.conn;
 }
 
+// Ensure database connection is established
+export async function ensureDBConnection() {
+  try {
+    await connectDB();
+  } catch (error) {
+    console.error('❌ Failed to connect to MongoDB:', error);
+    throw error;
+  }
+}
+
+// Initialize database connection on module load (for server-side)
+if (typeof window === 'undefined') {
+  // Only run on server-side
+  ensureDBConnection().catch(console.error);
+}
+
 export default connectDB;

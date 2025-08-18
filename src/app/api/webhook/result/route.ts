@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '../../../../lib/mongodb';
+import { ensureDBConnection } from '../../../../lib/mongodb';
 import Analyze from '../../../server/models/Analyze';
 
 export async function POST(request: NextRequest) {
   try {
     // Connect to database
-    await connectDB();
+    await ensureDBConnection();
 
     // Parse the request body
     const body = await request.json();
