@@ -42,7 +42,7 @@ export default function Sidebar() {
     {
       key: '/analyze-quiz',
       icon: <FileTextOutlined style={{ fontSize: '18px' }} />,
-      label: 'Analyze Quiz',
+      label: 'Request Report',
     },
     {
       key: '/history',

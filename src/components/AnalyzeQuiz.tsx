@@ -70,8 +70,10 @@ const FORM_FIELDS = [
     type: 'select',
     placeholder: 'Select a use case...',
     options: [
-      'Leadership', 'Marketing', 'Finance', 'Operations', 'Sustainability',
-      'Digital Transformation', 'Supply Chain', 'Customer Experience'
+      'Leadership',
+      'Efficiency', 
+      'AI Adoption',
+      'SALESminer'
     ],
     required: true
   },
@@ -341,7 +343,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
             <Card style={{ background: '#1f1f1f', border: '1px solid #303030', borderRadius: '12px' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>Company Analysis Form</Title>
+          <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>Request Report Form</Title>
           <Text style={{ color: '#8c8c8c' }}>Complete analysis request form</Text>
         </div>
 
@@ -430,23 +432,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
           </Button>
         </div>
 
-        {/* Progress Summary */}
-        {Object.values(quizData).some(value => value) && (
-          <Card style={{ background: '#262626', border: '1px solid #434343', borderRadius: '8px', marginTop: '32px' }} bodyStyle={{ padding: '20px' }}>
-            <Title level={4} style={{ color: '#58bfce', marginBottom: '16px' }}>
-              <CheckCircleOutlined style={{ marginRight: '8px' }} />
-              Progress Summary
-            </Title>
-            <div style={{ color: '#d9d9d9' }}>
-              {quizData.companyName && <p><strong>Company:</strong> {quizData.companyName}</p>}
-              {quizData.businessLine && <p><strong>Business Line:</strong> {quizData.businessLine}</p>}
-              {quizData.country && <p><strong>Country:</strong> {quizData.country}</p>}
-              {quizData.useCase && <p><strong>Use Case:</strong> {quizData.useCase}</p>}
-              {quizData.timeline && <p><strong>Timeline:</strong> {quizData.timeline}</p>}
-            </div>
-          </Card>
-          
-        )}
+
             </Card>
           </div>
         </Content>
