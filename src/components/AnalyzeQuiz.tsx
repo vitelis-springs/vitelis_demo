@@ -13,6 +13,7 @@ import {
   Spin,
   App
 } from 'antd';
+const { TextArea } = Input;
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   SendOutlined,
@@ -35,6 +36,7 @@ interface AnalyzeQuizData {
   country: string;
   useCase: string;
   timeline: string;
+  additionalInformation?: string;
 }
 
 interface AnalyzeQuizProps {
@@ -83,6 +85,13 @@ const FORM_FIELDS = [
     type: 'input',
     placeholder: 'e.g., Q1 2025, Q1 2024 - Q3 2025...',
     required: true
+  },
+  {
+    name: 'additionalInformation',
+    label: 'Additional Information',
+    type: 'textarea',
+    placeholder: 'Any additional context, specific requirements, or notes for the analysis...',
+    required: false
   }
 ];
 
@@ -96,7 +105,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [executionId, setExecutionId] = useState('');
   const [quizData, setQuizData] = useState<AnalyzeQuizData>({
-    companyName: '', businessLine: '', country: '', useCase: '', timeline: ''
+    companyName: '', businessLine: '', country: '', useCase: '', timeline: '', additionalInformation: ''
   });
 
   const router = useRouter();
@@ -119,7 +128,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       setAnalyzeId(null);
       setShowResults(false);
       setShowAnimation(false);
-      setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '' });
+      setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '', additionalInformation: '' });
       form.resetFields();
     }
     setIsLoadingProgress(false);
@@ -136,7 +145,8 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         businessLine: analyzeData.businessLine || '',
         country: analyzeData.country || '',
         useCase: analyzeData.useCase || '',
-        timeline: analyzeData.timeline || ''
+        timeline: analyzeData.timeline || '',
+        additionalInformation: analyzeData.additionalInformation || ''
       });
       
       // Check if we have resultText - show results immediately
@@ -182,6 +192,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         country: data.country || '',
         useCase: data.useCase || '',
         timeline: data.timeline || '',
+        additionalInformation: data.additionalInformation || '',
         userId: userEmail || 'anonymous',
         status: 'progress' as const
       };
@@ -212,6 +223,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         country: data.country || '',
         useCase: data.useCase || '',
         timeline: data.timeline || '',
+        additionalInformation: data.additionalInformation || '',
         status
       };
       await updateAnalyze.mutateAsync(updateData);
@@ -377,6 +389,21 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
                       fontSize: '16px',
                       padding: '12px 16px',
                       height: '48px'
+                    }}
+                  />
+                ) : field.type === 'textarea' ? (
+                  <TextArea
+                    placeholder={field.placeholder}
+                    size="large"
+                    rows={4}
+                    style={{
+                      background: '#1f1f1f',
+                      border: '1px solid #434343',
+                      borderRadius: '8px',
+                      color: '#d9d9d9',
+                      fontSize: '16px',
+                      padding: '12px 16px',
+                      resize: 'vertical'
                     }}
                   />
                 ) : field.type === 'select' ? (

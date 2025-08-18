@@ -15,6 +15,7 @@ interface AnalyzeQuizData {
   country: string;
   useCase: string;
   timeline: string;
+  additionalInformation?: string;
 }
 
 interface AnalyzeResultProps {
@@ -76,6 +77,9 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
             <p><strong>Country:</strong> {quizData.country}</p>
             <p><strong>Use Case:</strong> {quizData.useCase}</p>
             <p><strong>Timeline:</strong> {quizData.timeline}</p>
+            {quizData.additionalInformation && (
+              <p><strong>Additional Information:</strong> {quizData.additionalInformation}</p>
+            )}
           </div>
         </Card>
 

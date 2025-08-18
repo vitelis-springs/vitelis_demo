@@ -7,6 +7,7 @@ export interface AnalyzeData {
   country: string;
   useCase: string;
   timeline: string;
+  additionalInformation?: string;
   userId?: string;
   status?: 'progress' | 'finished';
   currentStep?: number;
