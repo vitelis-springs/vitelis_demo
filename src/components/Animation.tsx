@@ -156,8 +156,6 @@ export default function Animation({
 
 
 
-
-
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
       <Sidebar />
