@@ -36,6 +36,7 @@ interface AnalyzeQuizData {
   country: string;
   useCase: string;
   timeline: string;
+  language: string;
   additionalInformation?: string;
 }
 
@@ -87,6 +88,17 @@ const FORM_FIELDS = [
     required: true
   },
   {
+    name: 'language',
+    label: 'Language',
+    type: 'select',
+    placeholder: 'Select language...',
+    options: [
+      'English',
+      'German'
+    ],
+    required: true
+  },
+  {
     name: 'additionalInformation',
     label: 'Additional Information',
     type: 'textarea',
@@ -105,7 +117,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [executionId, setExecutionId] = useState('');
   const [quizData, setQuizData] = useState<AnalyzeQuizData>({
-    companyName: '', businessLine: '', country: '', useCase: '', timeline: '', additionalInformation: ''
+    companyName: '', businessLine: '', country: '', useCase: '', timeline: '', language: '', additionalInformation: ''
   });
 
   const router = useRouter();
@@ -128,7 +140,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       setAnalyzeId(null);
       setShowResults(false);
       setShowAnimation(false);
-      setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '', additionalInformation: '' });
+      setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '', language: '', additionalInformation: '' });
       form.resetFields();
     }
     setIsLoadingProgress(false);
@@ -146,6 +158,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         country: analyzeData.country || '',
         useCase: analyzeData.useCase || '',
         timeline: analyzeData.timeline || '',
+        language: analyzeData.language || '',
         additionalInformation: analyzeData.additionalInformation || ''
       });
       
@@ -192,6 +205,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         country: data.country || '',
         useCase: data.useCase || '',
         timeline: data.timeline || '',
+        language: data.language || '',
         additionalInformation: data.additionalInformation || '',
         userId: userEmail || 'anonymous',
         status: 'progress' as const
@@ -223,6 +237,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         country: data.country || '',
         useCase: data.useCase || '',
         timeline: data.timeline || '',
+        language: data.language || '',
         additionalInformation: data.additionalInformation || '',
         status
       };
@@ -272,7 +287,14 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
           const updatedAnalyze = await updateAnalyze.mutateAsync({
             id: currentAnalyzeId,
             executionId: result.executionId.toString(),
-            executionStatus: 'started'
+            executionStatus: 'started',
+            companyName: completeData.companyName,
+            businessLine: completeData.businessLine,
+            country: completeData.country,
+            useCase: completeData.useCase,
+            timeline: completeData.timeline,
+            language: completeData.language,
+            additionalInformation: completeData.additionalInformation
           });
           
           console.log('✅ Component: updateAnalyze completed:', updatedAnalyze);
@@ -304,7 +326,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     setShowResults(false);
     setShowAnimation(false);
     setAnalyzeId(null);
-    setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '' });
+    setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '', language: '' });
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.delete('analyzeId');
     router.replace(newUrl.pathname + newUrl.search, { scroll: false });

@@ -6,6 +6,7 @@ export interface IAnalyze extends Document {
   country: string;
   useCase: string;
   timeline: string;
+  language: string;
   additionalInformation?: string;
   userId?: string;
   status: 'progress' | 'finished';
@@ -44,6 +45,12 @@ const AnalyzeSchema: Schema = new Schema({
     default: ''
   },
   timeline: {
+    type: String,
+    required: false,
+    trim: true,
+    default: ''
+  },
+  language: {
     type: String,
     required: false,
     trim: true,
