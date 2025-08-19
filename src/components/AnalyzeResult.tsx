@@ -69,10 +69,15 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
           }}
           bodyStyle={{ padding: '20px' }}
         >
-          <Title level={4} style={{ color: '#58bfce', marginBottom: '16px' }}>
-            <CheckCircleOutlined style={{ marginRight: '8px' }} />
-            Analysis Parameters
-          </Title>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <Title level={4} style={{ color: '#58bfce', margin: 0 }}>
+              Analysis Parameters
+            </Title>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '12px', fontSize: '32px' }} />
+              <span style={{ color: '#52c41a', fontSize: '24px', fontWeight: '600' }}>Sources verified</span>
+            </div>
+          </div>
           <div style={{ color: '#d9d9d9' }}>
             <p><strong>Company:</strong> {quizData.companyName}</p>
             <p><strong>Business Line:</strong> {quizData.businessLine}</p>
