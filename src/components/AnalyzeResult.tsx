@@ -1,11 +1,11 @@
 'use client';
 
-import React from 'react';
-import { Card, Typography, Space, Button, Layout } from 'antd';
+import React, { useState } from 'react';
+import { Card, Typography, Space, Button, Layout, Collapse } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkToc from 'remark-toc';
 import remarkGfm from 'remark-gfm';
-import { CheckCircleOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, DownOutlined } from '@ant-design/icons';
 import Sidebar from './ui/sidebar';
 
 const { Title, Text } = Typography;
@@ -27,8 +27,13 @@ interface AnalyzeResultProps {
 }
 
 export default function AnalyzeResult({ quizData, resultText, onReset }: AnalyzeResultProps) {
+  const [tocOpen, setTocOpen] = useState(false);
+  
   // Use provided resultText or fallback to default content
   const reportContent = resultText || `\n\n# Analysis Report\n\nNo analysis results available yet. Please wait for the analysis to complete.`;
+
+  // Generate TOC content
+  const tocContent = `# Table of Contents\n\n${reportContent}`;
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
@@ -88,6 +93,82 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
               <p><strong>Additional Information:</strong> {quizData.additionalInformation}</p>
             )}
           </div>
+        </Card>
+
+        {/* Table of Contents */}
+        <Card
+          style={{
+            background: '#262626',
+            border: '1px solid #434343',
+            borderRadius: '8px',
+            marginBottom: '24px'
+          }}
+          bodyStyle={{ padding: '0' }}
+        >
+          <div
+            style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #434343',
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#1f1f1f'
+            }}
+            onClick={() => setTocOpen(!tocOpen)}
+          >
+            <Title level={4} style={{ color: '#58bfce', margin: 0 }}>
+              Table of Contents
+            </Title>
+            <DownOutlined 
+              style={{ 
+                color: '#58bfce', 
+                fontSize: '16px',
+                transform: tocOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s ease'
+              }} 
+            />
+          </div>
+          {tocOpen && (
+            <div style={{ padding: '24px' }}>
+              <div style={{ 
+                color: '#d9d9d9',
+                fontSize: '14px',
+                lineHeight: '1.6'
+              }}>
+                <ReactMarkdown
+                  remarkPlugins={[
+                    remarkGfm,
+                    [remarkToc, { tight: true, maxDepth: 3 }]
+                  ]}
+                  components={{
+                    h1: ({children}) => <h1 style={{color: '#58bfce', fontSize: '20px', marginBottom: '16px', marginTop: '0'}}>{children}</h1>,
+                    h2: ({children}) => <h2 style={{color: '#58bfce', fontSize: '18px', marginBottom: '12px', marginTop: '16px'}}>{children}</h2>,
+                    h3: ({children}) => <h3 style={{color: '#58bfce', fontSize: '16px', marginBottom: '10px', marginTop: '12px'}}>{children}</h3>,
+                    ul: ({children}) => <ul style={{marginBottom: '12px', paddingLeft: '20px'}}>{children}</ul>,
+                    li: ({children}) => <li style={{marginBottom: '4px'}}>{children}</li>,
+                    a: ({href, children}) => (
+                      <a 
+                        href={href} 
+                        style={{
+                          color: '#58bfce',
+                          textDecoration: 'none',
+                          borderBottom: '1px solid transparent',
+                          transition: 'border-bottom 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderBottom = '1px solid #58bfce'}
+                        onMouseLeave={(e) => e.currentTarget.style.borderBottom = '1px solid transparent'}
+                      >
+                        {children}
+                      </a>
+                    )
+                  }}
+                >
+                  {tocContent}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Markdown Report */}
