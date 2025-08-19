@@ -16,6 +16,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   FileTextOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -48,6 +49,11 @@ export default function Sidebar() {
       key: '/history',
       icon: <HistoryOutlined style={{ fontSize: '18px' }} />,
       label: 'My Reports',
+    },
+    {
+      key: '/settings',
+      icon: <SettingOutlined style={{ fontSize: '18px' }} />,
+      label: 'Settings',
     },
   ];
 
