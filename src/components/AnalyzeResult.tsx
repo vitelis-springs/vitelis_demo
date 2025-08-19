@@ -27,7 +27,7 @@ interface AnalyzeResultProps {
 }
 
 export default function AnalyzeResult({ quizData, resultText, onReset }: AnalyzeResultProps) {
-  const [tocOpen, setTocOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(true);
   
   // Use provided resultText or fallback to default content
   const reportContent = resultText || `\n\n# Analysis Report\n\nNo analysis results available yet. Please wait for the analysis to complete.`;
@@ -104,11 +104,11 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
           }}
           bodyStyle={{ padding: '20px' }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', padding: 'relative' }}>
             <Title level={4} style={{ color: '#58bfce', margin: 0 }}>
               Analysis Parameters
             </Title>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', position: 'absolute', right: '65px', top: '75px' }}>
               <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '12px', fontSize: '32px' }} />
               <span style={{ color: '#52c41a', fontSize: '24px', fontWeight: '600' }}>Sources verified</span>
             </div>
