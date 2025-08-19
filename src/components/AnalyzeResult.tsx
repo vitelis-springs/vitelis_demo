@@ -32,8 +32,38 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
   // Use provided resultText or fallback to default content
   const reportContent = resultText || `\n\n# Analysis Report\n\nNo analysis results available yet. Please wait for the analysis to complete.`;
 
-  // Generate TOC content
+  // Generate TOC content - only the TOC structure
   const tocContent = `# Table of Contents\n\n${reportContent}`;
+  
+  // Function to extract headings and create TOC
+  const generateTOC = (content: string) => {
+    const lines = content.split('\n');
+    const headings: Array<{level: number, text: string, id: string}> = [];
+    
+    lines.forEach(line => {
+      const h1Match = line.match(/^# (.+)$/);
+      const h2Match = line.match(/^## (.+)$/);
+      const h3Match = line.match(/^### (.+)$/);
+      
+      if (h1Match) {
+        const text = h1Match[1];
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        headings.push({ level: 1, text, id });
+      } else if (h2Match) {
+        const text = h2Match[1];
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        headings.push({ level: 2, text, id });
+      } else if (h3Match) {
+        const text = h3Match[1];
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        headings.push({ level: 3, text, id });
+      }
+    });
+    
+    return headings;
+  };
+  
+  const tocHeadings = generateTOC(reportContent);
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
@@ -136,36 +166,47 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
                 fontSize: '14px',
                 lineHeight: '1.6'
               }}>
-                <ReactMarkdown
-                  remarkPlugins={[
-                    remarkGfm,
-                    [remarkToc, { tight: true, maxDepth: 3 }]
-                  ]}
-                  components={{
-                    h1: ({children}) => <h1 style={{color: '#58bfce', fontSize: '20px', marginBottom: '16px', marginTop: '0'}}>{children}</h1>,
-                    h2: ({children}) => <h2 style={{color: '#58bfce', fontSize: '18px', marginBottom: '12px', marginTop: '16px'}}>{children}</h2>,
-                    h3: ({children}) => <h3 style={{color: '#58bfce', fontSize: '16px', marginBottom: '10px', marginTop: '12px'}}>{children}</h3>,
-                    ul: ({children}) => <ul style={{marginBottom: '12px', paddingLeft: '20px'}}>{children}</ul>,
-                    li: ({children}) => <li style={{marginBottom: '4px'}}>{children}</li>,
-                    a: ({href, children}) => (
-                      <a 
-                        href={href} 
-                        style={{
-                          color: '#58bfce',
-                          textDecoration: 'none',
-                          borderBottom: '1px solid transparent',
-                          transition: 'border-bottom 0.2s ease'
+                {tocHeadings.length > 0 ? (
+                  <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                    {tocHeadings.map((heading, index) => (
+                      <li 
+                        key={index} 
+                        style={{ 
+                          marginBottom: '8px',
+                          paddingLeft: `${(heading.level - 1) * 20}px`,
+                          listStyle: 'none'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.borderBottom = '1px solid #58bfce'}
-                        onMouseLeave={(e) => e.currentTarget.style.borderBottom = '1px solid transparent'}
                       >
-                        {children}
-                      </a>
-                    )
-                  }}
-                >
-                  {tocContent}
-                </ReactMarkdown>
+                        <a 
+                          href={`#${heading.id}`}
+                          style={{
+                            color: '#58bfce',
+                            textDecoration: 'none',
+                            borderBottom: '1px solid transparent',
+                            transition: 'border-bottom 0.2s ease',
+                            fontSize: heading.level === 1 ? '16px' : heading.level === 2 ? '14px' : '13px',
+                            fontWeight: heading.level === 1 ? '600' : '500'
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const targetElement = document.getElementById(heading.id);
+                            if (targetElement) {
+                              targetElement.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.borderBottom = '1px solid #58bfce'}
+                          onMouseLeave={(e) => e.currentTarget.style.borderBottom = '1px solid transparent'}
+                        >
+                          {heading.text}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ color: '#8c8c8c', fontStyle: 'italic' }}>
+                    No headings found in the report
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -191,10 +232,19 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
                 remarkGfm,
                 [remarkToc, { tight: true, maxDepth: 3 }]
               ]}
-              components={{
-                h1: ({children}) => <h1 style={{color: '#58bfce', fontSize: '24px', marginBottom: '16px', marginTop: '24px'}}>{children}</h1>,
-                h2: ({children}) => <h2 style={{color: '#58bfce', fontSize: '20px', marginBottom: '12px', marginTop: '20px'}}>{children}</h2>,
-                h3: ({children}) => <h3 style={{color: '#58bfce', fontSize: '18px', marginBottom: '10px', marginTop: '16px'}}>{children}</h3>,
+                              components={{
+                  h1: ({children}) => {
+                    const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    return <h1 id={id} style={{color: '#58bfce', fontSize: '24px', marginBottom: '16px', marginTop: '24px'}}>{children}</h1>;
+                  },
+                  h2: ({children}) => {
+                    const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    return <h2 id={id} style={{color: '#58bfce', fontSize: '20px', marginBottom: '12px', marginTop: '20px'}}>{children}</h2>;
+                  },
+                  h3: ({children}) => {
+                    const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    return <h3 id={id} style={{color: '#58bfce', fontSize: '18px', marginBottom: '10px', marginTop: '16px'}}>{children}</h3>;
+                  },
                 h4: ({children}) => <h4 style={{color: '#58bfce', fontSize: '16px', marginBottom: '8px', marginTop: '14px'}}>{children}</h4>,
                 p: ({children}) => <p style={{marginBottom: '12px'}}>{children}</p>,
                 strong: ({children}) => <strong style={{color: '#ffffff'}}>{children}</strong>,

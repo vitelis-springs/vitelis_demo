@@ -33,22 +33,22 @@ a {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(20, 20, 20);
+  background: rgba(88, 191, 206, 0.1);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(32, 32, 32);
+  background: rgb(88, 191, 206);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(48, 48, 48);
+  background: rgba(88, 191, 206, 0.8);
 }
 
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgb(32, 32, 32) rgb(20, 20, 20);
+  scrollbar-color: rgb(88, 191, 206) rgba(88, 191, 206, 0.1);
 }
 
 /* Fix Ant Design Layout issues */
