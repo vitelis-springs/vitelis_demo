@@ -74,9 +74,9 @@ const FORM_FIELDS = [
     placeholder: 'Select a use case...',
     options: [
       'Leadership',
-      'Efficiency', 
-      'AI Adoption',
-      'SALESminer'
+      'AI Maturity',
+      'Insurance CX',
+      'Efficiency'
     ],
     required: true
   },
