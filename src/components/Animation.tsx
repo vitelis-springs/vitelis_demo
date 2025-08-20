@@ -388,7 +388,9 @@ export default function Animation({
               
               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                 <Title level={2} style={{ 
-                  color: executionError ? '#ff4d4f' : '#58bfce', 
+                  color: executionError 
+                    ? (analyzeData?.status === 'canceled' ? '#faad14' : '#ff4d4f')
+                    : '#58bfce', 
                   marginBottom: '8px' 
                 }}>
                   {executionError 
@@ -398,7 +400,11 @@ export default function Animation({
                       : title
                   }
                 </Title>
-                <Text style={{ color: executionError ? '#ffa39e' : '#8c8c8c' }}>
+                <Text style={{ 
+                  color: executionError 
+                    ? (analyzeData?.status === 'canceled' ? '#ffe58f' : '#ffa39e')
+                    : '#8c8c8c' 
+                }}>
                   {executionError 
                     ? `Execution was stopped on step ${current + 1}`
                     : companyName 
@@ -414,21 +420,31 @@ export default function Animation({
                   style={{ 
                     marginBottom: '24px', 
                     background: '#2a1f1f', 
-                    border: '1px solid #ff4d4f',
+                    border: `1px solid ${analyzeData?.status === 'canceled' ? '#faad14' : '#ff4d4f'}`,
                     borderRadius: '8px'
                   }}
                 >
                   <div style={{ textAlign: 'center' }}>
-                    <Title level={4} style={{ color: '#ff4d4f', marginBottom: '8px' }}>
-                      ❌ Execution Failed
+                    <Title level={4} style={{ 
+                      color: analyzeData?.status === 'canceled' ? '#faad14' : '#ff4d4f', 
+                      marginBottom: '8px' 
+                    }}>
+                      {analyzeData?.status === 'canceled' ? '⏹️ Execution Canceled' : '❌ Execution Failed'}
                     </Title>
-                    <Text style={{ color: '#ffa39e' }}>
+                    <Text style={{ 
+                      color: analyzeData?.status === 'canceled' ? '#ffe58f' : '#ffa39e' 
+                    }}>
                       {executionError}
                     </Text>
                     <div style={{ marginTop: '16px' }}>
                       <Button 
                         type="primary" 
-                        danger
+                        danger={analyzeData?.status !== 'canceled'}
+                        style={{
+                          background: analyzeData?.status === 'canceled' ? '#faad14' : undefined,
+                          borderColor: analyzeData?.status === 'canceled' ? '#faad14' : undefined,
+                          color: analyzeData?.status === 'canceled' ? '#000' : undefined
+                        }}
                         onClick={() => window.location.href = '/analyze-quiz'}
                       >
                         Try Again
@@ -445,7 +461,7 @@ export default function Animation({
                   description: item.description,
                   icon: index === 2 && loading ? <LoadingOutlined spin /> : item.icon,
                   status: executionError 
-                    ? (index < current ? 'finish' : index === current ? 'error' : 'wait')
+                    ? (index < current ? 'finish' : index === current ? (analyzeData?.status === 'canceled' ? 'process' : 'error') : 'wait')
                     : (index < current ? 'finish' : index === current ? 'process' : 'wait')
                 }))}
                 style={{ marginBottom: '24px' }}
@@ -461,13 +477,16 @@ export default function Animation({
                 <div style={{ '--ant-progress-stroke-width': '8px' } as React.CSSProperties}>
                   <Progress
                     percent={Math.round(((current + 1) / steps.length) * 100)}
-                    strokeColor={executionError ? '#ff4d4f' : {
-                      '0%': '#58bfce',
-                      '25%': '#1890ff',
-                      '50%': '#52c41a',
-                      '75%': '#faad14',
-                      '100%': '#f5222d',
-                    }}
+                    strokeColor={executionError 
+                      ? (analyzeData?.status === 'canceled' ? '#faad14' : '#ff4d4f')
+                      : {
+                        '0%': '#58bfce',
+                        '25%': '#1890ff',
+                        '50%': '#52c41a',
+                        '75%': '#faad14',
+                        '100%': '#f5222d',
+                      }
+                    }
                     trailColor="#303030"
                     showInfo={false}
                     status={executionError ? 'exception' : 'active'}
@@ -477,11 +496,19 @@ export default function Animation({
 
               <div style={{ marginTop: '24px' }}>
                 {executionError ? (
-                  <Card style={{ marginTop: 16, background: '#2a1f1f', border: '1px solid #ff4d4f' }}>
-                    <Title level={4} style={{ color: '#ff4d4f' }}>
+                  <Card style={{ 
+                    marginTop: 16, 
+                    background: analyzeData?.status === 'canceled' ? '#2a1f1f' : '#2a1f1f', 
+                    border: `1px solid ${analyzeData?.status === 'canceled' ? '#faad14' : '#ff4d4f'}` 
+                  }}>
+                    <Title level={4} style={{ 
+                      color: analyzeData?.status === 'canceled' ? '#faad14' : '#ff4d4f' 
+                    }}>
                       Step {current + 1}: {steps[current]?.title}
                     </Title>
-                    <Text style={{ color: '#ffa39e' }}>
+                    <Text style={{ 
+                      color: analyzeData?.status === 'canceled' ? '#ffe58f' : '#ffa39e' 
+                    }}>
                       Execution stopped on this step. The analysis workflow encountered an issue and could not continue.
                     </Text>
                   </Card>
@@ -508,7 +535,11 @@ export default function Animation({
                 marginTop: '16px', 
                 textAlign: 'center' 
               }}>
-                <Text style={{ color: executionError ? '#ff4d4f' : '#8c8c8c' }}>
+                <Text style={{ 
+                  color: executionError 
+                    ? (analyzeData?.status === 'canceled' ? '#faad14' : '#ff4d4f')
+                    : '#8c8c8c' 
+                }}>
                   {executionError 
                     ? `Step ${current + 1} of ${steps.length} • Execution ${analyzeData?.status === 'canceled' ? 'Canceled' : 'Failed'}`
                     : `Step ${current + 1} of ${steps.length} • ${Math.round(((current + 1) / steps.length) * 100)}% Complete`
