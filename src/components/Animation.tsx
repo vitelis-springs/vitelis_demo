@@ -15,7 +15,7 @@ import {
   AuditOutlined
 } from '@ant-design/icons';
 import Sidebar from './ui/sidebar';
-import { useAnalyzeService } from '../hooks/api/useAnalyzeService';
+import { useAnalyzeService, useGetAnalyze } from '../hooks/api/useAnalyzeService';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
 
 const { Title, Text } = Typography;
@@ -28,6 +28,7 @@ interface AnimationProps {
   companyName?: string;
   executionStep?: number;
   analyzeId?: string;
+  analyzeData?: any;
   onComplete?: () => void;
 }
 
@@ -38,6 +39,7 @@ export default function Animation({
   companyName,
   executionStep,
   analyzeId,
+  analyzeData,
   onComplete
 }: AnimationProps) {
   const [current, setCurrent] = useState(0);
@@ -54,15 +56,29 @@ export default function Animation({
     }
   );
 
-  console.log("executionDetails", executionDetails);
+  // console.log("executionDetails", executionDetails);
+
+  // Check analyze status for errors
+  useEffect(() => {
+    if (analyzeData) {
+      console.log('🔄 Animation: Analyze data received:', analyzeData);
+      
+      if (analyzeData.status === 'error' || analyzeData.status === 'canceled') {
+        setExecutionError(`Analysis ${analyzeData.status}. Please try again.`);
+        console.error('❌ Animation: Analysis failed with status:', analyzeData.status);
+      }
+    }
+  }, [analyzeData]);
 
   // Handle execution status changes
+
+  console.log("analyzeData", analyzeData);
+  
   useEffect(() => {
     if (executionDetails) {
       console.log('🔄 Animation: Execution details received:', executionDetails);
       
       if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
-        setExecutionError(`Execution ${executionDetails.status}. Please try again.`);
         console.error('❌ Animation: Execution failed with status:', executionDetails.status);
         
         // Update Analyze status to 'error' when execution fails
@@ -403,7 +419,7 @@ export default function Animation({
                       <Button 
                         type="primary" 
                         danger
-                        onClick={() => window.location.reload()}
+                        onClick={() => window.location.href = '/analyze-quiz'}
                       >
                         Try Again
                       </Button>

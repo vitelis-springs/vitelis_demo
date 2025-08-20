@@ -170,13 +170,26 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         return;
       }
       
-      // Check if we have executionId - show animation
+      // Check if we have executionId - show animation (regardless of status)
       if (analyzeData.executionId) {
         console.log('🎬 Component: Found executionId, showing animation');
         setExecutionId(analyzeData.executionId);
         setShowAnimation(true);
         setShowResults(false);
-      } else if (analyzeData.status === 'finished') {
+        return;
+      }
+      
+      // Check if status is error or canceled - show quiz form with error
+      if (analyzeData.status === 'error' || analyzeData.status === 'canceled') {
+        console.log('❌ Component: Analysis failed with status:', analyzeData.status);
+        setShowResults(false);
+        setShowAnimation(false);
+        showNotification('error', 'Analysis Failed', `The analysis was ${analyzeData.status}. Please try again.`);
+        return;
+      }
+      
+      // Check if status is finished but no resultText - show results
+      if (analyzeData.status === 'finished') {
         console.log('📋 Component: Analysis completed, showing results');
         setShowResults(true);
         setShowAnimation(false);
@@ -360,6 +373,8 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         executionId={executionId}
         companyName={quizData.companyName}
         executionStep={analyzeData?.executionStep}
+        analyzeId={analyzeId || undefined}
+        analyzeData={analyzeData}
         onComplete={handleAnimationComplete}
       />
     );

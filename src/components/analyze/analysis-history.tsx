@@ -24,6 +24,8 @@ import {
   ReloadOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
+  ExclamationCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { useAnalyzeService, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
@@ -213,13 +215,22 @@ export default function AnalysisHistory() {
                               </Text>
                               <Space>
                                 <Tag 
-                                  color={analysis.status === 'finished' ? 'green' : analysis.status === 'progress' ? 'blue' : 'orange'} 
+                                  color={
+                                    analysis.status === 'finished' ? 'green' : 
+                                    analysis.status === 'progress' ? 'blue' : 
+                                    analysis.status === 'error' ? 'red' :
+                                    analysis.status === 'canceled' ? 'orange' : 'orange'
+                                  } 
                                   style={{ fontSize: '12px' }}
                                 >
                                   {analysis.status === 'finished' ? (
                                     <><CheckCircleOutlined /> Completed</>
                                   ) : analysis.status === 'progress' ? (
                                     <><LoadingOutlined /> In Progress</>
+                                  ) : analysis.status === 'error' ? (
+                                    <><ExclamationCircleOutlined /> Error</>
+                                  ) : analysis.status === 'canceled' ? (
+                                    <><StopOutlined /> Canceled</>
                                   ) : (
                                     'Draft'
                                   )}
@@ -324,6 +335,18 @@ export default function AnalysisHistory() {
                       {analyses.filter(a => a.status === 'progress').length}
                     </Text>
                     <div style={{ color: '#8c8c8c', fontSize: '12px' }}>In Progress</div>
+                  </div>
+                  <div>
+                    <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
+                      {analyses.filter(a => a.status === 'error').length}
+                    </Text>
+                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Errors</div>
+                  </div>
+                  <div>
+                    <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
+                      {analyses.filter(a => a.status === 'canceled').length}
+                    </Text>
+                    <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Canceled</div>
                   </div>
                 </div>
               </Card>
