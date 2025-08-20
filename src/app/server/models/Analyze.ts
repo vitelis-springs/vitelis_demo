@@ -9,10 +9,10 @@ export interface IAnalyze extends Document {
   language: string;
   additionalInformation?: string;
   userId?: string;
-  status: 'progress' | 'finished';
+  status: 'progress' | 'finished' | 'error' | 'canceled';
   currentStep: number;
   executionId?: string;
-  executionStatus?: 'started' | 'inProgress' | 'finished' | 'errored';
+  executionStatus?: 'started' | 'inProgress' | 'finished' | 'error' | 'canceled';
   executionStep?: number;
   resultText?: string;
   createdAt: Date;
@@ -63,7 +63,7 @@ const AnalyzeSchema: Schema = new Schema({
   },
   status: {
     type: String,
-    enum: ['progress', 'finished'],
+    enum: ['progress', 'finished', 'error', 'canceled'],
     default: 'progress'
   },
   currentStep: {
@@ -77,7 +77,7 @@ const AnalyzeSchema: Schema = new Schema({
   },
   executionStatus: {
     type: String,
-    enum: ['started', 'inProgress', 'finished', 'errored'],
+    enum: ['started', 'inProgress', 'finished', 'error', 'canceled'],
     default: null,
     required: false,
   },

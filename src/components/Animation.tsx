@@ -15,6 +15,8 @@ import {
   AuditOutlined
 } from '@ant-design/icons';
 import Sidebar from './ui/sidebar';
+import { useAnalyzeService } from '../hooks/api/useAnalyzeService';
+import { useGetExecutionDetails } from '@hooks/api/useN8NService';
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -25,6 +27,7 @@ interface AnimationProps {
   executionId: string;
   companyName?: string;
   executionStep?: number;
+  analyzeId?: string;
   onComplete?: () => void;
 }
 
@@ -34,21 +37,54 @@ export default function Animation({
   executionId,
   companyName,
   executionStep,
+  analyzeId,
   onComplete
 }: AnimationProps) {
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(false);
-
+  const [executionError, setExecutionError] = useState<string | null>(null);
+  const { updateAnalyze } = useAnalyzeService();
 
   // Poll execution details
-  // const { data: executionDetails } = useGetExecutionDetails(
-  //   executionId,
-  //   {
-  //     refetchInterval: 5000, // Poll every 5 seconds
-  //     enabled: !!executionId
-  //   }
-  // );
+  const { data: executionDetails } = useGetExecutionDetails(
+    executionId,
+    {
+      refetchInterval: 5000, // Poll every 5 seconds
+      enabled: !!executionId
+    }
+  );
 
+  console.log("executionDetails", executionDetails);
+
+  // Handle execution status changes
+  useEffect(() => {
+    if (executionDetails) {
+      console.log('🔄 Animation: Execution details received:', executionDetails);
+      
+      if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
+        setExecutionError(`Execution ${executionDetails.status}. Please try again.`);
+        console.error('❌ Animation: Execution failed with status:', executionDetails.status);
+        
+        // Update Analyze status to 'error' when execution fails
+        if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
+          if (analyzeId) {
+            console.log('🔄 Animation: Updating analyze status to error for ID:', analyzeId);
+            updateAnalyze.mutateAsync({
+              id: analyzeId,
+              status: executionDetails.status,
+              executionStatus: executionDetails.status
+            }).then(() => {
+              console.log('✅ Animation: Analyze status updated to error');
+            }).catch((error) => {
+              console.error('❌ Animation: Failed to update analyze status:', error);
+            });
+          } else {
+            console.warn('⚠️ Animation: No analyzeId provided, cannot update status');
+          }
+        }
+      }
+    }
+  }, [executionDetails, analyzeId, updateAnalyze]);
   const steps = [
     {
       title: 'Initialising',
@@ -345,6 +381,36 @@ export default function Animation({
                   }
                 </Text>
               </div>
+
+              {/* Error Display */}
+              {executionError && (
+                <Card 
+                  style={{ 
+                    marginBottom: '24px', 
+                    background: '#2a1f1f', 
+                    border: '1px solid #ff4d4f',
+                    borderRadius: '8px'
+                  }}
+                >
+                  <div style={{ textAlign: 'center' }}>
+                    <Title level={4} style={{ color: '#ff4d4f', marginBottom: '8px' }}>
+                      ❌ Execution Failed
+                    </Title>
+                    <Text style={{ color: '#ffa39e' }}>
+                      {executionError}
+                    </Text>
+                    <div style={{ marginTop: '16px' }}>
+                      <Button 
+                        type="primary" 
+                        danger
+                        onClick={() => window.location.reload()}
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               <Steps
                 current={current}

@@ -11,7 +11,7 @@ export interface N8NExecutionDetails {
   mode: string;
   retryOf: string | null;
   retrySuccessId: string | null;
-  status: 'running' | 'completed' | 'failed' | 'error' | 'waiting';
+  status: 'running' | 'completed' | 'failed' | 'error' | 'waiting' | 'canceled';
   createdAt: string;
   startedAt: string;
   stoppedAt: string | null;
