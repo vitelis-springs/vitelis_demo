@@ -467,6 +467,15 @@ export default function Animation({
                 style={{ marginBottom: '24px' }}
                 className="animation-steps"
               />
+              
+              <style jsx>{`
+                .animation-steps .ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon {
+                  color: ${executionError && analyzeData?.status === 'canceled' ? '#faad14' : '#fff'} !important;
+                }
+                .animation-steps .ant-steps-item-process .ant-steps-item-icon .ant-steps-icon {
+                  color: ${executionError && analyzeData?.status === 'canceled' ? '#faad14' : '#fff'} !important;
+                }
+              `}</style>
 
               {/* Progress indicator using Ant Design Progress component */}
               <div style={{ 
