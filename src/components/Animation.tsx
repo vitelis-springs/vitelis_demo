@@ -458,20 +458,21 @@ export default function Animation({
                 marginBottom: '16px',
                 padding: '0 20px'
               }}>
-                <Progress
-                  percent={Math.round(((current + 1) / steps.length) * 100)}
-                  strokeColor={executionError ? '#ff4d4f' : {
-                    '0%': '#58bfce',
-                    '25%': '#1890ff',
-                    '50%': '#52c41a',
-                    '75%': '#faad14',
-                    '100%': '#f5222d',
-                  }}
-                  trailColor="#303030"
-                  size={[8, 8]}
-                  showInfo={false}
-                  status={executionError ? 'exception' : 'active'}
-                />
+                <div style={{ '--ant-progress-stroke-width': '8px' } as React.CSSProperties}>
+                  <Progress
+                    percent={Math.round(((current + 1) / steps.length) * 100)}
+                    strokeColor={executionError ? '#ff4d4f' : {
+                      '0%': '#58bfce',
+                      '25%': '#1890ff',
+                      '50%': '#52c41a',
+                      '75%': '#faad14',
+                      '100%': '#f5222d',
+                    }}
+                    trailColor="#303030"
+                    showInfo={false}
+                    status={executionError ? 'exception' : 'active'}
+                  />
+                </div>
               </div>
 
               <div style={{ marginTop: '24px' }}>
