@@ -102,7 +102,7 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
             borderRadius: '8px',
             marginBottom: '32px'
           }}
-          bodyStyle={{ padding: '20px' }}
+          styles={{ body: { padding: '20px' } }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', padding: 'relative' }}>
             <Title level={4} style={{ color: '#58bfce', margin: 0 }}>
@@ -133,7 +133,7 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
             borderRadius: '8px',
             marginBottom: '24px'
           }}
-          bodyStyle={{ padding: '0' }}
+          styles={{ body: { padding: '0' } }}
         >
           <div
             style={{
@@ -220,7 +220,7 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
             borderRadius: '8px',
             marginBottom: '32px'
           }}
-          bodyStyle={{ padding: '32px' }}
+          styles={{ body: { padding: '32px' } }}
         >
           <div style={{ 
             color: '#d9d9d9',

@@ -404,7 +404,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         </div>
 
         {/* Form */}
-        <Card style={{ background: '#262626', border: '1px solid #434343', borderRadius: '8px', marginBottom: '32px' }} bodyStyle={{ padding: '32px' }}>
+        <Card style={{ background: '#262626', border: '1px solid #434343', borderRadius: '8px', marginBottom: '32px' }} styles={{ body: { padding: '32px' } }}>
           <Form form={form} layout="vertical" initialValues={quizData} style={{ width: '100%' }}>
             {FORM_FIELDS.map((field) => (
               <Form.Item 
@@ -454,7 +454,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
                       height: '48px',
                       width: '100%'
                     }}
-                    dropdownStyle={{ background: '#1f1f1f', border: '1px solid #434343' }}
+                    styles={{ popup: { root: { background: '#1f1f1f', border: '1px solid #434343' } } }}
                   >
                     {field.options?.map((option, index) => (
                       <Option key={index} value={option}>

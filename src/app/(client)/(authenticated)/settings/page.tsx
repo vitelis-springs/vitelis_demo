@@ -52,7 +52,7 @@ export default function SettingsPage() {
                   borderRadius: '8px',
                   marginBottom: '32px'
                 }}
-                bodyStyle={{ padding: '32px' }}
+                styles={{ body: { padding: '32px' } }}
               >
                 <Title level={4} style={{ color: '#58bfce', marginBottom: '16px' }}>
                   Model Selection

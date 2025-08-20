@@ -456,7 +456,7 @@ ${preparedAnswer}`;
                     borderRadius: '12px',
                     flex: 1
                   }}
-                  bodyStyle={{ padding: '12px 16px' }}
+                  styles={{ body: { padding: '12px 16px' } }}
                 >
                   <Text style={{ 
                     color: message.role === 'user' ? '#fff' : '#d9d9d9',

@@ -315,7 +315,7 @@ export default function AnalysisHistory() {
                   marginTop: '16px',
                   flexShrink: 0
                 }}
-                bodyStyle={{ padding: '16px' }}
+                styles={{ body: { padding: '16px' } }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
                   <div>

@@ -100,7 +100,7 @@ export default function Animation({
         }
       }
     }
-  }, [executionDetails, analyzeId, updateAnalyze]);
+  }, [executionDetails, analyzeId]);
   const steps = [
     {
       title: 'Initialising',
@@ -387,13 +387,23 @@ export default function Animation({
               `}</style>
               
               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                <Title level={2} style={{ color: '#58bfce', marginBottom: '8px' }}>
-                  {companyName ? `Analysis in Progress: ${companyName}` : title}
+                <Title level={2} style={{ 
+                  color: executionError ? '#ff4d4f' : '#58bfce', 
+                  marginBottom: '8px' 
+                }}>
+                  {executionError 
+                    ? `Analysis ${analyzeData?.status === 'canceled' ? 'Canceled' : 'Failed'}: ${companyName || 'Company'}`
+                    : companyName 
+                      ? `Analysis in Progress: ${companyName}` 
+                      : title
+                  }
                 </Title>
-                <Text style={{ color: '#8c8c8c' }}>
-                  {companyName 
-                    ? `Your analysis for ${companyName} is being processed. This may take a few minutes.`
-                    : description
+                <Text style={{ color: executionError ? '#ffa39e' : '#8c8c8c' }}>
+                  {executionError 
+                    ? `Execution was stopped on step ${current + 1}`
+                    : companyName 
+                      ? `Your analysis for ${companyName} is being processed. This may take a few minutes.`
+                      : description
                   }
                 </Text>
               </div>
@@ -434,7 +444,9 @@ export default function Animation({
                   title: item.title,
                   description: item.description,
                   icon: index === 2 && loading ? <LoadingOutlined spin /> : item.icon,
-                  status: index < current ? 'finish' : index === current ? 'process' : 'wait'
+                  status: executionError 
+                    ? (index < current ? 'finish' : index === current ? 'error' : 'wait')
+                    : (index < current ? 'finish' : index === current ? 'process' : 'wait')
                 }))}
                 style={{ marginBottom: '24px' }}
                 className="animation-steps"
@@ -448,7 +460,7 @@ export default function Animation({
               }}>
                 <Progress
                   percent={Math.round(((current + 1) / steps.length) * 100)}
-                  strokeColor={{
+                  strokeColor={executionError ? '#ff4d4f' : {
                     '0%': '#58bfce',
                     '25%': '#1890ff',
                     '50%': '#52c41a',
@@ -456,14 +468,25 @@ export default function Animation({
                     '100%': '#f5222d',
                   }}
                   trailColor="#303030"
-                  strokeWidth={8}
+                  size={[8, 8]}
                   showInfo={false}
-                  status="active"
+                  status={executionError ? 'exception' : 'active'}
                 />
               </div>
 
               <div style={{ marginTop: '24px' }}>
-                {steps[current]?.content}
+                {executionError ? (
+                  <Card style={{ marginTop: 16, background: '#2a1f1f', border: '1px solid #ff4d4f' }}>
+                    <Title level={4} style={{ color: '#ff4d4f' }}>
+                      Step {current + 1}: {steps[current]?.title}
+                    </Title>
+                    <Text style={{ color: '#ffa39e' }}>
+                      Execution stopped on this step. The analysis workflow encountered an issue and could not continue.
+                    </Text>
+                  </Card>
+                ) : (
+                  steps[current]?.content
+                )}
               </div>
 
               <div style={{ 
@@ -484,41 +507,46 @@ export default function Animation({
                 marginTop: '16px', 
                 textAlign: 'center' 
               }}>
-                <Text style={{ color: '#8c8c8c' }}>
-                  Step {current + 1} of {steps.length} • {Math.round(((current + 1) / steps.length) * 100)}% Complete
+                <Text style={{ color: executionError ? '#ff4d4f' : '#8c8c8c' }}>
+                  {executionError 
+                    ? `Step ${current + 1} of ${steps.length} • Execution ${analyzeData?.status === 'canceled' ? 'Canceled' : 'Failed'}`
+                    : `Step ${current + 1} of ${steps.length} • ${Math.round(((current + 1) / steps.length) * 100)}% Complete`
+                  }
                 </Text>
-                <div style={{ 
-                  marginTop: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}>
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#58bfce',
-                    animation: 'processing-dots 1.4s ease-in-out infinite'
-                  }} />
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#58bfce',
-                    animation: 'processing-dots 1.4s ease-in-out infinite 0.2s'
-                  }} />
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#58bfce',
-                    animation: 'processing-dots 1.4s ease-in-out infinite 0.4s'
-                  }} />
-                  <Text style={{ color: '#58bfce', fontSize: '12px', marginLeft: '8px' }}>
-                    Processing...
-                  </Text>
-                </div>
+                {!executionError && (
+                  <div style={{ 
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: '#58bfce',
+                      animation: 'processing-dots 1.4s ease-in-out infinite'
+                    }} />
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: '#58bfce',
+                      animation: 'processing-dots 1.4s ease-in-out infinite 0.2s'
+                    }} />
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: '#58bfce',
+                      animation: 'processing-dots 1.4s ease-in-out infinite 0.4s'
+                    }} />
+                    <Text style={{ color: '#58bfce', fontSize: '12px', marginLeft: '8px' }}>
+                      Processing...
+                    </Text>
+                  </div>
+                )}
               </div>
             </Card>
           </div>

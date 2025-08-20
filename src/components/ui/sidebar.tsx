@@ -110,7 +110,7 @@ export default function Sidebar() {
             border: '1px solid #434343',
             marginTop: 'auto',
           }}
-          bodyStyle={{ padding: '16px' }}
+          styles={{ body: { padding: '16px' } }}
         >
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <div style={{
