@@ -219,14 +219,20 @@ export default function Animation({
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ maxWidth: '900px', width: '100%', display: 'flex', justifyContent: 'center' }}>
-            <Card style={{ background: '#1f1f1f', border: '1px solid #303030', borderRadius: '12px' }}>
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <Card style={{ 
+              background: '#1f1f1f', 
+              border: '1px solid #303030', 
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '1200px'
+            }}>
               <style jsx>{`
                 .animation-steps .ant-steps-item-title {
                   white-space: normal !important;
                   word-wrap: break-word !important;
                   line-height: 1.2 !important;
-                  max-width: 100px !important;
+                  max-width: 120px !important;
                   text-align: center !important;
                   display: flex !important;
                   align-items: center !important;
@@ -238,7 +244,7 @@ export default function Animation({
                   white-space: normal !important;
                   word-wrap: break-word !important;
                   line-height: 1.2 !important;
-                  max-width: 100px !important;
+                  max-width: 120px !important;
                   text-align: center !important;
                   font-size: 12px !important;
                 }
@@ -246,7 +252,7 @@ export default function Animation({
                 .animation-steps .ant-steps-item {
                   flex: 1 !important;
                   min-width: 0 !important;
-                  margin: 0 16px !important;
+                  margin: 0 8px !important;
                 }
                 
                 .animation-steps .ant-steps-item-container {
