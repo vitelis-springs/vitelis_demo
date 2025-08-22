@@ -248,6 +248,22 @@ export default function AnalyzeResult({ quizData, resultText, onReset }: Analyze
                 h4: ({children}) => <h4 style={{color: '#58bfce', fontSize: '16px', marginBottom: '8px', marginTop: '14px'}}>{children}</h4>,
                 p: ({children}) => <p style={{marginBottom: '12px'}}>{children}</p>,
                 strong: ({children}) => <strong style={{color: '#ffffff'}}>{children}</strong>,
+                a: ({children, href}) => (
+                  <a 
+                    href={href} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#1890ff',
+                      textDecoration: 'underline',
+                      textDecorationColor: '#1890ff',
+                      textDecorationThickness: '1px',
+                      textUnderlineOffset: '2px'
+                    }}
+                  >
+                    {children}
+                  </a>
+                ),
                 table: ({children}) => (
                   <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
                     <table style={{
