@@ -132,7 +132,7 @@ export default function Animation({
       )
     },
     {
-      title: 'Sources Validation',
+      title: 'Validation',
       description: 'Validating sources',
       icon: <SafetyCertificateOutlined />,
       content: (
@@ -162,7 +162,7 @@ export default function Animation({
       )
     },
     {
-      title: 'Report Building',
+      title: 'Report',
       description: 'Generating report',
       icon: <FileTextOutlined />,
       content: (
@@ -246,6 +246,7 @@ export default function Animation({
                 .animation-steps .ant-steps-item {
                   flex: 1 !important;
                   min-width: 0 !important;
+                  margin: 0 16px !important;
                 }
                 
                 .animation-steps .ant-steps-item-container {
@@ -459,12 +460,13 @@ export default function Animation({
                 items={steps.map((item, index) => ({
                   title: item.title,
                   description: item.description,
+                  style: {width: '170px'},
                   icon: index === 2 && loading ? <LoadingOutlined spin /> : item.icon,
                   status: executionError 
                     ? (index < current ? 'finish' : index === current ? (analyzeData?.status === 'canceled' ? 'process' : 'error') : 'wait')
                     : (index < current ? 'finish' : index === current ? 'process' : 'wait')
                 }))}
-                style={{ marginBottom: '24px' }}
+                style={{ marginBottom: '24px', }}
                 className="animation-steps"
               />
               
