@@ -76,7 +76,8 @@ const FORM_FIELDS = [
       'Leadership',
       'AI Maturity',
       'Insurance CX',
-      'Efficiency'
+      'Efficiency',
+      'SalesMiner'
     ],
     required: true
   },
