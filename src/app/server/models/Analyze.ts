@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IAnalyze extends Document {
   companyName: string;
@@ -8,7 +8,7 @@ export interface IAnalyze extends Document {
   timeline: string;
   language: string;
   additionalInformation?: string;
-  userId?: string;
+  user?: Types.ObjectId;
   status: 'progress' | 'finished' | 'error' | 'canceled';
   currentStep: number;
   executionId?: string;
@@ -56,10 +56,10 @@ const AnalyzeSchema: Schema = new Schema({
     trim: true,
     default: ''
   },
-  userId: {
-    type: String,
-    required: false,
-    trim: true
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
   },
   status: {
     type: String,
@@ -101,7 +101,7 @@ const AnalyzeSchema: Schema = new Schema({
 });
 
 // Create index for better query performance
-AnalyzeSchema.index({ userId: 1, createdAt: -1 });
+AnalyzeSchema.index({ user: 1, createdAt: -1 });
 
 const Analyze = mongoose.models.Analyze || mongoose.model<IAnalyze>('Analyze', AnalyzeSchema);
 

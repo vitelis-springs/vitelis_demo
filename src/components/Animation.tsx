@@ -454,6 +454,8 @@ export default function Animation({
                         }}
                         onClick={() => window.location.href = '/analyze-quiz'}
                       >
+
+                        
                         Try Again
                       </Button>
                     </div>
