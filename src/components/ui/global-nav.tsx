@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import ThemeToggle from "../theme-toggle";
-import { useAuthStore } from "../../stores/auth-store";
+import { useAuth } from "../../hooks/useAuth";
 
 function GlobalNav() {
-  const { isLoggedIn } = useAuthStore();
+  const { isAuthenticated } = useAuth();
 
   // Hide navigation when user is logged in (sidebar handles navigation)
-  if (isLoggedIn) {
+  if (isAuthenticated) {
     return null;
   }
 

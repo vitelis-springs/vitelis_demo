@@ -1,13 +1,13 @@
 'use client';
 
-import { useAuthStore } from '../../../../stores/auth-store';
+import { useAuth } from '../../../../hooks/useAuth';
 import AnalysisHistory from '../../../../components/analyze/analysis-history';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 
 export default function HistoryPage() {
-  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -21,10 +21,10 @@ export default function HistoryPage() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !isLoggedIn) {
-      router.push('/');
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
     }
-  }, [isLoggedIn, router, isLoading]);
+  }, [isAuthenticated, router, isLoading]);
 
   if (isLoading) {
     return (
@@ -40,7 +40,7 @@ export default function HistoryPage() {
     );
   }
 
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return null; // Don't render anything while redirecting
   }
 

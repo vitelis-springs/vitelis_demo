@@ -3,12 +3,45 @@ import { AnalyzeServiceServer } from '../../server/services/analyzeService.serve
 
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Access token required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Basic JWT validation
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid JWT format');
+      }
+      
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      
+      // Check if token is expired
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        throw new Error('Token expired');
+      }
+      
+      console.log('🔍 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
+    } catch (jwtError) {
+      console.error('🔍 API: JWT validation failed:', jwtError);
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');
     
     console.log('🔍 API: GET request received with params:', { id, userId });
-    console.log('🔍 API: Request headers:', Object.fromEntries(request.headers.entries()));
 
     if (id) {
       // Get specific analyze by ID
@@ -45,6 +78,40 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Access token required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Basic JWT validation
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid JWT format');
+      }
+      
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      
+      // Check if token is expired
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        throw new Error('Token expired');
+      }
+      
+      console.log('📝 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
+    } catch (jwtError) {
+      console.error('📝 API: JWT validation failed:', jwtError);
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     console.log('📝 API: POST request received');
     const body = await request.json();
     const { analyzeId, ...data } = body;
@@ -83,6 +150,40 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Check authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Access token required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Basic JWT validation
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid JWT format');
+      }
+      
+      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      
+      // Check if token is expired
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        throw new Error('Token expired');
+      }
+      
+      console.log('🗑️ API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
+    } catch (jwtError) {
+      console.error('🗑️ API: JWT validation failed:', jwtError);
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

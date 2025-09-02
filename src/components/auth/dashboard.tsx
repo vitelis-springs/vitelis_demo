@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuthStore } from '../../stores/auth-store';
+import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
 import {
   Layout,
@@ -29,7 +29,7 @@ const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
 export default function Dashboard() {
-  const { email } = useAuthStore();
+  const { user } = useAuth();
 
   const recentActivities = [
     {
@@ -65,7 +65,7 @@ export default function Dashboard() {
             {/* Header */}
             <div style={{ marginBottom: '24px' }}>
               <Title level={2} style={{ margin: 0, color: '#58bfce' }}>
-                Welcome back, {email}!
+                Welcome back, {user?.email || 'User'}!
               </Title>
               <Paragraph style={{ margin: '8px 0 0 0', color: '#8c8c8c' }}>
                 Here's what's happening with your account today.

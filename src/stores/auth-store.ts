@@ -36,11 +36,15 @@ export const useAuthStore = create<AuthState>()(
         });
         console.log('✅ Auth Store: Login state updated');
       },
-      logout: () => set({ 
-        isLoggedIn: false, 
-        user: null, 
-        token: null 
-      }),
+      logout: () => {
+        console.log('🔐 Auth Store: Logout called, clearing auth state');
+        set({ 
+          isLoggedIn: false, 
+          user: null, 
+          token: null 
+        });
+        console.log('🔐 Auth Store: Auth state cleared');
+      },
       updateUser: (userData: Partial<User>) => set((state) => ({
         user: state.user ? { ...state.user, ...userData } : null
       }))

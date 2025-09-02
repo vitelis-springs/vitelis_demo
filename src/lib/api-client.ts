@@ -51,11 +51,13 @@ const createApiClient = (): AxiosInstance => {
     (error) => {
       // If we get a 401 (Unauthorized), logout the user
       if (error.response?.status === 401) {
+        console.log('🔐 API Client: Received 401, logging out user');
         const authStore = useAuthStore.getState();
         authStore.logout();
         
         // Redirect to login page
         if (typeof window !== 'undefined') {
+          console.log('🔐 API Client: Redirecting to login page');
           window.location.href = '/login';
         }
       }

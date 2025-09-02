@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuthStore } from '../../stores/auth-store';
+import { useAuth } from '../../hooks/useAuth';
 import {
   Layout,
   Menu,
@@ -25,13 +25,13 @@ const { Sider } = Layout;
 const { Title } = Typography;
 
 export default function Sidebar() {
-  const { email, logout } = useAuthStore();
+  const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    router.push('/login');
   };
 
   const menuItems = [
@@ -125,7 +125,7 @@ export default function Sidebar() {
               />
               <div>
                 <Title level={5} style={{ margin: 0, color: '#fff' }}>
-                  {email}
+                  {user?.email || 'User'}
                 </Title>
                 <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
                   Online

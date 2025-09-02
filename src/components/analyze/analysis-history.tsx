@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuthStore } from '../../stores/auth-store';
+import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
 import {
   Layout,
@@ -35,11 +35,11 @@ const { Content } = Layout;
 const { Title, Text } = Typography;
 
 export default function AnalysisHistory() {
-  const { email } = useAuthStore();
+  const { user } = useAuth();
   const router = useRouter();
   const [analyses, setAnalyses] = useState<any[]>([]);
   const { deleteAnalyze } = useAnalyzeService();
-  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(email || null);
+  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(user?._id || null);
 
   const fetchAnalyses = async () => {
     try {
@@ -58,8 +58,8 @@ export default function AnalysisHistory() {
   }, [analysesData]);
 
   useEffect(() => {
-    console.log('📊 AnalysisHistory: email changed:', email);
-  }, [email]);
+    console.log('📊 AnalysisHistory: user changed:', user);
+  }, [user]);
 
   const formatTimeAgo = (dateString: string): string => {
     const date = new Date(dateString);
@@ -92,7 +92,7 @@ export default function AnalysisHistory() {
   };
 
   const handleRefreshHistory = () => {
-    if (email) {
+    if (user?._id) {
       refetch();
     }
   };
