@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuthStore } from '../../stores/auth-store';
+import { useAuth } from '../../hooks/useAuth';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -10,7 +10,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuthStore();
+  const { login } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,17 +19,17 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      // Check credentials (hardcoded for demo)
-      if (email === 'vitelis@vitelis.com' && password === 'SJHfoo589495164') {
-        login(email);
+      const result = await login({ email, password });
+      
+      if (result.success) {
         console.log('Login successful, redirecting...');
         // Redirect to dashboard or main page after successful login
         router.push('/');
       } else {
-        throw new Error('Invalid credentials');
+        setError(result.error || 'Login failed. Please try again.');
       }
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }

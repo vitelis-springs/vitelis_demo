@@ -9,7 +9,7 @@ export interface AnalyzeData {
   timeline: string;
   language: string;
   additionalInformation?: string;
-  userId?: string;
+  user?: string;
   status?: 'progress' | 'finished' | 'error' | 'canceled';
   currentStep?: number;
   executionId?: string;
@@ -33,7 +33,7 @@ export class AnalyzeServiceServer {
   static async getAnalyzesByUser(userId: string): Promise<IAnalyze[]> {
     try {
       await ensureDBConnection();
-      return await Analyze.find({ userId })
+      return await Analyze.find({ user: userId })
         .sort({ createdAt: -1 })
         .exec();
     } catch (error) {
@@ -88,7 +88,7 @@ export class AnalyzeServiceServer {
   static async getLatestProgress(userId: string): Promise<IAnalyze | null> {
     try {
       return await Analyze.findOne({ 
-        userId, 
+        user: userId, 
         status: 'progress' 
       })
       .sort({ updatedAt: -1 })

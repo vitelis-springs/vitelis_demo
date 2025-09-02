@@ -6,6 +6,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');
+    
+    console.log('🔍 API: GET request received with params:', { id, userId });
+    console.log('🔍 API: Request headers:', Object.fromEntries(request.headers.entries()));
 
     if (id) {
       // Get specific analyze by ID
@@ -21,7 +24,9 @@ export async function GET(request: NextRequest) {
 
     if (userId) {
       // Get all analyzes for a user
+      console.log('👤 API: Fetching analyzes for user:', userId);
       const analyzes = await AnalyzeServiceServer.getAnalyzesByUser(userId);
+      console.log('📊 API: Found analyzes:', analyzes.length);
       return NextResponse.json({ success: true, data: analyzes });
     }
 

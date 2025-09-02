@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { IAnalyze } from '../../app/server/models/Analyze';
+import { api } from '../../lib/api-client';
 
 // Types
 export interface AnalyzeData {
@@ -10,7 +11,7 @@ export interface AnalyzeData {
   timeline: string;
   language: string;
   additionalInformation?: string;
-  userId?: string;
+  user?: string;
   status?: 'progress' | 'finished' | 'error' | 'canceled';
   currentStep?: number;
   executionId?: string;
@@ -27,68 +28,26 @@ export interface UpdateAnalyzeData extends Partial<AnalyzeData> {
 const analyzeApi = {
   // Create new analyze record
   async create(data: AnalyzeData): Promise<IAnalyze> {
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create analyze record');
-    }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to create analyze record');
-    }
-    return result.data;
+    const response = await api.post('/analyze', data);
+    return response.data;
   },
 
   // Get analyze by ID
   async getById(id: string): Promise<IAnalyze> {
-    const response = await fetch(`/api/analyze?id=${id}`);
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch analyze record');
-    }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to fetch analyze record');
-    }
-    return result.data;
+    const response = await api.get(`/analyze?id=${id}`);
+    return response.data;
   },
 
   // Get all analyzes for a user
   async getByUser(userId: string): Promise<IAnalyze[]> {
-    const response = await fetch(`/api/analyze?userId=${userId}`);
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch analyze records');
-    }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to fetch analyze records');
-    }
-    return result.data;
+    const response = await api.get(`/analyze?user=${userId}`);
+    return response.data;
   },
 
   // Get all analyzes (admin)
   async getAll(): Promise<IAnalyze[]> {
-    const response = await fetch('/api/analyze');
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch analyze records');
-    }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to fetch analyze records');
-    }
-    return result.data;
+    const response = await api.get('/analyze');
+    return response.data;
   },
 
   // Update analyze record
@@ -97,48 +56,15 @@ const analyzeApi = {
     const requestBody = { analyzeId: id, ...data };
     console.log('📤 Client: Request body:', requestBody);
     
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-    
-    console.log('📡 Client: Response status:', response.status);
-    
-    if (!response.ok) {
-      console.error('❌ Client: Response not ok:', response.status, response.statusText);
-      throw new Error('Failed to update analyze record');
-    }
-
-    const result = await response.json();
-    console.log('📥 Client: Response result:', result);
-    
-    if (!result.success) {
-      console.error('❌ Client: API returned error:', result.message);
-      throw new Error(result.message || 'Failed to update analyze record');
-    }
-    
-    console.log('✅ Client: Update successful, returning data:', result.data);
-    return result.data;
+    const response = await api.post('/analyze', requestBody);
+    console.log('✅ Client: Update successful, returning data:', response.data);
+    return response.data;
   },
 
   // Delete analyze record
   async delete(id: string): Promise<boolean> {
-    const response = await fetch(`/api/analyze?id=${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete analyze record');
-    }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to delete analyze record');
-    }
-    return true;
+    const response = await api.delete(`/analyze?id=${id}`);
+    return response.data;
   },
 };
 
@@ -151,7 +77,7 @@ export const useAnalyzeService = () => {
     mutationFn: analyzeApi.create,
     onSuccess: (data) => {
       // Invalidate and refetch user's analyzes
-      queryClient.invalidateQueries({ queryKey: ['analyzes', data.userId] });
+      queryClient.invalidateQueries({ queryKey: ['analyzes', data.user] });
       queryClient.invalidateQueries({ queryKey: ['analyzes'] });
     },
   });
@@ -162,7 +88,7 @@ export const useAnalyzeService = () => {
     onSuccess: (data) => {
       // Invalidate and refetch specific analyze and user's analyzes
       queryClient.invalidateQueries({ queryKey: ['analyze', data._id] });
-      queryClient.invalidateQueries({ queryKey: ['analyzes', data.userId] });
+      queryClient.invalidateQueries({ queryKey: ['analyzes', data.user] });
       queryClient.invalidateQueries({ queryKey: ['analyzes'] });
     },
   });
