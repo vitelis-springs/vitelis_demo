@@ -1,9 +1,10 @@
 'use client';
 
-import { useAuthStore } from '../../../stores/auth-store';
-import LoginForm from '../../../components/auth/login-form';
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import LoginForm from '@components/auth/login-form';
+import { useAuthStore } from '@stores/auth-store';
 
 export default function HomePage() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);

@@ -1,13 +1,13 @@
 'use client';
 
-import { useAuth } from '../../../../hooks/useAuth';
-import AnalysisHistory from '../../../../components/analyze/analysis-history';
+import { useAuthStore } from '../../../stores/auth-store';
+import AnalyzeQuiz from '../../../components/AnalyzeQuiz';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 
-export default function HistoryPage() {
-  const { isAuthenticated } = useAuth();
+export default function AnalyzeQuizPage() {
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -21,10 +21,10 @@ export default function HistoryPage() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+    if (!isLoading && !isLoggedIn) {
+      router.push('/');
     }
-  }, [isAuthenticated, router, isLoading]);
+  }, [isLoggedIn, router, isLoading]);
 
   if (isLoading) {
     return (
@@ -40,9 +40,9 @@ export default function HistoryPage() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isLoggedIn) {
     return null; // Don't render anything while redirecting
   }
 
-  return <AnalysisHistory />;
+  return <AnalyzeQuiz onComplete={() => {}} />;
 }

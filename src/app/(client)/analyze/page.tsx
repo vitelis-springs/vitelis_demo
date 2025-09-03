@@ -1,14 +1,13 @@
 'use client';
 
-import { useAuthStore } from '../../../../stores/auth-store';
-import AnalyzeQuiz from '../../../../components/AnalyzeQuiz';
+import { useAuthStore } from '../../../stores/auth-store';
+import AnalyzeChat from '../../../components/analyze/analyze-chat';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Spin, message } from 'antd';
+import { Spin } from 'antd';
 
-export default function AnalyzeQuizPage() {
+export default function AnalyzePage() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-  const email = useAuthStore((state) => state.email);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,12 +25,6 @@ export default function AnalyzeQuizPage() {
       router.push('/');
     }
   }, [isLoggedIn, router, isLoading]);
-
-  const handleQuizComplete = (data: any) => {
-    console.log('Quiz completed with data:', data);
-    message.success('Analysis request submitted successfully!');
-    // You can add additional logic here, like redirecting to results page
-  };
 
   if (isLoading) {
     return (
@@ -51,5 +44,5 @@ export default function AnalyzeQuizPage() {
     return null; // Don't render anything while redirecting
   }
 
-  return <AnalyzeQuiz onComplete={handleQuizComplete} userEmail={email} />;
+  return <AnalyzeChat />;
 }

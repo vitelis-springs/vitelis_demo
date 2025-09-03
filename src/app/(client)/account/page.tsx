@@ -1,32 +1,30 @@
 'use client';
 
-import { useAuth } from '../../../../hooks/useAuth';
-import Accounts from '../../../../components/auth/accounts';
+import { useAuth } from '../../../hooks/useAuth';
+import Accounts from '../../../components/auth/accounts';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 
 export default function AccountPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => { setIsLoading(false); }, 100);
+    // Wait a bit for auth state to load
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isAuthenticated, router, isLoading]);
-
-  useEffect(() => {
-    if (!isLoading && user?.role !== 'admin') {
+    if (!isLoading && !isLoggedIn) {
       router.push('/');
     }
-  }, [user?.role, router, isLoading]);
+  }, [isLoggedIn, router, isLoading]);
 
   if (isLoading) {
     return (
@@ -42,8 +40,8 @@ export default function AccountPage() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'admin') {
-    return null;
+  if (!isLoggedIn) {
+    return null; // Don't render anything while redirecting
   }
 
   return <Accounts />;

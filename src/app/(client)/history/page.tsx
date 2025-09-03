@@ -1,13 +1,13 @@
 'use client';
 
-import { useAuthStore } from '../../../../stores/auth-store';
-import AnalyzeChat from '../../../../components/analyze/analyze-chat';
+import { useAuth } from '../../../hooks/useAuth';
+import AnalysisHistory from '../../../components/analyze/analysis-history';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 
-export default function AnalyzePage() {
-  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+export default function HistoryPage() {
+  const { isLoggedIn, user } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -44,5 +44,5 @@ export default function AnalyzePage() {
     return null; // Don't render anything while redirecting
   }
 
-  return <AnalyzeChat />;
+  return <AnalysisHistory />;
 }
