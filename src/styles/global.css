@@ -56,6 +56,12 @@ a {
   box-sizing: border-box !important;
 }
 
+/* Custom spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .ant-layout-content {
   box-sizing: border-box !important;
   padding: 24px !important;

@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { useCreateUser } from '../../hooks/api/useUsersService';
 import type { CreateUserData } from '../../hooks/api/useUsersService';
+import ImageUpload from '../ui/image-upload';
 
 const { Option } = Select;
 
@@ -142,12 +143,15 @@ export default function CreateUserModal({ open, onCancel, onSuccess }: CreateUse
 
         <Form.Item
           name="logo"
-          label="Company Logo URL"
-          rules={[
-            { type: 'url', message: 'Please enter a valid URL' }
-          ]}
+          label="Company Logo"
         >
-          <Input placeholder="https://example.com/logo.png" />
+          <ImageUpload
+            folder="company-logos"
+            maxSize={5}
+            placeholder="Upload company logo"
+            onChange={(url) => form.setFieldValue('logo', url)}
+            onRemove={() => form.setFieldValue('logo', '')}
+          />
         </Form.Item>
 
         <Row gutter={16}>

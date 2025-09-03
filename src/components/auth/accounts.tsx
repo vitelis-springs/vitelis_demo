@@ -2,6 +2,7 @@
 
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
+import ImageUpload from '../ui/image-upload';
 import {
   Layout,
   Card,
@@ -68,7 +69,6 @@ export default function Accounts() {
   }, [usersData]);
 
 
-
   // Filter users based on search text and role
   useEffect(() => {
     if (!usersData) return;
@@ -110,6 +110,7 @@ export default function Accounts() {
       companyName: user.companyName || '',
       firstName: user.firstName || '',
       lastName: user.lastName || '',
+      logo: user.logo || '',
       role: user.role,
       isActive: user.isActive,
     });
@@ -392,6 +393,18 @@ export default function Accounts() {
                 label="Company Name"
               >
                 <Input placeholder="Company Name (optional)" />
+              </Form.Item>
+              <Form.Item
+                name="logo"
+                label="Company Logo"
+              >
+                <ImageUpload
+                  folder="company-logos"
+                  maxSize={5}
+                  placeholder="Upload company logo"
+                  onChange={(url) => form.setFieldValue('logo', url)}
+                  onRemove={() => form.setFieldValue('logo', '')}
+                />
               </Form.Item>
               <Row gutter={16}>
                 <Col span={12}>

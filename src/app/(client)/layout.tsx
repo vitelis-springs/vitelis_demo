@@ -1,25 +1,15 @@
 import "@styles/global.css";
-import { Raleway } from "next/font/google";
 import type { ReactNode } from "react";
 import Provider from "./provider";
+import GlobalLoader from "../../components/ui/global-loader";
 
-const raleway = Raleway({ subsets: ["latin"] });
-
-export const metadata = {
-  title: "Vitelis",
-  description: "",
-};
-
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className={raleway.className}>
-        <Provider>
-      
-          {children}
-        
-        </Provider>
-      </body>
-    </html>
+    <div>
+      <GlobalLoader />
+      <Provider>
+        {children}
+      </Provider>
+    </div>
   );
 }
