@@ -48,11 +48,11 @@ export async function GET(request: NextRequest) {
       const analyze = await AnalyzeServiceServer.getAnalyzeById(id);
       if (!analyze) {
         return NextResponse.json(
-          { success: false, message: 'Analyze record not found' },
+          { error: 'Analyze record not found' },
           { status: 404 }
         );
       }
-      return NextResponse.json({ success: true, data: analyze });
+      return NextResponse.json(analyze);
     }
 
     if (userId) {
@@ -65,17 +65,17 @@ export async function GET(request: NextRequest) {
       console.log('📊 API: Found analyzes:', analyzes.length);
       console.log('📊 API: Analyzes data:', analyzes);
       
-      return NextResponse.json({ success: true, data: analyzes });
+      return NextResponse.json(analyzes);
     }
 
     // Get all analyzes (admin)
     const analyzes = await AnalyzeServiceServer.getAllAnalyzes();
-    return NextResponse.json({ success: true, data: analyzes });
+    return NextResponse.json(analyzes);
 
   } catch (error) {
     console.error('Error in GET /api/analyze:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -122,6 +122,12 @@ export async function POST(request: NextRequest) {
     const { analyzeId, ...data } = body;
     console.log('📝 API: Request body parsed:', { analyzeId, data });
 
+    // Extract user ID from JWT token
+    const tokenParts = token.split('.');
+    const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const userId = payload.userId;
+    console.log('👤 API: Creating/updating analyze for user:', userId);
+
     if (analyzeId) {
       // Update existing analyze
       console.log('🔄 API: Updating analyze with ID:', analyzeId);
@@ -131,23 +137,25 @@ export async function POST(request: NextRequest) {
       if (!updatedAnalyze) {
         console.log('❌ API: Analyze record not found');
         return NextResponse.json(
-          { success: false, message: 'Analyze record not found' },
+          { error: 'Analyze record not found' },
           { status: 404 }
         );
       }
       console.log('✅ API: Update successful, returning:', updatedAnalyze);
-      return NextResponse.json({ success: true, data: updatedAnalyze });
+      return NextResponse.json(updatedAnalyze);
     } else {
-      // Create new analyze
-      console.log('🆕 API: Creating new analyze');
-      const newAnalyze = await AnalyzeServiceServer.createAnalyze(data);
-      return NextResponse.json({ success: true, data: newAnalyze });
+      // Create new analyze with user ID
+      console.log('🆕 API: Creating new analyze for user:', userId);
+      const analyzeDataWithUser = { ...data, user: userId };
+      console.log('📝 API: Creating analyze with data:', analyzeDataWithUser);
+      const newAnalyze = await AnalyzeServiceServer.createAnalyze(analyzeDataWithUser);
+      return NextResponse.json(newAnalyze);
     }
 
   } catch (error) {
     console.error('Error in POST /api/analyze:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -194,7 +202,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, message: 'ID is required' },
+        { error: 'ID is required' },
         { status: 400 }
       );
     }
@@ -202,17 +210,17 @@ export async function DELETE(request: NextRequest) {
     const deleted = await AnalyzeServiceServer.deleteAnalyze(id);
     if (!deleted) {
       return NextResponse.json(
-        { success: false, message: 'Analyze record not found' },
+        { error: 'Analyze record not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true, message: 'Analyze record deleted' });
+    return NextResponse.json({ message: 'Analyze record deleted' });
 
   } catch (error) {
     console.error('Error in DELETE /api/analyze:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
