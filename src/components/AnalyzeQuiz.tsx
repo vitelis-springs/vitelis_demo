@@ -42,7 +42,6 @@ interface AnalyzeQuizData {
 
 interface AnalyzeQuizProps {
   onComplete?: (data: AnalyzeQuizData) => void;
-  userEmail?: string;
 }
 
 const FORM_FIELDS = [
@@ -108,12 +107,12 @@ const FORM_FIELDS = [
   }
 ];
 
-export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps) {
+export default function AnalyzeQuiz({ onComplete }: AnalyzeQuizProps) {
   const { notification: appNotification } = App.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [showAnimation, setShowAnimation] = useState(false);
+
   const [analyzeId, setAnalyzeId] = useState<string | null>(null);
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [executionId, setExecutionId] = useState('');
@@ -140,7 +139,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     } else {
       setAnalyzeId(null);
       setShowResults(false);
-      setShowAnimation(false);
+      setExecutionId('');
       setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '', language: '', additionalInformation: '' });
       form.resetFields();
     }
@@ -167,7 +166,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       if (analyzeData.resultText) {
         console.log('📋 Component: Found resultText, showing results immediately');
         setShowResults(true);
-        setShowAnimation(false);
         return;
       }
       
@@ -175,7 +173,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       if (analyzeData.executionId) {
         console.log('🎬 Component: Found executionId, showing animation');
         setExecutionId(analyzeData.executionId);
-        setShowAnimation(true);
         setShowResults(false);
         return;
       }
@@ -184,7 +181,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       if (analyzeData.status === 'error' || analyzeData.status === 'canceled') {
         console.log('❌ Component: Analysis failed with status:', analyzeData.status);
         setShowResults(false);
-        setShowAnimation(false);
         showNotification('error', 'Analysis Failed', `The analysis was ${analyzeData.status}. Please try again.`);
         return;
       }
@@ -193,11 +189,9 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
       if (analyzeData.status === 'finished') {
         console.log('📋 Component: Analysis completed, showing results');
         setShowResults(true);
-        setShowAnimation(false);
       } else {
         console.log('📝 Component: Loading quiz progress');
         setShowResults(false);
-        setShowAnimation(false);
       }
     }
   }, [analyzeData]);
@@ -221,7 +215,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         timeline: data.timeline || '',
         language: data.language || '',
         additionalInformation: data.additionalInformation || '',
-        userId: userEmail || 'anonymous',
         status: 'progress' as const
       };
 
@@ -315,7 +308,6 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
         }
         await saveProgress(completeData, 'finished');
         setQuizData(completeData);
-        setShowAnimation(true);
         showNotification('success', 'Success', 'Analysis request submitted successfully!');
       } else {
         await saveProgress(completeData, 'progress');
@@ -338,7 +330,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   const handleReset = () => {
     form.resetFields();
     setShowResults(false);
-    setShowAnimation(false);
+    setExecutionId('');
     setAnalyzeId(null);
     setQuizData({ companyName: '', businessLine: '', country: '', useCase: '', timeline: '', language: '' });
     const newUrl = new URL(window.location.href);
@@ -347,7 +339,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
   };
 
   const handleAnimationComplete = () => {
-    setShowAnimation(false);
+    setExecutionId('');
     setShowResults(true);
   };
 
@@ -366,7 +358,7 @@ export default function AnalyzeQuiz({ onComplete, userEmail }: AnalyzeQuizProps)
     );
   }
 
-  if (showAnimation) {
+  if (executionId) {
     return (
       <Animation 
         title="Analysis in Progress"
