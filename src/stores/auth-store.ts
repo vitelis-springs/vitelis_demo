@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 interface User {
   _id: string;
   email: string;
-  companyName: string;
+  companyName?: string;
   logo?: string;
   firstName?: string;
   lastName?: string;

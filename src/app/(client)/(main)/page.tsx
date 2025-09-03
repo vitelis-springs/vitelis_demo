@@ -29,7 +29,7 @@ export default function HomePage() {
       justifyContent: 'center',
       color: '#d9d9d9'
     }}>
-      Redirecting to analyze page...
+      Redirecting to report page...
     </div>
   );
 }

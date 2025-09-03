@@ -40,8 +40,10 @@ const analyzeApi = {
 
   // Get all analyzes for a user
   async getByUser(userId: string): Promise<IAnalyze[]> {
-    const response = await api.get(`/analyze?user=${userId}`);
-    return response.data;
+    const response = await api.get(`/analyze?userId=${userId}`);
+    console.log('🌐 Client: getByUser response:', response);
+    console.log('🌐 Client: response.data:', response.data);
+    return response.data.data || response.data; // Handle both formats
   },
 
   // Get all analyzes (admin)

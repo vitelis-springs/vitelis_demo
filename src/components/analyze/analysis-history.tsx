@@ -52,14 +52,24 @@ export default function AnalysisHistory() {
 
   useEffect(() => {
     console.log('📊 AnalysisHistory: analysesData changed:', analysesData);
-    if (analysesData) {
+    console.log('📊 AnalysisHistory: user ID being used:', user?._id);
+    if (analysesData && analysesData.data) {
+      console.log('📊 AnalysisHistory: Setting analyses from data:', analysesData.data);
+      setAnalyses(analysesData.data);
+    } else if (analysesData) {
+      console.log('📊 AnalysisHistory: Setting analyses directly:', analysesData);
       setAnalyses(analysesData);
     }
-  }, [analysesData]);
+  }, [analysesData, user?._id]);
 
   useEffect(() => {
     console.log('📊 AnalysisHistory: user changed:', user);
   }, [user]);
+
+  useEffect(() => {
+    console.log('📊 AnalysisHistory: analyses state changed:', analyses);
+    console.log('📊 AnalysisHistory: analyses length:', analyses.length);
+  }, [analyses]);
 
   const formatTimeAgo = (dateString: string): string => {
     const date = new Date(dateString);
@@ -154,6 +164,7 @@ export default function AnalysisHistory() {
                   min-width: 600px !important;
                 }
               `}</style>
+              {console.log('📊 AnalysisHistory: Rendering - isLoadingAnalyses:', isLoadingAnalyses, 'analyses.length:', analyses.length)}
               {isLoadingAnalyses ? (
                 <Card
                   style={{

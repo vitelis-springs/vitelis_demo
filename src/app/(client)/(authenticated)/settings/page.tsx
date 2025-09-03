@@ -40,7 +40,7 @@ export default function SettingsPage() {
                   Settings
                 </Title>
                 <Text style={{ color: '#8c8c8c' }}>
-                  Configure your analysis preferences
+                  Configure your preferences
                 </Text>
               </div>
 

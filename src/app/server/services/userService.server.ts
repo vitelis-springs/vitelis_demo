@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 export interface CreateUserData {
   email: string;
   password: string;
-  companyName: string;
+  companyName?: string;
   logo?: string;
   firstName?: string;
   lastName?: string;
@@ -22,7 +22,7 @@ export interface AuthResponse {
   user: {
     _id: string;
     email: string;
-    companyName: string;
+    companyName?: string;
     logo?: string;
     firstName?: string;
     lastName?: string;

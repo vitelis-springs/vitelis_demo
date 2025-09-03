@@ -58,8 +58,13 @@ export async function GET(request: NextRequest) {
     if (userId) {
       // Get all analyzes for a user
       console.log('👤 API: Fetching analyzes for user:', userId);
+      console.log('🔍 API: Query parameter userId:', userId);
+      console.log('🔍 API: Query parameter type:', typeof userId);
+      
       const analyzes = await AnalyzeServiceServer.getAnalyzesByUser(userId);
       console.log('📊 API: Found analyzes:', analyzes.length);
+      console.log('📊 API: Analyzes data:', analyzes);
+      
       return NextResponse.json({ success: true, data: analyzes });
     }
 

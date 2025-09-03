@@ -63,7 +63,7 @@ export class AnalyzeServiceServer {
       throw new Error('Failed to fetch analyze record');
     }
   }
-
+;
   // Update an analyze record
   static async updateAnalyze(id: string, data: Partial<AnalyzeData>): Promise<IAnalyze | null> {
     try {
