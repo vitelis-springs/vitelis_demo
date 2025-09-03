@@ -2,7 +2,6 @@
 
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
-import { useLoading } from '../ui/loading-context';
 import {
   Layout,
   Card,
@@ -48,7 +47,6 @@ const { Option } = Select;
 
 export default function Accounts() {
   const { user } = useAuth();
-  const { showLoader, hideLoader } = useLoading();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -69,14 +67,7 @@ export default function Accounts() {
     }
   }, [usersData]);
 
-  // Show loading when initially fetching users
-  useEffect(() => {
-    if (isLoadingUsers) {
-      showLoader('Loading users...');
-    } else {
-      hideLoader();
-    }
-  }, [isLoadingUsers, showLoader, hideLoader]);
+
 
   // Filter users based on search text and role
   useEffect(() => {
@@ -134,13 +125,10 @@ export default function Accounts() {
       cancelText: 'No',
       onOk: async () => {
         try {
-          showLoader('Deleting user...');
           await deleteUser(userId);
           message.success('User deleted successfully');
         } catch (error) {
           message.error('Failed to delete user');
-        } finally {
-          hideLoader();
         }
       },
     });
@@ -152,7 +140,6 @@ export default function Accounts() {
       
       if (editingUser) {
         // Update existing user
-        showLoader('Updating user...');
         await updateUser({ userId: editingUser._id, userData: values });
         message.success('User updated successfully');
         setIsModalVisible(false);
@@ -161,8 +148,6 @@ export default function Accounts() {
     } catch (error) {
       console.error('Operation failed:', error);
       message.error('Failed to save user');
-    } finally {
-      hideLoader();
     }
   };
 
@@ -308,10 +293,7 @@ export default function Accounts() {
                 <Col xs={24} sm={12} md={6}>
                   <Button
                     icon={<ReloadOutlined />}
-                    onClick={() => {
-                      showLoader('Refreshing users...');
-                      refetch().finally(() => hideLoader());
-                    }}
+                    onClick={() => refetch()}
                     loading={isLoadingUsers}
                     style={{ width: '100%' }}
                   >

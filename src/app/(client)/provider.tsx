@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ConfigProvider, App } from 'antd';
 import { useState } from 'react';
 import { antdTheme, antdLightTheme } from '../../config/theme';
+import GlobalLoader from '../../components/ui/global-loader';
 
 export default function Provider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -27,6 +28,7 @@ export default function Provider({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={isDarkTheme ? antdTheme : antdLightTheme}>
         <App>
+          <GlobalLoader />
           {children}
         </App>
       </ConfigProvider>
