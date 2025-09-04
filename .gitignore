@@ -38,3 +38,6 @@ npm-debug.log*
 **/.env
 *.env
 .pnp.cjs
+
+# yarn release (avoid secret scanner false positives)
+.yarn/releases/*
