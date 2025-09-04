@@ -51,10 +51,18 @@ export default function Sidebar() {
       label: 'My Reports',
     },
     
+    // Admin separator
     ...(user?.role === 'admin' ? [{
-      key: '/account',
-      icon: <UserOutlined style={{ fontSize: '18px' }} />,
-      label: 'Users',
+      type: 'divider' as const,
+    }, {
+      key: 'admin-section',
+      type: 'group' as const,
+      label: 'ADMIN',
+      children: [{
+        key: '/account',
+        icon: <UserOutlined style={{ fontSize: '18px' }} />,
+        label: 'Users',
+      }]
     }] : []),
     // {
     //   key: '/settings',
