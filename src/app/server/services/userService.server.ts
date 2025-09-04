@@ -117,6 +117,8 @@ export class UserServiceServer {
         token
       };
 
+
+
     } catch (error) {
       console.error('Error authenticating user:', error);
       throw new Error('Authentication failed');
