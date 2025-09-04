@@ -47,8 +47,9 @@ export class UserServiceServer {
       // Hash password
       const saltRounds = 12;
       console.log('🔐 UserService: Hashing password with salt rounds:', saltRounds);
+      console.log('🔐 UserService: Original password length:', data.password.length);
       const hashedPassword = await bcrypt.hash(data.password, saltRounds);
-      console.log('🔐 UserService: Password hashed successfully');
+      console.log('🔐 UserService: Password hashed successfully, hash length:', hashedPassword.length);
 
       // Create user with hashed password
       const userData = {
@@ -85,6 +86,9 @@ export class UserServiceServer {
 
       // Verify password
       console.log('🔐 UserService: Verifying password for user:', user.email);
+      console.log('🔐 UserService: Input password length:', loginData.password.length);
+      console.log('🔐 UserService: Stored password hash length:', user.password.length);
+      console.log('🔐 UserService: Stored password starts with $2b$:', user.password.startsWith('$2b$'));
       const isPasswordValid = await bcrypt.compare(loginData.password, user.password);
       console.log('🔐 UserService: Password verification result:', isPasswordValid);
       if (!isPasswordValid) {
