@@ -1,5 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 // AWS S3 Configuration
 const s3Client = new S3Client({
@@ -14,12 +13,6 @@ const BUCKET_NAME = process.env.AWS_S3_BUCKET!;
 
 export interface UploadResult {
   url: string;
-  key: string;
-  bucket: string;
-}
-
-export interface PresignedUrlResult {
-  uploadUrl: string;
   key: string;
   bucket: string;
 }
@@ -52,7 +45,6 @@ export class AWSS3Service {
         Key: key,
         Body: fileBuffer,
         ContentType: contentType,
-        ACL: 'public-read', // Make the file publicly accessible
         CacheControl: 'max-age=31536000', // Cache for 1 year
       };
 
@@ -75,40 +67,6 @@ export class AWSS3Service {
   }
 
   /**
-   * Generate a presigned URL for direct upload from client
-   */
-  static async generatePresignedUrl(
-    fileName: string,
-    contentType: string,
-    folder: string = 'uploads'
-  ): Promise<PresignedUrlResult> {
-    try {
-      const key = this.generateKey(fileName, folder);
-      
-      const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        ContentType: contentType,
-        ACL: 'public-read',
-        CacheControl: 'max-age=31536000',
-      });
-
-      const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour expiry
-      
-      console.log('✅ S3: Presigned URL generated:', { key, uploadUrl });
-      
-      return {
-        uploadUrl,
-        key,
-        bucket: BUCKET_NAME,
-      };
-    } catch (error) {
-      console.error('❌ S3: Error generating presigned URL:', error);
-      throw new Error('Failed to generate presigned URL');
-    }
-  }
-
-  /**
    * Delete a file from S3
    */
   static async deleteFile(key: string): Promise<void> {
@@ -124,27 +82,6 @@ export class AWSS3Service {
     } catch (error) {
       console.error('❌ S3: Error deleting file:', error);
       throw new Error('Failed to delete file from S3');
-    }
-  }
-
-  /**
-   * Get a presigned URL for downloading/viewing a file
-   */
-  static async getFileUrl(key: string, expiresIn: number = 3600): Promise<string> {
-    try {
-      const command = new GetObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-      });
-
-      const url = await getSignedUrl(s3Client, command, { expiresIn });
-      
-      console.log('✅ S3: File URL generated:', { key, url });
-      
-      return url;
-    } catch (error) {
-      console.error('❌ S3: Error generating file URL:', error);
-      throw new Error('Failed to generate file URL');
     }
   }
 
