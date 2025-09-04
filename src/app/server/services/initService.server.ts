@@ -16,15 +16,16 @@ export class InitServiceServer {
       }
 
       console.log('🔄 Initializing root user...');
-      
+     console.log("rootUserEmail", rootUserEmail);
       // Check if root user already exists
       const existingUser = await UserServiceServer.getUserByEmail(rootUserEmail);
-      
+      console.log("existingUser", existingUser);
       if (existingUser) {
         console.log('✅ Root user already exists, skipping creation.');
         return;
       }
 
+      
       // Create root user
       const rootUserData = {
         email: rootUserEmail,

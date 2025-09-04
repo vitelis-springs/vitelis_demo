@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDBConnection } from '../../../lib/mongodb';
 import User from '../../server/models/User';
+import { UserServiceServer } from '../../server/services/userService.server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -124,32 +125,21 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    // Create new user
-    const userData: any = {
+    // Create new user using UserService for proper password hashing
+    const userData = {
       email: email.toLowerCase(),
       password,
-      role: role || 'user',
-      isActive: true
+      companyName: companyName?.trim(),
+      logo: logo?.trim(),
+      firstName: firstName?.trim(),
+      lastName: lastName?.trim(),
+      role: role || 'user'
     };
-
-    // Only add optional fields if they have values
-    if (companyName && companyName.trim()) {
-      userData.companyName = companyName.trim();
-    }
-    if (logo && logo.trim()) {
-      userData.logo = logo.trim();
-    } 
-    if (firstName && firstName.trim()) {
-      userData.firstName = firstName.trim();
-    }
-    if (lastName && lastName.trim()) {
-      userData.lastName = lastName.trim();
-    }
 
     console.log('🔍 Users API: Creating user with data:', userData);
 
-    const user = new User(userData);
-    await user.save();
+    // Use UserService to create user with hashed password
+    const user = await UserServiceServer.createUser(userData);
     
     console.log('🔍 Users API: User created successfully:', { email: user.email, role: user.role });
     

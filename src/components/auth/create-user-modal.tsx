@@ -31,8 +31,15 @@ export default function CreateUserModal({ open, onCancel, onSuccess }: CreateUse
       const values = await form.validateFields();
       
       // Validate password strength
-      if (values.password && values.password.length < 6) {
-        message.error('Password must be at least 6 characters long');
+      if (values.password && values.password.length < 8) {
+        message.error('Password must be at least 8 characters long');
+        return;
+      }
+
+      // Validate password complexity
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+      if (values.password && !passwordRegex.test(values.password)) {
+        message.error('Password must contain at least one lowercase letter, one uppercase letter, and one number');
         return;
       }
 
@@ -120,7 +127,7 @@ export default function CreateUserModal({ open, onCancel, onSuccess }: CreateUse
           label="Password"
           rules={[
             { required: true, message: 'Please enter password' },
-            { min: 6, message: 'Password must be at least 6 characters' },
+            { min: 8, message: 'Password must be at least 8 characters' },
             { 
               pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
               message: 'Password must contain at least one lowercase letter, one uppercase letter, and one number'

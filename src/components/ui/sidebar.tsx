@@ -50,6 +50,7 @@ export default function Sidebar() {
       icon: <HistoryOutlined style={{ fontSize: '18px' }} />,
       label: 'My Reports',
     },
+    
     ...(user?.role === 'admin' ? [{
       key: '/account',
       icon: <UserOutlined style={{ fontSize: '18px' }} />,

@@ -46,7 +46,9 @@ export class UserServiceServer {
 
       // Hash password
       const saltRounds = 12;
+      console.log('🔐 UserService: Hashing password with salt rounds:', saltRounds);
       const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+      console.log('🔐 UserService: Password hashed successfully');
 
       // Create user with hashed password
       const userData = {
@@ -82,7 +84,9 @@ export class UserServiceServer {
       }
 
       // Verify password
+      console.log('🔐 UserService: Verifying password for user:', user.email);
       const isPasswordValid = await bcrypt.compare(loginData.password, user.password);
+      console.log('🔐 UserService: Password verification result:', isPasswordValid);
       if (!isPasswordValid) {
         throw new Error('Invalid credentials');
       }

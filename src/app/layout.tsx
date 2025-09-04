@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import "./init"; // Import initialization script
 import { Raleway } from "next/font/google";
+import StartupInitializer from "../components/startup-initializer";
 
 const raleway = Raleway({ 
   subsets: ["latin"],
@@ -17,6 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className={raleway.className}>
+        <StartupInitializer />
         {children}
       </body>
     </html>
