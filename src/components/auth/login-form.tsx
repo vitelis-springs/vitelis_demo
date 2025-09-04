@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
@@ -155,30 +157,60 @@ export default function LoginForm() {
             }}>
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '1px solid #434343',
-                borderRadius: '6px',
-                fontSize: '16px',
-                boxSizing: 'border-box',
-                background: '#262626',
-                color: '#d9d9d9',
-                outline: 'none'
-              }}
-              placeholder="Enter your password"
-              onFocus={(e) => {
-                e.target.style.borderColor = '#58bfce';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#434343';
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={passwordVisible ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  paddingRight: '48px',
+                  border: '1px solid #434343',
+                  borderRadius: '6px',
+                  fontSize: '16px',
+                  boxSizing: 'border-box',
+                  background: '#262626',
+                  color: '#d9d9d9',
+                  outline: 'none'
+                }}
+                placeholder="Enter your password"
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#58bfce';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#434343';
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setPasswordVisible(!passwordVisible)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#8c8c8c',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'color 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.color = '#d9d9d9';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.color = '#8c8c8c';
+                }}
+              >
+                {passwordVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              </button>
+            </div>
           </div>
 
           <button

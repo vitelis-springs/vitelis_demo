@@ -155,6 +155,7 @@ export default function CreateUserModal({ open, onCancel, onSuccess }: CreateUse
             folder="company-logos"
             maxSize={5}
             placeholder="Upload company logo"
+            accept={['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']}
             onChange={(url) => form.setFieldValue('logo', url)}
             onRemove={() => form.setFieldValue('logo', '')}
           />
