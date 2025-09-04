@@ -52,31 +52,8 @@ export class UserServiceServer {
         isActive: true
       };
 
-      console.error('🔐 UserService: CREATING NEW USER...');
-      console.error('🔐 UserService: User creation data:', {
-        email: userData.email,
-        passwordLength: userData.password?.length || 0,
-        passwordPreview: userData.password?.substring(0, 3) + '...',
-        fullPassword: userData.password,
-        role: userData.role,
-        isActive: userData.isActive
-      });
-      console.error('🔐 UserService: Password validation:', {
-        hasPassword: !!userData.password,
-        passwordType: typeof userData.password,
-        passwordNotEmpty: userData.password?.length > 0
-      });
-
       const user = new User(userData);
-      const savedUser = await user.save();
-      
-      console.error('✅ UserService: User created successfully:', {
-        id: savedUser._id,
-        email: savedUser.email,
-        role: savedUser.role
-      });
-      
-      return savedUser;
+      return await user.save();
     } catch (error) {
       console.error('Error creating user:', error);
       throw new Error('Failed to create user');
@@ -86,82 +63,24 @@ export class UserServiceServer {
   // Authenticate user and return JWT token
   static async authenticateUser(loginData: UserLoginData): Promise<AuthResponse> {
     try {
-      // Force error logging that will show in Vercel
-      console.error('🔐 UserService: Starting authentication for email:', loginData.email);
-      console.error('🔐 UserService: Input password length:', loginData.password?.length || 0);
-      console.error('🔐 UserService: Input password preview:', loginData.password?.substring(0, 3) + '...');
-      
       await ensureDBConnection();
-      console.error('🔐 UserService: Database connection established');
       
       // Find user by email
-      console.error('🔐 UserService: Searching for user with email:', loginData.email.toLowerCase());
       const user = await User.findOne({ email: loginData.email.toLowerCase() });
-      
       if (!user) {
-        console.error('❌ UserService: USER NOT FOUND - Email does not exist in database');
-        console.error('🔐 UserService: Searched for email:', loginData.email.toLowerCase());
-        console.error('🔐 UserService: Database query result: null');
-        throw new Error('User not found in database');
+        throw new Error('Invalid credentials');
       }
-      
-      console.error('✅ UserService: USER FOUND - Email exists in database');
-      console.error('🔐 UserService: User database record:', {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-        storedPasswordLength: user.password?.length || 0,
-        storedPasswordPreview: user.password?.substring(0, 3) + '...',
-        fullStoredPassword: user.password
-      });
 
       // Check if user is active
       if (!user.isActive) {
-        console.error('❌ UserService: User account is deactivated');
         throw new Error('User account is deactivated');
       }
-      console.error('✅ UserService: User account is active');
 
       // Verify password (plain text comparison)
-      console.error('🔐 UserService: STARTING PASSWORD VERIFICATION...');
-      console.error('🔐 UserService: Input password from login form:', JSON.stringify(loginData.password));
-      console.error('🔐 UserService: Stored password from database:', JSON.stringify(user.password));
-      console.error('🔐 UserService: Password data types:', {
-        inputType: typeof loginData.password,
-        storedType: typeof user.password
-      });
-      console.error('🔐 UserService: Password lengths:', {
-        inputLength: loginData.password?.length || 0,
-        storedLength: user.password?.length || 0
-      });
-      console.error('🔐 UserService: Password content analysis:', {
-        inputHasSpaces: loginData.password?.includes(' '),
-        storedHasSpaces: user.password?.includes(' '),
-        inputTrimmed: loginData.password?.trim(),
-        storedTrimmed: user.password?.trim()
-      });
-      
       const isPasswordValid = loginData.password === user.password;
-      console.error('🔐 UserService: PASSWORD COMPARISON RESULT:', isPasswordValid);
-      
       if (!isPasswordValid) {
-        console.error('❌ UserService: PASSWORD VERIFICATION FAILED - Passwords do not match');
-        console.error('🔐 UserService: DETAILED PASSWORD ANALYSIS:', {
-          inputPassword: loginData.password,
-          storedPassword: user.password,
-          inputLength: loginData.password?.length || 0,
-          storedLength: user.password?.length || 0,
-          exactMatch: loginData.password === user.password,
-          trimmedMatch: loginData.password?.trim() === user.password?.trim(),
-          inputStartsWithStored: loginData.password?.startsWith(user.password || ''),
-          storedStartsWithInput: user.password?.startsWith(loginData.password || '')
-        });
-        console.error('🔐 UserService: PASSWORD MISMATCH REASON: Input and stored passwords are different');
-        throw new Error('Password verification failed - passwords do not match');
+        throw new Error('Invalid credentials');
       }
-      
-      console.error('✅ UserService: PASSWORD VERIFICATION SUCCESSFUL - Passwords match exactly');
 
       // Update last login
       user.lastLogin = new Date();
