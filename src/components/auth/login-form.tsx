@@ -18,18 +18,30 @@ export default function LoginForm() {
     setError('');
     setLoading(true);
 
+    console.log('🔐 Login Form: Starting login process...');
+    console.log('🔐 Login Form: Form data:', {
+      email: email,
+      passwordLength: password.length,
+      passwordPreview: password.substring(0, 3) + '...',
+      emailValid: email.includes('@'),
+      passwordValid: password.length > 0
+    });
+
     try {
+      console.log('🔐 Login Form: Calling login function...');
       const result = await login({ email, password });
+      console.log('🔐 Login Form: Login result received:', result);
      
-      
       if (result.success) {
-        console.log('Login successful, redirecting...');
+        console.log('✅ Login Form: Login successful, redirecting...');
         // Redirect to dashboard or main page after successful login
         router.push('/');
       } else {
+        console.log('❌ Login Form: Login failed with error:', result.error);
         setError(result.error || 'Login failed. Please try again.');
       }
     } catch (err) {
+      console.error('💥 Login Form: Unexpected error during login:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);

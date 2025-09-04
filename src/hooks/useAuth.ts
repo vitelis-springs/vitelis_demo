@@ -68,18 +68,57 @@ export const useAuth = () => {
   // Login function
   const handleLogin = useCallback(async (credentials: LoginCredentials) => {
     try {
+      console.log('🔐 Auth Hook: Starting login process...');
+      console.log('🔐 Auth Hook: Credentials:', {
+        email: credentials.email,
+        passwordLength: credentials.password?.length || 0,
+        passwordPreview: credentials.password?.substring(0, 3) + '...'
+      });
+      
+      console.log('🔐 Auth Hook: Making API call to /auth/login...');
       const response = await api.post('/auth/login', credentials);
+      console.log('✅ Auth Hook: Login API response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasUser: !!response.data.user,
+        hasToken: !!response.data.token,
+        userRole: response.data.user?.role
+      });
+      
       const { user, token } = response.data;
       
       // Store user data and token in global state
+      console.log('🔐 Auth Hook: Storing user data in auth store...');
       login(user, token);
+      console.log('✅ Auth Hook: User data stored successfully');
       
       return { success: true, user };
     } catch (error: any) {
-      console.error('Login failed:', error);
+      console.error('❌ Auth Hook: Login failed with error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        errorType: error.constructor.name,
+        stack: error.stack
+      });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.error || 'Invalid input. Please check your email and password.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.message === 'Network Error') {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Login failed' 
+        error: errorMessage
       };
     }
   }, [login]);

@@ -63,26 +63,62 @@ export class UserServiceServer {
   // Authenticate user and return JWT token
   static async authenticateUser(loginData: UserLoginData): Promise<AuthResponse> {
     try {
+      console.log('🔐 UserService: Starting authentication for email:', loginData.email);
+      console.log('🔐 UserService: Input password length:', loginData.password?.length || 0);
+      console.log('🔐 UserService: Input password preview:', loginData.password?.substring(0, 3) + '...');
+      
       await ensureDBConnection();
+      console.log('🔐 UserService: Database connection established');
       
       // Find user by email
+      console.log('🔐 UserService: Searching for user with email:', loginData.email.toLowerCase());
       const user = await User.findOne({ email: loginData.email.toLowerCase() });
+      
       if (!user) {
+        console.log('❌ UserService: User not found in database');
         throw new Error('Invalid credentials');
       }
+      
+      console.log('✅ UserService: User found in database');
+      console.log('🔐 UserService: User details:', {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        storedPasswordLength: user.password?.length || 0,
+        storedPasswordPreview: user.password?.substring(0, 3) + '...'
+      });
 
       // Check if user is active
       if (!user.isActive) {
+        console.log('❌ UserService: User account is deactivated');
         throw new Error('User account is deactivated');
       }
+      console.log('✅ UserService: User account is active');
 
       // Verify password (plain text comparison)
-      console.log('🔐 UserService: Verifying password for user:', user.email);
+      console.log('🔐 UserService: Starting password verification...');
+      console.log('🔐 UserService: Input password:', JSON.stringify(loginData.password));
+      console.log('🔐 UserService: Stored password:', JSON.stringify(user.password));
+      console.log('🔐 UserService: Password types - Input:', typeof loginData.password, 'Stored:', typeof user.password);
+      
       const isPasswordValid = loginData.password === user.password;
       console.log('🔐 UserService: Password verification result:', isPasswordValid);
+      
       if (!isPasswordValid) {
+        console.log('❌ UserService: Password verification failed');
+        console.log('🔐 UserService: Password mismatch details:', {
+          inputPassword: loginData.password,
+          storedPassword: user.password,
+          inputLength: loginData.password?.length,
+          storedLength: user.password?.length,
+          exactMatch: loginData.password === user.password,
+          trimmedMatch: loginData.password?.trim() === user.password?.trim()
+        });
         throw new Error('Invalid credentials');
       }
+      
+      console.log('✅ UserService: Password verification successful');
 
       // Update last login
       user.lastLogin = new Date();
