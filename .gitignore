@@ -34,4 +34,7 @@ npm-debug.log*
 .vercel
 
 # typescript
-*.tsbuildinfo
+*.tsbuildinfo.env
+**/.env
+*.env
+.pnp.cjs
