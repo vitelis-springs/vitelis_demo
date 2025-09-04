@@ -1,6 +1,5 @@
 import User, { IUser } from '../models/User';
 import { ensureDBConnection } from '../../../lib/mongodb';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 export interface CreateUserData {
@@ -44,18 +43,11 @@ export class UserServiceServer {
         throw new Error('User with this email already exists');
       }
 
-      // Hash password
-      const saltRounds = 12;
-      console.log('🔐 UserService: Hashing password with salt rounds:', saltRounds);
-      console.log('🔐 UserService: Original password length:', data.password.length);
-      const hashedPassword = await bcrypt.hash(data.password, saltRounds);
-      console.log('🔐 UserService: Password hashed successfully, hash length:', hashedPassword.length);
-
-      // Create user with hashed password
+      // Create user with plain password
       const userData = {
         ...data,
         email: data.email.toLowerCase(),
-        password: hashedPassword,
+        password: data.password,
         role: data.role || 'user',
         isActive: true
       };
@@ -84,12 +76,9 @@ export class UserServiceServer {
         throw new Error('User account is deactivated');
       }
 
-      // Verify password
+      // Verify password (plain text comparison)
       console.log('🔐 UserService: Verifying password for user:', user.email);
-      console.log('🔐 UserService: Input password length:', loginData.password.length);
-      console.log('🔐 UserService: Stored password hash length:', user.password.length);
-      console.log('🔐 UserService: Stored password starts with $2b$:', user.password.startsWith('$2b$'));
-      const isPasswordValid = await bcrypt.compare(loginData.password, user.password);
+      const isPasswordValid = loginData.password === user.password;
       console.log('🔐 UserService: Password verification result:', isPasswordValid);
       if (!isPasswordValid) {
         throw new Error('Invalid credentials');
@@ -159,10 +148,9 @@ export class UserServiceServer {
       
       const updateData: any = { ...data };
       
-      // Hash password if it's being updated
+      // Update password if it's being updated (plain text)
       if (data.password) {
-        const saltRounds = 12;
-        updateData.password = await bcrypt.hash(data.password, saltRounds);
+        updateData.password = data.password;
       }
 
       return await User.findByIdAndUpdate(
