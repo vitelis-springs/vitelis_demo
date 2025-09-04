@@ -1,5 +1,6 @@
 import User, { IUser } from '../models/User';
 import { ensureDBConnection } from '../../../lib/mongodb';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 export interface CreateUserData {
@@ -43,11 +44,15 @@ export class UserServiceServer {
         throw new Error('User with this email already exists');
       }
 
-      // Create user with plain password
+      // Hash password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+
+      // Create user with hashed password
       const userData = {
         ...data,
         email: data.email.toLowerCase(),
-        password: data.password,
+        password: hashedPassword,
         role: data.role || 'user',
         isActive: true
       };
@@ -76,8 +81,8 @@ export class UserServiceServer {
         throw new Error('User account is deactivated');
       }
 
-      // Verify password (plain text comparison)
-      const isPasswordValid = loginData.password === user.password;
+      // Verify password using bcrypt
+      const isPasswordValid = await bcrypt.compare(loginData.password, user.password);
       if (!isPasswordValid) {
         throw new Error('Invalid credentials');
       }
@@ -146,9 +151,10 @@ export class UserServiceServer {
       
       const updateData: any = { ...data };
       
-      // Update password if it's being updated (plain text)
+      // Hash password if it's being updated
       if (data.password) {
-        updateData.password = data.password;
+        const saltRounds = 12;
+        updateData.password = await bcrypt.hash(data.password, saltRounds);
       }
 
       return await User.findByIdAndUpdate(

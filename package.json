@@ -28,9 +28,9 @@
     "@tanstack/react-query-devtools": "^5.29.2",
     "@tanstack/react-query-next-experimental": "^5.29.2",
     "antd": "^5.27.0",
-    "axios": "^1.11.0",
+        "axios": "^1.11.0",
     "babel-plugin-react-compiler": "^19.0.0-beta-df7b47d-20241124",
-
+    "bcryptjs": "^3.0.2",
     "classnames": "^2.5.1",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.18.0",
