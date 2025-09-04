@@ -217,7 +217,9 @@ export default function Animation({
           background: '#141414',
           minHeight: '100vh',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
         }}>
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
             <Card style={{ 

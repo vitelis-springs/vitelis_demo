@@ -77,7 +77,6 @@ export default function CreateUserModal({ open, onCancel, onSuccess }: CreateUse
         layout="vertical"
         initialValues={{
           role: 'user',
-          isActive: true,
         }}
       >
         <Row gutter={16}>
@@ -154,32 +153,16 @@ export default function CreateUserModal({ open, onCancel, onSuccess }: CreateUse
           />
         </Form.Item>
 
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="role"
-              label="User Role"
-              rules={[{ required: true, message: 'Please select user role' }]}
-            >
-              <Select placeholder="Select Role">
-                <Option value="user">User</Option>
-                <Option value="admin">Admin</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="isActive"
-              label="Account Status"
-              rules={[{ required: true, message: 'Please select account status' }]}
-            >
-              <Select placeholder="Select Status">
-                <Option value={true}>Active</Option>
-                <Option value={false}>Inactive</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
+        <Form.Item
+          name="role"
+          label="User Role"
+          rules={[{ required: true, message: 'Please select user role' }]}
+        >
+          <Select placeholder="Select Role">
+            <Option value="user">User</Option>
+            <Option value="admin">Admin</Option>
+          </Select>
+        </Form.Item>
       </Form>
     </Modal>
   );

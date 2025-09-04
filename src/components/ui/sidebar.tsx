@@ -60,9 +60,9 @@ export default function Sidebar() {
     //   icon: <SettingOutlined style={{ fontSize: '18px' }} />,
     //   label: 'Settings',
     // },
-  ];
-
-  const handleMenuClick = ({ key }: { key: string }) => {
+      ];
+    
+    const handleMenuClick = ({ key }: { key: string }) => {
     router.push(key);
   };
 
@@ -83,11 +83,16 @@ export default function Sidebar() {
         {/* Logo */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <Image
-            src="/logo.png"
-            alt="Vitelis Logo"
+            src={user?.logo || "/logo.png"}
+            alt={user?.logo ? `${user.companyName || 'Company'} Logo` : "Vitelis Logo"}
             width={120}
             height={40}
             style={{ objectFit: 'contain' }}
+            onError={(e) => {
+              // Fallback to Vitelis logo if user logo fails to load
+              const target = e.target as HTMLImageElement;
+              target.src = "/logo.png";
+            }}
           />
         </div>
 

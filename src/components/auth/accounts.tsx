@@ -100,6 +100,8 @@ export default function Accounts() {
   };
 
   const handleAddUser = () => {
+    setEditingUser(null); // Clear any previous editing user
+    form.resetFields(); // Reset form fields
     setIsModalVisible(true);
   };
 
@@ -112,7 +114,6 @@ export default function Accounts() {
       lastName: user.lastName || '',
       logo: user.logo || '',
       role: user.role,
-      isActive: user.isActive,
     });
     setIsModalVisible(true);
   };
@@ -143,13 +144,18 @@ export default function Accounts() {
         // Update existing user
         await updateUser({ userId: editingUser._id, userData: values });
         message.success('User updated successfully');
-        setIsModalVisible(false);
-        form.resetFields();
+        handleModalClose();
       }
     } catch (error) {
       console.error('Operation failed:', error);
       message.error('Failed to save user');
     }
+  };
+
+  const handleModalClose = () => {
+    setIsModalVisible(false);
+    setEditingUser(null);
+    form.resetFields();
   };
 
   const columns = [
@@ -158,7 +164,11 @@ export default function Accounts() {
       key: 'user',
       render: (record: User) => (
         <Space>
-          <Avatar icon={<UserOutlined />} style={{ backgroundColor: record.role === 'admin' ? '#faad14' : '#1890ff' }} />
+          <Avatar 
+            src={record.logo || undefined}
+            icon={!record.logo ? <UserOutlined /> : undefined}
+            style={{ backgroundColor: record.role === 'admin' ? '#faad14' : '#1890ff' }} 
+          />
           <div>
             <div style={{ color: '#d9d9d9', fontWeight: 500 }}>
               {record.firstName && record.lastName ? `${record.firstName} ${record.lastName}` : 'N/A'}
@@ -334,9 +344,9 @@ export default function Accounts() {
           {/* Create User Modal */}
           <CreateUserModal
             open={isModalVisible && !editingUser}
-            onCancel={() => setIsModalVisible(false)}
+            onCancel={handleModalClose}
             onSuccess={() => {
-              setIsModalVisible(false);
+              handleModalClose();
               refetch();
             }}
           />
@@ -346,7 +356,7 @@ export default function Accounts() {
             title="Edit User"
             open={isModalVisible && !!editingUser}
             onOk={handleModalOk}
-            onCancel={() => setIsModalVisible(false)}
+            onCancel={handleModalClose}
             okText="Update"
             cancelText="Cancel"
             width={600}
@@ -357,7 +367,6 @@ export default function Accounts() {
               layout="vertical"
               initialValues={{
                 role: 'user',
-                isActive: true,
               }}
             >
               <Row gutter={16}>
@@ -407,32 +416,16 @@ export default function Accounts() {
                   onRemove={() => form.setFieldValue('logo', '')}
                 />
               </Form.Item>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="role"
-                    label="Role"
-                    rules={[{ required: true, message: 'Please select role' }]}
-                  >
-                    <Select placeholder="Select Role">
-                      <Option value="user">User</Option>
-                      <Option value="admin">Admin</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="isActive"
-                    label="Status"
-                    rules={[{ required: true, message: 'Please select status' }]}
-                  >
-                    <Select placeholder="Select Status">
-                      <Option value={true}>Active</Option>
-                      <Option value={false}>Inactive</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
+              <Form.Item
+                name="role"
+                label="Role"
+                rules={[{ required: true, message: 'Please select role' }]}
+              >
+                <Select placeholder="Select Role">
+                  <Option value="user">User</Option>
+                  <Option value="admin">Admin</Option>
+                </Select>
+              </Form.Item>
             </Form>
           </Modal>
         </Content>

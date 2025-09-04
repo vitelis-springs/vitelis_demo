@@ -51,13 +51,13 @@ export default function LoginForm() {
         left: '40px',
         zIndex: 10
       }}>
-        <Image
+        {/* <Image
           src="/logo.png"
           alt="Vitelis Logo"
           width={150}
           height={50}
           style={{ objectFit: 'contain' }}
-        />
+        /> */}
       </div>
 
       <div style={{
