@@ -402,6 +402,7 @@ export default function Accounts() {
                   folder="company-logos"
                   maxSize={5}
                   placeholder="Upload company logo"
+                
                   onChange={(url) => form.setFieldValue('logo', url)}
                   onRemove={() => form.setFieldValue('logo', '')}
                 />

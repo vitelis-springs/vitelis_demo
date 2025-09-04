@@ -91,7 +91,7 @@ export default function ImageUpload({
         borderRadius: '8px',
         padding: '20px',
         textAlign: 'center',
-        background: '#fafafa',
+        // background: '#fafafa',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
       }}

@@ -55,11 +55,11 @@ export default function Sidebar() {
       icon: <UserOutlined style={{ fontSize: '18px' }} />,
       label: 'Users',
     }] : []),
-    {
-      key: '/settings',
-      icon: <SettingOutlined style={{ fontSize: '18px' }} />,
-      label: 'Settings',
-    },
+    // {
+    //   key: '/settings',
+    //   icon: <SettingOutlined style={{ fontSize: '18px' }} />,
+    //   label: 'Settings',
+    // },
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
