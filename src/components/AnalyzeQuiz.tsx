@@ -164,21 +164,6 @@ export default function AnalyzeQuiz({ onComplete }: AnalyzeQuizProps) {
         additionalInformation: analyzeData.additionalInformation || ''
       });
       
-      // Check if we have resultText - show results immediately
-      if (analyzeData.resultText) {
-        console.log('📋 Component: Found resultText, showing results immediately');
-        setShowResults(true);
-        return;
-      }
-      
-      // Check if we have executionId - show animation (regardless of status)
-      if (analyzeData.executionId) {
-        console.log('🎬 Component: Found executionId, showing animation');
-        setExecutionId(analyzeData.executionId);
-        setShowResults(false);
-        return;
-      }
-      
       // Check if status is error or canceled - show quiz form with error
       if (analyzeData.status === 'error' || analyzeData.status === 'canceled') {
         console.log('❌ Component: Analysis failed with status:', analyzeData.status);
@@ -187,14 +172,24 @@ export default function AnalyzeQuiz({ onComplete }: AnalyzeQuizProps) {
         return;
       }
       
-      // Check if status is finished but no resultText - show results
+      // Check if status is finished - show results (regardless of resultText or other fields)
       if (analyzeData.status === 'finished') {
         console.log('📋 Component: Analysis completed, showing results');
         setShowResults(true);
-      } else {
-        console.log('📝 Component: Loading quiz progress');
-        setShowResults(false);
+        return;
       }
+      
+      // Check if we have executionId and status is not finished - show animation
+      if (analyzeData.executionId && analyzeData.status !== 'finished') {
+        console.log('🎬 Component: Found executionId, showing animation');
+        setExecutionId(analyzeData.executionId);
+        setShowResults(false);
+        return;
+      }
+      
+      // Default: show quiz form
+      console.log('📝 Component: Loading quiz progress');
+      setShowResults(false);
     }
   }, [analyzeData]);
 
