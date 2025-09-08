@@ -175,6 +175,7 @@ export default function AnalyzeQuiz({ onComplete }: AnalyzeQuizProps) {
       // Check if status is finished - show results (regardless of resultText or other fields)
       if (analyzeData.status === 'finished') {
         console.log('📋 Component: Analysis completed, showing results');
+        setExecutionId(''); // Clear executionId when showing results
         setShowResults(true);
         return;
       }
