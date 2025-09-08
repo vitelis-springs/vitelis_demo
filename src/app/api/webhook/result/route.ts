@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('📥 Webhook Result: Received body:', body);
     
-    const { executionId, data } = body;
-    console.log('📥 Webhook Result: Parsed data:', { executionId, data });
+    const { executionId, data, summary, improvementLeverages, headToHead, sources } = body;
+    console.log('📥 Webhook Result: Parsed data:', { executionId, data, summary, improvementLeverages, headToHead, sources });
 
     // Validate required fields
     if (!executionId || data === undefined) {
@@ -27,12 +27,16 @@ export async function POST(request: NextRequest) {
     console.log('🔄 Webhook Result: Updating analyze record with:', {
       executionId: executionId.toString(),
       resultText: data,
+      summary,
+      improvementLeverages,
+      headToHead,
+      sources,
       executionStatus: 'finished',
       status: 'finished'
     });
     
     // Find the record first
-    const analyzeRecord = await Analyze.findOne({ executionId: executionId.toString() });
+    const analyzeRecord = await (Analyze as any).findOne({ executionId: executionId.toString() });
 
     if (!analyzeRecord) {
       return NextResponse.json({
@@ -45,6 +49,10 @@ export async function POST(request: NextRequest) {
 
     // Update the fields
     analyzeRecord.resultText = data;
+    analyzeRecord.summary = summary;
+    analyzeRecord.improvementLeverages = improvementLeverages;
+    analyzeRecord.headToHead = headToHead;
+    analyzeRecord.sources = sources;
     analyzeRecord.executionStatus = 'finished';
     analyzeRecord.status = 'finished';
 
@@ -64,6 +72,10 @@ export async function POST(request: NextRequest) {
       data: {
         executionId: updatedAnalyze.executionId,
         resultText: updatedAnalyze.resultText,
+        summary: updatedAnalyze.summary,
+        improvementLeverages: updatedAnalyze.improvementLeverages,
+        headToHead: updatedAnalyze.headToHead,
+        sources: updatedAnalyze.sources,
         executionStatus: updatedAnalyze.executionStatus,
         status: updatedAnalyze.status
       }

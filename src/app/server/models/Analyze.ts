@@ -15,6 +15,10 @@ export interface IAnalyze extends Document {
   executionStatus?: 'started' | 'inProgress' | 'finished' | 'error' | 'canceled';
   executionStep?: number;
   resultText?: string;
+  summary?: string;
+  improvementLeverages?: string;
+  headToHead?: string;
+  sources?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +91,26 @@ const AnalyzeSchema: Schema = new Schema({
     required: false,
   },
   resultText: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  summary: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  improvementLeverages: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  headToHead: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  sources: {
     type: String,
     required: false,
     trim: true

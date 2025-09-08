@@ -28,7 +28,7 @@ interface AnalyzeResultProps {
 
 export default function AnalyzeResult({ quizData, resultText, onReset }: AnalyzeResultProps) {
   const [tocOpen, setTocOpen] = useState(true);
-  
+  // summary -> head to head -> sources -> improvementLeverages 
   // Use provided resultText or fallback to default content
   const reportContent = resultText || `\n\n# Analysis Report\n\nNo analysis results available yet. Please wait for the analysis to complete.`;
 
