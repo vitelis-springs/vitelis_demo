@@ -23,6 +23,7 @@ import { useRunWorkflow, useGetExecutionDetails } from '@hooks/api/useN8NService
 import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
 import Animation from './Animation';
 import AnalyzeResult from './AnalyzeResult';
+import ExtendedAnalyzeResult from './ExtendedAnalyzeResult';
 import Sidebar from './ui/sidebar';
 import { Layout } from 'antd';
 
@@ -375,6 +376,21 @@ export default function AnalyzeQuiz({ onComplete }: AnalyzeQuizProps) {
   }
 
   if (showResults) {
+    // Check if analyze data has summary field - use ExtendedAnalyzeResult
+    if (analyzeData?.summary) {
+      return (
+        <ExtendedAnalyzeResult 
+          quizData={quizData} 
+          summary={analyzeData.summary}
+          improvementLeverages={analyzeData.improvementLeverages}
+          headToHead={analyzeData.headToHead}
+          sources={analyzeData.sources}
+          onReset={handleReset} 
+        />
+      );
+    }
+    
+    // Fallback to original AnalyzeResult for backward compatibility
     return <AnalyzeResult quizData={quizData} resultText={analyzeData?.resultText} onReset={handleReset} />;
   }
 
