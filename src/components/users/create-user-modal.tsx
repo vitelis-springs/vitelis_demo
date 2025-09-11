@@ -34,7 +34,11 @@ export default function CreateUserModal({
 	const [form] = Form.useForm();
 	const { mutateAsync: createUser, isPending } = useCreateUser();
 	const [customUseCase, setCustomUseCase] = useState("");
-	const [useCases, setUseCases] = useState<string[]>([]);
+	const [useCases, setUseCases] = useState<string[]>(["Leadership",
+		"AI Maturity",
+		"Insurance CX",
+		"Efficiency",
+		"SalesMiner",]);
 
 	const handleSubmit = async () => {
 		try {

@@ -68,11 +68,7 @@ const UserSchema: Schema = new Schema(
 		},
 		usercases: {
 			type: [String],
-			default: ["Leadership",
-				"AI Maturity",
-				"Insurance CX",
-				"Efficiency",
-				"SalesMiner",],
+			default: [],
 			required: false,
 		},
 	},
