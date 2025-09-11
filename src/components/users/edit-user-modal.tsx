@@ -1,9 +1,21 @@
 "use client";
 
+import { PlusOutlined } from "@ant-design/icons";
 import { useUpdateUser } from "@hooks/api/useUsersService";
 import type { User } from "@hooks/api/useUsersService";
-import { Col, Form, Input, Modal, Row, Select, Tag, message } from "antd";
-import React from "react";
+import {
+	Button,
+	Col,
+	Form,
+	Input,
+	Modal,
+	Row,
+	Select,
+	Space,
+	Tag,
+	message,
+} from "antd";
+import React, { useState } from "react";
 import ImageUpload from "../ui/image-upload";
 
 const { Option } = Select;
@@ -23,10 +35,13 @@ export default function EditUserModal({
 }: EditUserModalProps) {
 	const [form] = Form.useForm();
 	const { mutateAsync: updateUser, isPending } = useUpdateUser();
+	const [customUseCase, setCustomUseCase] = useState("");
+	const [useCases, setUseCases] = useState<string[]>([]);
 
 	// Set form values when user changes
 	React.useEffect(() => {
 		if (user && open) {
+			const userUseCases = user.usercases || [];
 			form.setFieldsValue({
 				email: user.email,
 				companyName: user.companyName || "",
@@ -34,8 +49,9 @@ export default function EditUserModal({
 				lastName: user.lastName || "",
 				logo: user.logo || "",
 				role: user.role,
-				usercases: user.usercases || [],
+				usercases: userUseCases,
 			});
+			setUseCases(userUseCases);
 		}
 	}, [user, open, form]);
 
@@ -66,7 +82,40 @@ export default function EditUserModal({
 
 	const handleCancel = () => {
 		form.resetFields();
+		setCustomUseCase("");
+		setUseCases([]);
 		onCancel();
+	};
+
+	const handleAddCustomUseCase = () => {
+		if (!customUseCase.trim()) {
+			message.warning("Please enter a use case name");
+			return;
+		}
+
+		const useCaseValue = customUseCase
+			.trim()
+			.toLowerCase()
+			.replace(/\s+/g, "-");
+
+		// Check if use case already exists
+		if (useCases.includes(useCaseValue)) {
+			message.warning("This use case already exists");
+			return;
+		}
+
+		// Add the new use case
+		const newUseCases = [...useCases, useCaseValue];
+		setUseCases(newUseCases);
+		form.setFieldValue("usercases", newUseCases);
+		setCustomUseCase("");
+		message.success("Custom use case added successfully");
+	};
+
+	const handleRemoveUseCase = (useCaseToRemove: string) => {
+		const newUseCases = useCases.filter((uc) => uc !== useCaseToRemove);
+		setUseCases(newUseCases);
+		form.setFieldValue("usercases", newUseCases);
 	};
 
 	return (
@@ -86,6 +135,7 @@ export default function EditUserModal({
 				layout="vertical"
 				initialValues={{
 					role: "user",
+					usercases: [],
 				}}
 			>
 				<Row gutter={16}>
@@ -166,35 +216,57 @@ export default function EditUserModal({
 				<Form.Item
 					name="usercases"
 					label="Use Cases"
-					tooltip="Select the use cases this user will have access to"
+					tooltip="Add custom use cases for this user"
 				>
-					<Select
-						mode="multiple"
-						placeholder="Select use cases"
-						style={{ width: "100%" }}
-						tagRender={(props) => {
-							const { label, closable, onClose } = props;
-							return (
-								<Tag
-									color="blue"
-									closable={closable}
-									onClose={onClose}
-									style={{ marginRight: 3 }}
-								>
-									{label}
-								</Tag>
-							);
-						}}
-					>
-						<Option value="data-analysis">Data Analysis</Option>
-						<Option value="reporting">Reporting</Option>
-						<Option value="user-management">User Management</Option>
-						<Option value="system-config">System Configuration</Option>
-						<Option value="content-management">Content Management</Option>
-						<Option value="analytics">Analytics</Option>
-						<Option value="integration">Integration</Option>
-						<Option value="automation">Automation</Option>
-					</Select>
+					<div>
+						{/* Display current use cases */}
+						<div style={{ marginBottom: "12px", minHeight: "32px" }}>
+							{useCases.length > 0 ? (
+								<div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+									{useCases.map((usecase: string) => {
+										const displayName = usecase
+											.split("-")
+											.map(
+												(word) => word.charAt(0).toUpperCase() + word.slice(1),
+											)
+											.join(" ");
+										return (
+											<Tag
+												key={usecase}
+												color="gray"
+												closable
+												onClose={() => handleRemoveUseCase(usecase)}
+												style={{ marginBottom: 4, fontSize: "16px", padding: "5px 8px" }}
+											>
+												{displayName}
+											</Tag>
+										);
+									})}
+								</div>
+							) : (
+								<div style={{ color: "#8c8c8c", fontStyle: "italic" }}>
+									No use cases added yet
+								</div>
+							)}
+						</div>
+
+						{/* Add new use case */}
+						<Space.Compact style={{ width: "100%" }}>
+							<Input
+								placeholder="Enter use case name"
+								value={customUseCase}
+								onChange={(e) => setCustomUseCase(e.target.value)}
+								onPressEnter={handleAddCustomUseCase}
+							/>
+							<Button
+								type="primary"
+								icon={<PlusOutlined />}
+								onClick={handleAddCustomUseCase}
+							>
+								Add
+							</Button>
+						</Space.Compact>
+					</div>
 				</Form.Item>
 			</Form>
 		</Modal>

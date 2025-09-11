@@ -200,11 +200,22 @@ export default function Users() {
 			render: (usercases: string[]) => (
 				<div>
 					{usercases && usercases.length > 0 ? (
-						usercases.map((usecase) => (
-							<Tag key={usecase} color="blue" style={{ marginBottom: 4 }}>
-								{usecase}
-							</Tag>
-						))
+						usercases.map((usecase) => {
+							// Convert kebab-case back to readable format
+							const displayName = usecase
+								.split("-")
+								.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+								.join(" ");
+							return (
+								<Tag
+									key={usecase}
+									color="gray"
+									style={{ marginBottom: 4, fontSize: "12px" }}
+								>
+									{displayName}
+								</Tag>
+							);
+						})
 					) : (
 						<span style={{ color: "#8c8c8c" }}>None</span>
 					)}

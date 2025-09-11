@@ -41,6 +41,15 @@ interface AnalyzeQuizData {
   additionalInformation?: string;
 }
 
+// DO NOT DELETE
+// options: [
+//   'Leadership',
+//   'AI Maturity',
+//   'Insurance CX',
+//   'Efficiency',
+//   'SalesMiner'
+// ],
+
 interface AnalyzeQuizProps {
   onComplete?: (data: AnalyzeQuizData) => void;
 }
