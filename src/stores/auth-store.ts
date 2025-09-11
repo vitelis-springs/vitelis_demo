@@ -1,60 +1,66 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface User {
-  _id: string;
-  email: string;
-  companyName?: string;
-  logo?: string;
-  firstName?: string;
-  lastName?: string;
-  role: string;
-  isActive: boolean;
+	_id: string;
+	email: string;
+	companyName?: string;
+	logo?: string;
+	firstName?: string;
+	lastName?: string;
+	role: string;
+	isActive: boolean;
+	usercases?: string[];
 }
 
 interface AuthState {
-  isLoggedIn: boolean;
-  user: User | null;
-  token: string | null;
-  login: (user: User, token: string) => void;
-  logout: () => void;
-  updateUser: (userData: Partial<User>) => void;
-  refreshUser: (userData: User) => void;
+	isLoggedIn: boolean;
+	user: User | null;
+	token: string | null;
+	login: (user: User, token: string) => void;
+	logout: () => void;
+	updateUser: (userData: Partial<User>) => void;
+	refreshUser: (userData: User) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      isLoggedIn: false,
-      user: null,
-      token: null,
-      login: (user: User, token: string) => {
-        console.log('🔐 Auth Store: Login called with:', { user: user.email, token: token ? `${token.substring(0, 20)}...` : 'none' });
-        set({ 
-          isLoggedIn: true, 
-          user, 
-          token 
-        });
-        console.log('✅ Auth Store: Login state updated');
-      },
-      logout: () => {
-        console.log('🔐 Auth Store: Logout called, clearing auth state');
-        set({ 
-          isLoggedIn: false, 
-          user: null, 
-          token: null 
-        });
-        console.log('🔐 Auth Store: Auth state cleared');
-      },
-      updateUser: (userData: Partial<User>) => set((state) => ({
-        user: state.user ? { ...state.user, ...userData } : null
-      })),
-      refreshUser: (userData: User) => set((state) => ({
-        user: state.isLoggedIn ? userData : null
-      }))
-    }),
-    {
-      name: 'auth-storage', // unique name for localStorage key
-    }
-  )
+	persist(
+		(set) => ({
+			isLoggedIn: false,
+			user: null,
+			token: null,
+			login: (user: User, token: string) => {
+				console.log("🔐 Auth Store: Login called with:", {
+					user: user.email,
+					token: token ? `${token.substring(0, 20)}...` : "none",
+				});
+				set({
+					isLoggedIn: true,
+					user,
+					token,
+				});
+				console.log("✅ Auth Store: Login state updated");
+			},
+			logout: () => {
+				console.log("🔐 Auth Store: Logout called, clearing auth state");
+				set({
+					isLoggedIn: false,
+					user: null,
+					token: null,
+				});
+				console.log("🔐 Auth Store: Auth state cleared");
+			},
+			updateUser: (userData: Partial<User>) =>
+				set((state) => ({
+					user: state.user ? { ...state.user, ...userData } : null,
+				})),
+			refreshUser: (userData: User) =>
+				set((state) => ({
+					user: state.isLoggedIn ? userData : null,
+				})),
+		}),
+		{
+			name: "auth-storage", // unique name for localStorage key
+		},
+	),
 );
