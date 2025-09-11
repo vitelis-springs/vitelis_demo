@@ -1,45 +1,49 @@
 "use client";
 
-import { useCreateUser } from "@hooks/api/useUsersService";
-import type { CreateUserData } from "@hooks/api/useUsersService";
+import { useUpdateUser } from "@hooks/api/useUsersService";
+import type { User } from "@hooks/api/useUsersService";
 import { Col, Form, Input, Modal, Row, Select, Tag, message } from "antd";
 import React from "react";
 import ImageUpload from "../ui/image-upload";
 
 const { Option } = Select;
 
-interface CreateUserModalProps {
+interface EditUserModalProps {
 	open: boolean;
+	user: User | null;
 	onCancel: () => void;
 	onSuccess: () => void;
 }
 
-export default function CreateUserModal({
+export default function EditUserModal({
 	open,
+	user,
 	onCancel,
 	onSuccess,
-}: CreateUserModalProps) {
+}: EditUserModalProps) {
 	const [form] = Form.useForm();
-	const { mutateAsync: createUser, isPending } = useCreateUser();
+	const { mutateAsync: updateUser, isPending } = useUpdateUser();
+
+	// Set form values when user changes
+	React.useEffect(() => {
+		if (user && open) {
+			form.setFieldsValue({
+				email: user.email,
+				companyName: user.companyName || "",
+				firstName: user.firstName || "",
+				lastName: user.lastName || "",
+				logo: user.logo || "",
+				role: user.role,
+				usercases: user.usercases || [],
+			});
+		}
+	}, [user, open, form]);
 
 	const handleSubmit = async () => {
+		if (!user) return;
+
 		try {
 			const values = await form.validateFields();
-
-			// Validate password strength
-			if (values.password && values.password.length < 8) {
-				message.error("Password must be at least 8 characters long");
-				return;
-			}
-
-			// Validate password complexity
-			const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
-			if (values.password && !passwordRegex.test(values.password)) {
-				message.error(
-					"Password must contain at least one lowercase letter, one uppercase letter, and one number",
-				);
-				return;
-			}
 
 			// Clean up empty optional fields
 			const cleanedValues = {
@@ -51,13 +55,12 @@ export default function CreateUserModal({
 				usercases: values.usercases || [],
 			};
 
-			await createUser(cleanedValues);
-			message.success("User created successfully");
-			form.resetFields();
+			await updateUser({ userId: user._id, userData: cleanedValues });
+			message.success("User updated successfully");
 			onSuccess();
 		} catch (error) {
-			console.error("Failed to create user:", error);
-			message.error("Failed to create user. Please try again.");
+			console.error("Failed to update user:", error);
+			message.error("Failed to update user. Please try again.");
 		}
 	};
 
@@ -68,11 +71,11 @@ export default function CreateUserModal({
 
 	return (
 		<Modal
-			title="Create New User"
+			title="Edit User"
 			open={open}
 			onOk={handleSubmit}
 			onCancel={handleCancel}
-			okText="Create User"
+			okText="Update"
 			cancelText="Cancel"
 			width={700}
 			confirmLoading={isPending}
@@ -119,22 +122,6 @@ export default function CreateUserModal({
 					]}
 				>
 					<Input placeholder="user@company.com" />
-				</Form.Item>
-
-				<Form.Item
-					name="password"
-					label="Password"
-					rules={[
-						{ required: true, message: "Please enter password" },
-						{ min: 8, message: "Password must be at least 8 characters" },
-						{
-							pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-							message:
-								"Password must contain at least one lowercase letter, one uppercase letter, and one number",
-						},
-					]}
-				>
-					<Input.Password placeholder="Enter password" />
 				</Form.Item>
 
 				<Form.Item

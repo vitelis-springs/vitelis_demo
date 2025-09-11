@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '../../../hooks/useAuth';
-import Accounts from '../../../components/auth/accounts';
+import Users from '@components/users/users';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spin } from 'antd';
@@ -44,5 +44,5 @@ export default function AccountPage() {
     return null; // Don't render anything while redirecting
   }
 
-  return <Accounts />;
+  return <Users />;
 }
