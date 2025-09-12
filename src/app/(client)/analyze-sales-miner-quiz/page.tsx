@@ -1,12 +1,12 @@
 'use client';
 
 import { useAuthStore } from '../../../stores/auth-store';
-import AnalyzeQuiz from '@components/analyze/AnalyzeQuiz';
+import AnalyzeSalesMinerQuiz from '@components/analize-sales-miner/AnalyzeSalesMinerQuiz';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spin } from 'antd';
 
-export default function AnalyzeQuizPage() {
+export default function AnalyzeSalesMinerQuizPage() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -44,5 +44,5 @@ export default function AnalyzeQuizPage() {
     return null; // Don't render anything while redirecting
   }
 
-  return <AnalyzeQuiz onComplete={() => {}} />;
+  return <AnalyzeSalesMinerQuiz onComplete={() => {}} />;
 }

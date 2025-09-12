@@ -11,12 +11,11 @@ import {
   Button,
 } from 'antd';
 import {
-  MessageOutlined,
   HistoryOutlined,
   UserOutlined,
   LogoutOutlined,
   FileTextOutlined,
-  SettingOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -44,6 +43,11 @@ export default function Sidebar() {
       key: '/analyze-quiz',
       icon: <FileTextOutlined style={{ fontSize: '18px' }} />,
       label: 'Request Report',
+    },
+    {
+      key: '/analyze-sales-miner-quiz',
+      icon: <BarChartOutlined style={{ fontSize: '18px' }} />,
+      label: 'SalesMiner Analysis',
     },
     {
       key: '/history',

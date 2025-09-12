@@ -14,8 +14,8 @@ import {
   FileTextOutlined,
   AuditOutlined
 } from '@ant-design/icons';
-import Sidebar from './ui/sidebar';
-import { useAnalyzeService, useGetAnalyze } from '../hooks/api/useAnalyzeService';
+import Sidebar from '../ui/sidebar';
+import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
 
 const { Title, Text } = Typography;

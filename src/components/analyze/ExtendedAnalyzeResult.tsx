@@ -5,7 +5,7 @@ import { Card, Typography, Space, Button, Layout, Collapse } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CheckCircleOutlined, DownOutlined, FileTextOutlined, TrophyOutlined, LinkOutlined, ToolOutlined } from '@ant-design/icons';
-import Sidebar from './ui/sidebar';
+import Sidebar from '../ui/sidebar';
 
 const { Title, Text } = Typography;
 const { Content } = Layout;

@@ -9,41 +9,32 @@ import { useRunWorkflow } from "@hooks/api/useN8NService";
 import { useAuth } from "@hooks/useAuth";
 import { Layout } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
-import AnalyzeResult from "./AnalyzeResult";
-import Animation from "./Animation";
-import ExtendedAnalyzeResult from "./ExtendedAnalyzeResult";
+import AnalyzeResult from "../AnalyzeResult";
+import Animation from "../Animation";
+import ExtendedAnalyzeResult from "../ExtendedAnalyzeResult";
 import Sidebar from "../ui/sidebar";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { Content } = Layout;
 
-interface AnalyzeQuizData {
+interface AnalyzeSalesMinerQuizData {
 	companyName: string;
 	businessLine: string;
 	country: string;
-	useCase: string;
+	targetMarket: string;
+	competitorAnalysis: string;
+	salesStrategy: string;
 	timeline: string;
 	language: string;
 	additionalInformation?: string;
 }
 
-
-
-interface AnalyzeQuizProps {
-	onComplete?: (data: AnalyzeQuizData) => void;
+interface AnalyzeSalesMinerQuizProps {
+	onComplete?: (data: AnalyzeSalesMinerQuizData) => void;
 }
 
-// Standard use case options as fallback
-const STANDARD_USE_CASES = [
-	"Leadership",
-	"AI Maturity",
-	"Insurance CX",
-	"Efficiency",
-	"SalesMiner",
-];
-
-const getFormFields = (userUseCases?: string[]) => [
+const getFormFields = () => [
 	{
 		name: "companyName",
 		label: "Company Name",
@@ -66,19 +57,32 @@ const getFormFields = (userUseCases?: string[]) => [
 		required: true,
 	},
 	{
-		name: "useCase",
-		label: "Use Case / Analysis Area",
+		name: "targetMarket",
+		label: "Target Market",
+		type: "input",
+		placeholder: "e.g., B2B Enterprise, B2C Consumers, SMB...",
+		required: true,
+	},
+	{
+		name: "competitorAnalysis",
+		label: "Key Competitors",
+		type: "input",
+		placeholder: "e.g., Nike, Puma, Under Armour...",
+		required: true,
+	},
+	{
+		name: "salesStrategy",
+		label: "Current Sales Strategy",
 		type: "select",
-		placeholder: "Select a use case...",
-		options:
-			userUseCases && userUseCases.length > 0
-				? userUseCases.map((uc) =>
-						uc
-							.split("-")
-							.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-							.join(" "),
-					)
-				: STANDARD_USE_CASES,
+		placeholder: "Select current sales approach...",
+		options: [
+			"Direct Sales",
+			"Channel Partners",
+			"Online Sales",
+			"Hybrid Approach",
+			"Consultative Sales",
+			"Transactional Sales"
+		],
 		required: true,
 	},
 	{
@@ -101,14 +105,14 @@ const getFormFields = (userUseCases?: string[]) => [
 		label: "Additional Information",
 		type: "textarea",
 		placeholder:
-			"Any additional context, specific requirements, or notes for the analysis...",
+			"Any additional context about your sales goals, challenges, or specific requirements for the analysis...",
 		required: false,
 	},
 ];
 
-export default function AnalyzeQuiz({
+export default function AnalyzeSalesMinerQuiz({
 	onComplete: _onComplete,
-}: AnalyzeQuizProps) {
+}: AnalyzeSalesMinerQuizProps) {
 	const { notification: appNotification } = App.useApp();
 	const { user } = useAuth();
 	const [form] = Form.useForm();
@@ -118,11 +122,13 @@ export default function AnalyzeQuiz({
 	const [analyzeId, setAnalyzeId] = useState<string | null>(null);
 	const [isLoadingProgress, setIsLoadingProgress] = useState(true);
 	const [executionId, setExecutionId] = useState("");
-	const [quizData, setQuizData] = useState<AnalyzeQuizData>({
+	const [quizData, setQuizData] = useState<AnalyzeSalesMinerQuizData>({
 		companyName: "",
 		businessLine: "",
 		country: "",
-		useCase: "",
+		targetMarket: "",
+		competitorAnalysis: "",
+		salesStrategy: "",
 		timeline: "",
 		language: "",
 		additionalInformation: "",
@@ -155,7 +161,9 @@ export default function AnalyzeQuiz({
 				companyName: "",
 				businessLine: "",
 				country: "",
-				useCase: "",
+				targetMarket: "",
+				competitorAnalysis: "",
+				salesStrategy: "",
 				timeline: "",
 				language: "",
 				additionalInformation: "",
@@ -171,25 +179,13 @@ export default function AnalyzeQuiz({
 			console.log("📊 Component: Analyze data loaded:", analyzeData);
 
 			// Set quiz data from analyze data
-			let displayUseCase = analyzeData.useCase || "";
-
-			// Convert kebab-case use case to readable format for display
-			if (
-				displayUseCase &&
-				user?.usercases &&
-				user.usercases.includes(displayUseCase)
-			) {
-				displayUseCase = displayUseCase
-					.split("-")
-					.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-					.join(" ");
-			}
-
 			setQuizData({
 				companyName: analyzeData.companyName || "",
 				businessLine: analyzeData.businessLine || "",
 				country: analyzeData.country || "",
-				useCase: displayUseCase,
+				targetMarket: analyzeData.targetMarket || "",
+				competitorAnalysis: analyzeData.competitorAnalysis || "",
+				salesStrategy: analyzeData.salesStrategy || "",
 				timeline: analyzeData.timeline || "",
 				language: analyzeData.language || "",
 				additionalInformation: analyzeData.additionalInformation || "",
@@ -236,7 +232,7 @@ export default function AnalyzeQuiz({
 			console.log("📝 Component: Loading quiz progress");
 			setShowResults(false);
 		}
-	}, [analyzeData, user?.usercases]);
+	}, [analyzeData]);
 
 	const showNotification = (
 		type: "error" | "warning" | "info" | "success",
@@ -252,14 +248,17 @@ export default function AnalyzeQuiz({
 	};
 
 	const createNewAnalyzeRecord = async (
-		data: Partial<AnalyzeQuizData>,
+		data: Partial<AnalyzeSalesMinerQuizData>,
 	): Promise<string | null> => {
 		try {
 			const newAnalyzeData = {
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: data.useCase || "",
+				useCase: "SalesMiner", // Fixed use case for SalesMiner
+				targetMarket: data.targetMarket || "",
+				competitorAnalysis: data.competitorAnalysis || "",
+				salesStrategy: data.salesStrategy || "",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
@@ -287,7 +286,7 @@ export default function AnalyzeQuiz({
 	};
 
 	const saveProgress = async (
-		data: Partial<AnalyzeQuizData>,
+		data: Partial<AnalyzeSalesMinerQuizData>,
 		status: "progress" | "finished" = "progress",
 	) => {
 		try {
@@ -297,7 +296,10 @@ export default function AnalyzeQuiz({
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: data.useCase || "",
+				useCase: "SalesMiner", // Fixed use case for SalesMiner
+				targetMarket: data.targetMarket || "",
+				competitorAnalysis: data.competitorAnalysis || "",
+				salesStrategy: data.salesStrategy || "",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
@@ -317,16 +319,6 @@ export default function AnalyzeQuiz({
 		try {
 			const values = await form.validateFields();
 
-			// Convert use case back to kebab-case if it's from user's custom use cases
-			if (values.useCase && user?.usercases && user.usercases.length > 0) {
-				const kebabCaseUseCase = values.useCase
-					.toLowerCase()
-					.replace(/\s+/g, "-");
-				if (user.usercases.includes(kebabCaseUseCase)) {
-					values.useCase = kebabCaseUseCase;
-				}
-			}
-
 			const updatedQuizData = { ...quizData, ...values };
 			setQuizData(updatedQuizData);
 
@@ -343,15 +335,17 @@ export default function AnalyzeQuiz({
 	};
 
 	const handleWorkflowSubmit = async (
-		values: AnalyzeQuizData,
+		values: AnalyzeSalesMinerQuizData,
 		analyzeIdToUse?: string | null,
 	) => {
 		setLoading(true);
 		try {
 			const completeData = { ...quizData, ...values };
-			console.log("🚀 Starting N8N workflow with data:", completeData);
+			// Add the useCase field for SalesMiner
+			const salesMinerData = { ...completeData, useCase: "SalesMiner" };
+			console.log("🚀 Starting N8N workflow with SalesMiner data:", salesMinerData);
 
-			const result = await mutateAsync({ data: completeData, isTest });
+			const result = await mutateAsync({ data: salesMinerData, isTest });
 			console.log("✅ N8N workflow result:", result);
 
 			if (result && result.success !== false && result.executionId) {
@@ -371,7 +365,10 @@ export default function AnalyzeQuiz({
 						companyName: completeData.companyName,
 						businessLine: completeData.businessLine,
 						country: completeData.country,
-						useCase: completeData.useCase,
+						useCase: "SalesMiner",
+						targetMarket: completeData.targetMarket,
+						competitorAnalysis: completeData.competitorAnalysis,
+						salesStrategy: completeData.salesStrategy,
 						timeline: completeData.timeline,
 						language: completeData.language,
 						additionalInformation: completeData.additionalInformation,
@@ -384,14 +381,14 @@ export default function AnalyzeQuiz({
 				showNotification(
 					"success",
 					"Success",
-					"Analysis request submitted successfully!",
+					"SalesMiner analysis request submitted successfully!",
 				);
 			} else {
 				await saveProgress(completeData, "progress");
 				showNotification(
 					"error",
 					"N8N Workflow Failed",
-					"The analysis workflow did not complete successfully.",
+					"The SalesMiner analysis workflow did not complete successfully.",
 				);
 			}
 		} catch (error) {
@@ -405,7 +402,7 @@ export default function AnalyzeQuiz({
 			showNotification(
 				"error",
 				"N8N Workflow Execution Failed",
-				"Unable to start the analysis workflow.",
+				"Unable to start the SalesMiner analysis workflow.",
 			);
 		} finally {
 			setLoading(false);
@@ -421,9 +418,12 @@ export default function AnalyzeQuiz({
 			companyName: "",
 			businessLine: "",
 			country: "",
-			useCase: "",
+			targetMarket: "",
+			competitorAnalysis: "",
+			salesStrategy: "",
 			timeline: "",
 			language: "",
+			additionalInformation: "",
 		});
 		const newUrl = new URL(window.location.href);
 		newUrl.searchParams.delete("analyzeId");
@@ -451,7 +451,7 @@ export default function AnalyzeQuiz({
 					<div style={{ textAlign: "center" }}>
 						<Spin size="large" style={{ marginBottom: "16px" }} />
 						<Title level={3} style={{ color: "#d9d9d9" }}>
-							Loading your progress...
+							Loading your SalesMiner progress...
 						</Title>
 					</div>
 				</Card>
@@ -462,8 +462,8 @@ export default function AnalyzeQuiz({
 	if (executionId) {
 		return (
 			<Animation
-				title="Analysis in Progress"
-				description="Your company analysis is being processed. This may take a few minutes."
+				title="SalesMiner Analysis in Progress"
+				description="Your sales analysis is being processed. This may take a few minutes."
 				executionId={executionId}
 				companyName={quizData.companyName}
 				executionStep={analyzeData?.executionStep}
@@ -526,10 +526,10 @@ export default function AnalyzeQuiz({
 									level={2}
 									style={{ color: "#58bfce", marginBottom: "8px" }}
 								>
-									Request Report Form
+									SalesMiner Analysis Request
 								</Title>
 								<Text style={{ color: "#8c8c8c" }}>
-									Complete analysis request form
+									Complete sales analysis request form for competitive intelligence
 								</Text>
 							</div>
 
@@ -549,7 +549,7 @@ export default function AnalyzeQuiz({
 									initialValues={quizData}
 									style={{ width: "100%" }}
 								>
-									{getFormFields(user?.usercases).map((field) => (
+									{getFormFields().map((field) => (
 										<Form.Item
 											key={field.name}
 											name={field.name}
@@ -677,7 +677,7 @@ export default function AnalyzeQuiz({
 										padding: "0 24px",
 									}}
 								>
-									Generate Analysis
+									Generate SalesMiner Analysis
 								</Button>
 							</div>
 						</Card>
