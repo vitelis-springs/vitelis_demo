@@ -102,7 +102,6 @@ export default function Users() {
 	const handleRoleFilterChange = (value: string) => {
 		setRoleFilter(value);
 	};
-
 	const handleAddUser = () => {
 		setIsCreateModalVisible(true);
 	};

@@ -9,9 +9,9 @@ import { useRunWorkflow } from "@hooks/api/useN8NService";
 import { useAuth } from "@hooks/useAuth";
 import { Layout } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
-import AnalyzeResult from "../AnalyzeResult";
-import Animation from "../Animation";
-import ExtendedAnalyzeResult from "../ExtendedAnalyzeResult";
+import SalesMinerAnalyzeResult from "./SalesMinerAnalyzeResult";
+import SalesMinerAnimation from "./SalesMinerAnimation";
+import SalesMinerExtendedAnalyzeResult from "./SalesMinerExtendedAnalyzeResult";
 import Sidebar from "../ui/sidebar";
 
 const { Title, Text } = Typography;
@@ -461,7 +461,7 @@ export default function AnalyzeSalesMinerQuiz({
 
 	if (executionId) {
 		return (
-			<Animation
+			<SalesMinerAnimation
 				title="SalesMiner Analysis in Progress"
 				description="Your sales analysis is being processed. This may take a few minutes."
 				executionId={executionId}
@@ -475,10 +475,10 @@ export default function AnalyzeSalesMinerQuiz({
 	}
 
 	if (showResults) {
-		// Check if analyze data has summary field - use ExtendedAnalyzeResult
+		// Check if analyze data has summary field - use SalesMinerExtendedAnalyzeResult
 		if (analyzeData?.summary) {
 			return (
-				<ExtendedAnalyzeResult
+				<SalesMinerExtendedAnalyzeResult
 					quizData={quizData}
 					summary={analyzeData.summary}
 					improvementLeverages={analyzeData.improvementLeverages}
@@ -489,9 +489,9 @@ export default function AnalyzeSalesMinerQuiz({
 			);
 		}
 
-		// Fallback to original AnalyzeResult for backward compatibility
+		// Fallback to SalesMinerAnalyzeResult for backward compatibility
 		return (
-			<AnalyzeResult
+			<SalesMinerAnalyzeResult
 				quizData={quizData}
 				resultText={analyzeData?.resultText}
 				onReset={handleReset}
