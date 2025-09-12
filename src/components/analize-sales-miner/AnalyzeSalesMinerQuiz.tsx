@@ -4,8 +4,8 @@ import { App, Button, Card, Form, Input, Select, Spin, Typography } from "antd";
 import React, { useState, useEffect } from "react";
 const { TextArea } = Input;
 import { SendOutlined } from "@ant-design/icons";
-import { useAnalyzeService, useGetAnalyze } from "@hooks/api/useAnalyzeService";
-import { useRunWorkflow } from "@hooks/api/useN8NService";
+import { useSalesMinerAnalyzeService, useGetSalesMinerAnalyze } from "@hooks/api/useSalesMinerAnalyzeService";
+import { useSalesMinerWorkflow } from "@hooks/api/useN8NService";
 import { useAuth } from "@hooks/useAuth";
 import { Layout } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -113,9 +113,9 @@ export default function AnalyzeSalesMinerQuiz({
 	const searchParams = useSearchParams();
 	const isTest = true;
 
-	const { mutateAsync, isPending } = useRunWorkflow();
-	const { createAnalyze, updateAnalyze } = useAnalyzeService();
-	const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(
+	const { mutateAsync, isPending } = useSalesMinerWorkflow();
+	const { createSalesMinerAnalyze, updateSalesMinerAnalyze } = useSalesMinerAnalyzeService();
+	const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetSalesMinerAnalyze(
 		analyzeId,
 		{
 			refetchInterval: 5000, // Poll every 5 seconds
@@ -226,14 +226,14 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: "Qualtrics",
+				useCase: "SalesMiner",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
 				status: "progress" as const,
 			};
 
-			const result = await createAnalyze.mutateAsync(newAnalyzeData);
+			const result = await createSalesMinerAnalyze.mutateAsync(newAnalyzeData);
 			if (result) {
 				const newAnalyzeId = result._id as string;
 				setAnalyzeId(newAnalyzeId);
@@ -264,13 +264,13 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: "Qualtrics",
+				useCase: "SalesMiner",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
 				status,
 			};
-			await updateAnalyze.mutateAsync(updateData);
+			await updateSalesMinerAnalyze.mutateAsync(updateData);
 		} catch (error) {
 			showNotification(
 				"warning",
@@ -323,7 +323,7 @@ export default function AnalyzeSalesMinerQuiz({
 						executionStatus: "started",
 					});
 
-					const updatedAnalyze = await updateAnalyze.mutateAsync({
+					const updatedAnalyze = await updateSalesMinerAnalyze.mutateAsync({
 						id: currentAnalyzeId,
 						executionId: result.executionId.toString(),
 						executionStatus: "started",

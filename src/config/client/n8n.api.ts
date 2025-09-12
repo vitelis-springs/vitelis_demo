@@ -1,7 +1,8 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
 const N8N_API_URL = process.env.NEXT_PUBLIC_N8N_API_URL || 'https://vitelis.app.n8n.cloud/';
 const N8N_TRIGGER_URL = process.env.NEXT_PUBLIC_N8N_TRIGGER || 'https://vitelis.app.n8n.cloud/webhook/dfbf30af-cc93-4e3f-bc19-755c8c3d57f4';
+const N8N_SALES_MINER_TRIGGER_URL = process.env.NEXT_PUBLIC_N8N_SALES_MINER_TRIGGER || 'https://vitelis.app.n8n.cloud/webhook/1d8af43f-25c1-4a15-844c-44c6ea723ece';
 
 export interface N8NWorkflow {
   id: string;
@@ -89,7 +90,9 @@ export class N8NApiClient {
     country: string;
     useCase: string;
     timeline: string;
-  }, isTest: boolean = false): Promise<any> {
+    language?: string;
+    additionalInformation?: string;
+  }): Promise<any> {
     // Use the environment variable for the trigger URL
     const triggerUrl = N8N_TRIGGER_URL;
     
@@ -105,6 +108,33 @@ export class N8NApiClient {
     });
     
     console.log('📥 N8N API response:', response.data);
+    return response.data;
+  }
+
+  async startSalesMinerWorkflow(data: {
+    companyName: string;
+    businessLine: string;
+    country: string;
+    useCase: string;
+    timeline: string;
+    language: string;
+    additionalInformation?: string;
+  }): Promise<any> {
+    // Use the specific SalesMiner trigger URL
+    const triggerUrl = N8N_SALES_MINER_TRIGGER_URL;
+    
+    console.log('🌐 Making N8N SalesMiner API request to:', triggerUrl);
+    console.log('📤 SalesMiner Request data:', data);
+    
+    // Make direct request to the SalesMiner trigger URL
+    const response = await axios.post(triggerUrl, data, {
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    console.log('📥 N8N SalesMiner API response:', response.data);
     return response.data;
   }
 }

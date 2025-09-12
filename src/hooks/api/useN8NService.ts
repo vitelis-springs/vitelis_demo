@@ -46,11 +46,44 @@ export const useRunWorkflow = () => {
           country: string;
           useCase: string;
           timeline: string;
-        }, isTest);
+        });
       }
       
       // If workflowId provided, use the trigger workflow method
-      return n8nApi.startWorkflow( data);
+      return n8nApi.startWorkflow(data);
+    },
+    retry: false, // Отключаем автоматические повторы
+  });
+};
+
+// Sales Miner Workflow Hook - specifically for SalesMinerAnalyze workflow
+export const useSalesMinerWorkflow = () => {
+  return useMutation({
+    mutationFn: async (params: {
+      workflowId?: string;
+      data?: {
+        companyName: string;
+        businessLine: string;
+        country: string;
+        useCase: string;
+        timeline: string;
+        language: string;
+        additionalInformation?: string;
+      } | any;
+      isTest?: boolean;
+    }) => {
+      const { workflowId, data, isTest = false } = params;
+      
+      // Always use the SalesMiner-specific workflow endpoint
+      return n8nApi.startSalesMinerWorkflow(data as {
+        companyName: string;
+        businessLine: string;
+        country: string;
+        useCase: string;
+        timeline: string;
+        language: string;
+        additionalInformation?: string;
+      });
     },
     retry: false, // Отключаем автоматические повторы
   });
