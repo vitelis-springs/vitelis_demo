@@ -16,10 +16,8 @@ interface SalesMinerQuizData {
 	businessLine: string;
 	country: string;
 	useCase: string;
-	targetMarket: string;
-	competitorAnalysis: string;
-	salesStrategy: string;
 	timeline: string;
+	language: string;
 	additionalInformation?: string;
 }
 
@@ -171,16 +169,10 @@ export default function SalesMinerAnalyzeResult({
 										<strong>Use Case:</strong> {quizData.useCase}
 									</p>
 									<p>
-										<strong>Target Market:</strong> {quizData.targetMarket}
-									</p>
-									<p>
-										<strong>Key Competitors:</strong> {quizData.competitorAnalysis}
-									</p>
-									<p>
-										<strong>Sales Strategy:</strong> {quizData.salesStrategy}
-									</p>
-									<p>
 										<strong>Timeline:</strong> {quizData.timeline}
+									</p>
+									<p>
+										<strong>Language:</strong> {quizData.language}
 									</p>
 									{quizData.additionalInformation && (
 										<p>

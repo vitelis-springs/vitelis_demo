@@ -22,9 +22,7 @@ interface AnalyzeSalesMinerQuizData {
 	companyName: string;
 	businessLine: string;
 	country: string;
-	targetMarket: string;
-	competitorAnalysis: string;
-	salesStrategy: string;
+	useCase: string;
 	timeline: string;
 	language: string;
 	additionalInformation?: string;
@@ -39,50 +37,29 @@ const getFormFields = () => [
 		name: "companyName",
 		label: "Company Name",
 		type: "input",
-		placeholder: "e.g., Adidas, Nike, Apple...",
+		placeholder: "e.g., Tesla, Apple, Microsoft...",
 		required: true,
 	},
 	{
 		name: "businessLine",
 		label: "Business Line / Industry",
 		type: "input",
-		placeholder: "e.g., Sportswear, Technology, Automotive...",
+		placeholder: "e.g., Automotive, Technology, Healthcare...",
 		required: true,
 	},
 	{
 		name: "country",
 		label: "Country",
 		type: "input",
-		placeholder: "e.g., Germany, United States, Japan...",
+		placeholder: "e.g., US, Germany, Japan...",
 		required: true,
 	},
 	{
-		name: "targetMarket",
-		label: "Target Market",
-		type: "input",
-		placeholder: "e.g., B2B Enterprise, B2C Consumers, SMB...",
-		required: true,
-	},
-	{
-		name: "competitorAnalysis",
-		label: "Key Competitors",
-		type: "input",
-		placeholder: "e.g., Nike, Puma, Under Armour...",
-		required: true,
-	},
-	{
-		name: "salesStrategy",
-		label: "Current Sales Strategy",
+		name: "useCase",
+		label: "Use Case / Analysis Area",
 		type: "select",
-		placeholder: "Select current sales approach...",
-		options: [
-			"Direct Sales",
-			"Channel Partners",
-			"Online Sales",
-			"Hybrid Approach",
-			"Consultative Sales",
-			"Transactional Sales"
-		],
+		placeholder: "Select a use case...",
+		options: ["Qualtrics"],
 		required: true,
 	},
 	{
@@ -105,7 +82,7 @@ const getFormFields = () => [
 		label: "Additional Information",
 		type: "textarea",
 		placeholder:
-			"Any additional context about your sales goals, challenges, or specific requirements for the analysis...",
+			"Any additional context or specific requirements for the analysis...",
 		required: false,
 	},
 ];
@@ -126,9 +103,7 @@ export default function AnalyzeSalesMinerQuiz({
 		companyName: "",
 		businessLine: "",
 		country: "",
-		targetMarket: "",
-		competitorAnalysis: "",
-		salesStrategy: "",
+		useCase: "Qualtrics",
 		timeline: "",
 		language: "",
 		additionalInformation: "",
@@ -161,9 +136,7 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: "",
 				businessLine: "",
 				country: "",
-				targetMarket: "",
-				competitorAnalysis: "",
-				salesStrategy: "",
+				useCase: "Qualtrics",
 				timeline: "",
 				language: "",
 				additionalInformation: "",
@@ -183,9 +156,7 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: analyzeData.companyName || "",
 				businessLine: analyzeData.businessLine || "",
 				country: analyzeData.country || "",
-				targetMarket: analyzeData.targetMarket || "",
-				competitorAnalysis: analyzeData.competitorAnalysis || "",
-				salesStrategy: analyzeData.salesStrategy || "",
+				useCase: analyzeData.useCase || "Qualtrics",
 				timeline: analyzeData.timeline || "",
 				language: analyzeData.language || "",
 				additionalInformation: analyzeData.additionalInformation || "",
@@ -255,10 +226,7 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: "SalesMiner", // Fixed use case for SalesMiner
-				targetMarket: data.targetMarket || "",
-				competitorAnalysis: data.competitorAnalysis || "",
-				salesStrategy: data.salesStrategy || "",
+				useCase: "Qualtrics",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
@@ -296,10 +264,7 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: "SalesMiner", // Fixed use case for SalesMiner
-				targetMarket: data.targetMarket || "",
-				competitorAnalysis: data.competitorAnalysis || "",
-				salesStrategy: data.salesStrategy || "",
+				useCase: "Qualtrics",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
@@ -365,10 +330,7 @@ export default function AnalyzeSalesMinerQuiz({
 						companyName: completeData.companyName,
 						businessLine: completeData.businessLine,
 						country: completeData.country,
-						useCase: "SalesMiner",
-						targetMarket: completeData.targetMarket,
-						competitorAnalysis: completeData.competitorAnalysis,
-						salesStrategy: completeData.salesStrategy,
+						useCase: "Qualtrics",
 						timeline: completeData.timeline,
 						language: completeData.language,
 						additionalInformation: completeData.additionalInformation,
@@ -418,9 +380,7 @@ export default function AnalyzeSalesMinerQuiz({
 			companyName: "",
 			businessLine: "",
 			country: "",
-			targetMarket: "",
-			competitorAnalysis: "",
-			salesStrategy: "",
+			useCase: "Qualtrics",
 			timeline: "",
 			language: "",
 			additionalInformation: "",
@@ -546,7 +506,7 @@ export default function AnalyzeSalesMinerQuiz({
 								<Form
 									form={form}
 									layout="vertical"
-									initialValues={quizData}
+									initialValues={{ ...quizData, useCase: "Qualtrics" }}
 									style={{ width: "100%" }}
 								>
 									{getFormFields().map((field) => (

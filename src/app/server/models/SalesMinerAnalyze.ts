@@ -5,9 +5,6 @@ export interface ISalesMinerAnalyze extends Document {
   businessLine: string;
   country: string;
   useCase: string;
-  targetMarket: string;
-  competitorAnalysis: string;
-  salesStrategy: string;
   timeline: string;
   language: string;
   additionalInformation?: string;
@@ -49,25 +46,7 @@ const SalesMinerAnalyzeSchema: Schema = new Schema({
     type: String,
     required: false,
     trim: true,
-    default: 'SalesMiner'
-  },
-  targetMarket: {
-    type: String,
-    required: false,
-    trim: true,
-    default: ''
-  },
-  competitorAnalysis: {
-    type: String,
-    required: false,
-    trim: true,
-    default: ''
-  },
-  salesStrategy: {
-    type: String,
-    required: false,
-    trim: true,
-    default: ''
+    default: 'Qualtrics'
   },
   timeline: {
     type: String,
