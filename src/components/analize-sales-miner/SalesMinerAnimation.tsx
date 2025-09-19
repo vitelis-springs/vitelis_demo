@@ -12,9 +12,7 @@ import {
   SafetyCertificateOutlined,
   BarChartOutlined,
   FileTextOutlined,
-  AuditOutlined,
-  TeamOutlined,
-  DollarOutlined
+  AuditOutlined
 } from '@ant-design/icons';
 import Sidebar from '../ui/sidebar';
 import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
@@ -102,13 +100,13 @@ export default function SalesMinerAnimation({
   const steps = [
     {
       title: 'Initialising',
-      description: 'SalesMiner workflow initiated',
+      description: 'Workflow initiated',
       icon: <UserOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 1: Initialising SalesMiner</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 1: Initialising</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Your sales analysis request for <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text> has been received and the SalesMiner workflow has been initiated.
+            Your analysis request for <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text> has been received and the workflow has been initiated.
             <br />
             Execution ID: <Text style={{ color: '#58bfce' }}>{executionId}</Text>
           </Text>
@@ -116,71 +114,75 @@ export default function SalesMinerAnimation({
       )
     },
     {
-      title: 'Market Research',
-      description: 'Analyzing market data',
+      title: 'Research',
+      description: 'Gathering data',
       icon: <SearchOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 2: Market Research</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 2: Research</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Researching market trends, competitor landscape, and sales opportunities for <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text>.
-            Gathering comprehensive market intelligence and sales data.
+            Researching and gathering comprehensive data about <Text style={{ color: '#58bfce', fontWeight: 'bold' }}>{companyName || 'the company'}</Text>.
+           
           </Text>
         </Card>
       )
     },
     {
-      title: 'Competitor Analysis',
-      description: 'Analyzing competitors',
-      icon: <TeamOutlined />,
+      title: 'Validation',
+      description: 'Validating sources',
+      icon: <SafetyCertificateOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 3: Competitor Analysis</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 3: Sources Validation</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Deep-diving into competitor strategies, pricing models, and market positioning.
-            Identifying competitive advantages and market gaps for strategic sales opportunities.
+            Validating and cross-referencing all data sources to ensure accuracy and reliability.
+            This step ensures the quality of information used in the analysis.
+        
           </Text>
         </Card>
       )
     },
     {
-      title: 'Sales Strategy Evaluation',
-      description: 'Evaluating sales approach',
-      icon: <DollarOutlined />,
-      content: (
-        <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 4: Sales Strategy Evaluation</Title>
-          <Text style={{ color: '#8c8c8c' }}>
-            Analyzing current sales strategies and identifying optimization opportunities.
-            Evaluating sales performance metrics and revenue potential.
-          </Text>
-        </Card>
-      )
-    },
-    {
-      title: 'Revenue Optimization',
-      description: 'Optimizing revenue streams',
+      title: 'Scoring',
+      description: 'Calculating scores',
       icon: <BarChartOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 5: Revenue Optimization</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 4: Scoring</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Identifying revenue optimization opportunities and sales growth potential.
-            Calculating ROI projections and sales performance improvements.
+            Applying scoring algorithms and metrics to evaluate the company's performance
+            across various dimensions and criteria.
+        
           </Text>
         </Card>
       )
     },
     {
-      title: 'Sales Report Generation',
-      description: 'Generating sales report',
+      title: 'Report',
+      description: 'Generating report',
       icon: <FileTextOutlined />,
       content: (
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
-          <Title level={4} style={{ color: '#d9d9d9' }}>Step 6: Sales Report Generation</Title>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 5: Report Building</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Compiling comprehensive sales analysis with actionable insights and recommendations.
-            Creating detailed sales strategy recommendations and market positioning guidance.
+            Compiling all findings and insights into a comprehensive analysis report.
+            This includes visualizations, recommendations, and detailed analysis.
+          
+          </Text>
+        </Card>
+      )
+    },
+    {
+      title: 'Result Evaluation',
+      description: 'Final review',
+      icon: <AuditOutlined />,
+      content: (
+        <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
+          <Title level={4} style={{ color: '#d9d9d9' }}>Step 6: Result Evaluation</Title>
+          <Text style={{ color: '#8c8c8c' }}>
+            Final quality check and evaluation of the analysis results.
+            Ensuring all insights are accurate and actionable.
+          
           </Text>
         </Card>
       )
@@ -552,7 +554,7 @@ export default function SalesMinerAnimation({
                       animation: 'processing-dots 1.4s ease-in-out infinite 0.4s'
                     }} />
                     <Text style={{ color: '#58bfce', fontSize: '12px', marginLeft: '8px' }}>
-                      Processing SalesMiner Analysis...
+                      Processing...
                     </Text>
                   </div>
                 )}

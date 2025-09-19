@@ -625,8 +625,8 @@ export default function AnalyzeSalesMinerQuiz({
 									loading={
 										loading ||
 										isPending ||
-										createAnalyze.isPending ||
-										updateAnalyze.isPending
+										createSalesMinerAnalyze.isPending ||
+										updateSalesMinerAnalyze.isPending
 									}
 									icon={<SendOutlined />}
 									style={{

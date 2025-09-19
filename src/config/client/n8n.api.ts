@@ -56,6 +56,7 @@ export class N8NApiClient {
       return config;
     });
   }
+  
 
   private async request<T>(config: AxiosRequestConfig): Promise<T> {
     console.log('🔧 Making axios request:', {

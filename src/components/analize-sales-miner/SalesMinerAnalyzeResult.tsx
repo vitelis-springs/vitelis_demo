@@ -136,7 +136,7 @@ export default function SalesMinerAnalyzeResult({
 											right: "65px",
 											top: "75px",
 										}}
-									>
+									>  
 										<CheckCircleOutlined
 											style={{
 												color: "#52c41a",
