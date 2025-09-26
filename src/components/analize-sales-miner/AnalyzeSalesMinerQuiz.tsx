@@ -545,7 +545,7 @@ export default function AnalyzeSalesMinerQuiz({
 														padding: "12px 16px",
 														height: "48px",
 													}}
-												/>
+												/>  
 											) : field.type === "textarea" ? (
 												<TextArea
 													placeholder={field.placeholder}

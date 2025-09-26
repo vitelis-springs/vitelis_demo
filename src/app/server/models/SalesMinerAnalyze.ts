@@ -19,6 +19,7 @@ export interface ISalesMinerAnalyze extends Document {
   improvementLeverages?: string;
   headToHead?: string;
   sources?: string;
+  yamlFile?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -111,6 +112,11 @@ const SalesMinerAnalyzeSchema: Schema = new Schema({
     trim: true
   },
   sources: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  yamlFile: {
     type: String,
     required: false,
     trim: true
