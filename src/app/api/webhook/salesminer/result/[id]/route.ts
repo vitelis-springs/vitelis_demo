@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureDBConnection } from '../../../../../lib/mongodb';
-import SalesMinerAnalyze from '../../../../server/models/SalesMinerAnalyze';
-import { YamlService } from '../../../../server/services/yamlService.server';
+import { ensureDBConnection } from '../../../../../../lib/mongodb';
+import SalesMinerAnalyze from '../../../../../server/models/SalesMinerAnalyze';
+import { YamlService } from '../../../../../server/services/yamlService.server';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
