@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import SalesMinerAnalyzeResult from "./SalesMinerAnalyzeResult";
 import SalesMinerAnimation from "./SalesMinerAnimation";
 import SalesMinerExtendedAnalyzeResult from "./SalesMinerExtendedAnalyzeResult";
+import SalesMinerYamlViewer from "./SalesMinerYamlViewer";
 import Sidebar from "../ui/sidebar";
 
 const { Title, Text } = Typography;
@@ -435,6 +436,17 @@ export default function AnalyzeSalesMinerQuiz({
 	}
 
 	if (showResults) {
+		// Check if analyze data has yamlFile - use SalesMinerYamlViewer
+		if (analyzeData?.yamlFile) {
+			return (
+				<SalesMinerYamlViewer
+					quizData={quizData}
+					yamlFileUrl={analyzeData.yamlFile}
+					onReset={handleReset}
+				/>
+			);
+		}
+
 		// Check if analyze data has summary field - use SalesMinerExtendedAnalyzeResult
 		if (analyzeData?.summary) {
 			return (

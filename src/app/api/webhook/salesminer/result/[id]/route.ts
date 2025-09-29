@@ -60,7 +60,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     console.log('✅ SalesMiner Webhook Result: YAML file uploaded to S3:', yamlFileUrl);
 
     // Find and update the SalesMiner analyze record by executionId
-    console.log('🔄 SalesMiner Webhook Result: Updating SalesMiner analyze record with yamlFile:', yamlFileUrl);
+    console.log('🔄 SalesMiner Webhook Result: Updating SalesMiner analyze record with yamlFile and status finished:', yamlFileUrl);
     
     // Find the record first
     const salesMinerAnalyzeRecord = await (SalesMinerAnalyze as any).findOne({ executionId: executionId.toString() });
@@ -74,24 +74,30 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     console.log('🔄 SalesMiner Webhook Result: Found record before update:', salesMinerAnalyzeRecord);
 
-    // Update only the yamlFile field
+    // Update the yamlFile field and set status to finished
     salesMinerAnalyzeRecord.yamlFile = yamlFileUrl;
+    salesMinerAnalyzeRecord.status = 'finished';
+    salesMinerAnalyzeRecord.executionStatus = 'finished';
 
     // Save the updated record
     const updatedSalesMinerAnalyze = await salesMinerAnalyzeRecord.save();
 
     console.log('🔄 SalesMiner Webhook Result: Save operation result:', updatedSalesMinerAnalyze);
 
-    console.log(`✅ SalesMiner Webhook Result: Updated yamlFile for executionId: ${executionId}`);
+    console.log(`✅ SalesMiner Webhook Result: Updated yamlFile and status to finished for executionId: ${executionId}`);
     console.log('📤 SalesMiner Webhook Result: Final updated SalesMiner analyze record:', updatedSalesMinerAnalyze);
     console.log('📤 SalesMiner Webhook Result: yamlFile field value:', updatedSalesMinerAnalyze.yamlFile);
+    console.log('📤 SalesMiner Webhook Result: status field value:', updatedSalesMinerAnalyze.status);
+    console.log('📤 SalesMiner Webhook Result: executionStatus field value:', updatedSalesMinerAnalyze.executionStatus);
 
     return NextResponse.json({
       success: true,
-      message: 'YAML file uploaded and saved successfully',
+      message: 'YAML file uploaded and analysis marked as finished',
       data: {
         executionId: updatedSalesMinerAnalyze.executionId,
         yamlFile: updatedSalesMinerAnalyze.yamlFile,
+        status: updatedSalesMinerAnalyze.status,
+        executionStatus: updatedSalesMinerAnalyze.executionStatus,
         s3Url: yamlFileUrl
       }
     });

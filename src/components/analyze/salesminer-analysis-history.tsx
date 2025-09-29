@@ -1,9 +1,7 @@
 'use client';
 
 import { useAuth } from '../../hooks/useAuth';
-import Sidebar from '../ui/sidebar';
 import {
-  Layout,
   Card,
   Typography,
   Space,
@@ -14,64 +12,59 @@ import {
   Empty,
   message as antMessage,
   Spin,
-  Tabs,
 } from 'antd';
 import {
-  UserOutlined,
   RobotOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
   DeleteOutlined,
-  ReloadOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
   ExclamationCircleOutlined,
   StopOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
-import { useAnalyzeService, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
+import { useSalesMinerAnalyzeService, useGetSalesMinerAnalyzesByUser } from '../../hooks/api/useSalesMinerAnalyzeService';
 import { useRouter } from 'next/navigation';
-import SalesMinerAnalysisHistory from './salesminer-analysis-history';
 
-const { Content } = Layout;
 const { Title, Text } = Typography;
 
-// Regular Analysis History Component
-function RegularAnalysisHistory() {
+export default function SalesMinerAnalysisHistory() {
   const { user } = useAuth();
   const router = useRouter();
   const [analyses, setAnalyses] = useState<any[]>([]);
-  const { deleteAnalyze } = useAnalyzeService();
-  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(user?._id || null);
+  const { deleteSalesMinerAnalyze } = useSalesMinerAnalyzeService();
+  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetSalesMinerAnalyzesByUser(user?._id || null);
 
   const fetchAnalyses = async () => {
     try {
       await refetch();
     } catch (error) {
-      console.error('Error fetching analyses:', error);
-      antMessage.error('Failed to fetch analysis history');
+      console.error('Error fetching SalesMiner analyses:', error);
+      antMessage.error('Failed to fetch SalesMiner analysis history');
     }
   };
 
   useEffect(() => {
-    console.log('📊 AnalysisHistory: analysesData changed:', analysesData);
-    console.log('📊 AnalysisHistory: user ID being used:', user?._id);
+    console.log('📊 SalesMinerAnalysisHistory: analysesData changed:', analysesData);
+    console.log('📊 SalesMinerAnalysisHistory: user ID being used:', user?._id);
     if (analysesData && analysesData.data) {
-      console.log('📊 AnalysisHistory: Setting analyses from data:', analysesData.data);
+      console.log('📊 SalesMinerAnalysisHistory: Setting analyses from data:', analysesData.data);
       setAnalyses(analysesData.data);
     } else if (analysesData) {
-      console.log('📊 AnalysisHistory: Setting analyses directly:', analysesData);
+      console.log('📊 SalesMinerAnalysisHistory: Setting analyses directly:', analysesData);
       setAnalyses(analysesData);
     }
   }, [analysesData, user?._id]);
 
   useEffect(() => {
-    console.log('📊 AnalysisHistory: user changed:', user);
+    console.log('📊 SalesMinerAnalysisHistory: user changed:', user);
   }, [user]);
 
   useEffect(() => {
-    console.log('📊 AnalysisHistory: analyses state changed:', analyses);
-    console.log('📊 AnalysisHistory: analyses length:', analyses.length);
+    console.log('📊 SalesMinerAnalysisHistory: analyses state changed:', analyses);
+    console.log('📊 SalesMinerAnalysisHistory: analyses length:', analyses.length);
   }, [analyses]);
 
   const formatTimeAgo = (dateString: string): string => {
@@ -95,24 +88,24 @@ function RegularAnalysisHistory() {
 
   const handleDeleteAnalysis = async (analysisId: string) => {
     try {
-      await deleteAnalyze.mutateAsync(analysisId);
+      await deleteSalesMinerAnalyze.mutateAsync(analysisId);
       setAnalyses(prev => prev.filter(analysis => analysis._id !== analysisId));
-      antMessage.success('Analysis deleted successfully');
+      antMessage.success('SalesMiner analysis deleted successfully');
     } catch (error) {
-      console.error('Error deleting analysis:', error);
-      antMessage.error('Failed to delete analysis');
-    }
-  };
-
-  const handleRefreshHistory = () => {
-    if (user?._id) {
-      refetch();
+      console.error('Error deleting SalesMiner analysis:', error);
+      antMessage.error('Failed to delete SalesMiner analysis');
     }
   };
 
   const handleAnalysisClick = (analysisId: string) => {
-    // Navigate to analyze quiz page with analysis ID
-    router.push(`/analyze-quiz?analyzeId=${analysisId}`);
+    // Navigate to SalesMiner analyze quiz page with analysis ID
+    router.push(`/analyze-sales-miner-quiz?analyzeId=${analysisId}`);
+  };
+
+  const handleYamlFileClick = (yamlFileUrl: string) => {
+    if (yamlFileUrl) {
+      window.open(yamlFileUrl, '_blank');
+    }
   };
 
   return (
@@ -127,7 +120,7 @@ function RegularAnalysisHistory() {
             min-width: 600px !important;
           }
         `}</style>
-        {console.log('📊 AnalysisHistory: Rendering - isLoadingAnalyses:', isLoadingAnalyses, 'analyses.length:', analyses.length)}
+        {console.log('📊 SalesMinerAnalysisHistory: Rendering - isLoadingAnalyses:', isLoadingAnalyses, 'analyses.length:', analyses.length)}
         {isLoadingAnalyses ? (
           <Card
             style={{
@@ -140,7 +133,7 @@ function RegularAnalysisHistory() {
           >
             <Space direction="vertical" size="large">
               <Spin size="large" />
-              <Text style={{ color: '#8c8c8c' }}>Loading analysis history...</Text>
+              <Text style={{ color: '#8c8c8c' }}>Loading SalesMiner analysis history...</Text>
             </Space>
           </Card>
         ) : analyses.length > 0 ? (
@@ -178,8 +171,8 @@ function RegularAnalysisHistory() {
                     avatar={
                       <Avatar
                         size={48}
-                        icon={<FileTextOutlined />}
-                        style={{ backgroundColor: '#58bfce' }}
+                        icon={<RobotOutlined />}
+                        style={{ backgroundColor: '#52c41a' }}
                       />
                     }
                     title={
@@ -240,9 +233,30 @@ function RegularAnalysisHistory() {
                           </Text>
                         </div>
                         {analysis.executionId && (
-                          <Text style={{ color: '#58bfce', fontSize: '12px' }}>
+                          <Text style={{ color: '#52c41a', fontSize: '12px' }}>
                             Execution ID: {analysis.executionId}
                           </Text>
+                        )}
+                        {analysis.yamlFile && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<LinkOutlined />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleYamlFileClick(analysis.yamlFile);
+                              }}
+                              style={{ 
+                                color: '#52c41a', 
+                                padding: 0, 
+                                height: 'auto',
+                                fontSize: '12px'
+                              }}
+                            >
+                              View YAML File
+                            </Button>
+                          </div>
                         )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: '12px' }} />
@@ -271,7 +285,7 @@ function RegularAnalysisHistory() {
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <Text style={{ color: '#8c8c8c' }}>
-                  No analysis history found. Start a new company analysis to see it here.
+                  No SalesMiner analysis history found. Start a new SalesMiner analysis to see it here.
                 </Text>
               }
             />
@@ -322,6 +336,12 @@ function RegularAnalysisHistory() {
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Canceled</div>
             </div>
+            <div>
+              <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
+                {analyses.filter(a => a.yamlFile).length}
+              </Text>
+              <div style={{ color: '#8c8c8c', fontSize: '12px' }}>With YAML</div>
+            </div>
           </div>
         </Card>
       )}
@@ -329,105 +349,3 @@ function RegularAnalysisHistory() {
   );
 }
 
-// Main Analysis History Component with Tabs
-export default function AnalysisHistory() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('regular');
-
-  const tabItems = [
-    {
-      key: 'regular',
-      label: (
-        <span>
-          <FileTextOutlined />
-          Regular Analysis
-        </span>
-      ),
-      children: <RegularAnalysisHistory />,
-    },
-    {
-      key: 'salesminer',
-      label: (
-        <span>
-          <RobotOutlined />
-          SalesMiner Analysis
-        </span>
-      ),
-      children: <SalesMinerAnalysisHistory />,
-    },
-  ];
-
-  return (
-    <Layout style={{ minHeight: '100vh', background: '#141414' }}>
-      <Sidebar />
-      <Layout style={{ marginLeft: 280, background: '#141414' }}>
-        <Content style={{ 
-          padding: '24px',
-          background: '#141414',
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <div style={{ maxWidth: '1200px', width: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <div style={{ 
-              marginBottom: '24px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexShrink: 0
-            }}>
-              <div>
-                <Title level={2} style={{ margin: 0, color: '#58bfce' }}>
-                  Analysis History
-                </Title>
-                <Text style={{ color: '#8c8c8c' }}>
-                  Your previous company analysis sessions
-                </Text>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                items={tabItems}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}
-                tabBarStyle={{
-                  background: '#1f1f1f',
-                  border: '1px solid #303030',
-                  borderRadius: '12px 12px 0 0',
-                  margin: 0,
-                  padding: '0 16px'
-                }}
-                tabStyle={{
-                  color: '#8c8c8c',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-                activeTabStyle={{
-                  color: '#58bfce'
-                }}
-                styles={{
-                  content: {
-                    flex: 1,
-                    background: '#141414',
-                    border: '1px solid #303030',
-                    borderTop: 'none',
-                    borderRadius: '0 0 12px 12px',
-                    padding: '24px'
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
-  );
-}
