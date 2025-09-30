@@ -176,7 +176,7 @@ export default function AnalyzeSalesMinerQuiz({
 				additionalInformation: analyzeData.additionalInformation || "",
 				competitors: analyzeData.competitors || [],
 			});
-//fdefef
+//fdefefewvwevwevwevwevwevwev
 			// Check if status is error or canceled - show quiz form with error
 			if (analyzeData.status === "error" || analyzeData.status === "canceled") {
 				console.log(
