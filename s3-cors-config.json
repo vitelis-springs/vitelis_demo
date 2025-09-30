@@ -5,7 +5,6 @@
     "AllowedOrigins": [
       "http://localhost:3000",
       "http://localhost:3001", 
-      "https://yourdomain.com",
       "*"
     ],
     "ExposeHeaders": [
