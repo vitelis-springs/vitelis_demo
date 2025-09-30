@@ -3,6 +3,11 @@ import { ISalesMinerAnalyze } from '../../app/server/models/SalesMinerAnalyze';
 import { api } from '../../lib/api-client';
 
 // Types
+export interface Competitor {
+  name: string;
+  url: string;
+}
+
 export interface SalesMinerAnalyzeData {
   companyName: string;
   businessLine: string;
@@ -11,6 +16,7 @@ export interface SalesMinerAnalyzeData {
   timeline: string;
   language: string;
   additionalInformation?: string;
+  competitors?: Competitor[];
   user?: string;
   status?: 'progress' | 'finished' | 'error' | 'canceled';
   currentStep?: number;

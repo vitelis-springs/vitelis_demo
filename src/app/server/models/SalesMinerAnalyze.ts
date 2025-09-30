@@ -1,5 +1,10 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
+export interface ICompetitor {
+  name: string;
+  url: string;
+}
+
 export interface ISalesMinerAnalyze extends Document {
   companyName: string;
   businessLine: string;
@@ -8,6 +13,7 @@ export interface ISalesMinerAnalyze extends Document {
   timeline: string;
   language: string;
   additionalInformation?: string;
+  competitors?: ICompetitor[];
   user?: Types.ObjectId;
   status: 'progress' | 'finished' | 'error' | 'canceled';
   currentStep: number;
@@ -125,7 +131,19 @@ const SalesMinerAnalyzeSchema: Schema = new Schema({
     type: String,
     required: false,
     trim: true
-  }
+  },
+  competitors: [{
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    url: {
+      type: String,
+      required: true,
+      trim: true
+    }
+  }]
 }, {
   timestamps: true
 });

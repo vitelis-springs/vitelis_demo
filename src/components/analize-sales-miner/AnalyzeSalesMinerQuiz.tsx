@@ -1,12 +1,11 @@
 "use client";
 
-import { App, Button, Card, Form, Input, Select, Spin, Typography } from "antd";
+import { App, Button, Card, Form, Input, Select, Spin, Typography, Space } from "antd";
 import React, { useState, useEffect } from "react";
 const { TextArea } = Input;
-import { SendOutlined } from "@ant-design/icons";
+import { SendOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import { useSalesMinerAnalyzeService, useGetSalesMinerAnalyze } from "@hooks/api/useSalesMinerAnalyzeService";
 import { useSalesMinerWorkflow } from "@hooks/api/useN8NService";
-import { useAuth } from "@hooks/useAuth";
 import { Layout } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
 import SalesMinerAnalyzeResult from "./SalesMinerAnalyzeResult";
@@ -19,6 +18,11 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { Content } = Layout;
 
+interface Competitor {
+	name: string;
+	url: string;
+}
+
 interface AnalyzeSalesMinerQuizData {
 	companyName: string;
 	businessLine: string;
@@ -27,6 +31,7 @@ interface AnalyzeSalesMinerQuizData {
 	timeline: string;
 	language: string;
 	additionalInformation?: string;
+	competitors?: Competitor[];
 }
 
 interface AnalyzeSalesMinerQuizProps {
@@ -86,13 +91,19 @@ const getFormFields = () => [
 			"Any additional context or specific requirements for the analysis...",
 		required: false,
 	},
+	{
+		name: "competitors",
+		label: "Competitors",
+		type: "competitors",
+		placeholder: "Add competitor information",
+		required: false,
+	},
 ];
 
 export default function AnalyzeSalesMinerQuiz({
 	onComplete: _onComplete,
 }: AnalyzeSalesMinerQuizProps) {
 	const { notification: appNotification } = App.useApp();
-	const { user } = useAuth();
 	const [form] = Form.useForm();
 	const [loading, setLoading] = useState(false);
 	const [showResults, setShowResults] = useState(false);
@@ -108,6 +119,7 @@ export default function AnalyzeSalesMinerQuiz({
 		timeline: "",
 		language: "",
 		additionalInformation: "",
+		competitors: [],
 	});
 
 	const router = useRouter();
@@ -141,6 +153,7 @@ export default function AnalyzeSalesMinerQuiz({
 				timeline: "",
 				language: "",
 				additionalInformation: "",
+				competitors: [],
 			});
 			form.resetFields();
 		}
@@ -161,6 +174,7 @@ export default function AnalyzeSalesMinerQuiz({
 				timeline: analyzeData.timeline || "",
 				language: analyzeData.language || "",
 				additionalInformation: analyzeData.additionalInformation || "",
+				competitors: analyzeData.competitors || [],
 			});
 
 			// Check if status is error or canceled - show quiz form with error
@@ -231,6 +245,7 @@ export default function AnalyzeSalesMinerQuiz({
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
+				competitors: data.competitors || [],
 				status: "progress" as const,
 			};
 
@@ -269,6 +284,7 @@ export default function AnalyzeSalesMinerQuiz({
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
+				competitors: data.competitors || [],
 				status,
 			};
 			await updateSalesMinerAnalyze.mutateAsync(updateData);
@@ -310,6 +326,7 @@ export default function AnalyzeSalesMinerQuiz({
 			// Add the useCase field for SalesMiner
 			const salesMinerData = { ...completeData, useCase: "SalesMiner" };
 			console.log("🚀 Starting N8N workflow with SalesMiner data:", salesMinerData);
+			console.log("🏢 Competitors data being sent to N8N:", salesMinerData.competitors);
 
 			const result = await mutateAsync({ data: salesMinerData, isTest });
 			console.log("✅ N8N workflow result:", result);
@@ -335,6 +352,7 @@ export default function AnalyzeSalesMinerQuiz({
 						timeline: completeData.timeline,
 						language: completeData.language,
 						additionalInformation: completeData.additionalInformation,
+						competitors: completeData.competitors,
 					});
 
 					console.log("✅ Component: updateAnalyze completed:", updatedAnalyze);
@@ -385,6 +403,7 @@ export default function AnalyzeSalesMinerQuiz({
 			timeline: "",
 			language: "",
 			additionalInformation: "",
+			competitors: [],
 		});
 		const newUrl = new URL(window.location.href);
 		newUrl.searchParams.delete("analyzeId");
@@ -518,7 +537,7 @@ export default function AnalyzeSalesMinerQuiz({
 								<Form
 									form={form}
 									layout="vertical"
-									initialValues={{ ...quizData, useCase: "Qualtrics" }}
+									initialValues={{ ...quizData, useCase: "Qualtrics", competitors: quizData.competitors || [] }}
 									style={{ width: "100%" }}
 								>
 									{getFormFields().map((field) => (
@@ -599,6 +618,85 @@ export default function AnalyzeSalesMinerQuiz({
 														</Option>
 													))}
 												</Select>
+											) : field.type === "competitors" ? (
+												<Form.List name="competitors">
+													{(fields, { add, remove }) => (
+														<div>
+															{fields.map(({ key, name, ...restField }) => (
+																<Space
+																	key={key}
+																	style={{ display: 'flex', marginBottom: 8, width: '100%' }}
+																	align="baseline"
+																>
+																	<Form.Item
+																		{...restField}
+																		name={[name, 'name']}
+																		rules={[{ required: true, message: 'Missing competitor name' }]}
+																		style={{ flex: 1, marginBottom: 0 }}
+																	>
+																		<Input
+																			placeholder="Competitor name"
+																			size="large"
+																			style={{
+																				width: "100%",
+																				background: "#1f1f1f",
+																				border: "1px solid #434343",
+																				borderRadius: "8px",
+																				color: "#d9d9d9",
+																				fontSize: "16px",
+																				padding: "12px 16px",
+																				height: "48px",
+																			}}
+																		/>
+																	</Form.Item>
+																	<Form.Item
+																		{...restField}
+																		name={[name, 'url']}
+																		rules={[{ required: true, message: 'Missing competitor URL' }]}
+																		style={{ flex: 1, marginBottom: 0 }}
+																	>
+																		<Input
+																			placeholder="Competitor URL"
+																			size="large"
+																			style={{
+																				width: "100%",
+																				background: "#1f1f1f",
+																				border: "1px solid #434343",
+																				borderRadius: "8px",
+																				color: "#d9d9d9",
+																				fontSize: "16px",
+																				padding: "12px 16px",
+																				height: "48px",
+																			}}
+																		/>
+																	</Form.Item>
+																	<MinusCircleOutlined
+																		onClick={() => remove(name)}
+																		style={{ color: "#ff4d4f", fontSize: "18px" }}
+																	/>
+																</Space>
+															))}
+															<Form.Item>
+																<Button
+																	type="dashed"
+																	onClick={() => add()}
+																	block
+																	icon={<PlusOutlined />}
+																	size="large"
+																	style={{
+																		background: "#1f1f1f",
+																		border: "1px dashed #434343",
+																		borderRadius: "8px",
+																		color: "#d9d9d9",
+																		height: "48px",
+																	}}
+																>
+																	Add Competitor
+																</Button>
+															</Form.Item>
+														</div>
+													)}
+												</Form.List>
 											) : null}
 										</Form.Item>
 									))}

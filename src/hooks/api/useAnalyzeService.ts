@@ -3,6 +3,11 @@ import { IAnalyze } from '../../app/server/models/Analyze';
 import { api } from '../../lib/api-client';
 
 // Types
+export interface Competitor {
+  name: string;
+  url: string;
+}
+
 export interface AnalyzeData {
   companyName: string;
   businessLine: string;
@@ -11,6 +16,7 @@ export interface AnalyzeData {
   timeline: string;
   language: string;
   additionalInformation?: string;
+  competitors?: Competitor[];
   user?: string;
   status?: 'progress' | 'finished' | 'error' | 'canceled';
   currentStep?: number;
