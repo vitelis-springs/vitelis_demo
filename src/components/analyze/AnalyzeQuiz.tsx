@@ -1,18 +1,17 @@
 "use client";
 
-import { App, Button, Card, Form, Input, Select, Spin, Typography, Space } from "antd";
-import React, { useState, useEffect } from "react";
-const { TextArea } = Input;
-import { SendOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
+import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
 import { useAnalyzeService, useGetAnalyze } from "@hooks/api/useAnalyzeService";
 import { useRunWorkflow } from "@hooks/api/useN8NService";
 import { useAuth } from "@hooks/useAuth";
-import { Layout } from "antd";
+import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import Sidebar from "../ui/sidebar";
 import AnalyzeResult from "./AnalyzeResult";
 import Animation from "./Animation";
 import ExtendedAnalyzeResult from "./ExtendedAnalyzeResult";
-import Sidebar from "../ui/sidebar";
+const { TextArea } = Input;
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -46,7 +45,8 @@ const STANDARD_USE_CASES = [
 	"AI Maturity",
 	"Insurance CX",
 	"Efficiency",
-	"SalesMiner",
+  "Leadership | Provision Partners",
+  "Insurance CX | Allianz"
 ];
 
 const getFormFields = (userUseCases?: string[]) => [
