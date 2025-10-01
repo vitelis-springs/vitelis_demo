@@ -1,18 +1,17 @@
 "use client";
 
-import { App, Button, Card, Form, Input, Select, Spin, Typography, Space } from "antd";
-import React, { useState, useEffect } from "react";
-const { TextArea } = Input;
-import { SendOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
-import { useSalesMinerAnalyzeService, useGetSalesMinerAnalyze } from "@hooks/api/useSalesMinerAnalyzeService";
+import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
 import { useSalesMinerWorkflow } from "@hooks/api/useN8NService";
-import { Layout } from "antd";
+import { useGetSalesMinerAnalyze, useSalesMinerAnalyzeService } from "@hooks/api/useSalesMinerAnalyzeService";
+import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import Sidebar from "../ui/sidebar";
 import SalesMinerAnalyzeResult from "./SalesMinerAnalyzeResult";
 import SalesMinerAnimation from "./SalesMinerAnimation";
 import SalesMinerExtendedAnalyzeResult from "./SalesMinerExtendedAnalyzeResult";
 import SalesMinerYamlViewer from "./SalesMinerYamlViewer";
-import Sidebar from "../ui/sidebar";
+const { TextArea } = Input;
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -65,7 +64,7 @@ const getFormFields = () => [
 		label: "Use Case / Analysis Area",
 		type: "select",
 		placeholder: "Select a use case...",
-		options: ["Qualtrics"],
+		options: ["Qualtrics" ,"ON24"],
 		required: true,
 	},
 	{
@@ -176,7 +175,7 @@ export default function AnalyzeSalesMinerQuiz({
 				additionalInformation: analyzeData.additionalInformation || "",
 				competitors: analyzeData.competitors || [],
 			});
-//fdefefewvwevwevwevwevwevwev
+
 			// Check if status is error or canceled - show quiz form with error
 			if (analyzeData.status === "error" || analyzeData.status === "canceled") {
 				console.log(
@@ -241,7 +240,7 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: "SalesMiner",
+				useCase: data.useCase || "",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
@@ -280,7 +279,7 @@ export default function AnalyzeSalesMinerQuiz({
 				companyName: data.companyName || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
-				useCase: "SalesMiner",
+				useCase: data.useCase || "",
 				timeline: data.timeline || "",
 				language: data.language || "",
 				additionalInformation: data.additionalInformation || "",
@@ -324,7 +323,7 @@ export default function AnalyzeSalesMinerQuiz({
 		try {
 			const completeData = { ...quizData, ...values };
 			// Add the useCase field for SalesMiner
-			const salesMinerData = { ...completeData, useCase: "SalesMiner" };
+			const salesMinerData = { ...completeData };
 			console.log("🚀 Starting N8N workflow with SalesMiner data:", salesMinerData);
 			console.log("🏢 Competitors data being sent to N8N:", salesMinerData.competitors);
 

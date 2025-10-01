@@ -2,20 +2,19 @@
 
 import { PlusOutlined } from "@ant-design/icons";
 import { useCreateUser } from "@hooks/api/useUsersService";
-import type { CreateUserData } from "@hooks/api/useUsersService";
 import {
-	Button,
-	Col,
-	Form,
-	Input,
-	Modal,
-	Row,
-	Select,
-	Space,
-	Tag,
-	message,
+  Button,
+  Col,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Tag,
+  message,
 } from "antd";
-import React, { useState } from "react";
+import { useState } from "react";
 import ImageUpload from "../ui/image-upload";
 
 const { Option } = Select;
@@ -38,7 +37,7 @@ export default function CreateUserModal({
 		"AI Maturity",
 		"Insurance CX",
 		"Efficiency",
-		"SalesMiner",]);
+]);
 
 	const handleSubmit = async () => {
 		try {
