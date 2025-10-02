@@ -24,6 +24,7 @@ interface Competitor {
 
 interface AnalyzeQuizData {
 	companyName: string;
+	url: string;
 	businessLine: string;
 	country: string;
 	useCase: string;
@@ -56,13 +57,40 @@ const getFormFields = (userUseCases?: string[]) => [
 		type: "input",
 		placeholder: "e.g., Adidas, Nike, Apple...",
 		required: true,
+		rules: [
+			{ required: true, message: "Company name is required" },
+			{ min: 2, message: "Company name must contain at least 2 characters" },
+			{ max: 100, message: "Company name cannot exceed 100 characters" },
+			{ pattern: /^[a-zA-Z0-9\s\-&.,()]+$/, message: "Company name can only contain letters, numbers, spaces and symbols -&.,()" }
+		]
 	},
+  {
+    name: "url",
+    label: "Company Official Website",
+    type: "input",
+    placeholder: "e.g., https://www.adidas.com, https://www.nike.com, https://www.apple.com...",
+    validateTrigger: ['onBlur', 'onChange'],
+    required: true,
+		rules: [
+			{ required: true, message: "Company website URL is required" },
+			{ 
+				pattern: /^https?:\/\/(www\.)?[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*(\.[a-zA-Z]{2,})(\/.*)?$/,
+				message: "Please enter a valid URL (e.g., https://www.example.com)"
+			}
+		]
+  },
 	{
 		name: "businessLine",
 		label: "Business Line / Industry",
 		type: "input",
 		placeholder: "e.g., Sportswear, Technology, Automotive...",
 		required: true,
+		rules: [
+			{ required: true, message: "Business line is required" },
+			{ min: 2, message: "Business line must contain at least 2 characters" },
+			{ max: 100, message: "Business line cannot exceed 100 characters" },
+			{ pattern: /^[a-zA-Zа-яА-Я0-9\s\-&.,()]+$/, message: "Business line can only contain letters, numbers, spaces and symbols -&.,()" }
+		]
 	},
 	{
 		name: "country",
@@ -70,6 +98,12 @@ const getFormFields = (userUseCases?: string[]) => [
 		type: "input",
 		placeholder: "e.g., Germany, United States, Japan...",
 		required: true,
+		rules: [
+			{ required: true, message: "Country is required" },
+			{ min: 2, message: "Country name must contain at least 2 characters" },
+			{ max: 50, message: "Country name cannot exceed 50 characters" },
+			{ pattern: /^[a-zA-Zа-яА-Я\s\-()]+$/, message: "Country name can only contain letters, spaces and symbols -()" }
+		]
 	},
 	{
 		name: "useCase",
@@ -86,6 +120,9 @@ const getFormFields = (userUseCases?: string[]) => [
 					)
 				: STANDARD_USE_CASES,
 		required: true,
+		rules: [
+			{ required: true, message: "Analysis area is required" }
+		]
 	},
 	{
 		name: "timeline",
@@ -93,6 +130,12 @@ const getFormFields = (userUseCases?: string[]) => [
 		type: "input",
 		placeholder: "e.g., Q1 2025, Q1 2024 - Q3 2025...",
 		required: true,
+		rules: [
+			{ required: true, message: "Timeline is required" },
+			{ min: 3, message: "Timeline must contain at least 3 characters" },
+			{ max: 50, message: "Timeline cannot exceed 50 characters" },
+			{ pattern: /^[a-zA-Z0-9\s\-.,/Q]+$/, message: "Timeline can only contain letters, numbers, spaces and symbols -.,/Q" }
+		]
 	},
 	{
 		name: "language",
@@ -101,6 +144,9 @@ const getFormFields = (userUseCases?: string[]) => [
 		placeholder: "Select language...",
 		options: ["English", "German"],
 		required: true,
+		rules: [
+			{ required: true, message: "Language is required" }
+		]
 	},
 	{
 		name: "additionalInformation",
@@ -109,6 +155,9 @@ const getFormFields = (userUseCases?: string[]) => [
 		placeholder:
 			"Any additional context, specific requirements, or notes for the analysis...",
 		required: false,
+		rules: [
+			{ max: 1000, message: "Additional information cannot exceed 1000 characters" }
+		]
 	},
 	{
 		name: "competitors",
@@ -116,6 +165,7 @@ const getFormFields = (userUseCases?: string[]) => [
 		type: "competitors",
 		placeholder: "Add competitor information",
 		required: false,
+		rules: [{ max: 5, message: 'Maximum 5 competitors allowed',type: 'array' }],
 	},
 ];
 
@@ -133,6 +183,7 @@ export default function AnalyzeQuiz({
 	const [executionId, setExecutionId] = useState("");
 	const [quizData, setQuizData] = useState<AnalyzeQuizData>({
 		companyName: "",
+		url: "",
 		businessLine: "",
 		country: "",
 		useCase: "",
@@ -167,6 +218,7 @@ export default function AnalyzeQuiz({
 			setExecutionId("");
 			setQuizData({
 				companyName: "",
+				url: "",
 				businessLine: "",
 				country: "",
 				useCase: "",
@@ -202,6 +254,7 @@ export default function AnalyzeQuiz({
 
 			setQuizData({
 				companyName: analyzeData.companyName || "",
+				url: analyzeData.url || "",
 				businessLine: analyzeData.businessLine || "",
 				country: analyzeData.country || "",
 				useCase: displayUseCase,
@@ -273,6 +326,7 @@ export default function AnalyzeQuiz({
 		try {
 			const newAnalyzeData = {
 				companyName: data.companyName || "",
+				url: data.url || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
 				useCase: data.useCase || "",
@@ -312,6 +366,7 @@ export default function AnalyzeQuiz({
 			const updateData = {
 				id: analyzeId,
 				companyName: data.companyName || "",
+				url: data.url || "",
 				businessLine: data.businessLine || "",
 				country: data.country || "",
 				useCase: data.useCase || "",
@@ -439,6 +494,7 @@ export default function AnalyzeQuiz({
 		setAnalyzeId(null);
 		setQuizData({
 			companyName: "",
+			url: "",
 			businessLine: "",
 			country: "",
 			useCase: "",
@@ -586,7 +642,7 @@ export default function AnalyzeQuiz({
 													{field.label}
 												</Text>
 											}
-											rules={[
+											rules={field.rules || [
 												{
 													required: field.required,
 													message: "This field is required",
@@ -650,7 +706,7 @@ export default function AnalyzeQuiz({
 													))}
 												</Select>
 											) : field.type === "competitors" ? (
-												<Form.List name="competitors">
+												<Form.List name="competitors" rules={[{ max: 5, message: 'Maximum 5 competitors allowed',type: 'array'}]}>
 													{(fields, { add, remove }) => (
 														<div>
 															{fields.map(({ key, name, ...restField }) => (
@@ -662,7 +718,12 @@ export default function AnalyzeQuiz({
 																	<Form.Item
 																		{...restField}
 																		name={[name, 'name']}
-																		rules={[{ required: true, message: 'Missing competitor name' }]}
+																		rules={[
+																			{ required: true, message: 'Competitor name is required' },
+																			{ min: 2, message: 'Competitor name must contain at least 2 characters' },
+																			{ max: 100, message: 'Competitor name cannot exceed 100 characters' },
+																			{ pattern: /^[a-zA-Z0-9\s\-&.,()]+$/, message: 'Competitor name can only contain letters, numbers, spaces and symbols -&.,()' }
+																		]}
 																		style={{ flex: 1, marginBottom: 0 }}
 																	>
 																		<Input
@@ -683,7 +744,13 @@ export default function AnalyzeQuiz({
 																	<Form.Item
 																		{...restField}
 																		name={[name, 'url']}
-																		rules={[{ required: true, message: 'Missing competitor URL' }]}
+																		rules={[
+																			{ required: true, message: 'Competitor URL is required' },
+																			{ 
+																				pattern: /^https?:\/\/(www\.)?[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*(\.[a-zA-Z]{2,})(\/.*)?$/,
+																				message: 'Please enter a valid URL (e.g., https://www.example.com)'
+																			}
+																		]}
 																		style={{ flex: 1, marginBottom: 0 }}
 																	>
 																		<Input
