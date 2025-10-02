@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ISalesMinerAnalyze } from '../../app/server/models/SalesMinerAnalyze';
-import { api } from '../../lib/api-client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ISalesMinerAnalyze } from "../../app/server/models/SalesMinerAnalyze";
+import { api } from "../../lib/api-client";
 
 // Types
 export interface Competitor {
@@ -10,6 +10,7 @@ export interface Competitor {
 
 export interface SalesMinerAnalyzeData {
   companyName: string;
+  url?: string;
   businessLine: string;
   country: string;
   useCase: string;
@@ -18,10 +19,15 @@ export interface SalesMinerAnalyzeData {
   additionalInformation?: string;
   competitors?: Competitor[];
   user?: string;
-  status?: 'progress' | 'finished' | 'error' | 'canceled';
+  status?: "progress" | "finished" | "error" | "canceled";
   currentStep?: number;
   executionId?: string;
-  executionStatus?: 'started' | 'inProgress' | 'finished' | 'error' | 'canceled';
+  executionStatus?:
+    | "started"
+    | "inProgress"
+    | "finished"
+    | "error"
+    | "canceled";
   executionStep?: number;
   resultText?: string;
   summary?: string;
@@ -30,7 +36,8 @@ export interface SalesMinerAnalyzeData {
   sources?: string;
 }
 
-export interface UpdateSalesMinerAnalyzeData extends Partial<SalesMinerAnalyzeData> {
+export interface UpdateSalesMinerAnalyzeData
+  extends Partial<SalesMinerAnalyzeData> {
   id: string;
 }
 
@@ -38,7 +45,7 @@ export interface UpdateSalesMinerAnalyzeData extends Partial<SalesMinerAnalyzeDa
 const salesMinerAnalyzeApi = {
   // Create new sales miner analyze record
   async create(data: SalesMinerAnalyzeData): Promise<ISalesMinerAnalyze> {
-    const response = await api.post('/sales-miner-analyze', data);
+    const response = await api.post("/sales-miner-analyze", data);
     return response.data;
   },
 
@@ -51,25 +58,28 @@ const salesMinerAnalyzeApi = {
   // Get all sales miner analyzes for a user
   async getByUser(userId: string): Promise<ISalesMinerAnalyze[]> {
     const response = await api.get(`/sales-miner-analyze?userId=${userId}`);
-    console.log('🌐 Client: getByUser response:', response);
-    console.log('🌐 Client: response.data:', response.data);
+    console.log("🌐 Client: getByUser response:", response);
+    console.log("🌐 Client: response.data:", response.data);
     return response.data.data || response.data; // Handle both formats
   },
 
   // Get all sales miner analyzes (admin)
   async getAll(): Promise<ISalesMinerAnalyze[]> {
-    const response = await api.get('/sales-miner-analyze');
+    const response = await api.get("/sales-miner-analyze");
     return response.data;
   },
 
   // Update sales miner analyze record
-  async update({ id, ...data }: UpdateSalesMinerAnalyzeData): Promise<ISalesMinerAnalyze> {
-    console.log('🌐 Client: Starting update request with:', { id, data });
+  async update({
+    id,
+    ...data
+  }: UpdateSalesMinerAnalyzeData): Promise<ISalesMinerAnalyze> {
+    console.log("🌐 Client: Starting update request with:", { id, data });
     const requestBody = { analyzeId: id, ...data };
-    console.log('📤 Client: Request body:', requestBody);
-    
-    const response = await api.post('/sales-miner-analyze', requestBody);
-    console.log('✅ Client: Update successful, returning data:', response.data);
+    console.log("📤 Client: Request body:", requestBody);
+
+    const response = await api.post("/sales-miner-analyze", requestBody);
+    console.log("✅ Client: Update successful, returning data:", response.data);
     return response.data;
   },
 
@@ -81,7 +91,9 @@ const salesMinerAnalyzeApi = {
 
   // Get sales miner analyze by execution ID
   async getByExecutionId(executionId: string): Promise<ISalesMinerAnalyze> {
-    const response = await api.get(`/sales-miner-analyze?executionId=${executionId}`);
+    const response = await api.get(
+      `/sales-miner-analyze?executionId=${executionId}`
+    );
     return response.data;
   },
 };
@@ -95,8 +107,10 @@ export const useSalesMinerAnalyzeService = () => {
     mutationFn: salesMinerAnalyzeApi.create,
     onSuccess: (data) => {
       // Invalidate and refetch user's sales miner analyzes
-      queryClient.invalidateQueries({ queryKey: ['sales-miner-analyzes', data.user] });
-      queryClient.invalidateQueries({ queryKey: ['sales-miner-analyzes'] });
+      queryClient.invalidateQueries({
+        queryKey: ["sales-miner-analyzes", data.user],
+      });
+      queryClient.invalidateQueries({ queryKey: ["sales-miner-analyzes"] });
     },
   });
 
@@ -105,9 +119,13 @@ export const useSalesMinerAnalyzeService = () => {
     mutationFn: salesMinerAnalyzeApi.update,
     onSuccess: (data) => {
       // Invalidate and refetch specific sales miner analyze and user's sales miner analyzes
-      queryClient.invalidateQueries({ queryKey: ['sales-miner-analyze', data._id] });
-      queryClient.invalidateQueries({ queryKey: ['sales-miner-analyzes', data.user] });
-      queryClient.invalidateQueries({ queryKey: ['sales-miner-analyzes'] });
+      queryClient.invalidateQueries({
+        queryKey: ["sales-miner-analyze", data._id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["sales-miner-analyzes", data.user],
+      });
+      queryClient.invalidateQueries({ queryKey: ["sales-miner-analyzes"] });
     },
   });
 
@@ -116,8 +134,8 @@ export const useSalesMinerAnalyzeService = () => {
     mutationFn: salesMinerAnalyzeApi.delete,
     onSuccess: (_, id) => {
       // Invalidate and refetch sales miner analyzes
-      queryClient.invalidateQueries({ queryKey: ['sales-miner-analyzes'] });
-      queryClient.removeQueries({ queryKey: ['sales-miner-analyze', id] });
+      queryClient.invalidateQueries({ queryKey: ["sales-miner-analyzes"] });
+      queryClient.removeQueries({ queryKey: ["sales-miner-analyze", id] });
     },
   });
 
@@ -129,12 +147,15 @@ export const useSalesMinerAnalyzeService = () => {
 };
 
 // Get sales miner analyze by ID hook
-export const useGetSalesMinerAnalyze = (id: string | null, options?: {
-  refetchInterval?: number;
-  enabled?: boolean;
-}) => {
+export const useGetSalesMinerAnalyze = (
+  id: string | null,
+  options?: {
+    refetchInterval?: number;
+    enabled?: boolean;
+  }
+) => {
   return useQuery({
-    queryKey: ['sales-miner-analyze', id],
+    queryKey: ["sales-miner-analyze", id],
     queryFn: () => salesMinerAnalyzeApi.getById(id!),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
     refetchInterval: options?.refetchInterval,
@@ -144,7 +165,7 @@ export const useGetSalesMinerAnalyze = (id: string | null, options?: {
 // Get sales miner analyzes by user hook
 export const useGetSalesMinerAnalyzesByUser = (userId: string | null) => {
   return useQuery({
-    queryKey: ['sales-miner-analyzes', userId],
+    queryKey: ["sales-miner-analyzes", userId],
     queryFn: () => salesMinerAnalyzeApi.getByUser(userId!),
     enabled: !!userId,
   });
@@ -153,7 +174,7 @@ export const useGetSalesMinerAnalyzesByUser = (userId: string | null) => {
 // Get all sales miner analyzes hook (admin)
 export const useGetAllSalesMinerAnalyzes = () => {
   return useQuery({
-    queryKey: ['sales-miner-analyzes'],
+    queryKey: ["sales-miner-analyzes"],
     queryFn: salesMinerAnalyzeApi.getAll,
   });
 };
@@ -161,17 +182,19 @@ export const useGetAllSalesMinerAnalyzes = () => {
 // Get latest progress for user hook
 export const useGetLatestSalesMinerProgress = (userId: string | null) => {
   return useQuery({
-    queryKey: ['sales-miner-analyzes', userId, 'latest'],
+    queryKey: ["sales-miner-analyzes", userId, "latest"],
     queryFn: () => salesMinerAnalyzeApi.getByUser(userId!),
     enabled: !!userId,
-    select: (data) => data.find(analyze => analyze.status === 'progress'),
+    select: (data) => data.find((analyze) => analyze.status === "progress"),
   });
 };
 
 // Get sales miner analyze by execution ID hook
-export const useGetSalesMinerAnalyzeByExecutionId = (executionId: string | null) => {
+export const useGetSalesMinerAnalyzeByExecutionId = (
+  executionId: string | null
+) => {
   return useQuery({
-    queryKey: ['sales-miner-analyze', 'execution', executionId],
+    queryKey: ["sales-miner-analyze", "execution", executionId],
     queryFn: () => salesMinerAnalyzeApi.getByExecutionId(executionId!),
     enabled: !!executionId,
   });

@@ -164,7 +164,7 @@ export default function AnalyzeSalesMinerQuiz({
 		url: "",
 		businessLine: "",
 		country: "",
-		useCase: "Qualtrics",
+		useCase: "",
 		timeline: "",
 		language: "",
 		additionalInformation: "",
@@ -199,7 +199,7 @@ export default function AnalyzeSalesMinerQuiz({
 				url: "",
 				businessLine: "",
 				country: "",
-				useCase: "Qualtrics",
+				useCase: "",
 				timeline: "",
 				language: "",
 				additionalInformation: "",
@@ -221,7 +221,7 @@ export default function AnalyzeSalesMinerQuiz({
 				url: analyzeData.url || "",
 				businessLine: analyzeData.businessLine || "",
 				country: analyzeData.country || "",
-				useCase: analyzeData.useCase || "Qualtrics",
+				useCase: analyzeData.useCase || "",
 				timeline: analyzeData.timeline || "",
 				language: analyzeData.language || "",
 				additionalInformation: analyzeData.additionalInformation || "",
@@ -401,7 +401,8 @@ export default function AnalyzeSalesMinerQuiz({
 						companyName: completeData.companyName,
 						businessLine: completeData.businessLine,
 						country: completeData.country,
-						useCase: "Qualtrics",
+						useCase: completeData.useCase,
+						url: completeData.url,
 						timeline: completeData.timeline,
 						language: completeData.language,
 						additionalInformation: completeData.additionalInformation,
@@ -453,7 +454,7 @@ export default function AnalyzeSalesMinerQuiz({
 			url: "",
 			businessLine: "",
 			country: "",
-			useCase: "Qualtrics",
+			useCase: "",
 			timeline: "",
 			language: "",
 			additionalInformation: "",
@@ -591,7 +592,7 @@ export default function AnalyzeSalesMinerQuiz({
 								<Form
 									form={form}
 									layout="vertical"
-									initialValues={{ ...quizData, useCase: "Qualtrics", competitors: quizData.competitors || [] }}
+									initialValues={{ ...quizData,  competitors: quizData.competitors || [] }}
 									style={{ width: "100%" }}
 								>
 									{getFormFields().map((field) => (
