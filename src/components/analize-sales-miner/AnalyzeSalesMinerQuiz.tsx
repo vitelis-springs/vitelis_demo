@@ -97,7 +97,7 @@ const getFormFields = () => [
 		label: "Use Case / Analysis Area",
 		type: "select",
 		placeholder: "Select a use case...",
-		options: ["Qualtrics" ,"ON24"],
+		options: ["Qualtrics" ,"ON24","Equinix"],
 		required: true,
     rules: [
 			{ required: true, message: "Analysis area is required" }
