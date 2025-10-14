@@ -1,4 +1,3 @@
-import html2pdf from "html2pdf.js";
 import MarkdownIt from "markdown-it";
 import multimd_table from "markdown-it-multimd-table";
 
@@ -234,6 +233,9 @@ export async function markdownToPdf(
   if (typeof window === "undefined") {
     throw new Error("PDF export is only available in browser environment");
   }
+
+  // Dynamically import html2pdf.js only in browser environment
+  const html2pdf = (await import("html2pdf.js")).default;
 
   try {
     // Validate input
