@@ -858,3 +858,16 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Custom button hover effects */
+.custom-button:hover {
+  background: #58bfce !important;
+  border-color: #58bfce !important;
+  color: #ffffff !important;
+}
+
+.custom-button:focus {
+  background: #58bfce !important;
+  border-color: #58bfce !important;
+  color: #ffffff !important;
+}
