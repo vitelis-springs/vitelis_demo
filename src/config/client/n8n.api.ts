@@ -2,15 +2,11 @@ import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 
 const N8N_API_URL =
   process.env.NEXT_PUBLIC_N8N_API_URL || "https://vitelis.app.n8n.cloud/";
-const N8N_TRIGGER_URL =
-  process.env.NEXT_PUBLIC_N8N_TRIGGER ||
-  "https://vitelis.app.n8n.cloud/webhook/dfbf30af-cc93-4e3f-bc19-755c8c3d57f4";
-const N8N_SALES_MINER_TRIGGER_URL =
-  process.env.NEXT_PUBLIC_N8N_SALES_MINER_TRIGGER ||
-  "https://vitelis.app.n8n.cloud/webhook/1d8af43f-25c1-4a15-844c-44c6ea723ece";
 
-const N8N_ALLIANZ_TRIGGER_URL =
-  "https://vitelis.app.n8n.cloud/webhook/v2/bizminer";
+const BIZMINER_PATH_V2 = "webhook/v2/bizminer"; // "webhook-test/v2/bizminer" - test porposes
+const SALESMINER_PATH_V1 = "webhook/v1/salesminer"; // "webhook-test/v1/salesminer" - test porposes
+const ALIXPARTNER_PATH_V1 = "webhook/v1/alixpartner"; // For future use - "webhook-test/v1/alixpartner" - test porposes
+const BIZMINER_PATH_V1 = "webhook/v1/bizminer"; // "webhook-test/v1/bizminer" - test porposes
 
 export interface N8NWorkflow {
   id: string;
@@ -102,9 +98,9 @@ export class N8NApiClient {
     additionalInformation?: string;
   }): Promise<any> {
     // Use the environment variable for the trigger URL
-    let triggerUrl = N8N_TRIGGER_URL;
+    let triggerUrl = `${this.baseURL}${BIZMINER_PATH_V1}`;
     if (data.useCase.toLowerCase().indexOf("allianz") !== -1) {
-      triggerUrl = N8N_ALLIANZ_TRIGGER_URL;
+      triggerUrl = `${this.baseURL}${BIZMINER_PATH_V2}`;
     }
 
     console.log("🌐 Making N8N API request to:", triggerUrl);
@@ -132,7 +128,7 @@ export class N8NApiClient {
     additionalInformation?: string;
   }): Promise<any> {
     // Use the specific SalesMiner trigger URL
-    const triggerUrl = N8N_SALES_MINER_TRIGGER_URL;
+    const triggerUrl = `${this.baseURL}${SALESMINER_PATH_V1}`;
 
     console.log("🌐 Making N8N SalesMiner API request to:", triggerUrl);
     console.log("📤 SalesMiner Request data:", data);
