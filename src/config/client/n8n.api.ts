@@ -3,10 +3,11 @@ import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 const N8N_API_URL =
   process.env.NEXT_PUBLIC_N8N_API_URL || "https://vitelis.app.n8n.cloud/";
 
-const BIZMINER_PATH_V2 = "webhook/v2/bizminer"; // "webhook-test/v2/bizminer" - test porposes
+const BIZMINER_PATH_V2 = "webhook/v2/bizminer"; //! "webhook-test/v2/bizminer" - test porposes specific for Allianz use case
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer"; // "webhook-test/v1/salesminer" - test porposes
 const ALIXPARTNER_PATH_V1 = "webhook/v1/alixpartner"; // For future use - "webhook-test/v1/alixpartner" - test porposes
-const BIZMINER_PATH_V1 = "webhook/v1/bizminer"; // "webhook-test/v1/bizminer" - test porposes
+const BIZMINER_PATH_V1 = "webhook/v1/bizminer"; //! (DEPRECATED) "webhook-test/v1/bizminer" - test porposes
+const BIZMINER_PATH_V3 = "webhook/v3/bizminer"; // "webhook-test/v2/bizminer" - test porposes
 
 export interface N8NWorkflow {
   id: string;
@@ -41,9 +42,19 @@ export interface N8NWebhookResponse {
 export class N8NApiClient {
   private client: AxiosInstance;
   private baseURL: string;
+  private bizminer_path: string;
+  private salesminer_path: string;
+  private alixpartner_path: string;
+  private bizminer_alllianz: string;
 
   constructor(baseURL: string = N8N_API_URL) {
     this.baseURL = baseURL;
+
+    this.bizminer_path = BIZMINER_PATH_V3;
+    this.salesminer_path = SALESMINER_PATH_V1;
+    this.alixpartner_path = ALIXPARTNER_PATH_V1;
+    this.bizminer_alllianz = BIZMINER_PATH_V2;
+
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: 30000,
@@ -51,7 +62,6 @@ export class N8NApiClient {
         "Content-Type": "application/json",
       },
     });
-
     this.client.interceptors.request.use((config) => {
       const apiKey = process.env.NEXT_PUBLIC_N8N_API_KEY;
       if (apiKey) {
@@ -98,9 +108,9 @@ export class N8NApiClient {
     additionalInformation?: string;
   }): Promise<any> {
     // Use the environment variable for the trigger URL
-    let triggerUrl = `${this.baseURL}${BIZMINER_PATH_V1}`;
+    let triggerUrl = `${this.baseURL}${this.bizminer_path}`;
     if (data.useCase.toLowerCase().indexOf("allianz") !== -1) {
-      triggerUrl = `${this.baseURL}${BIZMINER_PATH_V2}`;
+      triggerUrl = `${this.baseURL}${this.bizminer_alllianz}`;
     }
 
     console.log("🌐 Making N8N API request to:", triggerUrl);
@@ -128,7 +138,7 @@ export class N8NApiClient {
     additionalInformation?: string;
   }): Promise<any> {
     // Use the specific SalesMiner trigger URL
-    const triggerUrl = `${this.baseURL}${SALESMINER_PATH_V1}`;
+    const triggerUrl = `${this.baseURL}${this.salesminer_path}`;
 
     console.log("🌐 Making N8N SalesMiner API request to:", triggerUrl);
     console.log("📤 SalesMiner Request data:", data);
