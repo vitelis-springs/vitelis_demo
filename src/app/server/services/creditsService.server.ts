@@ -133,6 +133,21 @@ export class CreditsServiceServer {
     newStatus: string | undefined
   ): Promise<boolean> {
     try {
+      await ensureDBConnection();
+
+      // Get user information to check role
+      const user = await User.findById(userId).select("role");
+      if (!user) {
+        console.error("❌ CreditsService: User not found for refund:", userId);
+        return false;
+      }
+
+      // Only refund credits for users with "user" role, not for admins
+      if (user.role !== "user") {
+        console.log("ℹ️ CreditsService: Skipping refund for admin user:", userId);
+        return false;
+      }
+
       // Only refund if status changed from "progress" to "error"
       if (oldStatus === "inProgress" && newStatus === "error") {
         console.log("💰 CreditsService: Status changed from progress to error, refunding 1 credit to user:", userId);
