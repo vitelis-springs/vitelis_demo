@@ -14,6 +14,7 @@ export interface User {
 	usercases?: string[];
 	createdAt: string;
 	updatedAt: string;
+  credits?: number;
 }
 
 export interface CreateUserData {
@@ -25,6 +26,7 @@ export interface CreateUserData {
 	lastName?: string;
 	role: "user" | "admin";
 	usercases?: string[];
+  credits?: number;
 }
 
 export interface UpdateUserData {
@@ -36,6 +38,13 @@ export interface UpdateUserData {
 	role?: "user" | "admin";
 	isActive?: boolean;
 	usercases?: string[];
+  credits?: number;
+}
+
+export interface UserCreditsInfo {
+	shouldDisplayCredits: boolean;
+	currentCredits: number;
+	userRole: "user" | "admin";
 }
 
 const usersApi = {
@@ -67,6 +76,12 @@ const usersApi = {
 
 	async toggleStatus(userId: string, isActive: boolean): Promise<User> {
 		const response = await api.patch(`/users/${userId}/status`, { isActive });
+		return response.data.data || response.data;
+	},
+
+	async getCreditsInfo(): Promise<UserCreditsInfo> {
+		const response = await api.get("/users/credits");
+		console.log("🌐 Users API: getCreditsInfo response:", response);
 		return response.data.data || response.data;
 	},
 };
@@ -142,6 +157,15 @@ export const useToggleUserStatus = () => {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["users"] });
 		},
+	});
+};
+
+export const useGetUserCredits = (options?: { enabled?: boolean; staleTime?: number }) => {
+	return useQuery({
+		queryKey: ["users", "credits"],
+		queryFn: () => usersApi.getCreditsInfo(),
+		staleTime: 2 * 60 * 1000, // 2 minutes
+		...options,
 	});
 };
 

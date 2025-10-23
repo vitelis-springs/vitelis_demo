@@ -1,5 +1,6 @@
-import { ensureDBConnection } from "../../../lib/mongodb";
-import Analyze, { type IAnalyze } from "../models/Analyze";
+import {ensureDBConnection} from "../../../lib/mongodb";
+import Analyze, {type IAnalyze} from "../models/Analyze";
+import {CreditsServiceServer} from "./creditsService.server";
 
 export interface AnalyzeData {
   companyName: string;
@@ -59,10 +60,25 @@ export class AnalyzeServiceServer {
       throw new Error("Failed to fetch analyze record");
     }
   }
+
   // Update an analyze record
   static async updateAnalyze(id: string, data: Partial<AnalyzeData>): Promise<IAnalyze | null> {
     try {
       console.log("🔄 Server: Starting updateAnalyze with:", { id, data });
+
+      // Get current analyze record to check previous status
+      const currentAnalyze = await Analyze.findById(id).exec() as IAnalyze | null;
+      if (currentAnalyze) {
+        // Handle credit refunds based on status change
+        if (currentAnalyze.user) {
+          await CreditsServiceServer.handleStatusChangeRefund(
+            currentAnalyze.user.toString(),
+            currentAnalyze.status,
+            data.status
+          );
+        }
+      }
+
 
       const UPDATE_RESULT = await Analyze.findByIdAndUpdate(
         id,

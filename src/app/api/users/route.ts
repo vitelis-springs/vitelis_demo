@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
 				usercases: user.usercases,
 				createdAt: user.createdAt,
 				updatedAt: user.updatedAt,
+				credits: user.credits,
 			})),
 		});
 	} catch (error) {
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
 			lastName,
 			role,
 			usercases,
+			credits,
 		} = body;
 
 		// Validate required fields
@@ -183,6 +185,7 @@ export async function POST(request: NextRequest) {
 			lastName: lastName?.trim(),
 			role: role || "user",
 			usercases: usercases || [],
+			credits: credits || 0,
 		};
 
 		console.log("🔍 Users API: Creating user with data:", userData);

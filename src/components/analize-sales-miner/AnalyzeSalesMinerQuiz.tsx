@@ -3,6 +3,7 @@
 import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
 import { useSalesMinerWorkflow } from "@hooks/api/useN8NService";
 import { useGetSalesMinerAnalyze, useSalesMinerAnalyzeService } from "@hooks/api/useSalesMinerAnalyzeService";
+import { useGetUserCredits } from "@hooks/api/useUsersService";
 import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,6 +12,8 @@ import SalesMinerAnalyzeResult from "./SalesMinerAnalyzeResult";
 import SalesMinerAnimation from "./SalesMinerAnimation";
 import SalesMinerExtendedAnalyzeResult from "./SalesMinerExtendedAnalyzeResult";
 import SalesMinerYamlViewer from "./SalesMinerYamlViewer";
+import CreditsDisplay from "../ui/credits-display";
+import { CreditsService } from "../../lib/creditsService";
 const { TextArea } = Input;
 
 const { Title, Text } = Typography;
@@ -184,6 +187,10 @@ export default function AnalyzeSalesMinerQuiz({
 			enabled: !!analyzeId,
 		},
 	);
+	const { data: creditsInfo, isLoading: isLoadingCredits } = useGetUserCredits();
+
+	const hasEnoughCredits = CreditsService.hasEnoughCreditsFromApi(creditsInfo, 1);
+	const shouldShowCreditsWarning = CreditsService.shouldDisplayCreditsFromApi(creditsInfo) && !hasEnoughCredits;
 
 	// Load progress from URL
 	useEffect(() => {
@@ -564,8 +571,20 @@ export default function AnalyzeSalesMinerQuiz({
 								background: "#1f1f1f",
 								border: "1px solid #303030",
 								borderRadius: "12px",
+								position: "relative",
 							}}
 						>
+							{/* Credits Display - Top Right Corner */}
+							<div
+								style={{
+									position: "absolute",
+									top: "16px",
+									right: "16px",
+									zIndex: 1,
+								}}
+							>
+								<CreditsDisplay size="default" useApi={true} />
+							</div>
 							{/* Header */}
 							<div style={{ textAlign: "center", marginBottom: "32px" }}>
 								<Title
@@ -758,6 +777,28 @@ export default function AnalyzeSalesMinerQuiz({
 								</Form>
 							</Card>
 
+							{/* Credits Warning */}
+							{shouldShowCreditsWarning && (
+								<div
+									style={{
+										background: "#2a1a1a",
+										border: "1px solid #ff4d4f",
+										borderRadius: "8px",
+										padding: "16px",
+										marginBottom: "16px",
+										textAlign: "center",
+									}}
+								>
+									<Text style={{ color: "#ff4d4f", fontSize: "16px", fontWeight: "500" }}>
+										⚠️ Insufficient Credits
+									</Text>
+									<br />
+									<Text style={{ color: "#8c8c8c", fontSize: "14px" }}>
+										You need at least 1 credit to generate SalesMiner analysis. Please contact your administrator to add credits.
+									</Text>
+								</div>
+							)}
+
 							{/* Action Buttons */}
 							<div
 								style={{
@@ -787,22 +828,24 @@ export default function AnalyzeSalesMinerQuiz({
 									type="primary"
 									size="large"
 									onClick={handleFormSubmit}
+									disabled={!hasEnoughCredits}
 									loading={
 										loading ||
 										isPending ||
 										createSalesMinerAnalyze.isPending ||
-										updateSalesMinerAnalyze.isPending
+										updateSalesMinerAnalyze.isPending ||
+										isLoadingCredits
 									}
 									icon={<SendOutlined />}
 									style={{
-										background: "#58bfce",
-										border: "1px solid #58bfce",
+										background: hasEnoughCredits ? "#58bfce" : "#434343",
+										border: hasEnoughCredits ? "1px solid #58bfce" : "1px solid #434343",
 										borderRadius: "8px",
 										height: "48px",
 										padding: "0 24px",
 									}}
 								>
-									Generate SalesMiner Analysis
+									{hasEnoughCredits ? "Generate SalesMiner Analysis" : "Insufficient Credits"}
 								</Button>
 							</div>
 						</Card>

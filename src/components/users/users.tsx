@@ -1,17 +1,12 @@
 "use client";
 
 import {
-	ClockCircleOutlined,
-	CrownOutlined,
-	DatabaseOutlined,
 	DeleteOutlined,
 	EditOutlined,
 	FilterOutlined,
 	PlusOutlined,
 	ReloadOutlined,
-	SafetyOutlined,
 	SearchOutlined,
-	SettingOutlined,
 	TeamOutlined,
 	UserOutlined,
 } from "@ant-design/icons";
@@ -26,11 +21,8 @@ import {
 	Button,
 	Card,
 	Col,
-	Descriptions,
-	Form,
 	Input,
 	Layout,
-	List,
 	Modal,
 	Row,
 	Select,
@@ -41,13 +33,12 @@ import {
 	message,
 } from "antd";
 import { useEffect, useState } from "react";
-import ImageUpload from "../ui/image-upload";
 import Sidebar from "../ui/sidebar";
 import CreateUserModal from "./create-user-modal";
 import EditUserModal from "./edit-user-modal";
 
 const { Content } = Layout;
-const { Title, Text, Paragraph } = Typography;
+const { Title } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
@@ -62,7 +53,7 @@ export default function Users() {
 
 	// Fetch users from API
 	const { data: usersData, isLoading: isLoadingUsers, refetch } = useGetUsers();
-	const { mutateAsync: deleteUser, isPending: isDeleting } = useDeleteUser();
+	const { mutateAsync: deleteUser } = useDeleteUser();
 
 	// Set users when data is fetched
 	useEffect(() => {
@@ -235,6 +226,16 @@ export default function Users() {
 						<span style={{ color: "#8c8c8c" }}>None</span>
 					)}
 				</div>
+			),
+		},
+		{
+			title: "Credits",
+			dataIndex: "credits",
+			key: "credits",
+			render: (credits: number) => (
+				<span style={{ color: "#d9d9d9", fontWeight: 500 }}>
+					{credits !== undefined ? credits : 0}
+				</span>
 			),
 		},
 		{

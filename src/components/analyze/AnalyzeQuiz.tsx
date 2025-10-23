@@ -4,10 +4,13 @@ import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/ico
 import { useAnalyzeService, useGetAnalyze } from "@hooks/api/useAnalyzeService";
 import { useRunWorkflow } from "@hooks/api/useN8NService";
 import { useAuth } from "@hooks/useAuth";
+import { useGetUserCredits } from "@hooks/api/useUsersService";
 import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "../ui/sidebar";
+import CreditsDisplay from "../ui/credits-display";
+import { CreditsService } from "../../lib/creditsService";
 import AnalyzeResult from "./AnalyzeResult";
 import Animation from "./Animation";
 import ExtendedAnalyzeResult from "./ExtendedAnalyzeResult";
@@ -73,7 +76,7 @@ const getFormFields = (userUseCases?: string[]) => [
     required: true,
 		rules: [
 			{ required: true, message: "Company website URL is required" },
-			{ 
+			{
 				pattern: /^https?:\/\/(www\.)?[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*(\.[a-zA-Z]{2,})(\/.*)?$/,
 				message: "Please enter a valid URL (e.g., https://www.example.com)"
 			}
@@ -206,6 +209,13 @@ export default function AnalyzeQuiz({
 			enabled: !!analyzeId,
 		},
 	);
+
+	// Get user credits information
+	const { data: creditsInfo, isLoading: isLoadingCredits } = useGetUserCredits();
+
+	// Check if user has enough credits for analysis
+	const hasEnoughCredits = CreditsService.hasEnoughCreditsFromApi(creditsInfo, 1);
+	const shouldShowCreditsWarning = CreditsService.shouldDisplayCreditsFromApi(creditsInfo) && !hasEnoughCredits;
 
 	// Load progress from URL
 	useEffect(() => {
@@ -596,8 +606,21 @@ export default function AnalyzeQuiz({
 								background: "#1f1f1f",
 								border: "1px solid #303030",
 								borderRadius: "12px",
+								position: "relative",
 							}}
 						>
+							{/* Credits Display - Top Right Corner */}
+							<div
+								style={{
+									position: "absolute",
+									top: "16px",
+									right: "16px",
+									zIndex: 1,
+								}}
+							>
+								<CreditsDisplay size="default" useApi={true} />
+							</div>
+
 							{/* Header */}
 							<div style={{ textAlign: "center", marginBottom: "32px" }}>
 								<Title
@@ -706,7 +729,7 @@ export default function AnalyzeQuiz({
 													))}
 												</Select>
 											) : field.type === "competitors" ? (
-												<Form.List name="competitors" rules={[{ max: 5, message: 'Maximum 5 competitors allowed',type: 'array'}]}>
+												<Form.List name="competitors">
 													{(fields, { add, remove }) => (
 														<div>
 															{fields.map(({ key, name, ...restField }) => (
@@ -746,7 +769,7 @@ export default function AnalyzeQuiz({
 																		name={[name, 'url']}
 																		rules={[
 																			{ required: true, message: 'Competitor URL is required' },
-																			{ 
+																			{
 																				pattern: /^https?:\/\/(www\.)?[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*(\.[a-zA-Z]{2,})(\/.*)?$/,
 																				message: 'Please enter a valid URL (e.g., https://www.example.com)'
 																			}
@@ -801,6 +824,28 @@ export default function AnalyzeQuiz({
 								</Form>
 							</Card>
 
+							{/* Credits Warning */}
+							{shouldShowCreditsWarning && (
+								<div
+									style={{
+										background: "#2a1a1a",
+										border: "1px solid #ff4d4f",
+										borderRadius: "8px",
+										padding: "16px",
+										marginBottom: "16px",
+										textAlign: "center",
+									}}
+								>
+									<Text style={{ color: "#ff4d4f", fontSize: "16px", fontWeight: "500" }}>
+										⚠️ Insufficient Credits
+									</Text>
+									<br />
+									<Text style={{ color: "#8c8c8c", fontSize: "14px" }}>
+										You need at least 1 credit to generate analysis. Please contact your administrator to add credits.
+									</Text>
+								</div>
+							)}
+
 							{/* Action Buttons */}
 							<div
 								style={{
@@ -830,22 +875,24 @@ export default function AnalyzeQuiz({
 									type="primary"
 									size="large"
 									onClick={handleFormSubmit}
+									disabled={!hasEnoughCredits}
 									loading={
 										loading ||
 										isPending ||
 										createAnalyze.isPending ||
-										updateAnalyze.isPending
+										updateAnalyze.isPending ||
+										isLoadingCredits
 									}
 									icon={<SendOutlined />}
 									style={{
-										background: "#58bfce",
-										border: "1px solid #58bfce",
+										background: hasEnoughCredits ? "#58bfce" : "#434343",
+										border: hasEnoughCredits ? "1px solid #58bfce" : "1px solid #434343",
 										borderRadius: "8px",
 										height: "48px",
 										padding: "0 24px",
 									}}
 								>
-									Generate Analysis
+									{hasEnoughCredits ? "Generate Analysis" : "Insufficient Credits"}
 								</Button>
 							</div>
 						</Card>
