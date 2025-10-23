@@ -1,5 +1,6 @@
-import { ensureDBConnection } from "../../../lib/mongodb";
-import SalesMinerAnalyze, { type ISalesMinerAnalyze } from "../models/SalesMinerAnalyze";
+import {ensureDBConnection} from "../../../lib/mongodb";
+import SalesMinerAnalyze, {type ISalesMinerAnalyze} from "../models/SalesMinerAnalyze";
+import {CreditsServiceServer} from "./creditsService.server";
 
 export interface SalesMinerAnalyzeData {
   companyName: string;
@@ -64,6 +65,19 @@ export class SalesMinerAnalyzeServiceServer {
     try {
       console.log("🔄 Server: Starting updateSalesMinerAnalyze with:", { id, data });
       await ensureDBConnection();
+
+      // Get current sales miner analyze record to check previous status
+      const currentSalesMinerAnalyze = await SalesMinerAnalyze.findById(id).exec();
+      if (currentSalesMinerAnalyze) {
+        // Handle credit refunds based on status change
+        if (currentSalesMinerAnalyze.user) {
+          await CreditsServiceServer.handleStatusChangeRefund(
+            currentSalesMinerAnalyze.user.toString(),
+            currentSalesMinerAnalyze.status,
+            data.status
+          );
+        }
+      }
 
       const UPDATE_RESULT = await SalesMinerAnalyze.findByIdAndUpdate(
         id,

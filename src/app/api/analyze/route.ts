@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AnalyzeServiceServer } from '../../server/services/analyzeService.server';
+import { CreditsServiceServer } from '../../server/services/creditsService.server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,21 +14,21 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     // Basic JWT validation
     try {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
         throw new Error('Invalid JWT format');
       }
-      
+
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      
+
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         throw new Error('Token expired');
       }
-      
+
       console.log('🔍 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('🔍 API: JWT validation failed:', jwtError);
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');
-    
+
     console.log('🔍 API: GET request received with params:', { id, userId });
 
     if (id) {
@@ -60,11 +61,11 @@ export async function GET(request: NextRequest) {
       console.log('👤 API: Fetching analyzes for user:', userId);
       console.log('🔍 API: Query parameter userId:', userId);
       console.log('🔍 API: Query parameter type:', typeof userId);
-      
+
       const analyzes = await AnalyzeServiceServer.getAnalyzesByUser(userId);
       console.log('📊 API: Found analyzes:', analyzes.length);
       console.log('📊 API: Analyzes data:', analyzes);
-      
+
       return NextResponse.json(analyzes);
     }
 
@@ -93,21 +94,21 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     // Basic JWT validation
     try {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
         throw new Error('Invalid JWT format');
       }
-      
+
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      
+
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         throw new Error('Token expired');
       }
-      
+
       console.log('📝 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('📝 API: JWT validation failed:', jwtError);
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
     const tokenParts = token.split('.');
     const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
     const userId = payload.userId;
+    const userRole = payload.role;
     console.log('👤 API: Creating/updating analyze for user:', userId);
 
     if (analyzeId) {
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest) {
       console.log('🔄 API: Updating analyze with ID:', analyzeId);
       const updatedAnalyze = await AnalyzeServiceServer.updateAnalyze(analyzeId, data);
       console.log('📥 API: Update result from service:', updatedAnalyze);
-      
+
       if (!updatedAnalyze) {
         console.log('❌ API: Analyze record not found');
         return NextResponse.json(
@@ -149,6 +151,17 @@ export async function POST(request: NextRequest) {
       const analyzeDataWithUser = { ...data, user: userId };
       console.log('📝 API: Creating analyze with data:', analyzeDataWithUser);
       const newAnalyze = await AnalyzeServiceServer.createAnalyze(analyzeDataWithUser);
+
+      // Deduct credits after successful creation (only for users with role "user")
+      if (userRole === "user" && newAnalyze) {
+        const creditsDeducted = await CreditsServiceServer.deductCredits(userId, 1);
+        if (!creditsDeducted) {
+          console.error("❌ API: Failed to deduct credits after creating analysis");
+          // Note: We don't rollback the analysis creation here as it's already created
+          // In a production environment, you might want to implement transaction rollback
+        }
+      }
+
       return NextResponse.json(newAnalyze);
     }
 
@@ -173,21 +186,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     // Basic JWT validation
     try {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
         throw new Error('Invalid JWT format');
       }
-      
+
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      
+
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         throw new Error('Token expired');
       }
-      
+
       console.log('🗑️ API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('🗑️ API: JWT validation failed:', jwtError);

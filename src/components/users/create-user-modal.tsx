@@ -133,6 +133,7 @@ export default function CreateUserModal({
 				layout="vertical"
 				initialValues={{
 					role: "user",
+					credits: 0,
 					usercases: [],
 				}}
 			>
@@ -225,6 +226,36 @@ export default function CreateUserModal({
 						<Option value="user">User</Option>
 						<Option value="admin">Admin</Option>
 					</Select>
+				</Form.Item>
+
+				<Form.Item
+					name="credits"
+					label="Credits"
+					rules={[
+						{ 
+							validator: (_, value) => {
+								if (value === undefined || value === null || value === '') {
+									return Promise.resolve();
+								}
+								const numValue = Number(value);
+								if (isNaN(numValue)) {
+									return Promise.reject(new Error('Credits must be a valid number'));
+								}
+								if (numValue < 0) {
+									return Promise.reject(new Error('Credits must be a positive number'));
+								}
+								return Promise.resolve();
+							}
+						},
+					]}
+					initialValue={0}
+				>
+					<Input
+						type="number"
+						placeholder="Enter credits amount"
+						min={0}
+						step={1}
+					/>
 				</Form.Item>
 
 				<Form.Item

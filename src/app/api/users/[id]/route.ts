@@ -138,6 +138,7 @@ export async function PUT(
 			role,
 			isActive,
 			usercases,
+			credits,
 		} = body;
 
 		// Connect to database
@@ -178,6 +179,7 @@ export async function PUT(
 		if (role !== undefined) user.role = role;
 		if (isActive !== undefined) user.isActive = isActive;
 		if (usercases !== undefined) user.usercases = usercases;
+		if (credits !== undefined) user.credits = credits;
 
 		// Save updated user
 		await user.save();

@@ -11,6 +11,7 @@ export interface IUser extends Document {
 	isActive: boolean;
 	lastLogin?: Date;
 	usercases?: string[];
+	credits?: number;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -70,6 +71,11 @@ const UserSchema: Schema = new Schema(
 			type: [String],
 			default: [],
 			required: false,
+		},
+    credits: {
+			type: Number,
+			required: false,
+      default: 0,
 		},
 	},
 	{

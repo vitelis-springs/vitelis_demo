@@ -49,6 +49,7 @@ export default function EditUserModal({
 				lastName: user.lastName || "",
 				logo: user.logo || "",
 				role: user.role,
+				credits: user.credits || 0,
 				usercases: userUseCases,
 			});
 			setUseCases(userUseCases);
@@ -135,6 +136,7 @@ export default function EditUserModal({
 				layout="vertical"
 				initialValues={{
 					role: "user",
+					credits: 0,
 					usercases: [],
 				}}
 			>
@@ -211,6 +213,35 @@ export default function EditUserModal({
 						<Option value="user">User</Option>
 						<Option value="admin">Admin</Option>
 					</Select>
+				</Form.Item>
+
+				<Form.Item
+					name="credits"
+					label="Credits"
+					rules={[
+						{ 
+							validator: (_, value) => {
+								if (value === undefined || value === null || value === '') {
+									return Promise.resolve();
+								}
+								const numValue = Number(value);
+								if (isNaN(numValue)) {
+									return Promise.reject(new Error('Credits must be a valid number'));
+								}
+								if (numValue < 0) {
+									return Promise.reject(new Error('Credits must be a positive number'));
+								}
+								return Promise.resolve();
+							}
+						},
+					]}
+				>
+					<Input
+						type="number"
+						placeholder="Enter credits amount"
+						min={0}
+						step={1}
+					/>
 				</Form.Item>
 
 				<Form.Item

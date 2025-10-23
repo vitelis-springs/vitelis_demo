@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SalesMinerAnalyzeServiceServer } from '../../server/services/salesMinerAnalyzeService.server';
+import { CreditsServiceServer } from '../../server/services/creditsService.server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,21 +14,21 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     // Basic JWT validation
     try {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
         throw new Error('Invalid JWT format');
       }
-      
+
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      
+
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         throw new Error('Token expired');
       }
-      
+
       console.log('🔍 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('🔍 API: JWT validation failed:', jwtError);
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');
     const executionId = searchParams.get('executionId');
-    
+
     console.log('🔍 API: GET request received with params:', { id, userId, executionId });
 
     if (id) {
@@ -73,11 +74,11 @@ export async function GET(request: NextRequest) {
       console.log('👤 API: Fetching sales miner analyzes for user:', userId);
       console.log('🔍 API: Query parameter userId:', userId);
       console.log('🔍 API: Query parameter type:', typeof userId);
-      
+
       const salesMinerAnalyzes = await SalesMinerAnalyzeServiceServer.getSalesMinerAnalyzesByUser(userId);
       console.log('📊 API: Found sales miner analyzes:', salesMinerAnalyzes.length);
       console.log('📊 API: Sales miner analyzes data:', salesMinerAnalyzes);
-      
+
       return NextResponse.json(salesMinerAnalyzes);
     }
 
@@ -106,21 +107,21 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     // Basic JWT validation
     try {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
         throw new Error('Invalid JWT format');
       }
-      
+
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      
+
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         throw new Error('Token expired');
       }
-      
+
       console.log('📝 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('📝 API: JWT validation failed:', jwtError);
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
     const tokenParts = token.split('.');
     const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
     const userId = payload.userId;
+    const userRole = payload.role;
     console.log('👤 API: Creating/updating sales miner analyze for user:', userId);
 
     if (analyzeId) {
@@ -146,7 +148,7 @@ export async function POST(request: NextRequest) {
       console.log('🔄 API: Updating sales miner analyze with ID:', analyzeId);
       const updatedSalesMinerAnalyze = await SalesMinerAnalyzeServiceServer.updateSalesMinerAnalyze(analyzeId, data);
       console.log('📥 API: Update result from service:', updatedSalesMinerAnalyze);
-      
+
       if (!updatedSalesMinerAnalyze) {
         console.log('❌ API: Sales miner analyze record not found');
         return NextResponse.json(
@@ -162,6 +164,17 @@ export async function POST(request: NextRequest) {
       const salesMinerAnalyzeDataWithUser = { ...data, user: userId };
       console.log('📝 API: Creating sales miner analyze with data:', salesMinerAnalyzeDataWithUser);
       const newSalesMinerAnalyze = await SalesMinerAnalyzeServiceServer.createSalesMinerAnalyze(salesMinerAnalyzeDataWithUser);
+
+      // Deduct credits after successful creation (only for users with role "user")
+      if (userRole === "user" && newSalesMinerAnalyze) {
+        const creditsDeducted = await CreditsServiceServer.deductCredits(userId, 1);
+        if (!creditsDeducted) {
+          console.error("❌ API: Failed to deduct credits after creating sales miner analysis");
+          // Note: We don't rollback the analysis creation here as it's already created
+          // In a production environment, you might want to implement transaction rollback
+        }
+      }
+
       return NextResponse.json(newSalesMinerAnalyze);
     }
 
@@ -186,21 +199,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     // Basic JWT validation
     try {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
         throw new Error('Invalid JWT format');
       }
-      
+
       const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      
+
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         throw new Error('Token expired');
       }
-      
+
       console.log('🗑️ API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('🗑️ API: JWT validation failed:', jwtError);
