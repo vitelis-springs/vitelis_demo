@@ -48,7 +48,7 @@ export const stylesConfig = {
   },
   coverPage: {
     logo: {
-      file: "./assets/Vitelis_Primary_Horizontal Lockup-Dark.png",
+      file: "./public/images/Vitelis_Primary_Horizontal Lockup-Dark.png",
       widthInches: 2.1,
       heightInches: 0.53,
       horizontalOffsetInches: 7.52,
