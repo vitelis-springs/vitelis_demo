@@ -19,6 +19,7 @@ import { createTableFromBlock, TableRenderDefaults } from "./table.renderer";
 export interface TemplateRenderContext {
   paragraph: ParagraphRenderDefaults;
   table: TableRenderDefaults;
+  isSourcesSection?: boolean;
 }
 
 /**
@@ -29,6 +30,8 @@ function inlineHasRenderableText(inline: any): boolean {
     case "text":
     case "inlineCode":
       return !!inline.value && inline.value.trim().length > 0;
+    case "citation":
+      return true;
     case "strong":
     case "emphasis":
     case "link":
@@ -98,7 +101,9 @@ export function renderBlock(
     case "heading":
       return [createHeadingParagraph(block.children, block)];
     case "list":
-      return renderListBlock(block);
+      return renderListBlock(block, {
+        addBookmarks: context.isSourcesSection,
+      });
     case "table":
       return [createTableFromBlock(block, context)];
     case "blockquote":

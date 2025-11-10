@@ -40,6 +40,8 @@ function inlineToPlain(inlines: Inline[]): string {
         case "emphasis":
         case "link":
           return inlineToPlain(n.children);
+        case "citation":
+          return `[${n.number}]`;
         case "break":
           return "\n";
         default:
@@ -49,14 +51,52 @@ function inlineToPlain(inlines: Inline[]): string {
     .join("");
 }
 
+/**
+ * Parse citations from text [1], [2], etc.
+ */
+function parseCitations(text: string): Inline[] {
+  const citationRegex = /\[(\d+)\]/g;
+  const result: Inline[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = citationRegex.exec(text)) !== null) {
+    // Add text before citation
+    if (match.index > lastIndex) {
+      const beforeText = text.substring(lastIndex, match.index);
+      if (beforeText) {
+        result.push({ type: "text", value: beforeText });
+      }
+    }
+
+    // Add citation
+    const citationNumber = parseInt(match[1] ?? "0", 10);
+    result.push({ type: "citation", number: citationNumber });
+
+    lastIndex = citationRegex.lastIndex;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    const remainingText = text.substring(lastIndex);
+    if (remainingText) {
+      result.push({ type: "text", value: remainingText });
+    }
+  }
+
+  return result.length > 0 ? result : [{ type: "text", value: text }];
+}
+
 // mdast → Inline
 function mdastInline(node: any): Inline[] {
   if (!node) return [];
   if (Array.isArray(node)) return node.flatMap(mdastInline);
 
   switch (node.type) {
-    case "text":
-      return [{ type: "text", value: (node as Text).value ?? "" }];
+    case "text": {
+      const textValue = (node as Text).value ?? "";
+      return parseCitations(textValue);
+    }
     case "strong":
       return [
         { type: "strong", children: mdastInline((node as Strong).children) },

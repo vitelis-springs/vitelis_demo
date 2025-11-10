@@ -5,6 +5,7 @@
 
 import {
   AlignmentType,
+  Bookmark,
   BorderStyle,
   HeadingLevel,
   Paragraph,
@@ -229,7 +230,10 @@ export function createImagePlaceholderParagraph(block: Block): Paragraph {
 /**
  * Render list block to paragraphs
  */
-export function renderListBlock(block: Block): Paragraph[] {
+export function renderListBlock(
+  block: Block,
+  options?: { addBookmarks?: boolean }
+): Paragraph[] {
   if (block.type !== "list") return [];
 
   const paragraphs: Paragraph[] = [];
@@ -244,6 +248,7 @@ export function renderListBlock(block: Block): Paragraph[] {
     if (!firstParagraph) return;
 
     const prefix = block.ordered ? `${startValue + index}. ` : "\u2022 ";
+    const sourceNumber = startValue + index;
 
     const runs = inlineToRuns(firstParagraph.children, {
       fontFamily: paragraphDefaults.fontFamily,
@@ -260,9 +265,19 @@ export function renderListBlock(block: Block): Paragraph[] {
       })
     );
 
+    // Add bookmark for sources if needed
+    const children = options?.addBookmarks
+      ? [
+          new Bookmark({
+            id: `source-${sourceNumber}`,
+            children: runs,
+          }),
+        ]
+      : runs;
+
     paragraphs.push(
       new Paragraph({
-        children: runs,
+        children: children,
         spacing: createParagraphSpacing(0, 0.1, paragraphDefaults.lineSpacing),
         indent: { left: cmToTwip(0.5) },
         alignment: AlignmentType.LEFT,

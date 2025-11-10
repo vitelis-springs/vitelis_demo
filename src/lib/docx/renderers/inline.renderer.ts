@@ -3,7 +3,7 @@
  * Renders inline markdown elements (text, strong, emphasis, code, links) to DOCX TextRuns
  */
 
-import { TextRun } from "docx";
+import { InternalHyperlink, TextRun } from "docx";
 import { DEFAULT_MONO_FONT } from "../../../config/docx";
 import type { Inline } from "../../doc-model";
 import { normalizeColor, pointsToHalfPoints } from "../utils";
@@ -25,6 +25,8 @@ export function inlineHasRenderableText(inline: Inline): boolean {
     case "text":
     case "inlineCode":
       return !!inline.value && inline.value.trim().length > 0;
+    case "citation":
+      return true;
     case "strong":
     case "emphasis":
     case "link":
@@ -35,13 +37,13 @@ export function inlineHasRenderableText(inline: Inline): boolean {
 }
 
 /**
- * Convert inline elements to DOCX TextRuns
+ * Convert inline elements to DOCX TextRuns or Hyperlinks
  */
 export function inlineToRuns(
   inlines: Inline[],
   options: InlineRenderOptions
-): TextRun[] {
-  const runs: TextRun[] = [];
+): Array<TextRun | InternalHyperlink> {
+  const runs: Array<TextRun | InternalHyperlink> = [];
 
   for (const inline of inlines) {
     switch (inline.type) {
@@ -73,6 +75,24 @@ export function inlineToRuns(
             );
           }
         });
+        break;
+      case "citation":
+        // Render citation as clickable internal hyperlink
+        runs.push(
+          new InternalHyperlink({
+            anchor: `source-${inline.number}`,
+            children: [
+              new TextRun({
+                text: `[${inline.number}]`,
+                font: options.fontFamily,
+                size: pointsToHalfPoints(options.fontSize),
+                italics: true,
+                bold: options.bold,
+                style: "Hyperlink",
+              }),
+            ],
+          })
+        );
         break;
       case "inlineCode":
         runs.push(

@@ -4,6 +4,7 @@ export type Inline =
   | { type: "emphasis"; children: Inline[] }
   | { type: "inlineCode"; value: string }
   | { type: "link"; url: string; title: string | null; children: Inline[] }
+  | { type: "citation"; number: number }
   | { type: "break" };
 
 export interface ParagraphBlock {

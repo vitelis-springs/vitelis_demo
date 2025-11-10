@@ -106,7 +106,13 @@ export async function generateAnalysisDocxBuffer(
         appendSection(bodyChildren, improvement, renderContext, !isLastSection);
         break;
       case "List of Sources":
-        appendSection(bodyChildren, sources, renderContext, !isLastSection);
+        // Enable bookmarks for sources section
+        appendSection(
+          bodyChildren,
+          sources,
+          { ...renderContext, isSourcesSection: true },
+          !isLastSection
+        );
         break;
       default:
         break;
