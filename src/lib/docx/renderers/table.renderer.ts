@@ -6,6 +6,7 @@
 import {
   AlignmentType,
   BorderStyle,
+  InternalHyperlink,
   Paragraph,
   ShadingType,
   Table,
@@ -16,8 +17,9 @@ import {
   WidthType,
 } from "docx";
 import { stylesConfig } from "../../../config/docx";
-import type { TableBlock } from "../../doc-model";
+import type { Inline, TableBlock } from "../../doc-model";
 import { normalizeColor, pointsToHalfPoints } from "../utils";
+import { inlineToRuns } from "./inline.renderer";
 import { paragraphDefaults } from "./paragraph.renderer";
 
 export interface TableRenderDefaults {
@@ -33,6 +35,27 @@ export const tableDefaults: TableRenderDefaults = {
 };
 
 /**
+ * Render cell content from Inline elements
+ */
+function renderCellContent(inlines: Inline[]): Array<TextRun | InternalHyperlink> {
+  if (!inlines || inlines.length === 0) {
+    return [
+      new TextRun({
+        text: "",
+        font: paragraphDefaults.fontFamily,
+        size: pointsToHalfPoints(paragraphDefaults.fontSize),
+      }),
+    ];
+  }
+
+  return inlineToRuns(inlines, {
+    fontFamily: paragraphDefaults.fontFamily,
+    fontSize: paragraphDefaults.fontSize,
+    color: paragraphDefaults.color,
+  });
+}
+
+/**
  * Create DOCX table from table block
  */
 export function createTableFromBlock(
@@ -41,57 +64,51 @@ export function createTableFromBlock(
 ): Table {
   const rows: TableRow[] = [];
 
+  // Render header row
   if (block.header.length) {
     rows.push(
       new TableRow({
         tableHeader: true,
-        children: block.header.map(
-          (text) =>
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text,
-                      font: paragraphDefaults.fontFamily,
-                      bold: true,
-                      size: pointsToHalfPoints(paragraphDefaults.fontSize),
-                    }),
-                  ],
-                  alignment: AlignmentType.LEFT,
-                }),
-              ],
-              shading: {
-                color: normalizeColor(context.table.headerBg),
-                fill: normalizeColor(context.table.headerBg),
-                type: ShadingType.CLEAR,
-              },
-              verticalAlign: VerticalAlign.CENTER,
-            })
+        children: block.header.map((text) =>
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text,
+                    font: paragraphDefaults.fontFamily,
+                    bold: true,
+                    size: pointsToHalfPoints(paragraphDefaults.fontSize),
+                  }),
+                ],
+                alignment: AlignmentType.LEFT,
+              }),
+            ],
+            shading: {
+              color: normalizeColor(context.table.headerBg),
+              fill: normalizeColor(context.table.headerBg),
+              type: ShadingType.CLEAR,
+            },
+            verticalAlign: VerticalAlign.CENTER,
+          })
         ),
       })
     );
   }
 
-  block.rows.forEach((row) => {
+  // Render body rows with Inline support (including citations)
+  block.rawCells.forEach((row) => {
     rows.push(
       new TableRow({
-        children: row.map(
-          (cell) =>
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: cell,
-                      font: paragraphDefaults.fontFamily,
-                      size: pointsToHalfPoints(paragraphDefaults.fontSize),
-                    }),
-                  ],
-                }),
-              ],
-              verticalAlign: VerticalAlign.CENTER,
-            })
+        children: row.map((cellInlines) =>
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: renderCellContent(cellInlines),
+              }),
+            ],
+            verticalAlign: VerticalAlign.CENTER,
+          })
         ),
       })
     );
