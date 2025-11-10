@@ -1,15 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    dirs: ['src'],
+    dirs: ["src"],
   },
   reactStrictMode: true,
   compiler: {
     removeConsole: false,
-    
   },
   experimental: {
     reactCompiler: true,
+  },
+  outputFileTracingIncludes: {
+    "/api/export/docx": ["./src/config/docx/assets/**/*"],
   },
   typescript: {
     ignoreBuildErrors: true,
@@ -17,10 +19,10 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'vitelis-temp.s3.us-east-1.amazonaws.com',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "vitelis-temp.s3.us-east-1.amazonaws.com",
+        port: "",
+        pathname: "/**",
       },
     ],
   },

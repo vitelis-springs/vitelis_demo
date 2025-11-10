@@ -8,14 +8,31 @@ import path from "node:path";
 
 /**
  * Get image buffer from file path
+ * Resolves paths relative to src/config/docx/ directory
  * Returns null if file doesn't exist
  */
 export function getImageBuffer(logoPath: string): Buffer | null {
   try {
-    const absolute = path.resolve(process.cwd(), logoPath);
-    if (!fs.existsSync(absolute)) return null;
-    return fs.readFileSync(absolute);
-  } catch {
+    // Try multiple resolution strategies for serverless compatibility
+    const possiblePaths = [
+      // Strategy 1: Relative to src/config/docx/ (where styles.config.ts lives)
+      path.resolve(process.cwd(), "src/config/docx", logoPath),
+      // Strategy 2: Relative to current working directory
+      path.resolve(process.cwd(), logoPath),
+      // Strategy 3: Relative to .next/server directory (Vercel)
+      path.resolve(process.cwd(), ".next/server", logoPath),
+    ];
+
+    for (const absolutePath of possiblePaths) {
+      if (fs.existsSync(absolutePath)) {
+        return fs.readFileSync(absolutePath);
+      }
+    }
+
+    console.warn(`⚠️ Logo not found. Tried paths:`, possiblePaths);
+    return null;
+  } catch (error) {
+    console.error("❌ Error loading image:", error);
     return null;
   }
 }
