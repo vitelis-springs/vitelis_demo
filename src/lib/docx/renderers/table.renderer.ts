@@ -37,7 +37,9 @@ export const tableDefaults: TableRenderDefaults = {
 /**
  * Render cell content from Inline elements
  */
-function renderCellContent(inlines: Inline[]): Array<TextRun | InternalHyperlink> {
+function renderCellContent(
+  inlines: Inline[]
+): Array<TextRun | InternalHyperlink> {
   if (!inlines || inlines.length === 0) {
     return [
       new TextRun({
@@ -69,28 +71,29 @@ export function createTableFromBlock(
     rows.push(
       new TableRow({
         tableHeader: true,
-        children: block.header.map((text) =>
-          new TableCell({
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text,
-                    font: paragraphDefaults.fontFamily,
-                    bold: true,
-                    size: pointsToHalfPoints(paragraphDefaults.fontSize),
-                  }),
-                ],
-                alignment: AlignmentType.LEFT,
-              }),
-            ],
-            shading: {
-              color: normalizeColor(context.table.headerBg),
-              fill: normalizeColor(context.table.headerBg),
-              type: ShadingType.CLEAR,
-            },
-            verticalAlign: VerticalAlign.CENTER,
-          })
+        children: block.header.map(
+          (text) =>
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text,
+                      font: paragraphDefaults.fontFamily,
+                      bold: true,
+                      size: pointsToHalfPoints(paragraphDefaults.fontSize),
+                    }),
+                  ],
+                  alignment: AlignmentType.LEFT,
+                }),
+              ],
+              shading: {
+                color: normalizeColor(context.table.headerBg),
+                fill: normalizeColor(context.table.headerBg),
+                type: ShadingType.CLEAR,
+              },
+              verticalAlign: VerticalAlign.CENTER,
+            })
         ),
       })
     );
@@ -100,15 +103,16 @@ export function createTableFromBlock(
   block.rawCells.forEach((row) => {
     rows.push(
       new TableRow({
-        children: row.map((cellInlines) =>
-          new TableCell({
-            children: [
-              new Paragraph({
-                children: renderCellContent(cellInlines),
-              }),
-            ],
-            verticalAlign: VerticalAlign.CENTER,
-          })
+        children: row.map(
+          (cellInlines) =>
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: renderCellContent(cellInlines),
+                }),
+              ],
+              verticalAlign: VerticalAlign.CENTER,
+            })
         ),
       })
     );
