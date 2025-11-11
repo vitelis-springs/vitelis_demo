@@ -75,6 +75,7 @@ export async function generateAnalysisDocxBuffer(
   const renderContext: TemplateRenderContext = {
     paragraph: paragraphDefaults,
     table: tableDefaults,
+    isSourcesSection: false,
   };
 
   // Build cover section

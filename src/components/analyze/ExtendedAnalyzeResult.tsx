@@ -90,14 +90,7 @@ export default function ExtendedAnalyzeResult({
         sources: sourcesModel,
       };
 
-      console.log('📊 Analysis data prepared:', {
-        company: analysisData.companyName,
-        hasSummary: !!summary,
-        hasHeadToHead: !!headToHead,
-        hasImprovements: !!improvementLeverages,
-        hasSources: !!sources
-      });
-
+  
       await exportAnalysisReportDocx(analysisData, analysisContent, 'Bizminer Analysis');
       
       // Hide loading and show success
