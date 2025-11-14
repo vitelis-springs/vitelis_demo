@@ -74,3 +74,63 @@ export function appendSection(
     );
   }
 }
+
+/**
+ * Append a content section with custom elements inserted after KPI table
+ */
+export function appendSectionWithChartAfterTable(
+  nodes: Array<Paragraph | Table>,
+  model: DocModel | null,
+  context: TemplateRenderContext,
+  chartElements: Array<Paragraph | Table>,
+  addPageBreak = true
+) {
+  if (!model || !docModelHasRenderableContent(model)) {
+    nodes.push(new Paragraph({ text: "" }));
+    if (addPageBreak) {
+      nodes.push(
+        new Paragraph({
+          text: "",
+          children: [new PageBreak()],
+        })
+      );
+    }
+    return;
+  }
+
+  // Render blocks one by one, inserting chart after KPI table
+  let chartInserted = false;
+  
+  model.blocks.forEach((block) => {
+    // Render this block
+    const blockNodes = renderDocModel({ type: "doc", blocks: [block] }, context);
+    nodes.push(...blockNodes);
+    
+    // Check if this block is a KPI table
+    if (block.type === "table" && !chartInserted) {
+      const table = block as any;
+      const hasKPIHeader = table.header && 
+                          table.header.length > 0 && 
+                          table.header[0] &&
+                          (table.header[0].toLowerCase().includes("kpi") ||
+                           table.header[0].toLowerCase().includes("category"));
+      
+      if (hasKPIHeader) {
+        // Insert chart elements after this table
+        nodes.push(...chartElements);
+        chartInserted = true;
+      }
+    }
+  });
+
+  // Add spacing and page break after section
+  nodes.push(new Paragraph({ text: "" }));
+  if (addPageBreak) {
+    nodes.push(
+      new Paragraph({
+        text: "",
+        children: [new PageBreak()],
+      })
+    );
+  }
+}

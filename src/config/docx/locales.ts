@@ -22,6 +22,7 @@ export interface DocxLocaleStrings {
   creator: string;
   analysisParametersHeading: string;
   tableOfContentsHeading: string;
+  radarChartHeading: string;
   coverTitle: (data: AnalysisData) => string;
   disclaimer: DisclaimerConfig;
 }
@@ -216,6 +217,7 @@ const docxLocales: Record<SupportedDocxLocale, DocxLocaleStrings> = {
     creator: "Vitelis AI Research",
     analysisParametersHeading: "Analysis Parameters",
     tableOfContentsHeading: "Table of Contents",
+    radarChartHeading: "Profile of Top Leaders",
     coverTitle: (data) => formatReportTitle(data, "Report"),
     disclaimer: englishDisclaimer,
   },
@@ -224,6 +226,7 @@ const docxLocales: Record<SupportedDocxLocale, DocxLocaleStrings> = {
     creator: "Vitelis KI Forschung",
     analysisParametersHeading: "Analyseparameter",
     tableOfContentsHeading: "Inhaltsverzeichnis",
+    radarChartHeading: "Profil der Top-Führungskräfte",
     coverTitle: (data) => formatReportTitle(data, "Bericht"),
     disclaimer: germanDisclaimer,
   },

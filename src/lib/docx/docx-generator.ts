@@ -4,7 +4,9 @@
  */
 
 import {
+  AlignmentType,
   Document,
+  ImageRun,
   Packer,
   PageOrientation,
   Paragraph,
@@ -30,6 +32,7 @@ import {
   AnalysisData,
   appendDisclaimer,
   appendSection,
+  appendSectionWithChartAfterTable,
   buildCoverSection,
   buildFooter,
   buildHeader,
@@ -37,7 +40,15 @@ import {
   createAnalysisParametersHeading,
   extractAllHeadingBookmarks,
 } from "./sections";
-import { cmToTwip, mmToTwip, normalizeColor, pointsToHalfPoints } from "./utils";
+import {
+  cmToTwip,
+  extractDetailedKPIScores,
+  generateRadarChartImage,
+  inchesToPixels,
+  mmToTwip,
+  normalizeColor,
+  pointsToHalfPoints,
+} from "./utils";
 
 export interface AnalysisContent {
   summary?: DocModel | string | null;
@@ -82,6 +93,23 @@ export async function generateAnalysisDocxBuffer(
     content.improvementLevers ?? content.improvementLeverages
   );
   const sources = await ensureDocModel(content.sources);
+
+  // Generate radar chart from KPI data in summary
+  let radarChartBuffer: Buffer | null = null;
+  try {
+    const kpiData = extractDetailedKPIScores(summary);
+    if (kpiData && kpiData.companies.length > 0 && kpiData.categories.length > 0) {
+      // Add localized legend title
+      const chartData = {
+        ...kpiData,
+        legendTitle: localeStrings.radarChartHeading,
+      };
+      radarChartBuffer = await generateRadarChartImage(chartData);
+    }
+  } catch (error) {
+    console.error("Failed to generate radar chart:", error);
+    // Continue without chart if generation fails
+  }
 
   const sections = [];
 
@@ -208,12 +236,45 @@ export async function generateAnalysisDocxBuffer(
     switch (sectionName) {
       case "Executive Summary": {
         const bookmarks = extractAllHeadingBookmarks(summary, "executive_summary");
-        appendSection(
+        
+        // Prepare chart elements to insert after KPI table
+        const chartElements: Array<Paragraph | Table> = [];
+        
+        if (radarChartBuffer) {
+          // Add page break before chart to ensure it's on a separate page
+          chartElements.push(new Paragraph({ text: "", pageBreakBefore: true }));
+          
+          chartElements.push(new Paragraph({ text: "" })); // Spacing
+          
+          // Add chart image (title is in the chart legend itself)
+          chartElements.push(
+            new Paragraph({
+              children: [
+                new ImageRun({
+                  type: "png",
+                  data: radarChartBuffer,
+                  transformation: {
+                    width: inchesToPixels(8.4), // 20% larger width
+                    height: inchesToPixels(5.04), // Maintain 20% larger height
+                  },
+                }),
+              ],
+              alignment: AlignmentType.CENTER,
+            })
+          );
+          
+          chartElements.push(new Paragraph({ text: "" })); // Spacing after chart
+        }
+        
+        // Use special function to insert chart after KPI table
+        appendSectionWithChartAfterTable(
           bodyChildren,
           summary,
           { ...renderContext, headingBookmarks: bookmarks },
-          !isLastSection
+          chartElements,
+          !isLastSection // Add page break only if not last section
         );
+        
         break;
       }
       case "Head to Head Analysis": {
