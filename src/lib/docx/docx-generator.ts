@@ -30,7 +30,6 @@ import {
   AnalysisData,
   appendDisclaimer,
   appendSection,
-  appendSectionTitle,
   buildCoverSection,
   buildFooter,
   buildHeader,
@@ -158,47 +157,35 @@ export async function generateAnalysisDocxBuffer(
     }
   });
 
-  // Build TOC section
-  const tocParagraphs = buildTableOfContents(tocSections, tocModels);
-
-  sections.push({
-    properties: {
-      page: pageProperties,
-    },
-    headers: {
-      default: buildHeader(),
-    },
-    footers: {
-      default: buildFooter(localeStrings.disclaimer.footerLines),
-    },
-    children: [
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: localeStrings.tableOfContentsHeading,
-            font: stylesConfig.headingStyles.Heading1.fontFamily,
-            bold: stylesConfig.headingStyles.Heading1.bold,
-            size: pointsToHalfPoints(stylesConfig.headingStyles.Heading1.fontSize),
-            color: normalizeColor(stylesConfig.headingStyles.Heading1.color),
-          }),
-        ],
-        spacing: createParagraphSpacing(
-          stylesConfig.headingStyles.Heading1.spacingBeforeCm,
-          stylesConfig.headingStyles.Heading1.spacingAfterCm,
-          paragraphDefaults.lineSpacing
-        ),
-      }),
-      new Paragraph({ text: "" }),
-      ...tocParagraphs,
-      new Paragraph({ text: "" }),
-    ],
-  });
-
   // Build body section
   const bodyChildren: Array<Paragraph | Table> = [];
+  const tocParagraphs = buildTableOfContents(tocSections, tocModels);
 
   bodyChildren.push(
-    createAnalysisParametersHeading(localeStrings.analysisParametersHeading)
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: localeStrings.tableOfContentsHeading,
+          font: stylesConfig.headingStyles.Heading1.fontFamily,
+          bold: stylesConfig.headingStyles.Heading1.bold,
+          size: pointsToHalfPoints(stylesConfig.headingStyles.Heading1.fontSize),
+          color: normalizeColor(stylesConfig.headingStyles.Heading1.color),
+        }),
+      ],
+      spacing: createParagraphSpacing(
+        stylesConfig.headingStyles.Heading1.spacingBeforeCm,
+        stylesConfig.headingStyles.Heading1.spacingAfterCm,
+        paragraphDefaults.lineSpacing
+      ),
+    })
+  );
+  bodyChildren.push(new Paragraph({ text: "" }));
+  bodyChildren.push(...tocParagraphs);
+
+  bodyChildren.push(
+    createAnalysisParametersHeading(localeStrings.analysisParametersHeading, {
+      pageBreakBefore: true,
+    })
   );
   bodyChildren.push(new Paragraph({ text: "" }));
 
@@ -220,7 +207,6 @@ export async function generateAnalysisDocxBuffer(
 
     switch (sectionName) {
       case "Executive Summary": {
-        appendSectionTitle(bodyChildren, sectionName, sectionInfo.bookmarkId);
         const bookmarks = extractAllHeadingBookmarks(summary, "executive_summary");
         appendSection(
           bodyChildren,
@@ -231,7 +217,6 @@ export async function generateAnalysisDocxBuffer(
         break;
       }
       case "Head to Head Analysis": {
-        appendSectionTitle(bodyChildren, sectionName, sectionInfo.bookmarkId);
         const bookmarks = extractAllHeadingBookmarks(headToHead, "head_to_head");
         appendSection(
           bodyChildren,
@@ -242,7 +227,6 @@ export async function generateAnalysisDocxBuffer(
         break;
       }
       case "Top 20 Improvement Levers": {
-        appendSectionTitle(bodyChildren, sectionName, sectionInfo.bookmarkId);
         const bookmarks = extractAllHeadingBookmarks(improvement, "improvement_levers");
         appendSection(
           bodyChildren,
@@ -253,7 +237,6 @@ export async function generateAnalysisDocxBuffer(
         break;
       }
       case "List of Sources": {
-        appendSectionTitle(bodyChildren, sectionName, sectionInfo.bookmarkId);
         const bookmarks = extractAllHeadingBookmarks(sources, "sources");
         appendSection(
           bodyChildren,

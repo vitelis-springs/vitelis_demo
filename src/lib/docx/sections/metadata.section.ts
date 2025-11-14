@@ -12,7 +12,8 @@ import { normalizeColor, pointsToHalfPoints } from "../utils";
  * Create analysis parameters heading
  */
 export function createAnalysisParametersHeading(
-  headingText: string
+  headingText: string,
+  options?: { pageBreakBefore?: boolean }
 ): Paragraph {
   return new Paragraph({
     children: [
@@ -29,5 +30,6 @@ export function createAnalysisParametersHeading(
       stylesConfig.headingStyles.Heading2.spacingAfterCm,
       paragraphDefaults.lineSpacing
     ),
+    pageBreakBefore: options?.pageBreakBefore,
   });
 }

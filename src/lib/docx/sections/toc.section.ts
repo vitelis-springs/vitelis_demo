@@ -9,7 +9,6 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
-import { stylesConfig } from "../../../config/docx";
 import type { Block, DocModel, HeadingBlock } from "../../doc-model";
 import { createParagraphSpacing, paragraphDefaults } from "../renderers";
 import { cmToTwip, normalizeColor, pointsToHalfPoints } from "../utils";
@@ -102,6 +101,7 @@ function extractHeadings(
 
 /**
  * Build TOC paragraphs from content sections with hyperlinks
+ * Only includes headings from actual markdown content
  */
 export function buildTableOfContents(
   sectionTitles: Array<{ title: string; hasContent: boolean; bookmarkId: string }>,
@@ -109,48 +109,24 @@ export function buildTableOfContents(
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [];
 
-  sectionTitles.forEach(({ title, hasContent, bookmarkId }, index) => {
+  sectionTitles.forEach(({ hasContent }, index) => {
     if (!hasContent) return;
 
-    // Debug logging
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[TOC Section] "${title}" -> anchor: "${bookmarkId}"`);
-    }
-
-    // Add main section title with hyperlink
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new InternalHyperlink({
-            anchor: bookmarkId,
-            children: [
-              new TextRun({
-                text: title,
-                font: stylesConfig.headingStyles.Heading1.fontFamily,
-                bold: true,
-                size: pointsToHalfPoints(12),
-                color: normalizeColor("#0563C1"), // Standard hyperlink blue
-                underline: {},
-              }),
-            ],
-          }),
-        ],
-        spacing: createParagraphSpacing(0.2, 0.1, paragraphDefaults.lineSpacing),
-        alignment: AlignmentType.LEFT,
-      })
-    );
-
-    // Extract and add sub-headings from content
+    // Extract and add headings from content (skip artificial section titles)
     const modelData = contentModels[index];
     if (modelData?.model) {
       const headings = extractHeadings(modelData.model, modelData.sectionPrefix);
       headings.forEach((heading) => {
         // Debug logging
         if (process.env.NODE_ENV === "development") {
-          console.log(`[TOC Subheading] "${heading.text}" -> anchor: "${heading.bookmarkId}"`);
+          console.log(`[TOC Heading] "${heading.text}" -> anchor: "${heading.bookmarkId}"`);
         }
         
-        const indent = heading.level === 1 ? 0.5 : heading.level === 2 ? 1.0 : 1.5;
+        // Adjust indent based on heading level
+        const indent = heading.level === 1 ? 0 : heading.level === 2 ? 0.5 : 1.0;
+        const fontSize = heading.level === 1 ? 12 : 11;
+        const isBold = heading.level === 1;
+        
         paragraphs.push(
           new Paragraph({
             children: [
@@ -160,16 +136,17 @@ export function buildTableOfContents(
                   new TextRun({
                     text: heading.text,
                     font: paragraphDefaults.fontFamily,
-                    size: pointsToHalfPoints(11),
+                    size: pointsToHalfPoints(fontSize),
+                    bold: isBold,
                     color: normalizeColor("#0563C1"),
                     underline: {},
                   }),
                 ],
               }),
             ],
-            indent: {
+            indent: indent > 0 ? {
               left: cmToTwip(indent),
-            },
+            } : undefined,
             spacing: createParagraphSpacing(
               0.05,
               0.05,
