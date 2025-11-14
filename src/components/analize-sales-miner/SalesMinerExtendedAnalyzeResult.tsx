@@ -266,10 +266,10 @@ export default function SalesMinerExtendedAnalyzeResult({
                           
                           {/* KPI Radar Chart - right after table */}
                           <div style={{ marginTop: '24px', marginBottom: '24px' }}>
-                            <KpiRadarChart 
-                              data={kpiData} 
-                              title="Profile of Top Leaders"
-                            />
+                          <KpiRadarChart 
+                            data={kpiData} 
+                            title="Performance Comparison"
+                          />
                           </div>
                           
                           {/* Content after table */}

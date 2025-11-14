@@ -108,6 +108,8 @@ export function buildTableOfContents(
   contentModels: Array<{ model: DocModel | null; sectionPrefix: string }>
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [];
+  let levelOneCounter = 0;
+  let levelTwoCounter = 0;
 
   sectionTitles.forEach(({ hasContent }, index) => {
     if (!hasContent) return;
@@ -117,15 +119,33 @@ export function buildTableOfContents(
     if (modelData?.model) {
       const headings = extractHeadings(modelData.model, modelData.sectionPrefix);
       headings.forEach((heading) => {
+        // Only include level 1 and level 2 headings in TOC
+        if (heading.level > 1) return;
+
+        if (heading.level === 1) {
+          levelOneCounter += 1;
+          levelTwoCounter = 0;
+        } else if (heading.level === 2) {
+          if (levelOneCounter === 0) {
+            // Ensure top-level exists
+            levelOneCounter = 1;
+          }
+          levelTwoCounter += 1;
+        }
+        
         // Debug logging
         if (process.env.NODE_ENV === "development") {
           console.log(`[TOC Heading] "${heading.text}" -> anchor: "${heading.bookmarkId}"`);
         }
         
         // Adjust indent based on heading level
-        const indent = heading.level === 1 ? 0 : heading.level === 2 ? 0.5 : 1.0;
+        const indent = heading.level === 1 ? 0 : 0.5;
         const fontSize = heading.level === 1 ? 12 : 11;
         const isBold = heading.level === 1;
+        const numberingPrefix =
+          heading.level === 1
+            ? `${levelOneCounter}. `
+            : `${levelOneCounter}.${levelTwoCounter} `;
         
         paragraphs.push(
           new Paragraph({
@@ -133,6 +153,12 @@ export function buildTableOfContents(
               new InternalHyperlink({
                 anchor: heading.bookmarkId,
                 children: [
+                  new TextRun({
+                    text: numberingPrefix,
+                    bold: isBold,
+                    size: pointsToHalfPoints(fontSize),
+                    color: normalizeColor("#0563C1"),
+                  }),
                   new TextRun({
                     text: heading.text,
                     font: paragraphDefaults.fontFamily,

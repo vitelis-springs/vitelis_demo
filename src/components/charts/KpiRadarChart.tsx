@@ -117,7 +117,10 @@ interface KpiRadarChartProps {
   title?: string;
 }
 
-export default function KpiRadarChart({ data, title }: KpiRadarChartProps) {
+export default function KpiRadarChart({
+  data,
+  title = "Performance Comparison",
+}: KpiRadarChartProps) {
   const { companies, categories, scores } = data;
 
   // Transform data for recharts format

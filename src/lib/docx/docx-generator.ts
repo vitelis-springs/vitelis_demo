@@ -254,8 +254,8 @@ export async function generateAnalysisDocxBuffer(
                   type: "png",
                   data: radarChartBuffer,
                   transformation: {
-                    width: inchesToPixels(8.4), // 20% larger width
-                    height: inchesToPixels(5.04), // Maintain 20% larger height
+                    width: inchesToPixels(8.4), // +20% from previous (8.4 -> 10.08)
+                    height: inchesToPixels(5.04), // Maintain aspect ratio
                   },
                 }),
               ],

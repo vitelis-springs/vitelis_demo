@@ -123,13 +123,13 @@ function getCategoryColor(index: number, allCategories: number): string {
 function generateRadarChartSVG(data: RadarChartData): string {
   const { companies, categories, scores, legendTitle } = data;
   
-  const width = 1000; // Increased width for legend
+  const width = 1000; // Overall SVG width
   const height = 600;
-  const legendWidth = 280; // Width reserved for legend
-  const chartAreaX = legendWidth + 50; // Start of chart area
-  const centerX = chartAreaX + (width - chartAreaX) / 2; // Center in remaining space
+  const legendWidth = 260; // Allocate more width for legend
+  const chartAreaX = legendWidth + 50; // Start of chart area with comfortable gap
+  const centerX = chartAreaX + (width - chartAreaX) / 2; // Center within remaining space
   const centerY = height / 2;
-  const maxRadius = 180;
+  const maxRadius = 220; // Larger radius to make chart bigger within same image size
   const levels = 5; // Number of concentric circles (0-5 scale)
   const maxValue = 5; // Maximum KPI score
 
@@ -157,8 +157,8 @@ function generateRadarChartSVG(data: RadarChartData): string {
     <style>
       .grid-line { stroke: #E0E0E0; stroke-width: 1; fill: none; }
       .axis-line { stroke: #999999; stroke-width: 1; }
-      .category-label { fill: #333333; font-family: Arial, sans-serif; font-size: 13px; text-anchor: middle; }
-      .legend-text { fill: #333333; font-family: Arial, sans-serif; font-size: 12px; }
+      .category-label { fill: #333333; font-family: Arial, sans-serif; font-size: 14px; text-anchor: middle; }
+      .legend-text { fill: #333333; font-family: Arial, sans-serif; font-size: 18px; }
     </style>
   </defs>`;
 
@@ -230,10 +230,10 @@ function generateRadarChartSVG(data: RadarChartData): string {
   const legendX = 20;
   const legendY = Math.max(80, (height - categories.length * 24) / 2); // Start with space for title
   const legendSpacing = 24;
-  const legendTextMaxWidth = 250; // Max width for text
+  const legendTextMaxWidth = 280; // Max width for text
   
   // Add legend title (localized)
-  const title = legendTitle || "Profile of Top Leaders";
+  const title = legendTitle || "Performance Comparison";
   svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
 
   categories.forEach((category, index) => {
@@ -247,7 +247,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
     const words = category.split(/\s+/);
     let line = "";
     let lineY = y + 4;
-    const lineHeight = 12;
+    const lineHeight = 16;
     let lineCount = 0;
     const maxLines = 2;
     
@@ -258,7 +258,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
       if (testLine.length * 6 > legendTextMaxWidth && line) {
         // Output current line
         if (lineCount < maxLines) {
-          svg += `<text x="${legendX + 28}" y="${lineY}" class="legend-text" style="font-size: 10px;">${escapeXml(line)}</text>`;
+          svg += `<text x="${legendX + 28}" y="${lineY}" class="legend-text" style="font-size: 13px;">${escapeXml(line)}</text>`;
           lineY += lineHeight;
           lineCount++;
           line = word;
@@ -273,7 +273,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
         if (line.length > 35) {
           line = line.substring(0, 32) + "...";
         }
-        svg += `<text x="${legendX + 28}" y="${lineY}" class="legend-text" style="font-size: 10px;">${escapeXml(line)}</text>`;
+        svg += `<text x="${legendX + 28}" y="${lineY}" class="legend-text" style="font-size: 13px;">${escapeXml(line)}</text>`;
       }
     });
   });
