@@ -5,3 +5,4 @@
 export * from "./layout.config";
 export * from "./sections.config";
 export * from "./styles.config";
+export * from "./locales";

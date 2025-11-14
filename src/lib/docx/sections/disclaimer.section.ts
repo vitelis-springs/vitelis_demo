@@ -4,15 +4,19 @@
  */
 
 import { AlignmentType, Paragraph, TextRun } from "docx";
-import { sectionsConfig, stylesConfig } from "../../../config/docx";
+import type { DocxLocaleStrings } from "../../../config/docx";
+import { stylesConfig } from "../../../config/docx";
 import { createParagraphSpacing, paragraphDefaults } from "../renderers";
 import { cmToTwip, normalizeColor, pointsToHalfPoints } from "../utils";
 
 /**
  * Append disclaimer section to document
  */
-export function appendDisclaimer(nodes: Array<Paragraph | any>) {
-  const templateDisclaimer = sectionsConfig.disclaimer;
+export function appendDisclaimer(
+  nodes: Array<Paragraph | any>,
+  disclaimer: DocxLocaleStrings["disclaimer"]
+) {
+  const templateDisclaimer = disclaimer;
 
   // Main heading
   nodes.push(

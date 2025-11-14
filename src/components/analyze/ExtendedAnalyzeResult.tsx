@@ -21,6 +21,7 @@ interface AnalyzeQuizData {
   country: string;
   useCase: string;
   timeline: string;
+  language?: string;
   additionalInformation?: string;
 }
 
@@ -63,6 +64,7 @@ export default function ExtendedAnalyzeResult({
         country: quizData.country,
         useCase: quizData.useCase,
         timeline: quizData.timeline,
+        language: quizData.language,
         additionalInformation: quizData.additionalInformation
       };
 

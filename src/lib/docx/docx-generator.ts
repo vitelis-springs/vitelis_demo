@@ -5,6 +5,7 @@
 
 import { Document, Packer, PageOrientation, Paragraph, Table } from "docx";
 import {
+  getDocxLocaleStrings,
   layoutConfig,
   resolvePageSize,
   sectionsConfig,
@@ -61,6 +62,8 @@ export async function generateAnalysisDocxBuffer(
   content: AnalysisContent,
   reportType: "Bizminer Analysis" | "SalesMiner Analysis" = "Bizminer Analysis"
 ): Promise<Buffer> {
+  const localeStrings = getDocxLocaleStrings(quizData.language);
+
   // Parse content
   const summary = await ensureDocModel(content.summary);
   const headToHead = await ensureDocModel(content.headToHead);
@@ -79,12 +82,14 @@ export async function generateAnalysisDocxBuffer(
   };
 
   // Build cover section
-  sections.push(buildCoverSection(quizData));
+  sections.push(buildCoverSection(quizData, localeStrings.coverTitle(quizData)));
 
   // Build body section
   const bodyChildren: Array<Paragraph | Table> = [];
 
-  bodyChildren.push(createAnalysisParametersHeading());
+  bodyChildren.push(
+    createAnalysisParametersHeading(localeStrings.analysisParametersHeading)
+  );
   bodyChildren.push(new Paragraph({ text: "" }));
 
   // Render content sections in order
@@ -92,7 +97,7 @@ export async function generateAnalysisDocxBuffer(
     const isLastSection = index === sectionsConfig.order.length - 1;
 
     if (sectionName === "Disclaimer") {
-      appendDisclaimer(bodyChildren);
+      appendDisclaimer(bodyChildren, localeStrings.disclaimer);
       return;
     }
 
@@ -146,7 +151,7 @@ export async function generateAnalysisDocxBuffer(
       default: buildHeader(),
     },
     footers: {
-      default: buildFooter(),
+      default: buildFooter(localeStrings.disclaimer.footerLines),
     },
     children: bodyChildren,
   });
@@ -154,7 +159,7 @@ export async function generateAnalysisDocxBuffer(
   // Create document
   const doc = new Document({
     sections,
-    creator: "Vitelis AI Research",
+    creator: localeStrings.creator,
     title: `${quizData.companyName} ${reportType}`,
     description: `${reportType} for ${quizData.companyName}`,
   });

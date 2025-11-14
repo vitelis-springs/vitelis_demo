@@ -11,11 +11,13 @@ import { normalizeColor, pointsToHalfPoints } from "../utils";
 /**
  * Create analysis parameters heading
  */
-export function createAnalysisParametersHeading(): Paragraph {
+export function createAnalysisParametersHeading(
+  headingText: string
+): Paragraph {
   return new Paragraph({
     children: [
       new TextRun({
-        text: "Analysis Parameters",
+        text: headingText,
         font: stylesConfig.headingStyles.Heading2.fontFamily,
         bold: stylesConfig.headingStyles.Heading2.bold,
         size: pointsToHalfPoints(stylesConfig.headingStyles.Heading2.fontSize),
