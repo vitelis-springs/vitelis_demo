@@ -128,7 +128,8 @@ export function createParagraphFromInlines(
  */
 export function createHeadingParagraph(
   textInlines: Inline[],
-  headingBlock: HeadingBlock
+  headingBlock: HeadingBlock,
+  bookmarkId?: string
 ): Paragraph {
   const headingLevel =
     headingBlock.depth === 1
@@ -144,13 +145,25 @@ export function createHeadingParagraph(
       ? stylesConfig.headingStyles.Heading2
       : stylesConfig.headingStyles.Heading2;
 
+  const runs = inlineToRuns(textInlines, {
+    fontFamily: templateStyle.fontFamily,
+    fontSize: templateStyle.fontSize,
+    color: templateStyle.color || paragraphDefaults.color,
+    bold: templateStyle.bold,
+  });
+
+  // Wrap in bookmark if provided
+  const children = bookmarkId
+    ? [
+        new Bookmark({
+          id: bookmarkId,
+          children: runs,
+        }),
+      ]
+    : runs;
+
   return new Paragraph({
-    children: inlineToRuns(textInlines, {
-      fontFamily: templateStyle.fontFamily,
-      fontSize: templateStyle.fontSize,
-      color: templateStyle.color || paragraphDefaults.color,
-      bold: templateStyle.bold,
-    }),
+    children: children,
     heading: headingLevel,
     spacing: createParagraphSpacing(
       templateStyle.spacingBeforeCm,

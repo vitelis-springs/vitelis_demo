@@ -21,6 +21,7 @@ export interface DocxLocaleStrings {
   locale: SupportedDocxLocale;
   creator: string;
   analysisParametersHeading: string;
+  tableOfContentsHeading: string;
   coverTitle: (data: AnalysisData) => string;
   disclaimer: DisclaimerConfig;
 }
@@ -214,6 +215,7 @@ const docxLocales: Record<SupportedDocxLocale, DocxLocaleStrings> = {
     locale: "en",
     creator: "Vitelis AI Research",
     analysisParametersHeading: "Analysis Parameters",
+    tableOfContentsHeading: "Table of Contents",
     coverTitle: (data) => formatReportTitle(data, "Report"),
     disclaimer: englishDisclaimer,
   },
@@ -221,6 +223,7 @@ const docxLocales: Record<SupportedDocxLocale, DocxLocaleStrings> = {
     locale: "de",
     creator: "Vitelis KI Forschung",
     analysisParametersHeading: "Analyseparameter",
+    tableOfContentsHeading: "Inhaltsverzeichnis",
     coverTitle: (data) => formatReportTitle(data, "Bericht"),
     disclaimer: germanDisclaimer,
   },

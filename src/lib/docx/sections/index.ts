@@ -8,4 +8,5 @@ export * from "./disclaimer.section";
 export * from "./footer.section";
 export * from "./header.section";
 export * from "./metadata.section";
+export * from "./toc.section";
 export * from "./types";
