@@ -157,8 +157,8 @@ function generateRadarChartSVG(data: RadarChartData): string {
     <style>
       .grid-line { stroke: #E0E0E0; stroke-width: 1; fill: none; }
       .axis-line { stroke: #999999; stroke-width: 1; }
-      .category-label { fill: #333333; font-family: Arial, sans-serif; font-size: 14px; text-anchor: middle; }
-      .legend-text { fill: #333333; font-family: Arial, sans-serif; font-size: 18px; }
+      .category-label { fill: #333333; font-family: sans-serif; font-size: 14px; text-anchor: middle; }
+      .legend-text { fill: #333333; font-family: sans-serif; font-size: 18px; }
     </style>
   </defs>`;
 
@@ -234,7 +234,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
   
   // Add legend title (localized)
   const title = legendTitle || "Performance Comparison";
-  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
+  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
 
   categories.forEach((category, index) => {
     const y = legendY + index * legendSpacing;
