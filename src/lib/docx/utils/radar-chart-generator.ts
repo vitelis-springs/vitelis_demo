@@ -3,7 +3,7 @@
  * Generates radar chart as SVG and converts to PNG buffer
  */
 
-import sharp from "sharp";
+import { Resvg } from "@resvg/resvg-js";
 
 export interface RadarChartData {
   companies: string[];
@@ -159,6 +159,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
       .axis-line { stroke: #999999; stroke-width: 1; }
       .category-label { fill: #333333; font-family: "DejaVu Sans", "Liberation Sans", "Nimbus Sans L", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; text-anchor: middle; }
       .legend-text { fill: #333333; font-family: "DejaVu Sans", "Liberation Sans", "Nimbus Sans L", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
+      .axis-label { fill: #666666; font-family: "DejaVu Sans", "Liberation Sans", "Nimbus Sans L", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 12px; text-anchor: middle; }
     </style>
   </defs>`;
 
@@ -166,6 +167,25 @@ function generateRadarChartSVG(data: RadarChartData): string {
   for (let level = 1; level <= levels; level++) {
     const radius = (level / levels) * maxRadius;
     svg += `<circle cx="${centerX}" cy="${centerY}" r="${radius}" class="grid-line"/>`;
+  }
+
+  // Draw axis value labels (0-5 scale) on the first axis
+  if (companies.length > 0) {
+    const firstAxisIndex = 0;
+    const labelOffset = 25; // Distance from axis line to place labels
+    
+    // Draw labels for each level (0 to 5)
+    for (let level = 0; level <= levels; level++) {
+      const value = level;
+      const radius = (level / levels) * maxRadius;
+      const angle = angleStep * firstAxisIndex - Math.PI / 2;
+      
+      // Position label slightly to the left of the axis line
+      const labelX = centerX + (radius - labelOffset) * Math.cos(angle)+10;
+      const labelY = centerY + (radius - labelOffset) * Math.sin(angle) - 30; // +4 for vertical centering
+      
+      svg += `<text x="${labelX}" y="${labelY}" class="axis-label">${value}</text>`;
+    }
   }
 
   // Draw axis lines and labels (companies on axes now)
@@ -229,7 +249,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
   // Draw legend (categories on left side)
   const legendX = 20;
   const legendY = Math.max(80, (height - categories.length * 24) / 2); // Start with space for title
-  const legendSpacing = 24;
+  const legendSpacing = 40;
   const legendTextMaxWidth = 280; // Max width for text
   
   // Add legend title (localized)
@@ -247,7 +267,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
     const words = category.split(/\s+/);
     let line = "";
     let lineY = y + 4;
-    const lineHeight = 16;
+    const lineHeight = 20; // Increased line spacing for better readability
     let lineCount = 0;
     const maxLines = 2;
     
@@ -304,12 +324,17 @@ export async function generateRadarChartImage(
   const svg = generateRadarChartSVG(data);
   
   try {
-    // Convert SVG to PNG using sharp
-    const pngBuffer = await sharp(Buffer.from(svg))
-      .png()
-      .toBuffer();
+    // Convert SVG to PNG using Resvg
+    const resvg = new Resvg(svg, {
+      fitTo: {
+        mode: 'original',
+      },
+    });
     
-    return pngBuffer;
+    const pngData = resvg.render();
+    const pngBuffer = pngData.asPng();
+    
+    return Buffer.from(pngBuffer);
   } catch (error) {
     console.error("Error generating radar chart:", error);
     throw new Error("Failed to generate radar chart image");

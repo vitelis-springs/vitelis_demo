@@ -10,6 +10,7 @@ const nextConfig = {
   experimental: {
     reactCompiler: true,
   },
+  serverExternalPackages: ['@resvg/resvg-js'],
   outputFileTracingIncludes: {
     "/api/export/docx": ["./src/config/docx/assets/**/*"],
   },
@@ -25,6 +26,16 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclude native modules from client-side bundles
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@resvg/resvg-js': false,
+      };
+    }
+    return config;
   },
 };
 

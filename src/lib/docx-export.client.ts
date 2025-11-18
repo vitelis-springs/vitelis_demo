@@ -6,7 +6,7 @@ import type { AnalysisContent, AnalysisData } from "./docx/docx-generator";
  * These functions call the server API to generate DOCX files
  */
 
-// Re-export types for convenience
+// Re-export types for convenience (type-only export to avoid bundling server code)
 export type { AnalysisContent, AnalysisData } from "./docx/docx-generator";
 
 /**
