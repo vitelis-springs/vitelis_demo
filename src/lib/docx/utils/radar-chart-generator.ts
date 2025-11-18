@@ -152,13 +152,13 @@ function generateRadarChartSVG(data: RadarChartData): string {
   // Background
   svg += `<rect width="${width}" height="${height}" fill="#FFFFFF"/>`;
 
-  // Define styles
+  // Define styles with fallback fonts that are commonly available in Linux
   svg += `<defs>
     <style>
       .grid-line { stroke: #E0E0E0; stroke-width: 1; fill: none; }
       .axis-line { stroke: #999999; stroke-width: 1; }
-      .category-label { fill: #333333; font-family: sans-serif; font-size: 14px; text-anchor: middle; }
-      .legend-text { fill: #333333; font-family: sans-serif; font-size: 18px; }
+      .category-label { fill: #333333; font-family: "DejaVu Sans", "Liberation Sans", "Nimbus Sans L", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; text-anchor: middle; }
+      .legend-text { fill: #333333; font-family: "DejaVu Sans", "Liberation Sans", "Nimbus Sans L", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
     </style>
   </defs>`;
 
@@ -234,7 +234,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
   
   // Add legend title (localized)
   const title = legendTitle || "Performance Comparison";
-  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
+  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: &quot;DejaVu Sans&quot;, &quot;Liberation Sans&quot;, &quot;Nimbus Sans L&quot;, &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
 
   categories.forEach((category, index) => {
     const y = legendY + index * legendSpacing;
