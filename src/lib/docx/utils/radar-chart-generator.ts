@@ -152,15 +152,15 @@ function generateRadarChartSVG(data: RadarChartData): string {
   // Background
   svg += `<rect width="${width}" height="${height}" fill="#FFFFFF"/>`;
 
-  // Define styles - don't specify font-family to let Resvg use built-in fonts
-  // This ensures text renders correctly on serverless environments like Vercel
+  // Define styles with safe fallback fonts
+  // Using generic sans-serif ensures Resvg will use its built-in fonts
   svg += `<defs>
     <style>
       .grid-line { stroke: #E0E0E0; stroke-width: 1; fill: none; }
       .axis-line { stroke: #999999; stroke-width: 1; }
-      .category-label { fill: #333333; font-size: 14px; text-anchor: middle; }
-      .legend-text { fill: #333333; font-size: 18px; }
-      .axis-label { fill: #666666; font-size: 12px; text-anchor: middle; }
+      .category-label { fill: #333333; font-family: sans-serif; font-size: 14px; text-anchor: middle; }
+      .legend-text { fill: #333333; font-family: sans-serif; font-size: 18px; }
+      .axis-label { fill: #666666; font-family: sans-serif; font-size: 12px; text-anchor: middle; }
     </style>
   </defs>`;
 
@@ -255,7 +255,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
   
   // Add legend title (localized)
   const title = legendTitle || "Performance Comparison";
-  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
+  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
 
   categories.forEach((category, index) => {
     const y = legendY + index * legendSpacing;
@@ -325,24 +325,36 @@ export async function generateRadarChartImage(
   const svg = generateRadarChartSVG(data);
   
   try {
+    console.log("📊 Generating radar chart PNG...");
+    
     // Convert SVG to PNG using Resvg
-    // Use system fonts configuration for better server compatibility
-    const resvg = new Resvg(svg, {
+    // Resvg has built-in fonts and will load system fonts on Vercel (Amazon Linux 2)
+    const options = {
       fitTo: {
-        mode: 'original',
+        mode: 'original' as const,
       },
       font: {
-        // Let Resvg use system fonts or built-in fonts
-        loadSystemFonts: true,
+        loadSystemFonts: true, // Loads fonts from /usr/share/fonts on Vercel
+        fontDirs: ['/usr/share/fonts'], // Explicit font directory for Vercel/Linux
+        // Map generic font families to specific fonts available on Vercel
+        sansSerifFamily: 'DejaVu Sans, Liberation Sans, Arial, sans-serif',
+        defaultFontSize: 12,
       },
-    });
+      logLevel: 'warn' as const, // Log warnings to debug font issues
+    };
+    
+    const resvg = new Resvg(svg, options);
+    
+    console.log(`📐 Chart size: ${resvg.width}x${resvg.height}`);
     
     const pngData = resvg.render();
     const pngBuffer = pngData.asPng();
     
+    console.log(`✅ Radar chart PNG generated: ${pngBuffer.length} bytes`);
+    
     return Buffer.from(pngBuffer);
   } catch (error) {
-    console.error("Error generating radar chart:", error);
+    console.error("❌ Error generating radar chart:", error);
     throw new Error("Failed to generate radar chart image");
   }
 }
