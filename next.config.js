@@ -13,6 +13,8 @@ const nextConfig = {
   serverExternalPackages: ['@resvg/resvg-js'],
   outputFileTracingIncludes: {
     "/api/export/docx": ["./src/config/docx/assets/**/*"],
+    // Include Aptos fonts for radar chart generation in all API routes that might use it
+    "/api/**/*": ["./src/config/docx/assets/Aptos.ttf", "./src/config/docx/assets/Aptos-Bold.ttf"],
   },
   typescript: {
     ignoreBuildErrors: true,

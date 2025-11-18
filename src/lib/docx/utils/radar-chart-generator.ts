@@ -4,6 +4,8 @@
  */
 
 import { Resvg } from "@resvg/resvg-js";
+import fs from "node:fs";
+import path from "node:path";
 
 export interface RadarChartData {
   companies: string[];
@@ -152,15 +154,14 @@ function generateRadarChartSVG(data: RadarChartData): string {
   // Background
   svg += `<rect width="${width}" height="${height}" fill="#FFFFFF"/>`;
 
-  // Define styles with safe fallback fonts
-  // Using generic sans-serif ensures Resvg will use its built-in fonts
+  // Define styles with Aptos font (matching DOCX document style)
   svg += `<defs>
     <style>
       .grid-line { stroke: #E0E0E0; stroke-width: 1; fill: none; }
       .axis-line { stroke: #999999; stroke-width: 1; }
-      .category-label { fill: #333333; font-family: sans-serif; font-size: 14px; text-anchor: middle; }
-      .legend-text { fill: #333333; font-family: sans-serif; font-size: 18px; }
-      .axis-label { fill: #666666; font-family: sans-serif; font-size: 12px; text-anchor: middle; }
+      .category-label { fill: #333333; font-family: Aptos, sans-serif; font-size: 14px; text-anchor: middle; }
+      .legend-text { fill: #333333; font-family: Aptos, sans-serif; font-size: 18px; }
+      .axis-label { fill: #666666; font-family: Aptos, sans-serif; font-size: 12px; text-anchor: middle; }
     </style>
   </defs>`;
 
@@ -255,7 +256,7 @@ function generateRadarChartSVG(data: RadarChartData): string {
   
   // Add legend title (localized)
   const title = legendTitle || "Performance Comparison";
-  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
+  svg += `<text x="${legendX}" y="${legendY - 20}" style="fill: #333333; font-family: Aptos, sans-serif; font-size: 14px; font-weight: bold;">${escapeXml(title)}</text>`;
 
   categories.forEach((category, index) => {
     const y = legendY + index * legendSpacing;
@@ -317,6 +318,44 @@ function escapeXml(text: string): string {
 }
 
 /**
+ * Get font file paths from assets directory
+ * Similar to getImageBuffer, tries multiple path strategies for Vercel compatibility
+ */
+function getFontFilePaths(): string[] {
+  const fontFiles = ["Aptos.ttf", "Aptos-Bold.ttf"]; // Primary fonts
+  const fontPaths: string[] = [];
+  
+  for (const fontFileName of fontFiles) {
+    const possibleBasePaths = [
+      // Strategy 1: Relative to src/config/docx/assets/ (development)
+      path.resolve(process.cwd(), "src/config/docx/assets", fontFileName),
+      // Strategy 2: Relative to current working directory
+      path.resolve(process.cwd(), "assets", fontFileName),
+      // Strategy 3: In the same directory as this file (production bundle)
+      path.join(__dirname, "..", "..", "..", "..", "config", "docx", "assets", fontFileName),
+      // Strategy 4: Vercel serverless function directory
+      path.join(__dirname, fontFileName),
+    ];
+
+    for (const fontPath of possibleBasePaths) {
+      if (fs.existsSync(fontPath)) {
+        console.log(`✅ Found font: ${fontFileName} at ${fontPath}`);
+        fontPaths.push(fontPath);
+        break; // Use first found path for this font
+      }
+    }
+  }
+
+  if (fontPaths.length === 0) {
+    console.warn(`⚠️ Aptos fonts not found. Will fall back to system fonts`);
+  } else {
+    console.log(`✅ Loaded ${fontPaths.length} font file(s) for chart rendering`);
+  }
+
+  return fontPaths;
+}
+
+/**
  * Generate radar chart as PNG buffer
  */
 export async function generateRadarChartImage(
@@ -327,17 +366,24 @@ export async function generateRadarChartImage(
   try {
     console.log("📊 Generating radar chart PNG...");
     
+    // Get font files from assets directory (bundled with app)
+    const fontFiles = getFontFilePaths();
+    
     // Convert SVG to PNG using Resvg
-    // Resvg has built-in fonts and will load system fonts on Vercel (Amazon Linux 2)
+    // Use bundled Aptos fonts to match DOCX document style
     const options = {
       fitTo: {
         mode: 'original' as const,
       },
       font: {
-        loadSystemFonts: true, // Loads fonts from /usr/share/fonts on Vercel
-        fontDirs: ['/usr/share/fonts'], // Explicit font directory for Vercel/Linux
-        // Map generic font families to specific fonts available on Vercel
-        sansSerifFamily: 'DejaVu Sans, Liberation Sans, Arial, sans-serif',
+        // Load bundled Aptos font files (most reliable)
+        fontFiles: fontFiles.length > 0 ? fontFiles : undefined,
+        // Fall back to system fonts if bundled fonts not found
+        loadSystemFonts: true,
+        fontDirs: fontFiles.length === 0 ? ['/usr/share/fonts'] : undefined,
+        // Map generic font families to Aptos
+        sansSerifFamily: 'Aptos, DejaVu Sans, Liberation Sans, Arial, sans-serif',
+        defaultFontFamily: 'Aptos',
         defaultFontSize: 12,
       },
       logLevel: 'warn' as const, // Log warnings to debug font issues
