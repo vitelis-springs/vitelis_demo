@@ -28,15 +28,19 @@ import {
   mmToTwip,
   pointsToHalfPoints,
 } from "../utils";
-import { getImageBuffer, getPngDimensions } from "../utils/image.utils";
+import { getImageBuffer, getPngDimensions } from "../utils";
 import type { AnalysisData } from "./types";
 
 /**
  * Build cover page section with logo and title
  */
-export function buildCoverSection(quizData: AnalysisData) {
+export function buildCoverSection(quizData: AnalysisData, titleText?: string) {
   const children: Paragraph[] = [];
   const logoBuffer = getImageBuffer(stylesConfig.coverPage.logo.file);
+  const resolvedTitle =
+    titleText && titleText.trim().length > 0
+      ? titleText
+      : `${quizData.companyName} ${quizData.country} ${quizData.useCase} Report (${quizData.timeline})`;
 
   if (logoBuffer) {
     const dims = getPngDimensions(logoBuffer);
@@ -98,7 +102,7 @@ export function buildCoverSection(quizData: AnalysisData) {
     new Paragraph({
       children: [
         new TextRun({
-          text: `${quizData.companyName} ${quizData.country} ${quizData.useCase} Report (${quizData.timeline})`,
+          text: resolvedTitle,
           bold: true,
           font: stylesConfig.coverPage.titleBlock.fontFamily,
           size: pointsToHalfPoints(stylesConfig.coverPage.titleBlock.fontSize),

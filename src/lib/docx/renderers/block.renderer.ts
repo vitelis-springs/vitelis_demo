@@ -20,6 +20,7 @@ export interface TemplateRenderContext {
   paragraph: ParagraphRenderDefaults;
   table: TableRenderDefaults;
   isSourcesSection?: boolean;
+  headingBookmarks?: Map<string, string>;
 }
 
 /**
@@ -98,8 +99,33 @@ export function renderBlock(
           spacingAfterCm: 0.25,
         }),
       ];
-    case "heading":
-      return [createHeadingParagraph(block.children, block)];
+    case "heading": {
+      // Extract heading text to lookup bookmark
+      const headingText = block.children
+        .map((inline) => {
+          if (inline.type === "text") return inline.value;
+          if (inline.type === "strong" || inline.type === "emphasis") {
+            return inline.children
+              .map((child) => (child.type === "text" ? child.value : ""))
+              .join("");
+          }
+          return "";
+        })
+        .join("")
+        .trim();
+
+      const bookmarkId = context.headingBookmarks?.get(headingText);
+      
+      // Debug logging
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Heading] Text: "${headingText}" -> Bookmark ID: "${bookmarkId || 'NOT FOUND'}"`);
+        if (!bookmarkId && context.headingBookmarks) {
+          console.log(`[Heading] Available bookmarks:`, Array.from(context.headingBookmarks.keys()));
+        }
+      }
+      
+      return [createHeadingParagraph(block.children, block, bookmarkId)];
+    }
     case "list":
       return renderListBlock(block, {
         addBookmarks: context.isSourcesSection,

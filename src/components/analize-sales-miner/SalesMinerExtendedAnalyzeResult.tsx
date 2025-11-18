@@ -4,7 +4,9 @@ import React, { useState } from 'react';
 import { Card, Typography, Space, Button, Layout, Collapse } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { CheckCircleOutlined, DownOutlined, FileTextOutlined, TrophyOutlined, LinkOutlined, ToolOutlined, DollarOutlined, TeamOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, DownOutlined, FileTextOutlined, TrophyOutlined, LinkOutlined, DollarOutlined} from '@ant-design/icons';
+import { extractKPIDataFromMarkdown, splitMarkdownAroundKPITable } from '../../lib/kpi-extractor.client';
+import KpiRadarChart from '../charts/KpiRadarChart';
 import Sidebar from '../ui/sidebar';
 
 const { Title, Text } = Typography;
@@ -43,6 +45,12 @@ export default function SalesMinerExtendedAnalyzeResult({
   const handlePanelChange = (key: string | string[]) => {
     setActivePanels(Array.isArray(key) ? key : [key]);
   };
+
+  // Extract KPI data for radar chart
+  const kpiData = summary ? extractKPIDataFromMarkdown(summary) : null;
+  
+  // Split summary to insert chart after table
+  const summaryParts = summary ? splitMarkdownAroundKPITable(summary) : null;
 
   const renderMarkdownContent = (content: string | undefined, fallbackText: string) => {
     if (!content || content.trim() === '') {
@@ -247,7 +255,29 @@ export default function SalesMinerExtendedAnalyzeResult({
                     }}
                   >
                     <div style={{ padding: '24px' }}>
-                      {renderMarkdownContent(summary, 'No summary available yet. Please wait for the SalesMiner analysis to complete.')}
+                      {/* Render summary with chart after table */}
+                      {summaryParts && kpiData ? (
+                        <>
+                          {/* Content before table */}
+                          {summaryParts.beforeTable && renderMarkdownContent(summaryParts.beforeTable, '')}
+                          
+                          {/* KPI Table */}
+                          {summaryParts.table && renderMarkdownContent(summaryParts.table, '')}
+                          
+                          {/* KPI Radar Chart - right after table */}
+                          <div style={{ marginTop: '24px', marginBottom: '24px' }}>
+                          <KpiRadarChart 
+                            data={kpiData} 
+                            title="Performance Comparison"
+                          />
+                          </div>
+                          
+                          {/* Content after table */}
+                          {summaryParts.afterTable && renderMarkdownContent(summaryParts.afterTable, '')}
+                        </>
+                      ) : (
+                        renderMarkdownContent(summary, 'No summary available yet. Please wait for the SalesMiner analysis to complete.')
+                      )}
                     </div>
                   </Panel>
 

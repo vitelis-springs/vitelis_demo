@@ -4,20 +4,15 @@
  */
 
 import { AlignmentType, Footer, Paragraph, TextRun } from "docx";
-import {
-  FOOTER_TEXT_COLOR,
-  sectionsConfig,
-  stylesConfig,
-} from "../../../config/docx";
+import { FOOTER_TEXT_COLOR, stylesConfig } from "../../../config/docx";
 import { normalizeColor, pointsToHalfPoints } from "../utils";
 
 /**
  * Build footer with standard footer lines from config
  */
-export function buildFooter(): Footer {
+export function buildFooter(footerLines: string[]): Footer {
   const footerFontSize = stylesConfig.footer.fontSize;
   const footerFontFamily = stylesConfig.footer.fontFamily;
-  const footerLines = sectionsConfig.disclaimer.footerLines;
 
   return new Footer({
     children: footerLines.map(

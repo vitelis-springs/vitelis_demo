@@ -32,6 +32,14 @@ export const stylesConfig = {
       spacingBeforeCm: 0.4,
       spacingAfterCm: 0.2,
     },
+    Heading3: {
+      fontFamily: HEADING_FONT_NAME,
+      fontSize: 12,
+      bold: true,
+      color: HEADING_COLOR,
+      spacingBeforeCm: 0.3,
+      spacingAfterCm: 0.15,
+    },
   },
   defaults: {
     paragraph: {

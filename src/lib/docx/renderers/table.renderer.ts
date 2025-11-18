@@ -92,7 +92,7 @@ export function createTableFromBlock(
                 fill: normalizeColor(context.table.headerBg),
                 type: ShadingType.CLEAR,
               },
-              verticalAlign: VerticalAlign.CENTER,
+              verticalAlign: VerticalAlign.TOP,
             })
         ),
       })
@@ -111,7 +111,7 @@ export function createTableFromBlock(
                   children: renderCellContent(cellInlines),
                 }),
               ],
-              verticalAlign: VerticalAlign.CENTER,
+              verticalAlign: VerticalAlign.TOP,
             })
         ),
       })

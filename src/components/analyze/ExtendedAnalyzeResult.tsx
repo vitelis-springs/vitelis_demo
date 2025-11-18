@@ -9,6 +9,8 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { AnalysisContent, AnalysisData, exportAnalysisReportDocx } from '../../lib/docx-export.client';
+import { extractKPIDataFromMarkdown, splitMarkdownAroundKPITable } from '../../lib/kpi-extractor.client';
+import KpiRadarChart from '../charts/KpiRadarChart';
 import Sidebar from '../ui/sidebar';
 
 const { Title, Text } = Typography;
@@ -21,6 +23,7 @@ interface AnalyzeQuizData {
   country: string;
   useCase: string;
   timeline: string;
+  language?: string;
   additionalInformation?: string;
 }
 
@@ -47,6 +50,12 @@ export default function ExtendedAnalyzeResult({
     setActivePanels(Array.isArray(key) ? key : [key]);
   };
 
+  // Extract KPI data for radar chart
+  const kpiData = summary ? extractKPIDataFromMarkdown(summary) : null;
+  
+  // Split summary to insert chart after table
+  const summaryParts = summary ? splitMarkdownAroundKPITable(summary) : null;
+
  
 
 
@@ -63,6 +72,7 @@ export default function ExtendedAnalyzeResult({
         country: quizData.country,
         useCase: quizData.useCase,
         timeline: quizData.timeline,
+        language: quizData.language,
         additionalInformation: quizData.additionalInformation
       };
 
@@ -315,7 +325,29 @@ export default function ExtendedAnalyzeResult({
                     }}
                   >
                     <div style={{ padding: '24px' }}>
-                      {renderMarkdownContent(summary, 'No summary available yet. Please wait for the analysis to complete.')}
+                      {/* Render summary with chart after table */}
+                      {summaryParts && kpiData ? (
+                        <>
+                          {/* Content before table */}
+                          {summaryParts.beforeTable && renderMarkdownContent(summaryParts.beforeTable, '')}
+                          
+                          {/* KPI Table */}
+                          {summaryParts.table && renderMarkdownContent(summaryParts.table, '')}
+                          
+                          {/* KPI Radar Chart - right after table */}
+                          <div style={{ marginTop: '24px', marginBottom: '24px' }}>
+                          <KpiRadarChart 
+                            data={kpiData} 
+                            title="Performance Comparison"
+                          />
+                          </div>
+                          
+                          {/* Content after table */}
+                          {summaryParts.afterTable && renderMarkdownContent(summaryParts.afterTable, '')}
+                        </>
+                      ) : (
+                        renderMarkdownContent(summary, 'No summary available yet. Please wait for the analysis to complete.')
+                      )}
                     </div>
                   </Panel>
 

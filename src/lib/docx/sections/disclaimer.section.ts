@@ -3,31 +3,48 @@
  * Generates the disclaimer text and footer
  */
 
-import { AlignmentType, Paragraph, TextRun } from "docx";
-import { sectionsConfig, stylesConfig } from "../../../config/docx";
+import { AlignmentType, Bookmark, HeadingLevel, Paragraph, TextRun } from "docx";
+import type { DocxLocaleStrings } from "../../../config/docx";
+import { stylesConfig } from "../../../config/docx";
 import { createParagraphSpacing, paragraphDefaults } from "../renderers";
 import { cmToTwip, normalizeColor, pointsToHalfPoints } from "../utils";
 
 /**
  * Append disclaimer section to document
  */
-export function appendDisclaimer(nodes: Array<Paragraph | any>) {
-  const templateDisclaimer = sectionsConfig.disclaimer;
+export function appendDisclaimer(
+  nodes: Array<Paragraph | any>,
+  disclaimer: DocxLocaleStrings["disclaimer"],
+  bookmarkId?: string
+) {
+  const templateDisclaimer = disclaimer;
 
-  // Main heading
+  // Main heading with bookmark
+  const headingRuns = [
+    new TextRun({
+      text: templateDisclaimer.heading,
+      font: stylesConfig.headingStyles.Heading1.fontFamily,
+      bold: stylesConfig.headingStyles.Heading1.bold,
+      size: pointsToHalfPoints(
+        stylesConfig.headingStyles.Heading1.fontSize
+      ),
+      color: normalizeColor(stylesConfig.headingStyles.Heading1.color),
+    }),
+  ];
+
+  const headingChildren = bookmarkId
+    ? [
+        new Bookmark({
+          id: bookmarkId,
+          children: headingRuns,
+        }),
+      ]
+    : headingRuns;
+
   nodes.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: templateDisclaimer.heading,
-          font: stylesConfig.headingStyles.Heading1.fontFamily,
-          bold: stylesConfig.headingStyles.Heading1.bold,
-          size: pointsToHalfPoints(
-            stylesConfig.headingStyles.Heading1.fontSize
-          ),
-          color: normalizeColor(stylesConfig.headingStyles.Heading1.color),
-        }),
-      ],
+      children: headingChildren,
+      heading: HeadingLevel.HEADING_1,
       spacing: createParagraphSpacing(
         stylesConfig.headingStyles.Heading1.spacingBeforeCm,
         stylesConfig.headingStyles.Heading1.spacingAfterCm,
