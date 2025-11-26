@@ -3,14 +3,13 @@
 import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
 import { useAnalyzeService, useGetAnalyze } from "@hooks/api/useAnalyzeService";
 import { useRunWorkflow } from "@hooks/api/useN8NService";
-import { useAuth } from "@hooks/useAuth";
 import { useGetUserCredits } from "@hooks/api/useUsersService";
 import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import Sidebar from "../ui/sidebar";
-import CreditsDisplay from "../ui/credits-display";
 import { CreditsService } from "../../lib/creditsService";
+import CreditsDisplay from "../ui/credits-display";
+import Sidebar from "../ui/sidebar";
 import AnalyzeResult from "./AnalyzeResult";
 import Animation from "./Animation";
 import ExtendedAnalyzeResult from "./ExtendedAnalyzeResult";
@@ -43,17 +42,17 @@ interface AnalyzeQuizProps {
 	onComplete?: (data: AnalyzeQuizData) => void;
 }
 
-// Standard use case options as fallback
-const STANDARD_USE_CASES = [
-	"Leadership",
-	"AI Maturity",
-	"Insurance CX",
-	"Efficiency",
-  "Leadership | Provision Partners",
-  "Insurance CX | Allianz"
-];
+export enum UseCaseEnum {
+	LEADERSHIP = "Leadership",
+	AI_MATURITY = "AI Maturity",
+	INSURANCE_CX = "Insurance CX",
+	EFFICIENCY = "Efficiency",
+	SALES_AND_GROWTH = "Sales & Growth",
+	LEADERSHIP_PROVISION = "Leadership | Provision Partners",
+	INSURANCE_CX_ALLIANZ = "Insurance CX | Allianz",
+}
 
-const getFormFields = (userUseCases?: string[]) => [
+const getFormFields = () => [
 	{
 		name: "companyName",
 		label: "Company Name",
@@ -113,15 +112,7 @@ const getFormFields = (userUseCases?: string[]) => [
 		label: "Use Case / Analysis Area",
 		type: "select",
 		placeholder: "Select a use case...",
-		options:
-			userUseCases && userUseCases.length > 0
-				? userUseCases.map((uc) =>
-						uc
-							.split("-")
-							.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-							.join(" "),
-					)
-				: STANDARD_USE_CASES,
+		options: Object.values(UseCaseEnum),
 		required: true,
 		rules: [
 			{ required: true, message: "Analysis area is required" }
@@ -176,7 +167,7 @@ export default function AnalyzeQuiz({
 	onComplete: _onComplete,
 }: AnalyzeQuizProps) {
 	const { notification: appNotification } = App.useApp();
-	const { user } = useAuth();
+
 	const [form] = Form.useForm();
 	const [loading, setLoading] = useState(false);
 	const [showResults, setShowResults] = useState(false);
@@ -247,20 +238,8 @@ export default function AnalyzeQuiz({
 		if (analyzeData) {
 			console.log("📊 Component: Analyze data loaded:", analyzeData);
 
-			// Set quiz data from analyze data
-			let displayUseCase = analyzeData.useCase || "";
-
-			// Convert kebab-case use case to readable format for display
-			if (
-				displayUseCase &&
-				user?.usercases &&
-				user.usercases.includes(displayUseCase)
-			) {
-				displayUseCase = displayUseCase
-					.split("-")
-					.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-					.join(" ");
-			}
+		// Set quiz data from analyze data
+		const displayUseCase = analyzeData.useCase || "";
 
 			setQuizData({
 				companyName: analyzeData.companyName || "",
@@ -315,7 +294,7 @@ export default function AnalyzeQuiz({
 			console.log("📝 Component: Loading quiz progress");
 			setShowResults(false);
 		}
-	}, [analyzeData, user?.usercases]);
+	}, [analyzeData]);
 
 	const showNotification = (
 		type: "error" | "warning" | "info" | "success",
@@ -399,16 +378,6 @@ export default function AnalyzeQuiz({
 	const handleFormSubmit = async () => {
 		try {
 			const values = await form.validateFields();
-
-			// Convert use case back to kebab-case if it's from user's custom use cases
-			if (values.useCase && user?.usercases && user.usercases.length > 0) {
-				const kebabCaseUseCase = values.useCase
-					.toLowerCase()
-					.replace(/\s+/g, "-");
-				if (user.usercases.includes(kebabCaseUseCase)) {
-					values.useCase = kebabCaseUseCase;
-				}
-			}
 
 			const updatedQuizData = { ...quizData, ...values };
 			setQuizData(updatedQuizData);
@@ -650,7 +619,7 @@ export default function AnalyzeQuiz({
 									initialValues={{ ...quizData, competitors: quizData.competitors || [] }}
 									style={{ width: "100%" }}
 								>
-									{getFormFields(user?.usercases).map((field) => (
+									{getFormFields().map((field) => (
 										<Form.Item
 											key={field.name}
 											name={field.name}
@@ -722,7 +691,7 @@ export default function AnalyzeQuiz({
 														},
 													}}
 												>
-													{field.options?.map((option) => (
+													{field.options?.map((option: string) => (
 														<Option key={option} value={option}>
 															<Text style={{ color: "#d9d9d9" }}>{option}</Text>
 														</Option>
