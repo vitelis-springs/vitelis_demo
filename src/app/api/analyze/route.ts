@@ -56,9 +56,11 @@ export async function GET(request: NextRequest) {
 
     if (userId) {
       // Get all analyzes for a user
-      const analyzes = await AnalyzeServiceServer.getAnalyzesByUser(userId);
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '10');
+      const result = await AnalyzeServiceServer.getAnalyzesByUser(userId, page, limit);
 
-      return NextResponse.json(analyzes);
+      return NextResponse.json(result);
     }
 
     // Get all analyzes (admin)

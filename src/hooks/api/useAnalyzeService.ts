@@ -45,11 +45,10 @@ const analyzeApi = {
   },
 
   // Get all analyzes for a user
-  async getByUser(userId: string): Promise<IAnalyze[]> {
-    const response = await api.get(`/analyze?userId=${userId}`);
-    console.log('🌐 Client: getByUser response:', response);
-    console.log('🌐 Client: response.data:', response.data);
-    return response.data.data || response.data; // Handle both formats
+  async getByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ data: IAnalyze[], total: number, page: number, limit: number }> {
+    const response = await api.get(`/analyze?userId=${userId}&page=${page}&limit=${limit}`);
+
+    return response.data;
   },
 
   // Get all analyzes (admin)
@@ -60,12 +59,9 @@ const analyzeApi = {
 
   // Update analyze record
   async update({ id, ...data }: UpdateAnalyzeData): Promise<IAnalyze> {
-    console.log('🌐 Client: Starting update request with:', { id, data });
     const requestBody = { analyzeId: id, ...data };
-    console.log('📤 Client: Request body:', requestBody);
     
     const response = await api.post('/analyze', requestBody);
-    console.log('✅ Client: Update successful, returning data:', response.data);
     return response.data;
   },
 
@@ -132,10 +128,10 @@ export const useGetAnalyze = (id: string | null, options?: {
 };
 
 // Get analyzes by user hook
-export const useGetAnalyzesByUser = (userId: string | null) => {
+export const useGetAnalyzesByUser = (userId: string | null, page: number = 1, limit: number = 10) => {
   return useQuery({
-    queryKey: ['analyzes', userId],
-    queryFn: () => analyzeApi.getByUser(userId!),
+    queryKey: ['analyzes', userId, page, limit],
+    queryFn: () => analyzeApi.getByUser(userId!, page, limit),
     enabled: !!userId,
   });
 };
@@ -152,8 +148,8 @@ export const useGetAllAnalyzes = () => {
 export const useGetLatestProgress = (userId: string | null) => {
   return useQuery({
     queryKey: ['analyzes', userId, 'latest'],
-    queryFn: () => analyzeApi.getByUser(userId!),
+    queryFn: () => analyzeApi.getByUser(userId!, 1, 50), // Fetch first 50 to be safe
     enabled: !!userId,
-    select: (data) => data.find(analyze => analyze.status === 'progress'),
+    select: (response) => response.data.find((analyze: IAnalyze) => analyze.status === 'progress'),
   });
 };

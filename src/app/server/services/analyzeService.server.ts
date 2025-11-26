@@ -1,6 +1,6 @@
-import {ensureDBConnection} from "../../../lib/mongodb";
-import Analyze, {type IAnalyze} from "../models/Analyze";
-import {CreditsServiceServer} from "./creditsService.server";
+import { ensureDBConnection } from "../../../lib/mongodb";
+import Analyze, { type IAnalyze } from "../models/Analyze";
+import { CreditsServiceServer } from "./creditsService.server";
 
 export interface AnalyzeData {
   companyName: string;
@@ -30,11 +30,27 @@ export class AnalyzeServiceServer {
     }
   }
 
-  // Get all analyze records for a user
-  static async getAnalyzesByUser(userId: string): Promise<IAnalyze[]> {
+  // Get all analyze records for a user with pagination
+  static async getAnalyzesByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ data: IAnalyze[], total: number, page: number, limit: number }> {
     try {
       await ensureDBConnection();
-      return await Analyze.find({ user: userId }).sort({ createdAt: -1 }).exec();
+      const skip = (page - 1) * limit;
+      
+      const [data, total] = await Promise.all([
+        Analyze.find({ user: userId })
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        Analyze.countDocuments({ user: userId })
+      ]);
+
+      return {
+        data,
+        total,
+        page,
+        limit
+      };
     } catch (error) {
       console.error("Error fetching analyze records:", error);
       throw new Error("Failed to fetch analyze records");

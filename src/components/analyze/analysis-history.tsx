@@ -1,36 +1,34 @@
 'use client';
 
-import { useAuth } from '../../hooks/useAuth';
-import Sidebar from '../ui/sidebar';
 import {
-  Layout,
-  Card,
-  Typography,
-  Space,
-  Avatar,
-  List,
-  Tag,
-  Button,
-  Empty,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  FileTextOutlined,
+  LoadingOutlined,
+  RobotOutlined,
+  StopOutlined
+} from '@ant-design/icons';
+import {
   message as antMessage,
+  Avatar,
+  Button,
+  Card,
+  Empty,
+  Layout,
+  List,
+  Space,
   Spin,
   Tabs,
+  Tag,
+  Typography,
 } from 'antd';
-import {
-  UserOutlined,
-  RobotOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  LoadingOutlined,
-  ExclamationCircleOutlined,
-  StopOutlined,
-} from '@ant-design/icons';
-import { useState, useEffect } from 'react';
-import { useAnalyzeService, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useAnalyzeService, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
+import { useAuth } from '../../hooks/useAuth';
+import Sidebar from '../ui/sidebar';
 import SalesMinerAnalysisHistory from './salesminer-analysis-history';
 
 const { Content } = Layout;
@@ -41,8 +39,12 @@ function RegularAnalysisHistory() {
   const { user } = useAuth();
   const router = useRouter();
   const [analyses, setAnalyses] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
   const { deleteAnalyze } = useAnalyzeService();
-  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(user?._id || null);
+  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(user?._id || null, currentPage, pageSize);
 
   const fetchAnalyses = async () => {
     try {
@@ -55,15 +57,18 @@ function RegularAnalysisHistory() {
 
   useEffect(() => {
     console.log('📊 AnalysisHistory: analysesData changed:', analysesData);
-    console.log('📊 AnalysisHistory: user ID being used:', user?._id);
-    if (analysesData && analysesData.data) {
-      console.log('📊 AnalysisHistory: Setting analyses from data:', analysesData.data);
-      setAnalyses(analysesData.data);
-    } else if (analysesData) {
-      console.log('📊 AnalysisHistory: Setting analyses directly:', analysesData);
-      setAnalyses(analysesData);
+    if (analysesData) {
+      // Handle both new paginated format and potential old format (though we updated the API)
+      if ('data' in analysesData && Array.isArray(analysesData.data)) {
+        setAnalyses(analysesData.data);
+        setTotal(analysesData.total);
+      } else if (Array.isArray(analysesData)) {
+        // Fallback for old format if something goes wrong
+        setAnalyses(analysesData);
+        setTotal(analysesData.length);
+      }
     }
-  }, [analysesData, user?._id]);
+  }, [analysesData]);
 
   useEffect(() => {
     console.log('📊 AnalysisHistory: user changed:', user);
@@ -98,6 +103,8 @@ function RegularAnalysisHistory() {
       await deleteAnalyze.mutateAsync(analysisId);
       setAnalyses(prev => prev.filter(analysis => analysis._id !== analysisId));
       antMessage.success('Analysis deleted successfully');
+      // Refetch to update list and total count
+      refetch();
     } catch (error) {
       console.error('Error deleting analysis:', error);
       antMessage.error('Failed to delete analysis');
@@ -115,6 +122,11 @@ function RegularAnalysisHistory() {
     router.push(`/analyze-quiz?analyzeId=${analysisId}`);
   };
 
+  const handlePageChange = (page: number, size?: number) => {
+    setCurrentPage(page);
+    if (size) setPageSize(size);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Analysis List */}
@@ -127,7 +139,6 @@ function RegularAnalysisHistory() {
             min-width: 600px !important;
           }
         `}</style>
-        {console.log('📊 AnalysisHistory: Rendering - isLoadingAnalyses:', isLoadingAnalyses, 'analyses.length:', analyses.length)}
         {isLoadingAnalyses ? (
           <Card
             style={{
@@ -147,6 +158,17 @@ function RegularAnalysisHistory() {
           <div style={{ minWidth: '400px' }}>
             <List
               dataSource={analyses}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: total,
+                onChange: handlePageChange,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50'],
+                position: 'bottom',
+                align: 'center',
+                style: { marginTop: '24px' }
+              }}
               style={{ 
                 minWidth: '400px',
                 width: '100%'
