@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         throw new Error('Invalid JWT format');
       }
 
-      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      const payload = JSON.parse(atob(tokenParts[1]?.replace(/-/g, '+').replace(/_/g, '/') || ''));
 
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
@@ -64,7 +64,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all analyzes (admin)
-    const analyzes = await AnalyzeServiceServer.getAllAnalyzes();
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const analyzes = await AnalyzeServiceServer.getAllAnalyzes(page, limit);
     return NextResponse.json(analyzes);
 
   } catch (error) {
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
         throw new Error('Invalid JWT format');
       }
 
-      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      const payload = JSON.parse(atob(tokenParts[1]?.replace(/-/g, '+').replace(/_/g, '/') || ''));
 
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     // Extract user ID from JWT token
     const tokenParts = token.split('.');
-    const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const payload = JSON.parse(atob(tokenParts[1]?.replace(/-/g, '+').replace(/_/g, '/') || ''));
     const userId = payload.userId;
     const userRole = payload.role;
 
@@ -178,7 +180,7 @@ export async function DELETE(request: NextRequest) {
         throw new Error('Invalid JWT format');
       }
 
-      const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      const payload = JSON.parse(atob(tokenParts[1]?.replace(/-/g, '+').replace(/_/g, '/') || ''));
 
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {

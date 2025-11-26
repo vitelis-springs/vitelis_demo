@@ -26,7 +26,7 @@ import {
 } from 'antd';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAnalyzeService, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
+import { useAnalyzeService, useGetAllAnalyzes, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
 import SalesMinerAnalysisHistory from './salesminer-analysis-history';
@@ -36,7 +36,7 @@ const { Title, Text } = Typography;
 
 // Regular Analysis History Component
 function RegularAnalysisHistory() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const router = useRouter();
   const [analyses, setAnalyses] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -44,7 +44,12 @@ function RegularAnalysisHistory() {
   const [pageSize, setPageSize] = useState(10);
   
   const { deleteAnalyze } = useAnalyzeService();
-  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(user?._id || null, currentPage, pageSize);
+  
+  // Use different hooks based on role
+  const userQuery = useGetAnalyzesByUser(user?._id || null, currentPage, pageSize);
+  const adminQuery = useGetAllAnalyzes(currentPage, pageSize);
+  
+  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = isAdmin() ? adminQuery : userQuery;
 
   const fetchAnalyses = async () => {
     try {
@@ -206,9 +211,16 @@ function RegularAnalysisHistory() {
                     }
                     title={
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text strong style={{ color: '#d9d9d9', fontSize: '16px' }}>
-                          {analysis.companyName || 'Unnamed Company'}
-                        </Text>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <Text strong style={{ color: '#d9d9d9', fontSize: '16px' }}>
+                            {analysis.companyName || 'Unnamed Company'}
+                          </Text>
+                          {isAdmin() && analysis.user && (
+                            <Text style={{ color: '#58bfce', fontSize: '12px' }}>
+                              User: {analysis.user.firstName} {analysis.user.lastName} ({analysis.user.email})
+                            </Text>
+                          )}
+                        </div>
                         <Space>
                           <Tag 
                             color={

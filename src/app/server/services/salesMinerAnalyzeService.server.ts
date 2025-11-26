@@ -1,6 +1,5 @@
-import {ensureDBConnection} from "../../../lib/mongodb";
-import SalesMinerAnalyze, {type ISalesMinerAnalyze} from "../models/SalesMinerAnalyze";
-import {CreditsServiceServer} from "./creditsService.server";
+import { ensureDBConnection } from "../../../lib/mongodb";
+import SalesMinerAnalyze, { type ISalesMinerAnalyze } from "../models/SalesMinerAnalyze";
 
 export interface SalesMinerAnalyzeData {
   companyName: string;
@@ -24,72 +23,68 @@ export interface SalesMinerAnalyzeData {
 }
 
 export class SalesMinerAnalyzeServiceServer {
-  // Create a new sales miner analyze record
-  static async createSalesMinerAnalyze(data: SalesMinerAnalyzeData): Promise<ISalesMinerAnalyze> {
-    try {
-      await ensureDBConnection();
-      const salesMinerAnalyze = new SalesMinerAnalyze(data);
-      return await salesMinerAnalyze.save();
-    } catch (error) {
-      console.error("Error creating sales miner analyze record:", error);
-      throw new Error("Failed to create sales miner analyze record");
-    }
-  }
-
   // Get all sales miner analyze records for a user
-  static async getSalesMinerAnalyzesByUser(userId: string): Promise<ISalesMinerAnalyze[]> {
+  static async getSalesMinerAnalyzesByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ data: ISalesMinerAnalyze[], total: number, page: number, limit: number }> {
     try {
       await ensureDBConnection();
-      return await SalesMinerAnalyze.find({ user: userId })
+      const skip = (page - 1) * limit;
+      
+      let query = {};
+      if (userId !== 'all') {
+        query = { user: userId };
+      }
+
+      const total = await (SalesMinerAnalyze as any).countDocuments(query);
+      
+      let dbQuery = (SalesMinerAnalyze as any).find(query)
         .sort({ createdAt: -1 })
-        .exec();
+        .skip(skip)
+        .limit(limit);
+        
+      if (userId === 'all') {
+        dbQuery = dbQuery.populate('user', 'firstName lastName email');
+      }
+      
+      const data = await dbQuery.exec();
+        
+      return { data, total, page, limit };
     } catch (error) {
       console.error("Error fetching sales miner analyze records:", error);
       throw new Error("Failed to fetch sales miner analyze records");
     }
   }
 
-  // Get sales miner analyze record by ID
   static async getSalesMinerAnalyzeById(id: string): Promise<ISalesMinerAnalyze | null> {
     try {
       await ensureDBConnection();
-      return await SalesMinerAnalyze.findById(id).exec();
+      return await (SalesMinerAnalyze as any).findById(id).exec();
     } catch (error) {
       console.error("Error fetching sales miner analyze record:", error);
       throw new Error("Failed to fetch sales miner analyze record");
     }
   }
 
-  // Update a sales miner analyze record
-  static async updateSalesMinerAnalyze(id: string, data: Partial<SalesMinerAnalyzeData>): Promise<ISalesMinerAnalyze | null> {
+  static async createSalesMinerAnalyze(data: Partial<ISalesMinerAnalyze>): Promise<ISalesMinerAnalyze> {
     try {
-      console.log("🔄 Server: Starting updateSalesMinerAnalyze with:", { id, data });
       await ensureDBConnection();
-
-      // Get current sales miner analyze record to check previous status
-      const currentSalesMinerAnalyze = await SalesMinerAnalyze.findById(id).exec();
-      if (currentSalesMinerAnalyze) {
-        // Handle credit refunds based on status change
-        if (currentSalesMinerAnalyze.user) {
-          await CreditsServiceServer.handleStatusChangeRefund(
-            currentSalesMinerAnalyze.user.toString(),
-            currentSalesMinerAnalyze.status,
-            data.status
-          );
-        }
-      }
-
-      const UPDATE_RESULT = await SalesMinerAnalyze.findByIdAndUpdate(
-        id,
-        { ...data, updatedAt: new Date() },
-        { new: true },
-      ).exec();
-
-      console.log("📊 Server: UPDATE_RESULT:", UPDATE_RESULT);
-      console.log("✅ Server: Update completed successfully");
-      return UPDATE_RESULT;
+      const analyze = new SalesMinerAnalyze(data);
+      return await analyze.save();
     } catch (error) {
-      console.error("❌ Server: Error updating sales miner analyze record:", error);
+      console.error("Error creating sales miner analyze record:", error);
+      throw new Error("Failed to create sales miner analyze record");
+    }
+  }
+
+  static async updateSalesMinerAnalyze(id: string, data: Partial<ISalesMinerAnalyze>): Promise<ISalesMinerAnalyze | null> {
+    try {
+      await ensureDBConnection();
+      return await (SalesMinerAnalyze as any).findByIdAndUpdate(
+        id,
+        { $set: data },
+        { new: true }
+      ).exec();
+    } catch (error) {
+      console.error("Error updating sales miner analyze record:", error);
       throw new Error("Failed to update sales miner analyze record");
     }
   }
@@ -107,11 +102,10 @@ export class SalesMinerAnalyzeServiceServer {
     }
   }
 
-  // Delete a sales miner analyze record
   static async deleteSalesMinerAnalyze(id: string): Promise<boolean> {
     try {
       await ensureDBConnection();
-      const result = await SalesMinerAnalyze.findByIdAndDelete(id).exec();
+      const result = await (SalesMinerAnalyze as any).findByIdAndDelete(id).exec();
       return !!result;
     } catch (error) {
       console.error("Error deleting sales miner analyze record:", error);

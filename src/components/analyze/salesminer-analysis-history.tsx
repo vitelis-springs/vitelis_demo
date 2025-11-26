@@ -1,41 +1,49 @@
 'use client';
 
-import { useAuth } from '../../hooks/useAuth';
 import {
-  Card,
-  Typography,
-  Space,
-  Avatar,
-  List,
-  Tag,
-  Button,
-  Empty,
-  message as antMessage,
-  Spin,
-} from 'antd';
-import {
-  RobotOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  DeleteOutlined,
   CheckCircleOutlined,
-  LoadingOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
   ExclamationCircleOutlined,
-  StopOutlined,
   LinkOutlined,
+  LoadingOutlined,
+  RobotOutlined,
+  StopOutlined
 } from '@ant-design/icons';
-import { useState, useEffect } from 'react';
-import { useSalesMinerAnalyzeService, useGetSalesMinerAnalyzesByUser } from '../../hooks/api/useSalesMinerAnalyzeService';
+import {
+  message as antMessage,
+  Avatar,
+  Button,
+  Card,
+  Empty,
+  List,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useGetAllSalesMinerAnalyzes, useGetSalesMinerAnalyzesByUser, useSalesMinerAnalyzeService } from '../../hooks/api/useSalesMinerAnalyzeService';
+import { useAuth } from '../../hooks/useAuth';
 
 const { Title, Text } = Typography;
 
 export default function SalesMinerAnalysisHistory() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const router = useRouter();
   const [analyses, setAnalyses] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const { deleteSalesMinerAnalyze } = useSalesMinerAnalyzeService();
-  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetSalesMinerAnalyzesByUser(user?._id || null);
+  
+  // Use different hooks based on role
+  const userQuery = useGetSalesMinerAnalyzesByUser(user?._id || null, currentPage, pageSize);
+  const adminQuery = useGetAllSalesMinerAnalyzes(currentPage, pageSize);
+  
+  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = isAdmin() ? adminQuery : userQuery;
 
   const fetchAnalyses = async () => {
     try {
@@ -47,14 +55,14 @@ export default function SalesMinerAnalysisHistory() {
   };
 
   useEffect(() => {
-    console.log('📊 SalesMinerAnalysisHistory: analysesData changed:', analysesData);
-    console.log('📊 SalesMinerAnalysisHistory: user ID being used:', user?._id);
-    if (analysesData && analysesData.data) {
-      console.log('📊 SalesMinerAnalysisHistory: Setting analyses from data:', analysesData.data);
-      setAnalyses(analysesData.data);
-    } else if (analysesData) {
-      console.log('📊 SalesMinerAnalysisHistory: Setting analyses directly:', analysesData);
-      setAnalyses(analysesData);
+    if (analysesData) {
+      if ('data' in analysesData && Array.isArray(analysesData.data)) {
+        setAnalyses(analysesData.data);
+        setTotal(analysesData.total);
+      } else if (Array.isArray(analysesData)) {
+        setAnalyses(analysesData);
+        setTotal(analysesData.length);
+      }
     }
   }, [analysesData, user?._id]);
 
@@ -63,7 +71,6 @@ export default function SalesMinerAnalysisHistory() {
   }, [user]);
 
   useEffect(() => {
-    console.log('📊 SalesMinerAnalysisHistory: analyses state changed:', analyses);
     console.log('📊 SalesMinerAnalysisHistory: analyses length:', analyses.length);
   }, [analyses]);
 
@@ -108,6 +115,11 @@ export default function SalesMinerAnalysisHistory() {
     }
   };
 
+  const handlePageChange = (page: number, size?: number) => {
+    setCurrentPage(page);
+    if (size) setPageSize(size);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Analysis List */}
@@ -120,7 +132,6 @@ export default function SalesMinerAnalysisHistory() {
             min-width: 600px !important;
           }
         `}</style>
-        {console.log('📊 SalesMinerAnalysisHistory: Rendering - isLoadingAnalyses:', isLoadingAnalyses, 'analyses.length:', analyses.length)}
         {isLoadingAnalyses ? (
           <Card
             style={{
@@ -140,6 +151,17 @@ export default function SalesMinerAnalysisHistory() {
           <div style={{ minWidth: '400px' }}>
             <List
               dataSource={analyses}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: total,
+                onChange: handlePageChange,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50'],
+                position: 'bottom',
+                align: 'center',
+                style: { marginTop: '24px' }
+              }}
               style={{ 
                 minWidth: '400px',
                 width: '100%'
@@ -177,9 +199,16 @@ export default function SalesMinerAnalysisHistory() {
                     }
                     title={
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text strong style={{ color: '#d9d9d9', fontSize: '16px' }}>
-                          {analysis.companyName || 'Unnamed Company'}
-                        </Text>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <Text strong style={{ color: '#d9d9d9', fontSize: '16px' }}>
+                            {analysis.companyName || 'Unnamed Company'}
+                          </Text>
+                          {isAdmin() && analysis.user && (
+                            <Text style={{ color: '#52c41a', fontSize: '12px' }}>
+                              User: {analysis.user.firstName} {analysis.user.lastName} ({analysis.user.email})
+                            </Text>
+                          )}
+                        </div>
                         <Space>
                           <Tag 
                             color={

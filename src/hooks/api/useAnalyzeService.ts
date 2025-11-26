@@ -52,8 +52,8 @@ const analyzeApi = {
   },
 
   // Get all analyzes (admin)
-  async getAll(): Promise<IAnalyze[]> {
-    const response = await api.get('/analyze');
+  async getAll(page: number = 1, limit: number = 10): Promise<{ data: IAnalyze[], total: number, page: number, limit: number }> {
+    const response = await api.get(`/analyze?page=${page}&limit=${limit}`);
     return response.data;
   },
 
@@ -137,10 +137,10 @@ export const useGetAnalyzesByUser = (userId: string | null, page: number = 1, li
 };
 
 // Get all analyzes hook (admin)
-export const useGetAllAnalyzes = () => {
+export const useGetAllAnalyzes = (page: number = 1, limit: number = 10) => {
   return useQuery({
-    queryKey: ['analyzes'],
-    queryFn: analyzeApi.getAll,
+    queryKey: ['analyzes', 'all', page, limit],
+    queryFn: () => analyzeApi.getAll(page, limit),
   });
 };
 
