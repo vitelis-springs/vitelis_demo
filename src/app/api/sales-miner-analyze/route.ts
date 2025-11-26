@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SalesMinerAnalyzeServiceServer } from '../../server/services/salesMinerAnalyzeService.server';
 import { CreditsServiceServer } from '../../server/services/creditsService.server';
+import { SalesMinerAnalyzeServiceServer } from '../../server/services/salesMinerAnalyzeService.server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,24 +145,18 @@ export async function POST(request: NextRequest) {
 
     if (analyzeId) {
       // Update existing sales miner analyze
-      console.log('🔄 API: Updating sales miner analyze with ID:', analyzeId);
       const updatedSalesMinerAnalyze = await SalesMinerAnalyzeServiceServer.updateSalesMinerAnalyze(analyzeId, data);
-      console.log('📥 API: Update result from service:', updatedSalesMinerAnalyze);
 
       if (!updatedSalesMinerAnalyze) {
-        console.log('❌ API: Sales miner analyze record not found');
         return NextResponse.json(
           { error: 'Sales miner analyze record not found' },
           { status: 404 }
         );
       }
-      console.log('✅ API: Update successful, returning:', updatedSalesMinerAnalyze);
       return NextResponse.json(updatedSalesMinerAnalyze);
     } else {
       // Create new sales miner analyze with user ID
-      console.log('🆕 API: Creating new sales miner analyze for user:', userId);
       const salesMinerAnalyzeDataWithUser = { ...data, user: userId };
-      console.log('📝 API: Creating sales miner analyze with data:', salesMinerAnalyzeDataWithUser);
       const newSalesMinerAnalyze = await SalesMinerAnalyzeServiceServer.createSalesMinerAnalyze(salesMinerAnalyzeDataWithUser);
 
       // Deduct credits after successful creation (only for users with role "user")

@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
         throw new Error('Token expired');
       }
 
-      console.log('🔍 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('🔍 API: JWT validation failed:', jwtError);
       return NextResponse.json(
@@ -42,7 +41,6 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');
 
-    console.log('🔍 API: GET request received with params:', { id, userId });
 
     if (id) {
       // Get specific analyze by ID
@@ -58,13 +56,7 @@ export async function GET(request: NextRequest) {
 
     if (userId) {
       // Get all analyzes for a user
-      console.log('👤 API: Fetching analyzes for user:', userId);
-      console.log('🔍 API: Query parameter userId:', userId);
-      console.log('🔍 API: Query parameter type:', typeof userId);
-
       const analyzes = await AnalyzeServiceServer.getAnalyzesByUser(userId);
-      console.log('📊 API: Found analyzes:', analyzes.length);
-      console.log('📊 API: Analyzes data:', analyzes);
 
       return NextResponse.json(analyzes);
     }
@@ -109,7 +101,6 @@ export async function POST(request: NextRequest) {
         throw new Error('Token expired');
       }
 
-      console.log('📝 API: Authenticated user:', { userId: payload.userId, email: payload.email, role: payload.role });
     } catch (jwtError) {
       console.error('📝 API: JWT validation failed:', jwtError);
       return NextResponse.json(
@@ -118,38 +109,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📝 API: POST request received');
     const body = await request.json();
     const { analyzeId, ...data } = body;
-    console.log('📝 API: Request body parsed:', { analyzeId, data });
 
     // Extract user ID from JWT token
     const tokenParts = token.split('.');
     const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
     const userId = payload.userId;
     const userRole = payload.role;
-    console.log('👤 API: Creating/updating analyze for user:', userId);
 
     if (analyzeId) {
       // Update existing analyze
-      console.log('🔄 API: Updating analyze with ID:', analyzeId);
       const updatedAnalyze = await AnalyzeServiceServer.updateAnalyze(analyzeId, data);
-      console.log('📥 API: Update result from service:', updatedAnalyze);
 
       if (!updatedAnalyze) {
-        console.log('❌ API: Analyze record not found');
         return NextResponse.json(
           { error: 'Analyze record not found' },
           { status: 404 }
         );
       }
-      console.log('✅ API: Update successful, returning:', updatedAnalyze);
       return NextResponse.json(updatedAnalyze);
     } else {
       // Create new analyze with user ID
-      console.log('🆕 API: Creating new analyze for user:', userId);
       const analyzeDataWithUser = { ...data, user: userId };
-      console.log('📝 API: Creating analyze with data:', analyzeDataWithUser);
       const newAnalyze = await AnalyzeServiceServer.createAnalyze(analyzeDataWithUser);
 
       // Deduct credits after successful creation (only for users with role "user")

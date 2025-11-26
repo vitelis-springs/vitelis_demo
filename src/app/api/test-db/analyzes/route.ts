@@ -8,10 +8,7 @@ export async function GET(request: NextRequest) {
     
     // Get all analyze records
     const analyzes = await Analyze.find({}).lean();
-    
-    console.log('🔍 Test DB: Found analyzes:', analyzes.length);
-    console.log('🔍 Test DB: Analyzes data:', analyzes);
-    
+
     return NextResponse.json({
       success: true,
       count: analyzes.length,

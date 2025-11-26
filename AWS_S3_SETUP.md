@@ -84,8 +84,8 @@ function MyComponent() {
   const handleFileUpload = async (file: File) => {
     const result = await uploadFile(file, 'my-folder');
     if (result) {
-      console.log('Uploaded URL:', result.url);
-      console.log('S3 Key:', result.key);
+      console.error('Uploaded URL:', result.url);
+      console.error('S3 Key:', result.key);
     }
   };
 
