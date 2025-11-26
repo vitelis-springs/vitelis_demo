@@ -4,7 +4,7 @@ export enum BizminerUseCaseEnum {
   INSURANCE_CX = "Insurance CX",
   EFFICIENCY = "Efficiency",
   SALES_AND_GROWTH = "Sales & Growth",
-  LEADERSHIP_PROVISION = "Leadership | Provision Partners",
+  HOSPITALITY_PROVISION = "Hospitality | Provision Partners",
   INSURANCE_CX_ALLIANZ = "Insurance CX | Allianz",
 }
 
