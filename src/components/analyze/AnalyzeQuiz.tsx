@@ -4,6 +4,7 @@ import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/ico
 import { useAnalyzeService, useGetAnalyze } from "@hooks/api/useAnalyzeService";
 import { useRunWorkflow } from "@hooks/api/useN8NService";
 import { useGetUserCredits } from "@hooks/api/useUsersService";
+import { BizminerUseCaseEnum } from "@shared/constants/use-cases";
 import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -40,16 +41,6 @@ interface AnalyzeQuizData {
 
 interface AnalyzeQuizProps {
 	onComplete?: (data: AnalyzeQuizData) => void;
-}
-
-export enum UseCaseEnum {
-	LEADERSHIP = "Leadership",
-	AI_MATURITY = "AI Maturity",
-	INSURANCE_CX = "Insurance CX",
-	EFFICIENCY = "Efficiency",
-	SALES_AND_GROWTH = "Sales & Growth",
-	LEADERSHIP_PROVISION = "Leadership | Provision Partners",
-	INSURANCE_CX_ALLIANZ = "Insurance CX | Allianz",
 }
 
 const getFormFields = () => [
@@ -112,7 +103,7 @@ const getFormFields = () => [
 		label: "Use Case / Analysis Area",
 		type: "select",
 		placeholder: "Select a use case...",
-		options: Object.values(UseCaseEnum),
+		options: Object.values(BizminerUseCaseEnum),
 		required: true,
 		rules: [
 			{ required: true, message: "Analysis area is required" }
@@ -159,7 +150,13 @@ const getFormFields = () => [
 		type: "competitors",
 		placeholder: "Add competitor information",
 		required: false,
-		rules: [{ max: 5, message: 'Maximum 5 competitors allowed',type: 'array' }],
+		rules: [
+			{
+				type: "array" as const,
+				max: 5,
+				message: "Maximum 5 competitors allowed",
+			},
+		],
 	},
 ];
 
@@ -236,7 +233,6 @@ export default function AnalyzeQuiz({
 	// Handle analyze data
 	useEffect(() => {
 		if (analyzeData) {
-			console.log("📊 Component: Analyze data loaded:", analyzeData);
 
 		// Set quiz data from analyze data
 		const displayUseCase = analyzeData.useCase || "";

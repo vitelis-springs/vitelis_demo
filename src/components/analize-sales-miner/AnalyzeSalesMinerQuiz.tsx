@@ -4,16 +4,18 @@ import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/ico
 import { useSalesMinerWorkflow } from "@hooks/api/useN8NService";
 import { useGetSalesMinerAnalyze, useSalesMinerAnalyzeService } from "@hooks/api/useSalesMinerAnalyzeService";
 import { useGetUserCredits } from "@hooks/api/useUsersService";
+import { SALES_MINER_USE_CASES } from "@shared/constants/use-cases";
 import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
+import type { FormListFieldData, FormListOperation, Rule } from "antd/es/form";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CreditsService } from "../../lib/creditsService";
+import CreditsDisplay from "../ui/credits-display";
 import Sidebar from "../ui/sidebar";
 import SalesMinerAnalyzeResult from "./SalesMinerAnalyzeResult";
 import SalesMinerAnimation from "./SalesMinerAnimation";
 import SalesMinerExtendedAnalyzeResult from "./SalesMinerExtendedAnalyzeResult";
 import SalesMinerYamlViewer from "./SalesMinerYamlViewer";
-import CreditsDisplay from "../ui/credits-display";
-import { CreditsService } from "../../lib/creditsService";
 const { TextArea } = Input;
 
 const { Title, Text } = Typography;
@@ -41,7 +43,40 @@ interface AnalyzeSalesMinerQuizProps {
 	onComplete?: (data: AnalyzeSalesMinerQuizData) => void;
 }
 
-const getFormFields = () => [
+type QuizFieldType = "input" | "textarea" | "select" | "competitors";
+
+interface QuizFormField {
+	name: keyof AnalyzeSalesMinerQuizData;
+	label: string;
+	type: QuizFieldType;
+	placeholder: string;
+	required?: boolean;
+	options?: readonly string[];
+	rules?: Rule[];
+}
+
+const getFieldRules = (field: QuizFormField): Rule[] | undefined => {
+	if (field.type === "competitors") {
+		return undefined;
+	}
+
+	if (field.rules) {
+		return field.rules;
+	}
+
+	if (field.required) {
+		return [
+			{
+				required: true,
+				message: `${field.label} is required`,
+			},
+		];
+	}
+
+	return undefined;
+};
+
+const getFormFields = (): QuizFormField[] => [
 	{
 		name: "companyName",
 		label: "Company Name",
@@ -100,7 +135,7 @@ const getFormFields = () => [
 		label: "Use Case / Analysis Area",
 		type: "select",
 		placeholder: "Select a use case...",
-		options: ["Qualtrics" ,"ON24","Equinix"],
+		options: SALES_MINER_USE_CASES,
 		required: true,
     rules: [
 			{ required: true, message: "Analysis area is required" }
@@ -147,7 +182,6 @@ const getFormFields = () => [
 		type: "competitors",
 		placeholder: "Add competitor information",
 		required: false,
-    rules: [{ max: 5, message: 'Maximum 5 competitors allowed',type: 'array' }],
 	},
 ];
 
@@ -385,11 +419,8 @@ export default function AnalyzeSalesMinerQuiz({
 			const completeData = { ...quizData, ...values };
 			// Add the useCase field for SalesMiner
 			const salesMinerData = { ...completeData };
-			console.log("🚀 Starting N8N workflow with SalesMiner data:", salesMinerData);
-			console.log("🏢 Competitors data being sent to N8N:", salesMinerData.competitors);
 
 			const result = await mutateAsync({ data: salesMinerData, isTest });
-			console.log("✅ N8N workflow result:", result);
 
 			if (result && result.success !== false && result.executionId) {
 				setExecutionId(result.executionId.toString());
@@ -629,12 +660,7 @@ export default function AnalyzeSalesMinerQuiz({
 													{field.label}
 												</Text>
 											}
-											rules={[
-												{
-													required: field.required,
-													message: "This field is required",
-												},
-											]}
+											rules={getFieldRules(field)}
 											style={{ marginBottom: "24px" }}
 										>
 											{field.type === "input" ? (
@@ -693,8 +719,8 @@ export default function AnalyzeSalesMinerQuiz({
 													))}
 												</Select>
 											) : field.type === "competitors" ? (
-												<Form.List name="competitors" rules={[{ max: 5, message: 'Maximum 5 competitors allowed',type: 'array'}]}>
-													{(fields, { add, remove }) => (
+												<Form.List name="competitors">
+													{(fields: FormListFieldData[], { add, remove }: FormListOperation) => (
 														<div>
 															{fields.map(({ key, name, ...restField }) => (
 																<Space

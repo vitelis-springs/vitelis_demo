@@ -1,10 +1,9 @@
 'use client';
 
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -20,26 +19,12 @@ export default function LoginForm() {
     setError('');
     setLoading(true);
 
-    console.log('🔐 Login Form: Starting login process...');
-    console.log('🔐 Login Form: Form data:', {
-      email: email,
-      passwordLength: password.length,
-      passwordPreview: password.substring(0, 3) + '...',
-      emailValid: email.includes('@'),
-      passwordValid: password.length > 0
-    });
-
     try {
-      console.log('🔐 Login Form: Calling login function...');
       const result = await login({ email, password });
-      console.log('🔐 Login Form: Login result received:', result);
      
       if (result.success) {
-        console.log('✅ Login Form: Login successful, redirecting...');
-        // Redirect to dashboard or main page after successful login
         router.push('/');
       } else {
-        console.log('❌ Login Form: Login failed with error:', result.error);
         setError(result.error || 'Login failed. Please try again.');
       }
     } catch (err) {

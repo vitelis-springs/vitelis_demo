@@ -1,38 +1,39 @@
 "use client";
 
 import {
-	DeleteOutlined,
-	EditOutlined,
-	FilterOutlined,
-	PlusOutlined,
-	ReloadOutlined,
-	SearchOutlined,
-	TeamOutlined,
-	UserOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  FilterOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  TeamOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
-	type User,
-	useDeleteUser,
-	useGetUsers,
+  type User,
+  useDeleteUser,
+  useGetUsers,
 } from "@hooks/api/useUsersService";
 import { useAuth } from "@hooks/useAuth";
+import { formatUseCaseLabel } from "@shared/constants/use-cases";
 import {
-	Avatar,
-	Button,
-	Card,
-	Col,
-	Input,
-	Layout,
-	Modal,
-	Row,
-	Select,
-	Space,
-	Table,
-	Tag,
-	Typography,
-	message,
+  Avatar,
+  Button,
+  Card,
+  Col,
+  Input,
+  Layout,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  message,
 } from "antd";
-import { useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Sidebar from "../ui/sidebar";
 import CreateUserModal from "./create-user-modal";
 import EditUserModal from "./edit-user-modal";
@@ -44,7 +45,6 @@ const { Option } = Select;
 
 export default function Users() {
 	const { user } = useAuth();
-	const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 	const [searchText, setSearchText] = useState("");
 	const [roleFilter, setRoleFilter] = useState<string>("all");
 	const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -55,70 +55,70 @@ export default function Users() {
 	const { data: usersData, isLoading: isLoadingUsers, refetch } = useGetUsers();
 	const { mutateAsync: deleteUser } = useDeleteUser();
 
-	// Set users when data is fetched
-	useEffect(() => {
-		if (usersData) {
-			console.log("📊 Users: Users data received:", usersData);
-			setFilteredUsers(usersData);
-		}
-	}, [usersData]);
+	const normalizedSearch = searchText.trim().toLowerCase();
 
-	// Filter users based on search text and role
-	useEffect(() => {
-		if (!usersData) return;
-
-		let filtered = usersData;
-
-		if (searchText) {
-			filtered = filtered.filter(
-				(user) =>
-					user.email.toLowerCase().includes(searchText.toLowerCase()) ||
-					user.companyName?.toLowerCase().includes(searchText.toLowerCase()) ||
-					user.firstName?.toLowerCase().includes(searchText.toLowerCase()) ||
-					user.lastName?.toLowerCase().includes(searchText.toLowerCase()),
-			);
+	const filteredUsers = useMemo(() => {
+		if (!usersData) {
+			return [];
 		}
 
-		if (roleFilter !== "all") {
-			filtered = filtered.filter((user) => user.role === roleFilter);
-		}
+		return usersData.filter((candidate) => {
+			const searchTargets = [
+				candidate.email,
+				candidate.companyName,
+				candidate.firstName,
+				candidate.lastName,
+			];
 
-		setFilteredUsers(filtered);
-	}, [usersData, searchText, roleFilter]);
+			const matchesSearch =
+				!normalizedSearch ||
+				searchTargets.some((target) =>
+					target?.toLowerCase().includes(normalizedSearch),
+				);
 
-	const handleSearch = (value: string) => {
-		setSearchText(value);
-	};
+			const matchesRole = roleFilter === "all" || candidate.role === roleFilter;
 
-	const handleRoleFilterChange = (value: string) => {
-		setRoleFilter(value);
-	};
-	const handleAddUser = () => {
-		setIsCreateModalVisible(true);
-	};
-
-	const handleEditUser = (user: User) => {
-		setEditingUser(user);
-		setIsEditModalVisible(true);
-	};
-
-	const handleDeleteUser = (userId: string) => {
-		Modal.confirm({
-			title: "Are you sure you want to delete this user?",
-			content: "This action cannot be undone.",
-			okText: "Yes",
-			okType: "danger",
-			cancelText: "No",
-			onOk: async () => {
-				try {
-					await deleteUser(userId);
-					message.success("User deleted successfully");
-				} catch (error) {
-					message.error("Failed to delete user");
-				}
-			},
+			return matchesSearch && matchesRole;
 		});
-	};
+	}, [usersData, normalizedSearch, roleFilter]);
+
+	const handleSearch = useCallback((value: string) => {
+		setSearchText(value);
+	}, []);
+
+	const handleRoleFilterChange = useCallback((value: string) => {
+		setRoleFilter(value);
+	}, []);
+
+	const handleAddUser = useCallback(() => {
+		setIsCreateModalVisible(true);
+	}, []);
+
+	const handleEditUser = useCallback((userToEdit: User) => {
+		setEditingUser(userToEdit);
+		setIsEditModalVisible(true);
+	}, []);
+
+	const handleDeleteUser = useCallback(
+		(userId: string) => {
+			Modal.confirm({
+				title: "Are you sure you want to delete this user?",
+				content: "This action cannot be undone.",
+				okText: "Yes",
+				okType: "danger",
+				cancelText: "No",
+				onOk: async () => {
+					try {
+						await deleteUser(userId);
+						message.success("User deleted successfully");
+					} catch (error) {
+						message.error("Failed to delete user");
+					}
+				},
+			});
+		},
+		[deleteUser],
+	);
 
 	const handleCreateModalClose = () => {
 		setIsCreateModalVisible(false);
@@ -129,7 +129,8 @@ export default function Users() {
 		setEditingUser(null);
 	};
 
-	const columns = [
+	const columns = useMemo(
+		() => [
 		{
 			title: "User",
 			key: "user",
@@ -189,42 +190,35 @@ export default function Users() {
 			key: "usercases",
 			render: (usercases: string[]) => (
 				<div>
-					{usercases && usercases.length > 0 ? (
-						<>
-							{usercases.slice(0, 3).map((usecase) => {
-								// Convert kebab-case back to readable format
-								const displayName = usecase
-									.split("-")
-									.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-									.join(" ");
-								return (
-									<Tag
-										key={usecase}
-										color="gray"
-										style={{ marginBottom: 4, fontSize: "12px" }}
-									>
-										{displayName}
-									</Tag>
-								);
-							})}
-							{usercases.length > 3 && (
-								<Tag
-									color="default"
-									style={{ 
-										marginBottom: 4, 
-										fontSize: "12px",
-										background: "#434343",
-										color: "#8c8c8c",
-										border: "1px solid #434343"
-									}}
-								>
-									+{usercases.length - 3}
-								</Tag>
+							{usercases && usercases.length > 0 ? (
+								<>
+									{usercases.slice(0, 3).map((usecase) => (
+										<Tag
+											key={usecase}
+											color="gray"
+											style={{ marginBottom: 4, fontSize: "12px" }}
+										>
+											{formatUseCaseLabel(usecase)}
+										</Tag>
+									))}
+									{usercases.length > 3 && (
+										<Tag
+											color="default"
+											style={{
+												marginBottom: 4,
+												fontSize: "12px",
+												background: "#434343",
+												color: "#8c8c8c",
+												border: "1px solid #434343",
+											}}
+										>
+											+{usercases.length - 3}
+										</Tag>
+									)}
+								</>
+							) : (
+								<span style={{ color: "#8c8c8c" }}>None</span>
 							)}
-						</>
-					) : (
-						<span style={{ color: "#8c8c8c" }}>None</span>
-					)}
 				</div>
 			),
 		},
@@ -269,7 +263,9 @@ export default function Users() {
 				</Space>
 			),
 		},
-	];
+	],
+		[handleDeleteUser, handleEditUser, user?._id],
+	);
 
 	return (
 		<Layout style={{ minHeight: "100vh", background: "#141414" }}>

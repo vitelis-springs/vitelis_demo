@@ -25,7 +25,7 @@ import {
   Typography,
 } from 'antd';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAnalyzeService, useGetAllAnalyzes, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
@@ -61,7 +61,6 @@ function RegularAnalysisHistory() {
   };
 
   useEffect(() => {
-    console.log('📊 AnalysisHistory: analysesData changed:', analysesData);
     if (analysesData) {
       // Handle both new paginated format and potential old format (though we updated the API)
       if ('data' in analysesData && Array.isArray(analysesData.data)) {
@@ -75,13 +74,22 @@ function RegularAnalysisHistory() {
     }
   }, [analysesData]);
 
-  useEffect(() => {
-    console.log('📊 AnalysisHistory: user changed:', user);
-  }, [user]);
+  const statusCounts = useMemo(() => {
+    const baseCounts = {
+      total: 0,
+      finished: 0,
+      progress: 0,
+      error: 0,
+      canceled: 0,
+    };
 
-  useEffect(() => {
-    console.log('📊 AnalysisHistory: analyses state changed:', analyses);
-    console.log('📊 AnalysisHistory: analyses length:', analyses.length);
+    return analyses.reduce((acc, analysis) => {
+      acc.total += 1;
+      if (analysis.status in acc) {
+        acc[analysis.status as keyof typeof acc] += 1;
+      }
+      return acc;
+    }, baseCounts);
   }, [analyses]);
 
   const formatTimeAgo = (dateString: string): string => {
@@ -328,31 +336,31 @@ function RegularAnalysisHistory() {
           <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.length}
+                {statusCounts.total}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Total Analyses</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'finished').length}
+                {statusCounts.finished}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Completed</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'progress').length}
+                {statusCounts.progress}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>In Progress</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'error').length}
+                {statusCounts.error}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Errors</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'canceled').length}
+                {statusCounts.canceled}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Canceled</div>
             </div>
@@ -439,24 +447,24 @@ export default function AnalysisHistory() {
                   margin: 0,
                   padding: '0 16px'
                 }}
-                tabStyle={{
-                  color: '#8c8c8c',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-                activeTabStyle={{
-                  color: '#58bfce'
-                }}
-                styles={{
-                  content: {
-                    flex: 1,
-                    background: '#141414',
-                    border: '1px solid #303030',
-                    borderTop: 'none',
-                    borderRadius: '0 0 12px 12px',
-                    padding: '24px'
-                  }
-                }}
+                // tabStyle={{
+                //   color: '#8c8c8c',
+                //   fontSize: '14px',
+                //   fontWeight: 500
+                // }}
+                // activeTabStyle={{
+                //   color: '#58bfce'
+                // }}
+                // styles={{
+                //   content: {
+                //     flex: 1,
+                //     background: '#141414',
+                //     border: '1px solid #303030',
+                //     borderTop: 'none',
+                //     borderRadius: '0 0 12px 12px',
+                //     padding: '24px'
+                //   }
+                // }}
               />
             </div>
           </div>

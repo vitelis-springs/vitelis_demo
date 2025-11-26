@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface ICompetitor {
   name: string;
@@ -153,8 +153,11 @@ const AnalyzeSchema: Schema = new Schema(
   }
 );
 
-// Create index for better query performance
-AnalyzeSchema.index({ user: 1, createdAt: -1 });
+// Create indexes for better query performance
+AnalyzeSchema.index({ user: 1, createdAt: -1 }); // Main index for user queries with date sorting
+AnalyzeSchema.index({ user: 1, status: 1 }); // Index for filtering by user and status
+AnalyzeSchema.index({ executionId: 1 }); // Index for execution tracking
+AnalyzeSchema.index({ createdAt: -1 }); // Index for date-based queries
 
 const Analyze =
   mongoose.models.Analyze || mongoose.model<IAnalyze>("Analyze", AnalyzeSchema);
