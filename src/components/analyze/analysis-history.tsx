@@ -51,14 +51,14 @@ function RegularAnalysisHistory() {
   
   const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = isAdmin() ? adminQuery : userQuery;
 
-  const fetchAnalyses = async () => {
-    try {
-      await refetch();
-    } catch (error) {
-      console.error('Error fetching analyses:', error);
-      antMessage.error('Failed to fetch analysis history');
-    }
-  };
+  // const fetchAnalyses = async () => {
+  //   try {
+  //     await refetch();
+  //   } catch (error) {
+  //     console.error('Error fetching analyses:', error);
+  //     antMessage.error('Failed to fetch analysis history');
+  //   }
+  // };
 
   useEffect(() => {
     if (analysesData) {
@@ -124,11 +124,11 @@ function RegularAnalysisHistory() {
     }
   };
 
-  const handleRefreshHistory = () => {
-    if (user?._id) {
-      refetch();
-    }
-  };
+  // const handleRefreshHistory = () => {
+  //   if (user?._id) {
+  //     refetch();
+  //   }
+  // };
 
   const handleAnalysisClick = (analysisId: string) => {
     // Navigate to analyze quiz page with analysis ID
@@ -380,7 +380,7 @@ export default function AnalysisHistory() {
     {
       key: 'regular',
       label: (
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <FileTextOutlined />
           Regular Analysis
         </span>
@@ -390,7 +390,7 @@ export default function AnalysisHistory() {
     {
       key: 'salesminer',
       label: (
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <RobotOutlined />
           SalesMiner Analysis
         </span>
@@ -430,7 +430,7 @@ export default function AnalysisHistory() {
             </div>
 
             {/* Tabs */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' , gap: '4px'}}>
               <Tabs
                 activeKey={activeTab}
                 onChange={setActiveTab}
@@ -438,6 +438,7 @@ export default function AnalysisHistory() {
                 style={{
                   flex: 1,
                   display: 'flex',
+                  gap: '4px',
                   flexDirection: 'column'
                 }}
                 tabBarStyle={{
