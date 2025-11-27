@@ -234,7 +234,7 @@ function RegularAnalysisHistory() {
                             color={
                               analysis.status === 'finished' ? 'green' : 
                               analysis.status === 'progress' ? 'blue' : 
-                              analysis.status === 'error' ? 'red' :
+                              analysis.status === 'error' || analysis.status === 'crashed' ? 'red' :
                               analysis.status === 'canceled' ? 'orange' : 'orange'
                             } 
                             style={{ fontSize: '12px' }}
