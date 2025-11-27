@@ -1,22 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Steps, Card, Button, Space, Typography, message, Spin, Layout, Progress } from 'antd';
-import { 
-  UserOutlined, 
-  SolutionOutlined, 
-  LoadingOutlined, 
-  SmileOutlined,
-  CheckCircleOutlined,
-  SearchOutlined,
-  SafetyCertificateOutlined,
+import {
+  AuditOutlined,
   BarChartOutlined,
   FileTextOutlined,
-  AuditOutlined
+  LoadingOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  UserOutlined
 } from '@ant-design/icons';
-import Sidebar from '../ui/sidebar';
-import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
+import { useAnalyzeService } from '@hooks/api/useAnalyzeService';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
+import { Button, Card, Layout, Progress, Steps, Typography } from 'antd';
+import React, { useEffect, useState } from 'react';
+import Sidebar from '../ui/sidebar';
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -63,9 +60,8 @@ export default function Animation({
     if (analyzeData) {
       console.log('🔄 Animation: Analyze data received:', analyzeData);
       
-      if (analyzeData.status === 'error' || analyzeData.status === 'canceled') {
+      if (analyzeData.status === 'error' || analyzeData.status === 'canceled' || analyzeData.status === 'crashed') {
         setExecutionError(`Analysis ${analyzeData.status}. Please try again.`);
-        console.error('❌ Animation: Analysis failed with status:', analyzeData.status);
       }
     }
   }, [analyzeData]);
@@ -76,13 +72,11 @@ export default function Animation({
   
   useEffect(() => {
     if (executionDetails) {
-      console.log('🔄 Animation: Execution details received:', executionDetails);
       
-      if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
-        console.error('❌ Animation: Execution failed with status:', executionDetails.status);
+      if (executionDetails.status === 'canceled' || executionDetails.status === 'error' || executionDetails.status === 'crashed') {
         
         // Update Analyze status to 'error' when execution fails
-        if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
+        if (executionDetails.status === 'canceled' || executionDetails.status === 'error' || executionDetails.status === 'crashed') {
           if (analyzeId) {
             console.log('🔄 Animation: Updating analyze status to error for ID:', analyzeId);
             updateAnalyze.mutateAsync({

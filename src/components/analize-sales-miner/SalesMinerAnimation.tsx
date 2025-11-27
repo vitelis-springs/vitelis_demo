@@ -57,9 +57,8 @@ export default function SalesMinerAnimation({
   useEffect(() => {
     if (analyzeData) {
       
-      if (analyzeData.status === 'error' || analyzeData.status === 'canceled') {
+      if (analyzeData.status === 'error' || analyzeData.status === 'canceled' || analyzeData.status === 'crashed') {
         setExecutionError(`Analysis ${analyzeData.status}. Please try again.`);
-        console.error('❌ SalesMiner Animation: Analysis failed with status:', analyzeData.status);
       }
     }
   }, [analyzeData]);
@@ -68,11 +67,11 @@ export default function SalesMinerAnimation({
   useEffect(() => {
     if (executionDetails) {
       
-      if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
+      if (executionDetails.status === 'canceled' || executionDetails.status === 'error' || executionDetails.status === 'crashed') {
         console.error('❌ SalesMiner Animation: Execution failed with status:', executionDetails.status);
         
         // Update Analyze status to 'error' when execution fails
-        if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
+        if (executionDetails.status === 'canceled' || executionDetails.status === 'error' || executionDetails.status === 'crashed') {
           if (analyzeId) {
             updateAnalyze.mutateAsync({
               id: analyzeId,
