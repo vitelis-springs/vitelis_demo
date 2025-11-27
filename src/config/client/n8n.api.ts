@@ -7,7 +7,7 @@ const BIZMINER_PATH_V2 = "webhook/v2/bizminer"; //! "webhook-test/v2/bizminer" -
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer"; // "webhook-test/v1/salesminer" - test porposes
 const ALIXPARTNER_PATH_V1 = "webhook/v1/alixpartner"; // For future use - "webhook-test/v1/alixpartner" - test porposes
 const BIZMINER_PATH_V1 = "webhook/v1/bizminer"; //! (DEPRECATED) "webhook-test/v1/bizminer" - test porposes
-const BIZMINER_PATH_V3 = "webhook/533cc23b-cde9-4004-8e2b-c050f22cf4bd"; // "webhook-test/v2/bizminer" - test porposes
+const BIZMINER_PATH_V3 = "webhook/v3/bizminer"; // "webhook-test/v2/bizminer" - test porposes
 
 export interface N8NWorkflow {
   id: string;
