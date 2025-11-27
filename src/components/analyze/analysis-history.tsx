@@ -243,7 +243,7 @@ function RegularAnalysisHistory() {
                               <><CheckCircleOutlined /> Completed</>
                             ) : analysis.status === 'progress' ? (
                               <><LoadingOutlined /> In Progress</>
-                            ) : analysis.status === 'error' ? (
+                            ) : analysis.status === 'error' ||  analysis.status === 'crashed'  ? (
                               <><ExclamationCircleOutlined /> Error</>
                             ) : analysis.status === 'canceled' ? (
                               <><StopOutlined /> Canceled</>
