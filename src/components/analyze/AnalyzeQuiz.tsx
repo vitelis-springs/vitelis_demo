@@ -225,10 +225,12 @@ export default function AnalyzeQuiz({
 				additionalInformation: "",
 				competitors: [],
 			});
-			form.resetFields();
+			if (!isLoadingProgress) {
+				form.resetFields();
+			}
 		}
 		setIsLoadingProgress(false);
-	}, [searchParams, form]);
+	}, [searchParams, form, isLoadingProgress]);
 
 	// Handle analyze data
 	useEffect(() => {

@@ -41,7 +41,7 @@ export default function SalesMinerAnalysisHistory() {
   
   // Use different hooks based on role
   const userQuery = useGetSalesMinerAnalyzesByUser(user?._id || null, currentPage, pageSize);
-  const adminQuery = useGetAllSalesMinerAnalyzes(currentPage, pageSize);
+  const adminQuery = useGetAllSalesMinerAnalyzes(currentPage, pageSize, { enabled: isAdmin() });
   
   const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = isAdmin() ? adminQuery : userQuery;
 
@@ -64,7 +64,7 @@ export default function SalesMinerAnalysisHistory() {
         setTotal(analysesData.length);
       }
     }
-  }, [analysesData, user?._id]);
+  }, [analysesData]);
 
   useEffect(() => {
     console.log('📊 SalesMinerAnalysisHistory: user changed:', user);

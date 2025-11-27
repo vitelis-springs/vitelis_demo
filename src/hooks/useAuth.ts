@@ -41,12 +41,14 @@ export const useAuth = () => {
 
   // Function to refresh user data from the server
   const refreshUserData = useCallback(async () => {
-    if (!isLoggedIn || !token || !user?._id) return;
+    const currentUser = useAuthStore.getState().user;
+    const currentToken = useAuthStore.getState().token;
+    const currentIsLoggedIn = useAuthStore.getState().isLoggedIn;
+
+    if (!currentIsLoggedIn || !currentToken || !currentUser?._id) return;
 
     try {
-      const response = await api.get(`/users/${user._id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get(`/users/${currentUser._id}`);
 
       if (response.data.success && response.data.data) {
         console.log("🔄 Auth: Refreshing user data:", response.data.data);
@@ -55,7 +57,7 @@ export const useAuth = () => {
     } catch (error) {
       console.error("❌ Auth: Failed to refresh user data:", error);
     }
-  }, [isLoggedIn, token, user?._id, refreshUser]);
+  }, [refreshUser]);
 
   useEffect(() => {
     refreshSubscriberCount += 1;
@@ -71,15 +73,14 @@ export const useAuth = () => {
 
   // Set up periodic refresh every 60 seconds
   useEffect(() => {
-    if (isLoggedIn && token && user?._id) {
+    if (isLoggedIn && token) {
       refreshCallback = refreshUserData;
-      refreshUserData();
       startRefreshInterval();
     } else {
       refreshCallback = null;
       stopRefreshInterval();
     }
-  }, [isLoggedIn, token, user?._id, refreshUserData]);
+  }, [isLoggedIn, token, refreshUserData]);
 
   // Login function
   const handleLogin = useCallback(

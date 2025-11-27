@@ -90,7 +90,12 @@ export async function GET(request: NextRequest) {
 
     if (userId) {
       // If requesting specific user's data, ensure it matches the token or user is admin
-      if (userId !== payload.userId && payload.role !== "admin") {
+
+      const isAuthorized =
+        String(userId).trim() === String(payload.userId).trim() ||
+        payload.role === "admin";
+
+      if (!isAuthorized) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
