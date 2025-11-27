@@ -1,22 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Steps, Card, Button, Space, Typography, message, Spin, Layout, Progress } from 'antd';
-import { 
-  UserOutlined, 
-  SolutionOutlined, 
-  LoadingOutlined, 
-  SmileOutlined,
-  CheckCircleOutlined,
-  SearchOutlined,
-  SafetyCertificateOutlined,
+import {
+  AuditOutlined,
   BarChartOutlined,
   FileTextOutlined,
-  AuditOutlined
+  LoadingOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  UserOutlined
 } from '@ant-design/icons';
-import Sidebar from '../ui/sidebar';
-import { useAnalyzeService, useGetAnalyze } from '@hooks/api/useAnalyzeService';
+import { useAnalyzeService } from '@hooks/api/useAnalyzeService';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
+import { Button, Card, Layout, Progress, Steps, Typography } from 'antd';
+import React, { useEffect, useState } from 'react';
+import Sidebar from '../ui/sidebar';
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -59,7 +56,6 @@ export default function SalesMinerAnimation({
   // Check analyze status for errors
   useEffect(() => {
     if (analyzeData) {
-      console.log('🔄 SalesMiner Animation: Analyze data received:', analyzeData);
       
       if (analyzeData.status === 'error' || analyzeData.status === 'canceled') {
         setExecutionError(`Analysis ${analyzeData.status}. Please try again.`);
@@ -71,7 +67,6 @@ export default function SalesMinerAnimation({
   // Handle execution status changes
   useEffect(() => {
     if (executionDetails) {
-      console.log('🔄 SalesMiner Animation: Execution details received:', executionDetails);
       
       if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
         console.error('❌ SalesMiner Animation: Execution failed with status:', executionDetails.status);
@@ -79,13 +74,11 @@ export default function SalesMinerAnimation({
         // Update Analyze status to 'error' when execution fails
         if (executionDetails.status === 'canceled' || executionDetails.status === 'error') {
           if (analyzeId) {
-            console.log('🔄 SalesMiner Animation: Updating analyze status to error for ID:', analyzeId);
             updateAnalyze.mutateAsync({
               id: analyzeId,
               status: executionDetails.status,
               executionStatus: executionDetails.status
             }).then(() => {
-              console.log('✅ SalesMiner Animation: Analyze status updated to error');
             }).catch((error) => {
               console.error('❌ SalesMiner Animation: Failed to update analyze status:', error);
             });

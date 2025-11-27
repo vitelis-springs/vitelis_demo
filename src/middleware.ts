@@ -17,11 +17,8 @@ const authRoutes = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  console.log('🛡️ Middleware: Processing request for:', pathname);
-
   // Skip middleware for auth routes
   if (authRoutes.some(route => pathname.startsWith(route))) {
-    console.log('🛡️ Middleware: Skipping auth route');
     return NextResponse.next();
   }
 
@@ -29,11 +26,8 @@ export function middleware(request: NextRequest) {
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   
   if (!isProtectedRoute) {
-    console.log('🛡️ Middleware: Route not protected, continuing');
     return NextResponse.next();
   }
-
-  console.log('🛡️ Middleware: Route is protected, but skipping auth check temporarily');
   
   // TEMPORARILY DISABLED: JWT validation in Edge Runtime
   // TODO: Fix Edge Runtime compatibility issues

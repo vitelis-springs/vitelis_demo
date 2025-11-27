@@ -1,13 +1,13 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { useAuthStore } from '../stores/auth-store';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import { useAuthStore } from "../stores/auth-store";
 
 // Create axios instance with base configuration
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
-    baseURL: '/api',
+    baseURL: "/api",
     timeout: 10000,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
@@ -16,26 +16,33 @@ const createApiClient = (): AxiosInstance => {
     (config) => {
       try {
         const authStore = useAuthStore.getState();
-        console.log('🔐 API Client: Auth store state:', {
+        console.log("🔐 API Client: Auth store state:", {
           hasStore: !!authStore,
           hasToken: !!authStore?.token,
-          token: authStore?.token ? `${authStore.token.substring(0, 20)}...` : 'none'
+          token: authStore?.token
+            ? `${authStore.token.substring(0, 20)}...`
+            : "none",
         });
-        
+
         if (authStore && authStore.token) {
-          config.headers = {
-            ...config.headers,
-            'Authorization': `Bearer ${authStore.token}`,
-            'Content-Type': 'application/json'
-          };
-          console.log('✅ API Client: Added auth headers to request');
+          if (!config.headers) {
+            config.headers = {} as any;
+          }
+          // @ts-ignore - Axios headers handling
+          config.headers["Authorization"] = `Bearer ${authStore.token}`;
+          // @ts-ignore - Axios headers handling
+          config.headers["Content-Type"] = "application/json";
+
+          console.log("✅ API Client: Added auth headers to request");
         } else {
-          console.log('⚠️ API Client: No token found, request will be made without auth');
+          console.log(
+            "⚠️ API Client: No token found, request will be made without auth"
+          );
         }
       } catch (error) {
-        console.warn('❌ API Client: Failed to get auth headers:', error);
+        console.warn("❌ API Client: Failed to get auth headers:", error);
       }
-      
+
       return config;
     },
     (error) => {
@@ -51,17 +58,15 @@ const createApiClient = (): AxiosInstance => {
     (error) => {
       // If we get a 401 (Unauthorized), logout the user
       if (error.response?.status === 401) {
-        console.log('🔐 API Client: Received 401, logging out user');
         const authStore = useAuthStore.getState();
         authStore.logout();
-        
+
         // Redirect to login page
-        if (typeof window !== 'undefined') {
-          console.log('🔐 API Client: Redirecting to login page');
-          window.location.href = '/login';
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
         }
       }
-      
+
       return Promise.reject(error);
     }
   );
@@ -74,23 +79,41 @@ export const apiClient = createApiClient();
 
 // Helper functions for common HTTP methods
 export const api = {
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  get: <T = any>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.get(url, config);
   },
-  
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+
+  post: <T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.post(url, data, config);
   },
-  
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+
+  put: <T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.put(url, data, config);
   },
-  
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+
+  patch: <T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.patch(url, data, config);
   },
-  
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+
+  delete: <T = any>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.delete(url, config);
   },
 };

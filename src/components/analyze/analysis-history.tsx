@@ -1,36 +1,34 @@
 'use client';
 
-import { useAuth } from '../../hooks/useAuth';
-import Sidebar from '../ui/sidebar';
 import {
-  Layout,
-  Card,
-  Typography,
-  Space,
-  Avatar,
-  List,
-  Tag,
-  Button,
-  Empty,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  FileTextOutlined,
+  LoadingOutlined,
+  RobotOutlined,
+  StopOutlined
+} from '@ant-design/icons';
+import {
   message as antMessage,
+  Avatar,
+  Button,
+  Card,
+  Empty,
+  Layout,
+  List,
+  Space,
   Spin,
   Tabs,
+  Tag,
+  Typography,
 } from 'antd';
-import {
-  UserOutlined,
-  RobotOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  LoadingOutlined,
-  ExclamationCircleOutlined,
-  StopOutlined,
-} from '@ant-design/icons';
-import { useState, useEffect } from 'react';
-import { useAnalyzeService, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
 import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useAnalyzeService, useGetAllAnalyzes, useGetAnalyzesByUser } from '../../hooks/api/useAnalyzeService';
+import { useAuth } from '../../hooks/useAuth';
+import Sidebar from '../ui/sidebar';
 import SalesMinerAnalysisHistory from './salesminer-analysis-history';
 
 const { Content } = Layout;
@@ -38,40 +36,60 @@ const { Title, Text } = Typography;
 
 // Regular Analysis History Component
 function RegularAnalysisHistory() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const router = useRouter();
   const [analyses, setAnalyses] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
   const { deleteAnalyze } = useAnalyzeService();
-  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = useGetAnalyzesByUser(user?._id || null);
+  
+  // Use different hooks based on role
+  const userQuery = useGetAnalyzesByUser(user?._id || null, currentPage, pageSize);
+  const adminQuery = useGetAllAnalyzes(currentPage, pageSize);
+  
+  const { data: analysesData, isLoading: isLoadingAnalyses, refetch } = isAdmin() ? adminQuery : userQuery;
 
-  const fetchAnalyses = async () => {
-    try {
-      await refetch();
-    } catch (error) {
-      console.error('Error fetching analyses:', error);
-      antMessage.error('Failed to fetch analysis history');
+  // const fetchAnalyses = async () => {
+  //   try {
+  //     await refetch();
+  //   } catch (error) {
+  //     console.error('Error fetching analyses:', error);
+  //     antMessage.error('Failed to fetch analysis history');
+  //   }
+  // };
+
+  useEffect(() => {
+    if (analysesData) {
+      // Handle both new paginated format and potential old format (though we updated the API)
+      if ('data' in analysesData && Array.isArray(analysesData.data)) {
+        setAnalyses(analysesData.data);
+        setTotal(analysesData.total);
+      } else if (Array.isArray(analysesData)) {
+        // Fallback for old format if something goes wrong
+        setAnalyses(analysesData);
+        setTotal(analysesData.length);
+      }
     }
-  };
+  }, [analysesData]);
 
-  useEffect(() => {
-    console.log('📊 AnalysisHistory: analysesData changed:', analysesData);
-    console.log('📊 AnalysisHistory: user ID being used:', user?._id);
-    if (analysesData && analysesData.data) {
-      console.log('📊 AnalysisHistory: Setting analyses from data:', analysesData.data);
-      setAnalyses(analysesData.data);
-    } else if (analysesData) {
-      console.log('📊 AnalysisHistory: Setting analyses directly:', analysesData);
-      setAnalyses(analysesData);
-    }
-  }, [analysesData, user?._id]);
+  const statusCounts = useMemo(() => {
+    const baseCounts = {
+      total: 0,
+      finished: 0,
+      progress: 0,
+      error: 0,
+      canceled: 0,
+    };
 
-  useEffect(() => {
-    console.log('📊 AnalysisHistory: user changed:', user);
-  }, [user]);
-
-  useEffect(() => {
-    console.log('📊 AnalysisHistory: analyses state changed:', analyses);
-    console.log('📊 AnalysisHistory: analyses length:', analyses.length);
+    return analyses.reduce((acc, analysis) => {
+      acc.total += 1;
+      if (analysis.status in acc) {
+        acc[analysis.status as keyof typeof acc] += 1;
+      }
+      return acc;
+    }, baseCounts);
   }, [analyses]);
 
   const formatTimeAgo = (dateString: string): string => {
@@ -98,21 +116,28 @@ function RegularAnalysisHistory() {
       await deleteAnalyze.mutateAsync(analysisId);
       setAnalyses(prev => prev.filter(analysis => analysis._id !== analysisId));
       antMessage.success('Analysis deleted successfully');
+      // Refetch to update list and total count
+      refetch();
     } catch (error) {
       console.error('Error deleting analysis:', error);
       antMessage.error('Failed to delete analysis');
     }
   };
 
-  const handleRefreshHistory = () => {
-    if (user?._id) {
-      refetch();
-    }
-  };
+  // const handleRefreshHistory = () => {
+  //   if (user?._id) {
+  //     refetch();
+  //   }
+  // };
 
   const handleAnalysisClick = (analysisId: string) => {
     // Navigate to analyze quiz page with analysis ID
     router.push(`/analyze-quiz?analyzeId=${analysisId}`);
+  };
+
+  const handlePageChange = (page: number, size?: number) => {
+    setCurrentPage(page);
+    if (size) setPageSize(size);
   };
 
   return (
@@ -127,7 +152,6 @@ function RegularAnalysisHistory() {
             min-width: 600px !important;
           }
         `}</style>
-        {console.log('📊 AnalysisHistory: Rendering - isLoadingAnalyses:', isLoadingAnalyses, 'analyses.length:', analyses.length)}
         {isLoadingAnalyses ? (
           <Card
             style={{
@@ -147,6 +171,17 @@ function RegularAnalysisHistory() {
           <div style={{ minWidth: '400px' }}>
             <List
               dataSource={analyses}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: total,
+                onChange: handlePageChange,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50'],
+                position: 'bottom',
+                align: 'center',
+                style: { marginTop: '24px' }
+              }}
               style={{ 
                 minWidth: '400px',
                 width: '100%'
@@ -184,9 +219,16 @@ function RegularAnalysisHistory() {
                     }
                     title={
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text strong style={{ color: '#d9d9d9', fontSize: '16px' }}>
-                          {analysis.companyName || 'Unnamed Company'}
-                        </Text>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <Text strong style={{ color: '#d9d9d9', fontSize: '16px' }}>
+                            {analysis.companyName || 'Unnamed Company'}
+                          </Text>
+                          {isAdmin() && analysis.user && (
+                            <Text style={{ color: '#58bfce', fontSize: '12px' }}>
+                              User: {analysis.user.firstName} {analysis.user.lastName} ({analysis.user.email})
+                            </Text>
+                          )}
+                        </div>
                         <Space>
                           <Tag 
                             color={
@@ -294,31 +336,31 @@ function RegularAnalysisHistory() {
           <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.length}
+                {statusCounts.total}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Total Analyses</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'finished').length}
+                {statusCounts.finished}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Completed</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'progress').length}
+                {statusCounts.progress}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>In Progress</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'error').length}
+                {statusCounts.error}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Errors</div>
             </div>
             <div>
               <Text style={{ color: '#d9d9d9', fontSize: '20px', fontWeight: 'bold' }}>
-                {analyses.filter(a => a.status === 'canceled').length}
+                {statusCounts.canceled}
               </Text>
               <div style={{ color: '#8c8c8c', fontSize: '12px' }}>Canceled</div>
             </div>
@@ -338,7 +380,7 @@ export default function AnalysisHistory() {
     {
       key: 'regular',
       label: (
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <FileTextOutlined />
           Regular Analysis
         </span>
@@ -348,7 +390,7 @@ export default function AnalysisHistory() {
     {
       key: 'salesminer',
       label: (
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <RobotOutlined />
           SalesMiner Analysis
         </span>
@@ -388,7 +430,7 @@ export default function AnalysisHistory() {
             </div>
 
             {/* Tabs */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' , gap: '4px'}}>
               <Tabs
                 activeKey={activeTab}
                 onChange={setActiveTab}
@@ -396,6 +438,7 @@ export default function AnalysisHistory() {
                 style={{
                   flex: 1,
                   display: 'flex',
+                  gap: '4px',
                   flexDirection: 'column'
                 }}
                 tabBarStyle={{
@@ -405,24 +448,24 @@ export default function AnalysisHistory() {
                   margin: 0,
                   padding: '0 16px'
                 }}
-                tabStyle={{
-                  color: '#8c8c8c',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-                activeTabStyle={{
-                  color: '#58bfce'
-                }}
-                styles={{
-                  content: {
-                    flex: 1,
-                    background: '#141414',
-                    border: '1px solid #303030',
-                    borderTop: 'none',
-                    borderRadius: '0 0 12px 12px',
-                    padding: '24px'
-                  }
-                }}
+                // tabStyle={{
+                //   color: '#8c8c8c',
+                //   fontSize: '14px',
+                //   fontWeight: 500
+                // }}
+                // activeTabStyle={{
+                //   color: '#58bfce'
+                // }}
+                // styles={{
+                //   content: {
+                //     flex: 1,
+                //     background: '#141414',
+                //     border: '1px solid #303030',
+                //     borderTop: 'none',
+                //     borderRadius: '0 0 12px 12px',
+                //     padding: '24px'
+                //   }
+                // }}
               />
             </div>
           </div>

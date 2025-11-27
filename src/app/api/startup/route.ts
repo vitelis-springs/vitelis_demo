@@ -14,14 +14,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log('🚀 STARTUP API: Server starting, running initialization...');
     
     // Run initialization
     await InitServiceServer.initializeDatabase();
     
     hasInitialized = true;
-    
-    console.log('✅ STARTUP API: Server initialization completed successfully');
     
     return NextResponse.json({
       success: true,

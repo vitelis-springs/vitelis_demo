@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!email || !password) {
-      console.log('❌ Login API: Missing required fields', { email: !!email, password: !!password });
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }

@@ -56,16 +56,37 @@ const salesMinerAnalyzeApi = {
   },
 
   // Get all sales miner analyzes for a user
-  async getByUser(userId: string): Promise<ISalesMinerAnalyze[]> {
-    const response = await api.get(`/sales-miner-analyze?userId=${userId}`);
+  async getByUser(
+    userId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{
+    data: ISalesMinerAnalyze[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const response = await api.get(
+      `/sales-miner-analyze?userId=${userId}&page=${page}&limit=${limit}`
+    );
     console.log("🌐 Client: getByUser response:", response);
     console.log("🌐 Client: response.data:", response.data);
-    return response.data.data || response.data; // Handle both formats
+    return response.data;
   },
 
   // Get all sales miner analyzes (admin)
-  async getAll(): Promise<ISalesMinerAnalyze[]> {
-    const response = await api.get("/sales-miner-analyze");
+  async getAll(
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{
+    data: ISalesMinerAnalyze[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const response = await api.get(
+      `/sales-miner-analyze?userId=all&page=${page}&limit=${limit}`
+    );
     return response.data;
   },
 
@@ -163,19 +184,28 @@ export const useGetSalesMinerAnalyze = (
 };
 
 // Get sales miner analyzes by user hook
-export const useGetSalesMinerAnalyzesByUser = (userId: string | null) => {
+export const useGetSalesMinerAnalyzesByUser = (
+  userId: string | null,
+  page: number = 1,
+  limit: number = 10
+) => {
   return useQuery({
-    queryKey: ["sales-miner-analyzes", userId],
-    queryFn: () => salesMinerAnalyzeApi.getByUser(userId!),
+    queryKey: ["sales-miner-analyzes", userId, page, limit],
+    queryFn: () => salesMinerAnalyzeApi.getByUser(userId!, page, limit),
     enabled: !!userId,
   });
 };
 
 // Get all sales miner analyzes hook (admin)
-export const useGetAllSalesMinerAnalyzes = () => {
+export const useGetAllSalesMinerAnalyzes = (
+  page: number = 1,
+  limit: number = 10,
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
-    queryKey: ["sales-miner-analyzes"],
-    queryFn: salesMinerAnalyzeApi.getAll,
+    queryKey: ["sales-miner-analyzes", "all", page, limit],
+    queryFn: () => salesMinerAnalyzeApi.getAll(page, limit),
+    enabled: options?.enabled !== undefined ? options.enabled : true,
   });
 };
 
@@ -183,9 +213,15 @@ export const useGetAllSalesMinerAnalyzes = () => {
 export const useGetLatestSalesMinerProgress = (userId: string | null) => {
   return useQuery({
     queryKey: ["sales-miner-analyzes", userId, "latest"],
-    queryFn: () => salesMinerAnalyzeApi.getByUser(userId!),
+    queryFn: () => salesMinerAnalyzeApi.getByUser(userId!, 1, 50),
     enabled: !!userId,
-    select: (data) => data.find((analyze) => analyze.status === "progress"),
+    select: (response) => {
+      // Handle both new paginated format and potential old format
+      const data = "data" in response ? response.data : response;
+      return Array.isArray(data)
+        ? data.find((analyze) => analyze.status === "progress")
+        : undefined;
+    },
   });
 };
 

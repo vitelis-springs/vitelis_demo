@@ -1,6 +1,5 @@
-import {ensureDBConnection} from "../../../lib/mongodb";
-import Analyze, {type IAnalyze} from "../models/Analyze";
-import {CreditsServiceServer} from "./creditsService.server";
+import { ensureDBConnection } from "../../../lib/mongodb";
+import Analyze, { type IAnalyze } from "../models/Analyze";
 
 export interface AnalyzeData {
   companyName: string;
@@ -30,11 +29,20 @@ export class AnalyzeServiceServer {
     }
   }
 
-  // Get all analyze records for a user
-  static async getAnalyzesByUser(userId: string): Promise<IAnalyze[]> {
+  // Get all analyze records for a user with pagination
+  static async getAnalyzesByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ data: IAnalyze[], total: number, page: number, limit: number }> {
     try {
       await ensureDBConnection();
-      return await Analyze.find({ user: userId }).sort({ createdAt: -1 }).exec();
+      const skip = (page - 1) * limit;
+      
+      const total = await (Analyze as any).countDocuments({ user: userId });
+      const data = await (Analyze as any).find({ user: userId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec();
+        
+      return { data, total, page, limit };
     } catch (error) {
       console.error("Error fetching analyze records:", error);
       throw new Error("Failed to fetch analyze records");
@@ -42,9 +50,20 @@ export class AnalyzeServiceServer {
   }
 
   // Get all analyze records (admin function)
-  static async getAllAnalyzes(): Promise<IAnalyze[]> {
+  static async getAllAnalyzes(page: number = 1, limit: number = 10): Promise<{ data: IAnalyze[], total: number, page: number, limit: number }> {
     try {
-      return await Analyze.find().sort({ createdAt: -1 }).exec();
+      await ensureDBConnection();
+      const skip = (page - 1) * limit;
+      
+      const total = await (Analyze as any).countDocuments();
+      const data = await (Analyze as any).find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('user', 'firstName lastName email')
+        .exec();
+        
+      return { data, total, page, limit };
     } catch (error) {
       console.error("Error fetching all analyze records:", error);
       throw new Error("Failed to fetch analyze records");
@@ -54,7 +73,8 @@ export class AnalyzeServiceServer {
   // Get a specific analyze record by ID
   static async getAnalyzeById(id: string): Promise<IAnalyze | null> {
     try {
-      return await Analyze.findById(id).exec();
+      await ensureDBConnection();
+      return await (Analyze as any).findById(id).exec();
     } catch (error) {
       console.error("Error fetching analyze record:", error);
       throw new Error("Failed to fetch analyze record");
@@ -62,33 +82,31 @@ export class AnalyzeServiceServer {
   }
 
   // Update an analyze record
-  static async updateAnalyze(id: string, data: Partial<AnalyzeData>): Promise<IAnalyze | null> {
+  static async updateAnalyze(id: string, data: Partial<IAnalyze>): Promise<IAnalyze | null> {
     try {
-      console.log("🔄 Server: Starting updateAnalyze with:", { id, data });
+      await ensureDBConnection();
+      // The original logic for credit refunds based on status change was removed by the instruction.
+      // If this logic is still needed, it should be re-added here.
+      // console.log("🔄 Server: Starting updateAnalyze with:", { id, data });
 
-      // Get current analyze record to check previous status
-      const currentAnalyze = await Analyze.findById(id).exec() as IAnalyze | null;
-      if (currentAnalyze) {
-        // Handle credit refunds based on status change
-        if (currentAnalyze.user) {
-          await CreditsServiceServer.handleStatusChangeRefund(
-            currentAnalyze.user.toString(),
-            currentAnalyze.status,
-            data.status
-          );
-        }
-      }
+      // // Get current analyze record to check previous status
+      // const currentAnalyze = await Analyze.findById(id).exec() as IAnalyze | null;
+      // if (currentAnalyze) {
+      //   // Handle credit refunds based on status change
+      //   if (currentAnalyze.user) {
+      //     await CreditsServiceServer.handleStatusChangeRefund(
+      //       currentAnalyze.user.toString(),
+      //       currentAnalyze.status,
+      //       data.status
+      //     );
+      //   }
+      // }
 
-
-      const UPDATE_RESULT = await Analyze.findByIdAndUpdate(
+      return await (Analyze as any).findByIdAndUpdate(
         id,
-        { ...data, updatedAt: new Date() },
-        { new: true },
+        { $set: data },
+        { new: true }
       ).exec();
-
-      console.log("📊 Server: UPDATE_RESULT:", UPDATE_RESULT);
-      console.log("✅ Server: Update completed successfully");
-      return UPDATE_RESULT;
     } catch (error) {
       console.error("❌ Server: Error updating analyze record:", error);
       throw new Error("Failed to update analyze record");
@@ -98,7 +116,7 @@ export class AnalyzeServiceServer {
   // Get latest progress for a user
   static async getLatestProgress(userId: string): Promise<IAnalyze | null> {
     try {
-      return await Analyze.findOne({
+      return await (Analyze as any).findOne({
         user: userId,
         status: "progress",
       })

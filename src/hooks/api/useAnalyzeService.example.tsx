@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
 import { Button, Card, List, Space, Typography, message } from 'antd';
-import { 
-  useAnalyzeService, 
-  useGetAnalyzesByUser, 
-  useGetAnalyze,
-  useGetLatestProgress,
-  type AnalyzeData 
-} from './useAnalyzeService';
+import { useState } from 'react';
 import { useAuthStore } from '../../stores/auth-store';
+import {
+  useAnalyzeService,
+  useGetAnalyze,
+  useGetAnalyzesByUser,
+  useGetLatestProgress,
+  type AnalyzeData
+} from './useAnalyzeService';
 
 const { Title, Text } = Typography;
 
@@ -19,7 +19,8 @@ export default function AnalyzeServiceExample() {
   const { createAnalyze, updateAnalyze, deleteAnalyze } = useAnalyzeService();
 
   // Query hooks
-  const { data: analyzes, isLoading: isLoadingAnalyzes } = useGetAnalyzesByUser(email);
+  const { data: analysesData, isLoading: isLoadingAnalyzes } = useGetAnalyzesByUser(email);
+  const analyses = analysesData?.data || [];
   const { data: selectedAnalyze, isLoading: isLoadingSelected } = useGetAnalyze(selectedAnalyzeId);
   const { data: latestProgress } = useGetLatestProgress(email);
 
@@ -116,14 +117,14 @@ export default function AnalyzeServiceExample() {
         {/* Analyzes List */}
         <Card style={{ background: '#262626', border: '1px solid #434343' }}>
           <Title level={4} style={{ color: '#58bfce', marginBottom: '16px' }}>
-            Your Analyzes ({analyzes?.length || 0})
+            Your Analyzes ({analyses?.length || 0})
           </Title>
 
           {isLoadingAnalyzes ? (
             <Text style={{ color: '#8c8c8c' }}>Loading analyzes...</Text>
           ) : (
             <List
-              dataSource={analyzes || []}
+              dataSource={analyses || []}
               renderItem={(analyze) => (
                 <List.Item
                   style={{ 

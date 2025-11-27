@@ -2,8 +2,8 @@
 
 import { WalletOutlined } from "@ant-design/icons";
 import { useGetUserCredits } from "@hooks/api/useUsersService";
+import { Card, Spin, Typography } from "antd";
 import { CreditsService } from "../../lib/creditsService";
-import { Card, Typography, Spin } from "antd";
 
 const { Text } = Typography;
 
@@ -61,7 +61,7 @@ export default function CreditsDisplay({
           gap: "8px",
           ...style,
         }}
-        bodyStyle={{ padding: 0 }}
+        styles={{ body: { padding: 0 } }}
       >
         <Spin size="small" />
         <Text
@@ -140,7 +140,7 @@ export default function CreditsDisplay({
         gap: "8px",
         ...style,
       }}
-      bodyStyle={{ padding: 0 }}
+      styles={{ body: { padding: 0 } }}
     >
       {showIcon && (
         <WalletOutlined
