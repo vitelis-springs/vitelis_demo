@@ -19,6 +19,7 @@ export interface ISalesMinerAnalyze extends Document {
   status: "progress" | "finished" | "error" | "canceled";
   currentStep: number;
   executionId?: string;
+  n8nInstance?: string;
   executionStatus?:
     | "started"
     | "inProgress"
@@ -92,6 +93,11 @@ const SalesMinerAnalyzeSchema: Schema = new Schema(
       type: String,
       required: false,
       trim: true,
+    },
+    n8nInstance: {
+      type: String,
+      required: false,
+      default: "salesminer",
     },
     executionStatus: {
       type: String,

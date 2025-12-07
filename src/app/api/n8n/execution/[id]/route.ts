@@ -14,9 +14,19 @@ export async function GET(
       );
     }
 
-    const n8nApiUrl =
-      process.env.N8N_API_URL || "https://vitelis.app.n8n.cloud/";
-    const n8nApiKey = process.env.N8N_API_KEY;
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type");
+
+    let n8nApiUrl = process.env.N8N_API_URL || "https://vitelis.app.n8n.cloud/";
+    let n8nApiKey = process.env.N8N_API_KEY;
+
+    if (type === "salesminer") {
+      n8nApiUrl = process.env.N8N_SALESMINER_URL || n8nApiUrl;
+      n8nApiKey = process.env.N8N_SALESMINER_API_KEY || n8nApiKey;
+    } else if (type === "bizminer") {
+      n8nApiUrl = process.env.N8N_BIZMINER_URL || n8nApiUrl;
+      n8nApiKey = process.env.N8N_BIZMINER_API_KEY || n8nApiKey;
+    }
 
     if (!n8nApiKey) {
       return NextResponse.json(
@@ -27,7 +37,9 @@ export async function GET(
 
     console.log(
       "🔄 Server: Fetching N8N execution details for ID:",
-      executionId
+      executionId,
+      "Type:",
+      type
     );
 
     const response = await fetch(

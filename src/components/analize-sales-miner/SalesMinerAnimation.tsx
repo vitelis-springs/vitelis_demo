@@ -1,13 +1,13 @@
 'use client';
 
 import {
-  AuditOutlined,
-  BarChartOutlined,
-  FileTextOutlined,
-  LoadingOutlined,
-  SafetyCertificateOutlined,
-  SearchOutlined,
-  UserOutlined
+    AuditOutlined,
+    BarChartOutlined,
+    FileTextOutlined,
+    LoadingOutlined,
+    SafetyCertificateOutlined,
+    SearchOutlined,
+    UserOutlined
 } from '@ant-design/icons';
 import { useAnalyzeService } from '@hooks/api/useAnalyzeService';
 import { useGetExecutionDetails } from '@hooks/api/useN8NService';
@@ -47,6 +47,7 @@ export default function SalesMinerAnimation({
   // Poll execution details
   const { data: executionDetails } = useGetExecutionDetails(
     executionId,
+    "salesminer",
     {
       refetchInterval: 5000, // Poll every 5 seconds
       enabled: !!executionId

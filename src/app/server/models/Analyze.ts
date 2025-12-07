@@ -19,6 +19,7 @@ export interface IAnalyze extends Document {
   status: "progress" | "finished" | "error" | "canceled";
   currentStep: number;
   executionId?: string;
+  n8nInstance?: string;
   executionStatus?:
     | "started"
     | "inProgress"
@@ -91,6 +92,11 @@ const AnalyzeSchema: Schema = new Schema(
       type: String,
       required: false,
       trim: true,
+    },
+    n8nInstance: {
+      type: String,
+      required: false,
+      default: "bizminer",
     },
     executionStatus: {
       type: String,

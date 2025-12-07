@@ -107,22 +107,30 @@ export const useSalesMinerWorkflow = () => {
 // Get Execution Details Hook - fetches execution status and custom data
 export const useGetExecutionDetails = (
   executionId: string | null,
+  instanceType: "bizminer" | "salesminer" = "bizminer",
   options?: {
     enabled?: boolean;
     refetchInterval?: number;
   }
 ) => {
   return useQuery({
-    queryKey: ["n8n-execution", executionId],
+    queryKey: ["n8n-execution", executionId, instanceType],
     queryFn: async (): Promise<N8NExecutionDetails> => {
       if (!executionId) {
         throw new Error("Execution ID is required");
       }
 
-      console.log("🌐 Client: Fetching execution details for ID:", executionId);
+      console.log(
+        "🌐 Client: Fetching execution details for ID:",
+        executionId,
+        "Type:",
+        instanceType
+      );
 
       // Use our server-side API endpoint instead of direct N8N API call
-      const response = await fetch(`/api/n8n/execution/${executionId}`);
+      const response = await fetch(
+        `/api/n8n/execution/${executionId}?type=${instanceType}`
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -141,8 +149,8 @@ export const useGetExecutionDetails = (
       return result.data;
     },
     enabled: !!executionId && options?.enabled !== false,
-    refetchInterval: options?.refetchInterval || 5000, // Poll every 5 seconds by default
+    refetchInterval: options?.refetchInterval || 5000,
     refetchIntervalInBackground: true,
-    retry: false, // Отключаем автоматические повторы
+    retry: false,
   });
 };
