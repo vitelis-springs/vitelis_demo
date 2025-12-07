@@ -1,4 +1,3 @@
-import axios from "axios";
 import { NextRequest, NextResponse } from "next/server";
 
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer";
@@ -69,58 +68,64 @@ export async function POST(request: NextRequest) {
     });
 
     // Make request to N8N
-    const response = await axios.post(
-      triggerUrl,
-      {
-        companyName,
-        businessLine,
-        country,
-        useCase,
-        timeline,
-        language,
-        additionalInformation,
-        url,
-        competitors,
-      },
-      {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const response = await fetch(triggerUrl, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-N8N-API-KEY": n8nApiKey,
         },
-        timeout: 30000,
+        body: JSON.stringify({
+          companyName,
+          businessLine,
+          country,
+          useCase,
+          timeline,
+          language,
+          additionalInformation,
+          url,
+          competitors,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(
+          `N8N API request failed with status ${response.status}`
+        );
       }
-    );
 
-    // Check if N8N returned executionId
-    if (!response.data?.executionId) {
-      console.warn(
-        "⚠️ Server: N8N response does not contain executionId. Check N8N workflow configuration."
-      );
-      console.warn(
-        "⚠️ Server: Full N8N response:",
-        JSON.stringify(response.data, null, 2)
-      );
+      const data = await response.json();
+
+      // Check if N8N returned executionId
+      if (!data?.executionId) {
+        console.warn(
+          "⚠️ Server: N8N response does not contain executionId. Check N8N workflow configuration."
+        );
+        console.warn(
+          "⚠️ Server: Full N8N response:",
+          JSON.stringify(data, null, 2)
+        );
+      }
+
+      return NextResponse.json(data);
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      throw error;
     }
-
-    return NextResponse.json(response.data);
   } catch (error: any) {
     console.error("❌ Server: Error calling N8N SalesMiner API:", error);
 
-    if (axios.isAxiosError(error)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            error.response?.data?.message ||
-            error.message ||
-            "N8N API request failed",
-        },
-        { status: error.response?.status || 500 }
-      );
-    }
-
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
+      {
+        success: false,
+        error: error.message || "N8N API request failed",
+      },
       { status: 500 }
     );
   }
