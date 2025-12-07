@@ -2,10 +2,8 @@ import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 
 const N8N_API_URL =
   process.env.NEXT_PUBLIC_N8N_API_URL || "https://vitelis.app.n8n.cloud/";
-const N8N_BIZMINER_URL =
-  process.env.NEXT_PUBLIC_N8N_BIZMINER_URL || N8N_API_URL;
-const N8N_SALESMINER_URL =
-  process.env.NEXT_PUBLIC_N8N_SALESMINER_URL || N8N_API_URL;
+const N8N_BIZMINER_URL = process.env.N8N_BIZMINER_URL || N8N_API_URL;
+const N8N_SALESMINER_URL = process.env.N8N_SALESMINER_URL || N8N_API_URL;
 
 const BIZMINER_PATH_V2_ALLIANZ = "webhook/v2/bizminer/allianz"; // specific for Allianz use case
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer";
@@ -50,7 +48,7 @@ export class N8NApiClient {
   private alixpartner_path: string;
   private bizminer_alllianz: string;
 
-  constructor(baseURL: string = N8N_API_URL) {
+  constructor(baseURL: string = "") {
     this.baseURL = baseURL;
 
     this.bizminer_path = BIZMINER_PATH_V2_DEFAULT;
