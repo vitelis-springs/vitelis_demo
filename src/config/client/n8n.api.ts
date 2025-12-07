@@ -50,8 +50,7 @@ export class N8NApiClient {
     language?: string;
     additionalInformation?: string;
   }): Promise<any> {
-    console.log("🌐 Client: Starting BizMiner workflow via backend API");
-    console.log("📤 Client: Request data:", data);
+    console.log("📤 Client: Starting BizMiner workflow via backend API", data);
 
     const response = await fetch("/api/n8n/bizminer/start", {
       method: "POST",

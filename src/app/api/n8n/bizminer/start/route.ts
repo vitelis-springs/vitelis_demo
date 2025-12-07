@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
       timeline,
       language,
       additionalInformation,
+      competitors,
+      url,
     } = body;
 
     // Validate required fields
@@ -57,6 +59,8 @@ export async function POST(request: NextRequest) {
     console.log("🌐 Server: Making N8N BizMiner API request to:", triggerUrl);
     console.log("📤 Server: Request data:", {
       companyName,
+      url,
+      competitors,
       businessLine,
       country,
       useCase,
@@ -74,6 +78,8 @@ export async function POST(request: NextRequest) {
         timeline,
         language,
         additionalInformation,
+        url,
+        competitors,
       },
       {
         headers: {

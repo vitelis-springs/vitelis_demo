@@ -63,7 +63,7 @@ export const useRunWorkflow = () => {
       // If workflowId provided, use the trigger workflow method
       return n8nApi.startWorkflow(data);
     },
-    retry: false, // Отключаем автоматические повторы
+    retry: false,
   });
 };
 
