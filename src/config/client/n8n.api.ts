@@ -45,8 +45,7 @@ export class N8NApiClient {
   private baseURL: string;
   private bizminer_path: string;
   private salesminer_path: string;
-  private alixpartner_path: string;
-  private bizminer_alllianz: string;
+  private bizminer_allianz: string;
 
   constructor(baseURL: string = "") {
     this.baseURL = baseURL;
@@ -54,7 +53,7 @@ export class N8NApiClient {
     this.bizminer_path = BIZMINER_PATH_V2_DEFAULT;
     this.salesminer_path = SALESMINER_PATH_V1;
     this.alixpartner_path = ALIXPARTNER_PATH_V1;
-    this.bizminer_alllianz = BIZMINER_PATH_V2_ALLIANZ;
+    this.bizminer_allianz = BIZMINER_PATH_V2_ALLIANZ;
 
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -82,8 +81,7 @@ export class N8NApiClient {
     });
     client.interceptors.request.use((config) => {
       const apiKey =
-        process.env.NEXT_PUBLIC_N8N_BIZMINER_API_KEY ||
-        process.env.NEXT_PUBLIC_N8N_API_KEY;
+        process.env.N8N_BIZMINER_API_KEY || process.env.NEXT_PUBLIC_N8N_API_KEY;
       if (apiKey) {
         config.headers["X-N8N-API-KEY"] = `${apiKey}`;
       }
@@ -102,7 +100,7 @@ export class N8NApiClient {
     });
     client.interceptors.request.use((config) => {
       const apiKey =
-        process.env.NEXT_PUBLIC_N8N_SALESMINER_API_KEY ||
+        process.env.N8N_SALESMINER_API_KEY ||
         process.env.NEXT_PUBLIC_N8N_API_KEY;
       if (apiKey) {
         config.headers["X-N8N-API-KEY"] = `${apiKey}`;
@@ -151,7 +149,7 @@ export class N8NApiClient {
     // Use the environment variable for the trigger URL
     let triggerUrl = `${this.bizminer_path}`;
     if (data.useCase.toLowerCase().indexOf("allianz") !== -1) {
-      triggerUrl = `${this.bizminer_alllianz}`;
+      triggerUrl = `${this.bizminer_allianz}`;
     }
 
     console.log("🌐 Making N8N API request to:", triggerUrl);
