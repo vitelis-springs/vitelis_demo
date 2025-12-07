@@ -67,13 +67,13 @@ export class N8NApiClient {
     }
 
     const result = await response.json();
-    console.log("📥 Client: BizMiner workflow result.data:", result.data);
+    console.log("📥 Client: BizMiner workflow result.data:", result);
 
-    if (!result.data?.executionId) {
+    if (!result.executionId) {
       console.warn("⚠️ Client: No executionId in response from backend!");
     }
 
-    return result.data;
+    return result;
   }
 
   /**
@@ -107,13 +107,13 @@ export class N8NApiClient {
     }
 
     const result = await response.json();
-    console.log("📥 Client: SalesMiner workflow result.data:", result.data);
+    console.log("📥 Client: SalesMiner workflow result.data:", result);
 
-    if (!result.data?.executionId) {
+    if (!result.executionId) {
       console.warn("⚠️ Client: No executionId in response from backend!");
     }
 
-    return result.data;
+    return result;
   }
 }
 
