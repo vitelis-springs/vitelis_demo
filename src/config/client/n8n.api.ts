@@ -41,7 +41,7 @@ export class N8NApiClient {
    * Start a BizMiner workflow
    * Calls our backend API which then calls N8N
    */
-  async startWorkflow(data: {
+  async startBizminerWorkflow(data: {
     companyName: string;
     businessLine: string;
     country: string;
@@ -67,7 +67,12 @@ export class N8NApiClient {
     }
 
     const result = await response.json();
-    console.log("📥 Client: BizMiner workflow response:", result.data);
+    console.log("📥 Client: BizMiner workflow result.data:", result.data);
+
+    if (!result.data?.executionId) {
+      console.warn("⚠️ Client: No executionId in response from backend!");
+    }
+
     return result.data;
   }
 
@@ -102,7 +107,12 @@ export class N8NApiClient {
     }
 
     const result = await response.json();
-    console.log("📥 Client: SalesMiner workflow response:", result.data);
+    console.log("📥 Client: SalesMiner workflow result.data:", result.data);
+
+    if (!result.data?.executionId) {
+      console.warn("⚠️ Client: No executionId in response from backend!");
+    }
+
     return result.data;
   }
 }

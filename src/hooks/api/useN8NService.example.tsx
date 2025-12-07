@@ -1,4 +1,4 @@
-import { useRunWorkflow } from './useN8NService';
+import { useRunBizminerWorkflow } from './useN8NService';
 
 // Example component showing how to destructure and use TanStack Query properties
 export const WorkflowExample = () => {
@@ -16,7 +16,7 @@ export const WorkflowExample = () => {
     status,
     failureCount,
     failureReason
-  } = useRunWorkflow();
+  } = useRunBizminerWorkflow();
 
   const handleRunDefaultWorkflow = () => {
     mutate({
@@ -86,7 +86,7 @@ export const WorkflowExample = () => {
 
 // Alternative: Destructure only what you need
 export const SimpleWorkflowExample = () => {
-  const { mutate, isLoading, isSuccess, isError, error } = useRunWorkflow();
+  const { mutate, isLoading, isSuccess, isError, error } = useRunBizminerWorkflow();
 
   const handleSubmit = () => {
     mutate({

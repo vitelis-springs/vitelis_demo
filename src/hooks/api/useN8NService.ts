@@ -30,7 +30,7 @@ export interface N8NExecutionDetails {
 }
 
 // Run Workflow Hook - uses default form endpoint if no workflowId provided
-export const useRunWorkflow = () => {
+export const useRunBizminerWorkflow = () => {
   return useMutation({
     mutationFn: async (params: {
       workflowId?: string;
@@ -49,7 +49,7 @@ export const useRunWorkflow = () => {
 
       // If no workflowId provided, use the default form endpoint
       if (!workflowId) {
-        return n8nApi.startWorkflow(
+        return n8nApi.startBizminerWorkflow(
           data as {
             companyName: string;
             businessLine: string;
@@ -61,7 +61,7 @@ export const useRunWorkflow = () => {
       }
 
       // If workflowId provided, use the trigger workflow method
-      return n8nApi.startWorkflow(data);
+      return n8nApi.startBizminerWorkflow(data);
     },
     retry: false,
   });

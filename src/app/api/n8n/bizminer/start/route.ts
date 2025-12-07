@@ -90,12 +90,17 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    console.log("📥 Server: N8N BizMiner API response:", response.data);
+    if (!response.data?.executionId) {
+      console.warn(
+        "⚠️ Server: N8N response does not contain executionId. Check N8N workflow configuration."
+      );
+      console.warn(
+        "⚠️ Server: Full N8N response:",
+        JSON.stringify(response.data, null, 2)
+      );
+    }
 
-    return NextResponse.json({
-      success: true,
-      data: response.data,
-    });
+    return NextResponse.json(response.data);
   } catch (error: any) {
     console.error("❌ Server: Error calling N8N BizMiner API:", error);
 

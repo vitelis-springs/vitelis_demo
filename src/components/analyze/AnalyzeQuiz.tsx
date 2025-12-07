@@ -2,7 +2,7 @@
 
 import { MinusCircleOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
 import { useAnalyzeService, useGetAnalyze } from "@hooks/api/useAnalyzeService";
-import { useRunWorkflow } from "@hooks/api/useN8NService";
+import { useRunBizminerWorkflow } from "@hooks/api/useN8NService";
 import { useGetUserCredits } from "@hooks/api/useUsersService";
 import { BizminerUseCaseEnum } from "@shared/constants/use-cases";
 import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
@@ -188,7 +188,7 @@ export default function AnalyzeQuiz({
 	const searchParams = useSearchParams();
 	const isTest = true;
 
-	const { mutateAsync, isPending } = useRunWorkflow();
+	const { mutateAsync, isPending } = useRunBizminerWorkflow();
 	const { createAnalyze, updateAnalyze } = useAnalyzeService();
 	const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetAnalyze(
 		analyzeId,
