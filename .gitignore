@@ -41,3 +41,11 @@ npm-debug.log*
 
 # yarn release (avoid secret scanner false positives)
 .yarn/releases/*
+
+# AI agent files
+CLAUDE.md
+.cursorrules
+.cursor/
+.github/copilot-instructions.md
+AGENTS.md
+/src/generated/prisma
