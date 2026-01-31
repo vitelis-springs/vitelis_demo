@@ -16,6 +16,7 @@ import {
   LogoutOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -63,6 +64,10 @@ export default function Sidebar() {
       type: 'group' as const,
       label: 'ADMIN',
       children: [{
+        key: '/deep-dive',
+        icon: <AppstoreOutlined style={{ fontSize: '18px' }} />,
+        label: 'Deep Dive',
+      }, {
         key: '/account',
         icon: <UserOutlined style={{ fontSize: '18px' }} />,
         label: 'Users',
