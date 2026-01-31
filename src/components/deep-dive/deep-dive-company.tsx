@@ -105,6 +105,7 @@ export default function DeepDiveCompany({ reportId, companyId }: { reportId: num
   const handleFilterChange = (values: SourceFilterValues) => {
     setFilters((prev) => ({
       ...prev,
+      sourcesOffset: 0,
       tier: values.tier ?? undefined,
       isVectorized: values.isVectorized ?? undefined,
       metaKey: values.metaKey ?? "",

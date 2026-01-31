@@ -304,14 +304,33 @@ export class DeepDiveRepository {
     let metadataGroups: Array<{ value: string | null; count: number }> | null =
       null;
     if (filters.metaGroupBy) {
+      const conditions: Prisma.Sql[] = [
+        Prisma.sql`company_id = ${companyId}`,
+        Prisma.sql`report_id = ${reportId}`,
+      ];
+      if (filters.tier !== undefined) {
+        conditions.push(Prisma.sql`tier = ${filters.tier}`);
+      }
+      if (filters.isVectorized !== undefined) {
+        conditions.push(Prisma.sql`"isVectorized" = ${filters.isVectorized}`);
+      }
+      if (filters.dateFrom) {
+        conditions.push(Prisma.sql`date >= ${filters.dateFrom}`);
+      }
+      if (filters.dateTo) {
+        conditions.push(Prisma.sql`date <= ${filters.dateTo}`);
+      }
+      if (filters.metaKey && filters.metaValue !== undefined) {
+        conditions.push(Prisma.sql`metadata ->> ${filters.metaKey} = ${filters.metaValue}`);
+      }
+
       metadataGroups = await prisma.$queryRaw<
         Array<{ value: string | null; count: number }>
       >`
         SELECT metadata ->> ${filters.metaGroupBy} AS value,
                COUNT(*)::int AS count
         FROM sources
-        WHERE company_id = ${companyId}
-          AND report_id = ${reportId}
+        WHERE ${Prisma.join(conditions, " AND ")}
         GROUP BY value
         ORDER BY count DESC
       `;
