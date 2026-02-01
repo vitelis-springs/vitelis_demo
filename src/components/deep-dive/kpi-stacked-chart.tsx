@@ -61,6 +61,7 @@ export default function KpiStackedChart({
             label={{ value: "Score", angle: -90, position: "insideLeft", style: { fill: "#8c8c8c" } }}
           />
           <Tooltip
+            cursor={{ fill: "rgba(255,255,255,0.04)" }}
             contentStyle={{ background: "#1f1f1f", border: "1px solid #303030", borderRadius: 6 }}
             labelStyle={{ fontWeight: 600 }}
           />

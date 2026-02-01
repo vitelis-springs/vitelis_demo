@@ -11,39 +11,51 @@ const DEFAULT_STATUS_COUNTS = {
 
 export class DeepDiveService {
   static async listDeepDives(params: DeepDiveListParams) {
-    const { items, total } = await DeepDiveRepository.listReports(params);
+    const [{ items, total }, useCases, industries] = await Promise.all([
+      DeepDiveRepository.listReports(params),
+      DeepDiveRepository.getDistinctUseCasesForReports(),
+      DeepDiveRepository.getDistinctIndustriesForReports(),
+    ]);
 
     return {
       success: true,
       data: {
         total,
-        items: items.map((report) => ({
-          id: report.id,
-          name: report.name,
-          description: report.description,
-          createdAt: report.created_at,
-          updatedAt: report.updates_at,
-          status: report.report_orhestrator?.status ?? report_status_enum.PENDING,
-          settings: report.report_settings
-            ? {
-                id: report.report_settings.id,
-                name: report.report_settings.name,
-                masterFileId: report.report_settings.master_file_id,
-                prefix: report.report_settings.prefix,
-                settings: report.report_settings.settings,
-              }
-            : null,
-          useCase: report.use_cases
-            ? {
-                id: report.use_cases.id,
-                name: report.use_cases.name,
-              }
-            : null,
-          counts: {
-            companies: report._count.report_companies,
-            steps: report._count.report_steps,
-          },
-        })),
+        items: items.map((report) => {
+          const firstCompany = report.report_companies[0]?.companies;
+          return {
+            id: report.id,
+            name: report.name,
+            description: report.description,
+            createdAt: report.created_at,
+            updatedAt: report.updates_at,
+            status: report.report_orhestrator?.status ?? report_status_enum.PENDING,
+            settings: report.report_settings
+              ? {
+                  id: report.report_settings.id,
+                  name: report.report_settings.name,
+                  masterFileId: report.report_settings.master_file_id,
+                  prefix: report.report_settings.prefix,
+                  settings: report.report_settings.settings,
+                }
+              : null,
+            useCase: report.use_cases
+              ? {
+                  id: report.use_cases.id,
+                  name: report.use_cases.name,
+                }
+              : null,
+            industryName: firstCompany?.industries?.name ?? null,
+            counts: {
+              companies: report._count.report_companies,
+              steps: report._count.report_steps,
+            },
+          };
+        }),
+        filters: {
+          useCases,
+          industries,
+        },
       },
     };
   }
@@ -163,12 +175,16 @@ export class DeepDiveService {
       stepStatuses,
       kpiResults,
       scrapCandidates,
+      scrapCandidatesTotal,
       sources,
+      kpiAllScores,
     ] = await Promise.all([
       DeepDiveRepository.getCompanyStepStatuses(reportId, companyId),
       DeepDiveRepository.getCompanyKpiResults(reportId, companyId),
       DeepDiveRepository.getCompanyScrapCandidates(companyId, 200),
-      DeepDiveRepository.getCompanySources(reportId, companyId, filters),
+      DeepDiveRepository.getCompanyScrapCandidatesCount(companyId),
+      DeepDiveRepository.getCompanySources(companyId, filters),
+      DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
     ]);
 
     const statusByStepId = new Map<number, typeof stepStatuses[number]>();
@@ -195,6 +211,55 @@ export class DeepDiveService {
       };
     });
 
+    // Build KPI averages for radar chart: report average + top-5 average
+    const companyScores = new Map<number, { name: string; totals: Map<string, number> }>();
+    const categoryScoreSums = new Map<string, { sum: number; count: number }>();
+
+    for (const row of kpiAllScores) {
+      // Accumulate per-company
+      if (!companyScores.has(row.company_id)) {
+        companyScores.set(row.company_id, { name: row.company_name, totals: new Map() });
+      }
+      companyScores.get(row.company_id)!.totals.set(row.category, row.avg_score);
+
+      // Accumulate report-wide per category
+      const cat = categoryScoreSums.get(row.category) ?? { sum: 0, count: 0 };
+      cat.sum += row.avg_score;
+      cat.count += 1;
+      categoryScoreSums.set(row.category, cat);
+    }
+
+    // Report average per category
+    const reportAverage: Record<string, number> = {};
+    categoryScoreSums.forEach(({ sum, count }, cat) => {
+      reportAverage[cat] = Math.round((sum / count) * 10) / 10;
+    });
+
+    // Top-5 companies by total score, then average per category
+    const companyTotals = Array.from(companyScores.entries()).map(([id, { name, totals }]) => {
+      let total = 0;
+      totals.forEach((score) => { total += score; });
+      return { id, name, total, totals };
+    });
+    companyTotals.sort((a, b) => b.total - a.total);
+    const top5 = companyTotals.slice(0, 5);
+
+    const top5Average: Record<string, number> = {};
+    if (top5.length > 0) {
+      const top5Sums = new Map<string, { sum: number; count: number }>();
+      for (const c of top5) {
+        c.totals.forEach((score, cat) => {
+          const entry = top5Sums.get(cat) ?? { sum: 0, count: 0 };
+          entry.sum += score;
+          entry.count += 1;
+          top5Sums.set(cat, entry);
+        });
+      }
+      top5Sums.forEach(({ sum, count }, cat) => {
+        top5Average[cat] = Math.round((sum / count) * 10) / 10;
+      });
+    }
+
     return {
       success: true,
       data: {
@@ -205,6 +270,11 @@ export class DeepDiveService {
           countryCode: company.country_code,
           url: company.url,
           industryId: company.industry_id,
+        },
+        kpiAverages: {
+          reportAverage,
+          top5Average,
+          top5Companies: top5.map((c) => ({ id: c.id, name: c.name, total: Math.round(c.total * 10) / 10 })),
         },
         steps: orderedSteps,
         kpiResults: kpiResults.map((result) => ({
@@ -228,6 +298,7 @@ export class DeepDiveService {
           createdAt: candidate.created_at,
           updatedAt: candidate.updated_at,
         })),
+        scrapCandidatesTotal,
         sources: {
           total: sources.total,
           byTier: sources.byTier.map((row) => ({

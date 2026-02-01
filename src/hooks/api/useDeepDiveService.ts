@@ -21,10 +21,16 @@ export interface DeepDiveListItem {
     id: number;
     name: string;
   } | null;
+  industryName?: string | null;
   counts: {
     companies: number;
     steps: number;
   };
+}
+
+export interface DeepDiveFilterOptions {
+  useCases: Array<{ id: number; name: string }>;
+  industries: Array<{ id: number; name: string }>;
 }
 
 export interface DeepDiveListResponse {
@@ -32,6 +38,7 @@ export interface DeepDiveListResponse {
   data: {
     total: number;
     items: DeepDiveListItem[];
+    filters: DeepDiveFilterOptions;
   };
 }
 
@@ -77,6 +84,12 @@ export interface DeepDiveDetailResponse {
   };
 }
 
+export interface KpiAverages {
+  reportAverage: Record<string, number>;
+  top5Average: Record<string, number>;
+  top5Companies: Array<{ id: number; name: string; total: number }>;
+}
+
 export interface DeepDiveCompanyResponse {
   success: boolean;
   data: {
@@ -88,6 +101,7 @@ export interface DeepDiveCompanyResponse {
       url?: string | null;
       industryId?: number | null;
     };
+    kpiAverages: KpiAverages;
     steps: Array<{
       stepId: number;
       order: number;
@@ -123,6 +137,7 @@ export interface DeepDiveCompanyResponse {
       createdAt?: string | null;
       updatedAt?: string | null;
     }>;
+    scrapCandidatesTotal: number;
     sources: {
       total: number;
       byTier: Array<{ tier: number | null; count: number }>;
@@ -149,6 +164,8 @@ export interface DeepDiveListParams {
   offset?: number;
   q?: string;
   status?: DeepDiveStatus;
+  useCaseId?: number;
+  industryId?: number;
 }
 
 export interface DeepDiveSourcesParams {
@@ -170,6 +187,8 @@ const deepDiveApi = {
     if (params.offset !== undefined) searchParams.set("offset", String(params.offset));
     if (params.q) searchParams.set("q", params.q);
     if (params.status) searchParams.set("status", params.status);
+    if (params.useCaseId !== undefined) searchParams.set("useCaseId", String(params.useCaseId));
+    if (params.industryId !== undefined) searchParams.set("industryId", String(params.industryId));
 
     const response = await api.get(`/deep-dive?${searchParams.toString()}`);
     return response.data;
@@ -213,6 +232,8 @@ export const useGetDeepDives = (params: DeepDiveListParams, options?: { enabled?
       params.offset ?? 0,
       params.q ?? "",
       params.status ?? "",
+      params.useCaseId ?? "",
+      params.industryId ?? "",
     ],
     queryFn: () => deepDiveApi.list(params),
     enabled: options?.enabled ?? true,

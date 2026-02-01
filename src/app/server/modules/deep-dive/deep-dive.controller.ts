@@ -47,12 +47,16 @@ export class DeepDiveController {
       const offset = Math.max(toNumber(searchParams.get("offset")) ?? 0, 0);
       const query = searchParams.get("q")?.trim();
       const status = parseStatus(searchParams.get("status"));
+      const useCaseRaw = toNumber(searchParams.get("useCaseId"));
+      const industryRaw = toNumber(searchParams.get("industryId"));
 
       const result = await DeepDiveService.listDeepDives({
         limit,
         offset,
         query: query || undefined,
         status: status || undefined,
+        useCaseId: useCaseRaw && useCaseRaw > 0 ? useCaseRaw : undefined,
+        industryId: industryRaw && industryRaw > 0 ? industryRaw : undefined,
       });
 
       return NextResponse.json(result);

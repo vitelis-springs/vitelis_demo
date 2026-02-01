@@ -6,6 +6,8 @@ export interface DeepDiveListParams {
   offset: number;
   query?: string;
   status?: report_status_enum;
+  useCaseId?: number;
+  industryId?: number;
 }
 
 export interface SourceFilterParams {
@@ -35,6 +37,16 @@ export class DeepDiveRepository {
       where.report_orhestrator = { status: params.status };
     }
 
+    if (params.useCaseId) {
+      where.use_case_id = params.useCaseId;
+    }
+
+    if (params.industryId) {
+      where.report_companies = {
+        some: { companies: { industry_id: params.industryId } },
+      };
+    }
+
     const [items, total] = await prisma.$transaction([
       prisma.reports.findMany({
         where,
@@ -45,6 +57,10 @@ export class DeepDiveRepository {
           report_settings: true,
           report_orhestrator: true,
           use_cases: true,
+          report_companies: {
+            take: 1,
+            include: { companies: { include: { industries: true } } },
+          },
           _count: {
             select: {
               report_companies: true,
@@ -57,6 +73,25 @@ export class DeepDiveRepository {
     ]);
 
     return { items, total };
+  }
+
+  static async getDistinctUseCasesForReports() {
+    return prisma.$queryRaw<Array<{ id: number; name: string }>>`
+      SELECT DISTINCT uc.id, uc.name
+      FROM use_cases uc
+      JOIN reports r ON r.use_case_id = uc.id
+      ORDER BY uc.name
+    `;
+  }
+
+  static async getDistinctIndustriesForReports() {
+    return prisma.$queryRaw<Array<{ id: number; name: string }>>`
+      SELECT DISTINCT i.id, i.name
+      FROM industries i
+      JOIN companies c ON c.industry_id = i.id
+      JOIN report_companies rc ON rc.company_id = c.id
+      ORDER BY i.name
+    `;
   }
 
   static async getReportById(reportId: number) {
@@ -181,6 +216,12 @@ export class DeepDiveRepository {
     });
   }
 
+  static async getCompanyScrapCandidatesCount(companyId: number) {
+    return prisma.scape_url_candidates.count({
+      where: { company_id: companyId },
+    });
+  }
+
   static async getReportQueriesCount(reportId: number) {
     return prisma.report_data_collection_queries.count({
       where: { report_id: reportId },
@@ -236,13 +277,11 @@ export class DeepDiveRepository {
   }
 
   static async getCompanySources(
-    reportId: number,
     companyId: number,
     filters: SourceFilterParams,
   ) {
     const where: Prisma.sourcesWhereInput = {
       company_id: companyId,
-      report_id: reportId,
     };
 
     if (filters.tier !== undefined) {
@@ -306,7 +345,6 @@ export class DeepDiveRepository {
     if (filters.metaGroupBy) {
       const conditions: Prisma.Sql[] = [
         Prisma.sql`company_id = ${companyId}`,
-        Prisma.sql`report_id = ${reportId}`,
       ];
       if (filters.tier !== undefined) {
         conditions.push(Prisma.sql`tier = ${filters.tier}`);
