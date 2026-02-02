@@ -22,6 +22,26 @@ export interface SourceFilterParams {
   metaGroupBy?: string;
 }
 
+export interface SourcesAnalyticsParams {
+  limit: number;
+  offset: number;
+  tier?: number;
+  qualityClass?: string;
+  isValid?: boolean;
+  agent?: string;
+  category?: string;
+  tag?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  search?: string;
+}
+
+export interface ScrapeCandidatesParams {
+  limit: number;
+  offset: number;
+  search?: string;
+}
+
 export class DeepDiveRepository {
   static async listReports(params: DeepDiveListParams) {
     const where: Prisma.reportsWhereInput = {};
@@ -380,6 +400,224 @@ export class DeepDiveRepository {
       byTier,
       byVectorized,
       metadataGroups,
+    };
+  }
+
+  private static buildSourcesWhere(
+    companyId: number,
+    filters: SourcesAnalyticsParams,
+  ): Prisma.Sql {
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`company_id = ${companyId}`,
+    ];
+
+    if (filters.tier !== undefined) {
+      conditions.push(Prisma.sql`tier = ${filters.tier}`);
+    }
+    if (filters.qualityClass) {
+      conditions.push(Prisma.sql`metadata ->> 'quality_class' = ${filters.qualityClass}`);
+    }
+    if (filters.isValid !== undefined) {
+      conditions.push(Prisma.sql`(metadata ->> 'isValid')::boolean = ${filters.isValid}`);
+    }
+    if (filters.agent) {
+      conditions.push(Prisma.sql`metadata -> 'agents' ? ${filters.agent}`);
+    }
+    if (filters.category) {
+      conditions.push(Prisma.sql`metadata -> 'categories' ? ${filters.category}`);
+    }
+    if (filters.tag) {
+      conditions.push(Prisma.sql`metadata -> 'tags' ? ${filters.tag}`);
+    }
+    if (filters.dateFrom) {
+      conditions.push(Prisma.sql`date >= ${filters.dateFrom}`);
+    }
+    if (filters.dateTo) {
+      conditions.push(Prisma.sql`date <= ${filters.dateTo}`);
+    }
+    if (filters.search) {
+      const pattern = `%${filters.search}%`;
+      conditions.push(Prisma.sql`(title ILIKE ${pattern} OR url ILIKE ${pattern})`);
+    }
+
+    return Prisma.join(conditions, " AND ");
+  }
+
+  static async getSourcesAnalytics(
+    companyId: number,
+    filters: SourcesAnalyticsParams,
+  ) {
+    // Use $queryRaw(Prisma.sql`...`) function-call syntax instead of tagged template.
+    // Tagged template $queryRaw`...` treats Prisma.Sql objects as plain parameters
+    // and serializes them as JSON strings. Function-call syntax lets Prisma.sql
+    // properly compose nested Prisma.Sql fragments before sending to $queryRaw.
+    const w = () => this.buildSourcesWhere(companyId, filters);
+
+    const [
+      totalUnfilteredResult,
+      totalFilteredResult,
+      qualityClassAgg,
+      vectorizedCountResult,
+      queryIdsAgg,
+      agentsAgg,
+      categoriesAgg,
+      tagsAgg,
+      isValidAgg,
+      scoresAgg,
+      items,
+    ] = await Promise.all([
+      prisma.$queryRaw<[{ count: number }]>(
+        Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE company_id = ${companyId}`
+      ),
+      prisma.$queryRaw<[{ count: number }]>(
+        Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE ${w()}`
+      ),
+      prisma.$queryRaw<Array<{ value: string | null; count: number }>>(
+        Prisma.sql`SELECT metadata ->> 'quality_class' AS value, COUNT(*)::int AS count
+        FROM sources WHERE ${w()}
+        GROUP BY value ORDER BY count DESC`
+      ),
+      prisma.$queryRaw<[{ count: number }]>(
+        Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE ${w()} AND "isVectorized" = true`
+      ),
+      prisma.$queryRaw<Array<{ query_id: string; goal: string | null; count: number }>>(
+        Prisma.sql`SELECT qid AS query_id, dcq.query ->> 'goal' AS goal, COUNT(*)::int AS count
+        FROM sources, jsonb_array_elements_text(metadata -> 'query_ids') AS qid
+        LEFT JOIN data_collection_queries dcq ON dcq.id = qid::bigint
+        WHERE ${w()}
+        GROUP BY qid, dcq.query ->> 'goal' ORDER BY count DESC`
+      ),
+      prisma.$queryRaw<Array<{ value: string; count: number }>>(
+        Prisma.sql`SELECT agent AS value, COUNT(*)::int AS count
+        FROM sources, jsonb_array_elements_text(metadata -> 'agents') AS agent
+        WHERE ${w()}
+        GROUP BY agent ORDER BY count DESC`
+      ),
+      prisma.$queryRaw<Array<{ value: string; count: number }>>(
+        Prisma.sql`SELECT cat AS value, COUNT(*)::int AS count
+        FROM sources, jsonb_array_elements_text(metadata -> 'categories') AS cat
+        WHERE ${w()}
+        GROUP BY cat ORDER BY count DESC`
+      ),
+      prisma.$queryRaw<Array<{ value: string; count: number }>>(
+        Prisma.sql`SELECT tag AS value, COUNT(*)::int AS count
+        FROM sources, jsonb_array_elements_text(metadata -> 'tags') AS tag
+        WHERE ${w()}
+        GROUP BY tag ORDER BY count DESC`
+      ),
+      prisma.$queryRaw<Array<{ value: boolean; count: number }>>(
+        Prisma.sql`SELECT (metadata ->> 'isValid')::boolean AS value, COUNT(*)::int AS count
+        FROM sources WHERE ${w()}
+        GROUP BY value ORDER BY value DESC`
+      ),
+      prisma.$queryRaw<[{
+        relevance: number; authority: number; freshness: number;
+        originality: number; security: number; extractability: number;
+      }]>(
+        Prisma.sql`SELECT
+          COALESCE(AVG((metadata -> 'scores' ->> 'relevance')::numeric), 0)::float AS relevance,
+          COALESCE(AVG((metadata -> 'scores' ->> 'authority')::numeric), 0)::float AS authority,
+          COALESCE(AVG((metadata -> 'scores' ->> 'freshness')::numeric), 0)::float AS freshness,
+          COALESCE(AVG((metadata -> 'scores' ->> 'originality')::numeric), 0)::float AS originality,
+          COALESCE(AVG((metadata -> 'scores' ->> 'security')::numeric), 0)::float AS security,
+          COALESCE(AVG((metadata -> 'scores' ->> 'extractability')::numeric), 0)::float AS extractability
+        FROM sources WHERE ${w()} AND metadata -> 'scores' IS NOT NULL`
+      ),
+      prisma.$queryRaw<Array<{
+        id: number; url: string; title: string | null; tier: number | null;
+        date: Date | null; is_vectorized: boolean | null; metadata: unknown;
+        created_at: Date | null;
+      }>>(
+        Prisma.sql`SELECT id, url, title, tier, date, "isVectorized" AS is_vectorized, metadata, created_at
+        FROM sources WHERE ${w()}
+        ORDER BY created_at DESC
+        LIMIT ${filters.limit} OFFSET ${filters.offset}`
+      ),
+    ]);
+
+    return {
+      totalUnfiltered: totalUnfilteredResult[0]?.count ?? 0,
+      totalFiltered: totalFilteredResult[0]?.count ?? 0,
+      vectorizedCount: vectorizedCountResult[0]?.count ?? 0,
+      aggregations: {
+        qualityClass: qualityClassAgg,
+        queryIds: queryIdsAgg,
+        agents: agentsAgg,
+        categories: categoriesAgg,
+        tags: tagsAgg,
+        isValid: isValidAgg,
+        scores: scoresAgg[0] ?? {
+          relevance: 0, authority: 0, freshness: 0,
+          originality: 0, security: 0, extractability: 0,
+        },
+      },
+      items,
+    };
+  }
+
+  private static buildCandidatesWhere(
+    companyId: number,
+    filters: ScrapeCandidatesParams,
+  ): Prisma.Sql {
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`company_id = ${companyId}`,
+    ];
+
+    if (filters.search) {
+      const pattern = `%${filters.search}%`;
+      conditions.push(
+        Prisma.sql`(url ILIKE ${pattern} OR title ILIKE ${pattern} OR description ILIKE ${pattern})`,
+      );
+    }
+
+    return Prisma.join(conditions, " AND ");
+  }
+
+  static async getScrapeCandidatesList(
+    companyId: number,
+    filters: ScrapeCandidatesParams,
+  ) {
+    const w = () => this.buildCandidatesWhere(companyId, filters);
+
+    const [totalResult, totalFilteredResult, agentsAgg, queryIdsAgg, items] = await Promise.all([
+      prisma.$queryRaw<[{ count: number }]>(
+        Prisma.sql`SELECT COUNT(*)::int AS count FROM scape_url_candidates WHERE company_id = ${companyId}`
+      ),
+      prisma.$queryRaw<[{ count: number }]>(
+        Prisma.sql`SELECT COUNT(*)::int AS count FROM scape_url_candidates WHERE ${w()}`
+      ),
+      prisma.$queryRaw<Array<{ value: string; count: number }>>(
+        Prisma.sql`SELECT agent AS value, COUNT(*)::int AS count
+        FROM scape_url_candidates, jsonb_array_elements_text(metadata -> 'agents') AS agent
+        WHERE ${w()}
+        GROUP BY agent ORDER BY count DESC`
+      ),
+      prisma.$queryRaw<Array<{ query_id: string; goal: string | null; count: number }>>(
+        Prisma.sql`SELECT qid AS query_id, dcq.query ->> 'goal' AS goal, COUNT(*)::int AS count
+        FROM scape_url_candidates, jsonb_array_elements_text(metadata -> 'query_ids') AS qid
+        LEFT JOIN data_collection_queries dcq ON dcq.id = qid::bigint
+        WHERE ${w()}
+        GROUP BY qid, dcq.query ->> 'goal' ORDER BY count DESC`
+      ),
+      prisma.$queryRaw<Array<{
+        id: number; url: string; title: string | null; description: string | null;
+        status: string; metadata: unknown; created_at: Date;
+      }>>(
+        Prisma.sql`SELECT id, url, title, description, status, metadata, created_at
+        FROM scape_url_candidates WHERE ${w()}
+        ORDER BY created_at DESC
+        LIMIT ${filters.limit} OFFSET ${filters.offset}`
+      ),
+    ]);
+
+    return {
+      total: totalResult[0]?.count ?? 0,
+      totalFiltered: totalFilteredResult[0]?.count ?? 0,
+      aggregations: {
+        agents: agentsAgg,
+        queryIds: queryIdsAgg,
+      },
+      items,
     };
   }
 }

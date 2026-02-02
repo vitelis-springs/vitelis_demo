@@ -136,4 +136,102 @@ export class DeepDiveController {
       return NextResponse.json({ success: false, error: "Failed to fetch company deep dive" }, { status: 500 });
     }
   }
+
+  static async getSourcesAnalytics(
+    request: NextRequest,
+    reportIdParam: string,
+    companyIdParam: string,
+  ) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const companyId = Number(companyIdParam);
+
+      if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+        return NextResponse.json({ success: false, error: "Invalid report/company id" }, { status: 400 });
+      }
+
+      const { searchParams } = new URL(request.url);
+      const limit = Math.min(
+        Math.max(toNumber(searchParams.get("limit")) ?? DEFAULT_LIMIT, 1),
+        MAX_LIMIT,
+      );
+      const offset = Math.max(toNumber(searchParams.get("offset")) ?? 0, 0);
+      const tier = toNumber(searchParams.get("tier"));
+      const qualityClass = searchParams.get("qualityClass")?.trim() || undefined;
+      const isValid = toBoolean(searchParams.get("isValid"));
+      const agent = searchParams.get("agent")?.trim() || undefined;
+      const category = searchParams.get("category")?.trim() || undefined;
+      const tag = searchParams.get("tag")?.trim() || undefined;
+      const dateFrom = parseDate(searchParams.get("dateFrom"));
+      const dateTo = parseDate(searchParams.get("dateTo"));
+      const search = searchParams.get("search")?.trim() || undefined;
+
+      const result = await DeepDiveService.getSourcesAnalytics(reportId, companyId, {
+        limit,
+        offset,
+        tier: tier ?? undefined,
+        qualityClass,
+        isValid: isValid ?? undefined,
+        agent,
+        category,
+        tag,
+        dateFrom: dateFrom ?? undefined,
+        dateTo: dateTo ?? undefined,
+        search,
+      });
+
+      if (!result) {
+        return NextResponse.json({ success: false, error: "Company not found in report" }, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getSourcesAnalytics:", error);
+      return NextResponse.json({ success: false, error: "Failed to fetch sources analytics" }, { status: 500 });
+    }
+  }
+
+  static async getScrapeCandidates(
+    request: NextRequest,
+    reportIdParam: string,
+    companyIdParam: string,
+  ) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const companyId = Number(companyIdParam);
+
+      if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+        return NextResponse.json({ success: false, error: "Invalid report/company id" }, { status: 400 });
+      }
+
+      const { searchParams } = new URL(request.url);
+      const limit = Math.min(
+        Math.max(toNumber(searchParams.get("limit")) ?? DEFAULT_LIMIT, 1),
+        MAX_LIMIT,
+      );
+      const offset = Math.max(toNumber(searchParams.get("offset")) ?? 0, 0);
+      const search = searchParams.get("search")?.trim() || undefined;
+
+      const result = await DeepDiveService.getScrapeCandidates(reportId, companyId, {
+        limit,
+        offset,
+        search,
+      });
+
+      if (!result) {
+        return NextResponse.json({ success: false, error: "Company not found in report" }, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getScrapeCandidates:", error);
+      return NextResponse.json({ success: false, error: "Failed to fetch scrape candidates" }, { status: 500 });
+    }
+  }
 }

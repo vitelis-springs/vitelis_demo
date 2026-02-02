@@ -278,4 +278,211 @@ export const useGetDeepDiveCompany = (
   });
 };
 
+/* ─────────────── Sources Analytics ─────────────── */
+
+export interface SourcesAnalyticsParams {
+  limit?: number;
+  offset?: number;
+  tier?: number;
+  qualityClass?: string;
+  isValid?: boolean;
+  agent?: string;
+  category?: string;
+  tag?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+}
+
+export interface QueryIdAggItem {
+  query_id: string;
+  goal: string | null;
+  count: number;
+}
+
+export interface SourcesAggregations {
+  qualityClass: Array<{ value: string | null; count: number }>;
+  queryIds: QueryIdAggItem[];
+  agents: Array<{ value: string; count: number }>;
+  categories: Array<{ value: string; count: number }>;
+  tags: Array<{ value: string; count: number }>;
+  isValid: Array<{ value: boolean; count: number }>;
+  scores: {
+    relevance: number;
+    authority: number;
+    freshness: number;
+    originality: number;
+    security: number;
+    extractability: number;
+  };
+}
+
+export interface CandidatesAggregations {
+  agents: Array<{ value: string; count: number }>;
+  queryIds: QueryIdAggItem[];
+}
+
+export interface SourceItem {
+  id: number;
+  url: string;
+  title: string | null;
+  tier: number | null;
+  date: string | null;
+  is_vectorized: boolean | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
+export interface SourcesAnalyticsResponse {
+  success: boolean;
+  data: {
+    reportId: number;
+    company: {
+      id: number;
+      name: string;
+      countryCode?: string | null;
+      url?: string | null;
+    };
+    totalUnfiltered: number;
+    totalFiltered: number;
+    aggregations: SourcesAggregations;
+    items: SourceItem[];
+  };
+}
+
+/* ─────────────── Scrape Candidates ─────────────── */
+
+export interface ScrapeCandidatesParams {
+  limit?: number;
+  offset?: number;
+  search?: string;
+}
+
+export interface ScrapeCandidateItem {
+  id: number;
+  url: string;
+  title: string | null;
+  description: string | null;
+  status: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface ScrapeCandidatesResponse {
+  success: boolean;
+  data: {
+    reportId: number;
+    company: {
+      id: number;
+      name: string;
+      countryCode?: string | null;
+      url?: string | null;
+    };
+    total: number;
+    totalFiltered: number;
+    aggregations: CandidatesAggregations;
+    items: ScrapeCandidateItem[];
+  };
+}
+
+const sourcesApi = {
+  async getAnalytics(
+    reportId: number,
+    companyId: number,
+    params: SourcesAnalyticsParams,
+  ): Promise<SourcesAnalyticsResponse> {
+    const sp = new URLSearchParams();
+    if (params.limit !== undefined) sp.set("limit", String(params.limit));
+    if (params.offset !== undefined) sp.set("offset", String(params.offset));
+    if (params.tier !== undefined) sp.set("tier", String(params.tier));
+    if (params.qualityClass) sp.set("qualityClass", params.qualityClass);
+    if (params.isValid !== undefined) sp.set("isValid", String(params.isValid));
+    if (params.agent) sp.set("agent", params.agent);
+    if (params.category) sp.set("category", params.category);
+    if (params.tag) sp.set("tag", params.tag);
+    if (params.dateFrom) sp.set("dateFrom", params.dateFrom);
+    if (params.dateTo) sp.set("dateTo", params.dateTo);
+    if (params.search) sp.set("search", params.search);
+
+    const suffix = sp.toString();
+    const response = await api.get(
+      `/deep-dive/${reportId}/companies/${companyId}/sources${suffix ? `?${suffix}` : ""}`,
+    );
+    return response.data;
+  },
+
+  async getCandidates(
+    reportId: number,
+    companyId: number,
+    params: ScrapeCandidatesParams,
+  ): Promise<ScrapeCandidatesResponse> {
+    const sp = new URLSearchParams();
+    if (params.limit !== undefined) sp.set("limit", String(params.limit));
+    if (params.offset !== undefined) sp.set("offset", String(params.offset));
+    if (params.search) sp.set("search", params.search);
+
+    const suffix = sp.toString();
+    const response = await api.get(
+      `/deep-dive/${reportId}/companies/${companyId}/source_candidates${suffix ? `?${suffix}` : ""}`,
+    );
+    return response.data;
+  },
+};
+
+export const useGetSourcesAnalytics = (
+  reportId: number | null,
+  companyId: number | null,
+  params: SourcesAnalyticsParams,
+  options?: { enabled?: boolean },
+) => {
+  return useQuery({
+    queryKey: [
+      "deep-dive",
+      "sources-analytics",
+      reportId,
+      companyId,
+      params.limit ?? 50,
+      params.offset ?? 0,
+      params.tier ?? "",
+      params.qualityClass ?? "",
+      params.isValid ?? "",
+      params.agent ?? "",
+      params.category ?? "",
+      params.tag ?? "",
+      params.dateFrom ?? "",
+      params.dateTo ?? "",
+      params.search ?? "",
+    ],
+    queryFn: () => sourcesApi.getAnalytics(reportId!, companyId!, params),
+    enabled:
+      options?.enabled !== undefined
+        ? options.enabled
+        : reportId !== null && companyId !== null,
+  });
+};
+
+export const useGetScrapeCandidates = (
+  reportId: number | null,
+  companyId: number | null,
+  params: ScrapeCandidatesParams,
+  options?: { enabled?: boolean },
+) => {
+  return useQuery({
+    queryKey: [
+      "deep-dive",
+      "scrape-candidates",
+      reportId,
+      companyId,
+      params.limit ?? 50,
+      params.offset ?? 0,
+      params.search ?? "",
+    ],
+    queryFn: () => sourcesApi.getCandidates(reportId!, companyId!, params),
+    enabled:
+      options?.enabled !== undefined
+        ? options.enabled
+        : reportId !== null && companyId !== null,
+  });
+};
+
 export default deepDiveApi;

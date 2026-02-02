@@ -27,6 +27,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Resizable } from "react-resizable";
+import Link from "next/link";
 import Sidebar from "../ui/sidebar";
 import {
   DeepDiveCompanyResponse,
@@ -581,30 +582,36 @@ export default function DeepDiveCompany({
             {/* ── stat cards ── */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
               <Col xs={24} md={8}>
-                <Card
-                  style={{
-                    background: "#1f1f1f",
-                    border: "1px solid #303030",
-                  }}
-                >
-                  <Text style={{ color: "#8c8c8c" }}>Total sources</Text>
-                  <Title level={3} style={{ margin: 0, color: "#fff" }}>
-                    {sourcesTotal}
-                  </Title>
-                </Card>
+                <Link href={`/deep-dive/${reportId}/companies/${companyId}/sources`} style={{ display: "block" }}>
+                  <Card
+                    hoverable
+                    style={{
+                      background: "#1f1f1f",
+                      border: "1px solid #303030",
+                    }}
+                  >
+                    <Text style={{ color: "#8c8c8c" }}>Total sources →</Text>
+                    <Title level={3} style={{ margin: 0, color: "#fff" }}>
+                      {sourcesTotal}
+                    </Title>
+                  </Card>
+                </Link>
               </Col>
               <Col xs={24} md={8}>
-                <Card
-                  style={{
-                    background: "#1f1f1f",
-                    border: "1px solid #303030",
-                  }}
-                >
-                  <Text style={{ color: "#8c8c8c" }}>Scrape candidates</Text>
-                  <Title level={3} style={{ margin: 0, color: "#fff" }}>
-                    {scrapCandidatesTotal}
-                  </Title>
-                </Card>
+                <Link href={`/deep-dive/${reportId}/companies/${companyId}/source_candidates`} style={{ display: "block" }}>
+                  <Card
+                    hoverable
+                    style={{
+                      background: "#1f1f1f",
+                      border: "1px solid #303030",
+                    }}
+                  >
+                    <Text style={{ color: "#8c8c8c" }}>Scrape candidates →</Text>
+                    <Title level={3} style={{ margin: 0, color: "#fff" }}>
+                      {scrapCandidatesTotal}
+                    </Title>
+                  </Card>
+                </Link>
               </Col>
               <Col xs={24} md={8}>
                 <Card

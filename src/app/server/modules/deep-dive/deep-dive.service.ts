@@ -1,5 +1,11 @@
 import { report_status_enum } from "../../../../generated/prisma";
-import { DeepDiveRepository, DeepDiveListParams, SourceFilterParams } from "./deep-dive.repository";
+import {
+  DeepDiveRepository,
+  DeepDiveListParams,
+  SourceFilterParams,
+  SourcesAnalyticsParams,
+  ScrapeCandidatesParams,
+} from "./deep-dive.repository";
 
 const DEFAULT_STATUS_COUNTS = {
   PENDING: 0,
@@ -312,6 +318,62 @@ export class DeepDiveService {
           metadataGroups: sources.metadataGroups,
           items: sources.items,
         },
+      },
+    };
+  }
+
+  static async getSourcesAnalytics(
+    reportId: number,
+    companyId: number,
+    filters: SourcesAnalyticsParams,
+  ) {
+    const company = await DeepDiveRepository.getCompany(reportId, companyId);
+    if (!company) return null;
+
+    const result = await DeepDiveRepository.getSourcesAnalytics(companyId, filters);
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        company: {
+          id: company.id,
+          name: company.name,
+          countryCode: company.country_code,
+          url: company.url,
+        },
+        totalUnfiltered: result.totalUnfiltered,
+        totalFiltered: result.totalFiltered,
+        aggregations: result.aggregations,
+        items: result.items,
+      },
+    };
+  }
+
+  static async getScrapeCandidates(
+    reportId: number,
+    companyId: number,
+    filters: ScrapeCandidatesParams,
+  ) {
+    const company = await DeepDiveRepository.getCompany(reportId, companyId);
+    if (!company) return null;
+
+    const result = await DeepDiveRepository.getScrapeCandidatesList(companyId, filters);
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        company: {
+          id: company.id,
+          name: company.name,
+          countryCode: company.country_code,
+          url: company.url,
+        },
+        total: result.total,
+        totalFiltered: result.totalFiltered,
+        aggregations: result.aggregations,
+        items: result.items,
       },
     };
   }
