@@ -58,7 +58,7 @@ const QUALITY_COLORS: Record<string, string> = {
 };
 
 const TIER_COLORS = ["#8c8c8c", "#58bfce", "#36cfc9", "#13c2c2"];
-const PIE_COLORS = ["#58bfce", "#36cfc9", "#13c2c2", "#006d75", "#00474f", "#95de64", "#faad14", "#ff7a45", "#ff4d4f", "#b37feb"];
+const PIE_COLORS = ["#58bfce",  "#006d75", "#00474f", "#95de64", "#faad14", "#ff7a45", "#ff4d4f", "#b37feb","#36cfc9", "#13c2c2",];
 
 /* ─────────────── resizable column header ─────────────── */
 
