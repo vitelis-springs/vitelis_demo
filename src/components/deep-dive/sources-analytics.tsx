@@ -1,5 +1,6 @@
 "use client";
 
+import type { TableColumnsType } from "antd";
 import {
   Card,
   Col,
@@ -14,8 +15,11 @@ import {
   Tag,
   Typography,
 } from "antd";
-import type { TableColumnsType } from "antd";
+import dayjs from "dayjs";
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import { Resizable } from "react-resizable";
 import {
   Bar,
   BarChart,
@@ -34,18 +38,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Resizable } from "react-resizable";
-import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import dayjs from "dayjs";
-import Link from "next/link";
-import Sidebar from "../ui/sidebar";
-import DeepDiveBreadcrumbs from "./breadcrumbs";
 import {
   SourceItem,
   SourcesAnalyticsParams,
   useGetSourcesAnalytics,
 } from "../../hooks/api/useDeepDiveService";
+import Sidebar from "../ui/sidebar";
+import DeepDiveBreadcrumbs from "./breadcrumbs";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -173,7 +173,7 @@ export default function SourcesAnalytics({
   /* ── filter state ── */
   const [tier, setTier] = useState<number | undefined>();
   const [qualityClass, setQualityClass] = useState<string | undefined>();
-  const [isValid, setIsValid] = useState<boolean | undefined>();
+  const [isValid, setIsValid] = useState<boolean | undefined>(true);
   const [agent, setAgent] = useState<string | undefined>();
   const [category, setCategory] = useState<string | undefined>();
   const [tag, setTag] = useState<string | undefined>();
