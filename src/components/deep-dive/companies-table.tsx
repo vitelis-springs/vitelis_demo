@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Space, Table, Typography } from "antd";
+import { Card, Space, Table, Typography } from "antd";
 import { useRouter } from "next/navigation";
 import { DeepDiveCompanyRow, DeepDiveStatus } from "../../hooks/api/useDeepDiveService";
 import DeepDiveStatusTag from "./status-tag";
@@ -29,6 +29,10 @@ export default function CompaniesTable({
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 20 }}
+        onRow={(record) => ({
+          onClick: () => router.push(`/deep-dive/${reportId}/companies/${record.id}`),
+          style: { cursor: "pointer" },
+        })}
         columns={[
           {
             title: "Company",
@@ -47,18 +51,6 @@ export default function CompaniesTable({
             dataIndex: "status",
             width: 120,
             render: (value: DeepDiveStatus) => <DeepDiveStatusTag status={value} />,
-          },
-          {
-            title: "",
-            width: 120,
-            render: (_, record) => (
-              <Button
-                type="link"
-                onClick={() => router.push(`/deep-dive/${reportId}/companies/${record.id}`)}
-              >
-                View
-              </Button>
-            ),
           },
         ]}
       />

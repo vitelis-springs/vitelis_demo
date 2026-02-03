@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
@@ -345,6 +345,7 @@ export interface SourcesAnalyticsResponse {
     };
     totalUnfiltered: number;
     totalFiltered: number;
+    vectorizedCount: number;
     aggregations: SourcesAggregations;
     items: SourceItem[];
   };
@@ -482,6 +483,83 @@ export const useGetScrapeCandidates = (
       options?.enabled !== undefined
         ? options.enabled
         : reportId !== null && companyId !== null,
+  });
+};
+
+/* ─────────────── Report Queries ─────────────── */
+
+export interface ReportQueryItem {
+  id: number;
+  goal: string;
+  searchQueries: string[];
+  sourcesCount: number;
+  candidatesCount: number;
+  completedCompanies: number;
+  totalCompanies: number;
+  completionPercent: number;
+  dataPoints: Array<{ id: string; name: string; type: string }>;
+}
+
+export interface ReportQueriesResponse {
+  success: boolean;
+  data: {
+    reportName: string | null;
+    queries: ReportQueryItem[];
+  };
+}
+
+export interface UpdateQueryPayload {
+  goal: string;
+  searchQueries: string[];
+}
+
+const queriesApi = {
+  async getReportQueries(reportId: number): Promise<ReportQueriesResponse> {
+    const response = await api.get(`/deep-dive/${reportId}/queries`);
+    return response.data;
+  },
+
+  async updateQuery(
+    reportId: number,
+    queryId: number,
+    payload: UpdateQueryPayload,
+  ): Promise<{ success: boolean; error?: string }> {
+    const response = await api.put(
+      `/deep-dive/${reportId}/queries/${queryId}`,
+      payload,
+    );
+    return response.data;
+  },
+};
+
+export const useGetReportQueries = (
+  reportId: number | null,
+  options?: { enabled?: boolean },
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "queries", reportId],
+    queryFn: () => queriesApi.getReportQueries(reportId!),
+    enabled:
+      options?.enabled !== undefined ? options.enabled : reportId !== null,
+  });
+};
+
+export const useUpdateQuery = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      queryId,
+      payload,
+    }: {
+      queryId: number;
+      payload: UpdateQueryPayload;
+    }) => queriesApi.updateQuery(reportId, queryId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "queries", reportId],
+      });
+    },
   });
 };
 

@@ -3,6 +3,7 @@
 import {
   Card,
   Col,
+  Empty,
   Input,
   Layout,
   Row,
@@ -13,10 +14,24 @@ import {
 } from "antd";
 import type { TableColumnsType } from "antd";
 import { useCallback, useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Resizable } from "react-resizable";
 import dayjs from "dayjs";
 import Link from "next/link";
 import Sidebar from "../ui/sidebar";
+import DeepDiveBreadcrumbs from "./breadcrumbs";
 import {
   ScrapeCandidateItem,
   ScrapeCandidatesParams,
@@ -32,6 +47,8 @@ const STATUS_COLORS: Record<string, string> = {
   failed: "red",
   skipped: "orange",
 };
+
+const PIE_COLORS = ["#58bfce", "#36cfc9", "#13c2c2", "#006d75", "#00474f", "#95de64", "#faad14", "#ff7a45", "#ff4d4f", "#b37feb"];
 
 /* ─────────────── resizable column header ─────────────── */
 
@@ -127,6 +144,7 @@ export default function ScrapeCandidatesAnalytics({
 
   const total = payload?.total ?? 0;
   const totalFiltered = payload?.totalFiltered ?? 0;
+  const agg = payload?.aggregations;
   const items = payload?.items ?? [];
 
   const tableData = useMemo((): CandidateRow[] =>
@@ -136,6 +154,22 @@ export default function ScrapeCandidatesAnalytics({
 
   const showingLabel = `Showing ${totalFiltered.toLocaleString()} of ${total.toLocaleString()} (${total > 0 ? Math.round((totalFiltered / total) * 100) : 0}%)`;
 
+  /* ── chart data ── */
+  const agentsPieData = useMemo(() =>
+    (agg?.agents ?? []).slice(0, 10).map((row) => ({ name: row.value, value: row.count })),
+    [agg?.agents],
+  );
+
+  const queryBarData = useMemo(() => {
+    if (!agg?.queryIds) return [];
+    return agg.queryIds.slice(0, 15).map((row) => ({
+      queryId: row.query_id,
+      goal: row.goal ? (row.goal.length > 50 ? `${row.goal.slice(0, 50)}...` : row.goal) : `Query #${row.query_id}`,
+      count: row.count,
+    }));
+  }, [agg?.queryIds]);
+
+  /* ── table columns ── */
   const colsDef = useMemo((): TableColumnsType<CandidateRow> => [
     {
       title: "URL",
@@ -158,7 +192,7 @@ export default function ScrapeCandidatesAnalytics({
     {
       title: "Description",
       dataIndex: "description",
-      width: 350,
+      width: 300,
       render: (v: string | null) => (
         <div style={{ maxHeight: 120, overflow: "auto", color: "#d9d9d9" }}>
           {v || <span style={{ color: "#595959" }}>—</span>}
@@ -170,6 +204,23 @@ export default function ScrapeCandidatesAnalytics({
       dataIndex: "status",
       width: 100,
       render: (v: string) => <Tag color={STATUS_COLORS[v] ?? "default"}>{v}</Tag>,
+    },
+    {
+      title: "Query IDs",
+      width: 120,
+      render: (_: unknown, row: CandidateRow) => {
+        const meta = row.metadata as Record<string, unknown> | null;
+        const ids = Array.isArray(meta?.query_ids)
+          ? (meta.query_ids as string[])
+          : [];
+        return ids.length
+          ? <Space size={2} wrap>{ids.map((id) => (
+              <Link key={id} href={`/deep-dive/${reportId}/query?queryId=${id}`}>
+                <Tag color="purple" style={{ cursor: "pointer" }}>#{id}</Tag>
+              </Link>
+            ))}</Space>
+          : <span style={{ color: "#595959" }}>—</span>;
+      },
     },
     {
       title: "Agents",
@@ -190,7 +241,7 @@ export default function ScrapeCandidatesAnalytics({
       width: 140,
       render: (v: string) => dayjs(v).format("YYYY-MM-DD HH:mm"),
     },
-  ], []);
+  ], [reportId]);
 
   const columns = useResizableColumns(colsDef);
   const tableComponents = useMemo(() => ({ header: { cell: ResizableTitle } }), []);
@@ -204,12 +255,14 @@ export default function ScrapeCandidatesAnalytics({
             {/* ── header ── */}
             <div style={{ marginBottom: 24 }}>
               <Space direction="vertical" size={4}>
-                <Link
-                  href={`/deep-dive/${reportId}/companies/${companyId}`}
-                  style={{ color: "#58bfce", fontSize: 14 }}
-                >
-                  ← Back to company
-                </Link>
+                <DeepDiveBreadcrumbs
+                  items={[
+                    { label: "Deep Dives", href: "/deep-dive" },
+                    { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+                    { label: payload?.company.name ?? `Company #${companyId}`, href: `/deep-dive/${reportId}/companies/${companyId}` },
+                    { label: "Candidates" },
+                  ]}
+                />
                 <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
                   Scrape Candidates — {payload?.company.name ?? `Company #${companyId}`}
                 </Title>
@@ -222,6 +275,87 @@ export default function ScrapeCandidatesAnalytics({
                 <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
                   <Text style={{ color: "#8c8c8c" }}>Total candidates</Text>
                   <Title level={3} style={{ margin: 0, color: "#fff" }}>{total}</Title>
+                </Card>
+              </Col>
+            </Row>
+
+            {/* ── charts ── */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} lg={12}>
+                <Card
+                  title="Candidates by Query"
+                  style={{ background: "#1f1f1f", border: "1px solid #303030" }}
+                  styles={{ header: { borderBottom: "1px solid #303030" } }}
+                >
+                  {queryBarData.length ? (
+                    <div style={{ height: 320 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={queryBarData} layout="vertical" margin={{ left: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#303030" />
+                          <XAxis type="number" tick={{ fill: "#d9d9d9" }} />
+                          <YAxis
+                            type="category"
+                            dataKey="queryId"
+                            tick={{ fill: "#58bfce", fontSize: 11 }}
+                            width={50}
+                          />
+                          <Tooltip
+                            contentStyle={{ background: "#1f1f1f", border: "1px solid #303030" }}
+                            formatter={(value) => [value, "Candidates"]}
+                            labelFormatter={(label) => {
+                              const item = queryBarData.find((d) => d.queryId === String(label));
+                              return item?.goal ?? `Query #${label}`;
+                            }}
+                          />
+                          <Bar dataKey="count" fill="#58bfce" name="Candidates">
+                            {queryBarData.map((entry) => (
+                              <Cell
+                                key={entry.queryId}
+                                fill="#58bfce"
+                                cursor="pointer"
+                                onClick={() => window.open(`/deep-dive/${reportId}/query?queryId=${entry.queryId}`, "_self")}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <Empty description="No query data" />
+                  )}
+                </Card>
+              </Col>
+              <Col xs={24} lg={12}>
+                <Card
+                  title="Agents Distribution"
+                  style={{ background: "#1f1f1f", border: "1px solid #303030" }}
+                  styles={{ header: { borderBottom: "1px solid #303030" } }}
+                >
+                  {agentsPieData.length ? (
+                    <div style={{ height: 320 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={agentsPieData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            label
+                          >
+                            {agentsPieData.map((_, i) => (
+                              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "#1f1f1f", border: "1px solid #303030" }} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <Empty description="No agent data" />
+                  )}
                 </Card>
               </Col>
             </Row>
@@ -249,7 +383,7 @@ export default function ScrapeCandidatesAnalytics({
                 loading={isLoading}
                 columns={columns}
                 components={tableComponents}
-                scroll={{ x: 1300 }}
+                scroll={{ x: 1400 }}
                 bordered
                 pagination={{
                   current: page,

@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../ui/sidebar";
 import DeepDiveStatusTag from "./status-tag";
+import DeepDiveBreadcrumbs from "./breadcrumbs";
 import {
   DeepDiveListItem,
   DeepDiveStatus,
@@ -220,6 +221,7 @@ export default function DeepDiveList() {
           }}
         >
           <div style={{ maxWidth: "1400px", width: "100%" }}>
+            <DeepDiveBreadcrumbs items={[{ label: "Deep Dives" }]} />
             <div
               style={{
                 marginBottom: "24px",

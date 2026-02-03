@@ -35,6 +35,7 @@ import {
   useGetDeepDiveCompany,
 } from "../../hooks/api/useDeepDiveService";
 import DeepDiveStatusTag from "./status-tag";
+import DeepDiveBreadcrumbs from "./breadcrumbs";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -549,6 +550,13 @@ export default function DeepDiveCompany({
             {/* ── header ── */}
             <div style={{ marginBottom: 24 }}>
               <Space direction="vertical" size={4}>
+                <DeepDiveBreadcrumbs
+                  items={[
+                    { label: "Deep Dives", href: "/deep-dive" },
+                    { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+                    { label: payload?.company.name || `Company #${companyId}` },
+                  ]}
+                />
                 <Space align="center" size="middle">
                   <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
                     {payload?.company.name || `Company #${companyId}`}
@@ -558,9 +566,6 @@ export default function DeepDiveCompany({
                   )}
                 </Space>
                 <Space size="middle" wrap>
-                  <Text style={{ color: "#8c8c8c" }}>
-                    Deep Dive #{reportId}
-                  </Text>
                   <Text style={{ color: "#8c8c8c" }}>
                     Country:{" "}
                     <Text style={{ color: "#d9d9d9" }}>

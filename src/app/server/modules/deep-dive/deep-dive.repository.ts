@@ -573,6 +573,92 @@ export class DeepDiveRepository {
     return Prisma.join(conditions, " AND ");
   }
 
+  static async getReportQueriesWithStats(reportId: number) {
+    return prisma.$queryRaw<
+      Array<{
+        id: bigint;
+        goal: string | null;
+        search_queries: string[] | null;
+        sources_count: number;
+        candidates_count: number;
+        completed_companies: number;
+        total_companies: number;
+        data_points: Array<{ id: string; name: string | null; type: string | null }> | null;
+      }>
+    >(
+      Prisma.sql`
+        SELECT
+          dcq.id,
+          dcq.query ->> 'goal' AS goal,
+          COALESCE(
+            (SELECT jsonb_agg(sq)
+             FROM jsonb_array_elements_text(dcq.query -> 'search_queries') AS sq),
+            '[]'::jsonb
+          )::jsonb AS search_queries,
+          COALESCE(src.cnt, 0)::int AS sources_count,
+          COALESCE(cand.cnt, 0)::int AS candidates_count,
+          COALESCE(comp.done, 0)::int AS completed_companies,
+          COALESCE(tc.total, 0)::int AS total_companies,
+          dp_agg.data_points
+        FROM report_data_collection_queries rdcq
+        JOIN data_collection_queries dcq ON dcq.id = rdcq.data_collection_query_id
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int AS cnt
+          FROM sources s
+          WHERE s.company_id IN (SELECT rc.company_id FROM report_companies rc WHERE rc.report_id = ${reportId})
+            AND s.metadata -> 'query_ids' @> to_jsonb(dcq.id::text)
+        ) src ON true
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int AS cnt
+          FROM scape_url_candidates suc
+          WHERE suc.company_id IN (SELECT rc.company_id FROM report_companies rc WHERE rc.report_id = ${reportId})
+            AND suc.metadata -> 'query_ids' @> to_jsonb(dcq.id::text)
+        ) cand ON true
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int AS done
+          FROM report_data_collection_query_completions c
+          WHERE c.report_id = ${reportId}
+            AND c.data_collection_query_id = dcq.id
+            AND c.status = true
+        ) comp ON true
+        CROSS JOIN LATERAL (
+          SELECT COUNT(*)::int AS total
+          FROM report_companies rc
+          WHERE rc.report_id = ${reportId}
+        ) tc
+        LEFT JOIN LATERAL (
+          SELECT jsonb_agg(jsonb_build_object('id', dp.id, 'name', dp.name, 'type', dp.type)) AS data_points
+          FROM data_collection_query_data_point dqp
+          JOIN data_points dp ON dp.id = dqp.data_point_id
+          WHERE dqp.data_collection_query_id = dcq.id
+        ) dp_agg ON true
+        WHERE rdcq.report_id = ${reportId}
+        ORDER BY dcq.id
+      `
+    );
+  }
+
+  static async updateQueryContent(
+    queryId: bigint,
+    payload: { goal: string; search_queries: string[] },
+  ) {
+    return prisma.data_collection_queries.update({
+      where: { id: queryId },
+      data: {
+        query: payload,
+      },
+    });
+  }
+
+  static async verifyQueryBelongsToReport(reportId: number, queryId: bigint) {
+    return prisma.report_data_collection_queries.findFirst({
+      where: {
+        report_id: reportId,
+        data_collection_query_id: queryId,
+      },
+    });
+  }
+
   static async getScrapeCandidatesList(
     companyId: number,
     filters: ScrapeCandidatesParams,

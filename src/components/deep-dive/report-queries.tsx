@@ -1,0 +1,372 @@
+"use client";
+
+import {
+  Button,
+  Card,
+  Col,
+  Collapse,
+  Input,
+  Layout,
+  message,
+  Progress,
+  Row,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from "antd";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Sidebar from "../ui/sidebar";
+import DeepDiveBreadcrumbs from "./breadcrumbs";
+import {
+  ReportQueryItem,
+  useGetReportQueries,
+  useUpdateQuery,
+} from "../../hooks/api/useDeepDiveService";
+
+const { Content } = Layout;
+const { Title, Text } = Typography;
+
+interface Props {
+  reportId: number;
+  highlightQueryId: number | null;
+}
+
+interface EditState {
+  goal: string;
+  searchQueries: string[];
+}
+
+export default function ReportQueries({ reportId, highlightQueryId }: Props) {
+  const { data, isLoading } = useGetReportQueries(reportId);
+  const updateMutation = useUpdateQuery(reportId);
+
+  const queries = data?.data?.queries ?? [];
+  const reportName = data?.data?.reportName ?? `Report #${reportId}`;
+
+  /* ── edit state ── */
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editState, setEditState] = useState<EditState>({ goal: "", searchQueries: [] });
+
+  /* ── auto-expand highlighted query ── */
+  const [activeKeys, setActiveKeys] = useState<string[]>([]);
+
+  /* ── auto-scroll ── */
+  const scrolledRef = useRef(false);
+
+  useEffect(() => {
+    if (highlightQueryId && queries.length > 0 && !scrolledRef.current) {
+      const key = String(highlightQueryId);
+      setActiveKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
+
+      setTimeout(() => {
+        const el = document.querySelector(`[data-query-id="${highlightQueryId}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        scrolledRef.current = true;
+      }, 300);
+    }
+  }, [highlightQueryId, queries.length]);
+
+  /* ── summary stats ── */
+  const summary = useMemo(() => {
+    const totalQueries = queries.length;
+    const avgCompletion = totalQueries > 0
+      ? Math.round(queries.reduce((sum, q) => sum + q.completionPercent, 0) / totalQueries)
+      : 0;
+    const totalSources = queries.reduce((sum, q) => sum + q.sourcesCount, 0);
+    return { totalQueries, avgCompletion, totalSources };
+  }, [queries]);
+
+  /* ── start editing ── */
+  const startEditing = useCallback((query: ReportQueryItem) => {
+    setEditingId(query.id);
+    setEditState({ goal: query.goal, searchQueries: [...query.searchQueries] });
+  }, []);
+
+  const cancelEditing = useCallback(() => {
+    setEditingId(null);
+    setEditState({ goal: "", searchQueries: [] });
+  }, []);
+
+  /* ── search query list manipulation ── */
+  const updateSearchQuery = useCallback((index: number, value: string) => {
+    setEditState((prev) => {
+      const next = [...prev.searchQueries];
+      next[index] = value;
+      return { ...prev, searchQueries: next };
+    });
+  }, []);
+
+  const removeSearchQuery = useCallback((index: number) => {
+    setEditState((prev) => ({
+      ...prev,
+      searchQueries: prev.searchQueries.filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  const addSearchQuery = useCallback(() => {
+    setEditState((prev) => ({
+      ...prev,
+      searchQueries: [...prev.searchQueries, ""],
+    }));
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!editingId) return;
+
+    if (!editState.goal.trim()) {
+      void message.warning("Goal cannot be empty");
+      return;
+    }
+
+    const filtered = editState.searchQueries.filter((q) => q.trim() !== "");
+    try {
+      await updateMutation.mutateAsync({
+        queryId: editingId,
+        payload: { goal: editState.goal.trim(), searchQueries: filtered },
+      });
+      void message.success("Query updated");
+      cancelEditing();
+    } catch {
+      void message.error("Failed to update query");
+    }
+  }, [editingId, editState, updateMutation, cancelEditing]);
+
+  /* ── render query panel header ── */
+  const renderPanelHeader = useCallback(
+    (query: ReportQueryItem) => (
+      <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
+        <Tag color="blue" style={{ fontFamily: "monospace" }}>#{query.id}</Tag>
+        <Text
+          style={{ flex: 1, color: "#d9d9d9" }}
+          ellipsis={{ tooltip: query.goal }}
+        >
+          {query.goal || "No goal"}
+        </Text>
+        <Progress
+          percent={query.completionPercent}
+          size="small"
+          style={{ width: 120, margin: 0 }}
+          strokeColor="#58bfce"
+        />
+        <Tag color="green">{query.sourcesCount} src</Tag>
+        <Tag color="orange">{query.candidatesCount} cand</Tag>
+      </div>
+    ),
+    [],
+  );
+
+  /* ── render query panel body ── */
+  const renderPanelBody = useCallback(
+    (query: ReportQueryItem) => {
+      const isEditing = editingId === query.id;
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Goal */}
+          <div>
+            <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
+              Goal
+            </Text>
+            {isEditing ? (
+              <Input.TextArea
+                value={editState.goal}
+                onChange={(e) => setEditState((prev) => ({ ...prev, goal: e.target.value }))}
+                autoSize={{ minRows: 2, maxRows: 6 }}
+              />
+            ) : (
+              <Text style={{ color: "#d9d9d9", whiteSpace: "pre-wrap" }}>{query.goal || "—"}</Text>
+            )}
+          </div>
+
+          {/* Search Queries */}
+          <div>
+            <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
+              Search Queries ({isEditing ? editState.searchQueries.length : query.searchQueries.length})
+            </Text>
+            {isEditing ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {editState.searchQueries.map((sq, i) => (
+                  <Space key={i} style={{ width: "100%" }}>
+                    <Input
+                      value={sq}
+                      onChange={(e) => updateSearchQuery(i, e.target.value)}
+                      style={{ flex: 1, minWidth: 400 }}
+                      placeholder="Search query..."
+                    />
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => removeSearchQuery(i)}
+                    />
+                  </Space>
+                ))}
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={addSearchQuery}
+                  style={{ width: 200 }}
+                >
+                  Add query
+                </Button>
+              </div>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {query.searchQueries.map((sq, i) => (
+                  <li key={i} style={{ color: "#d9d9d9" }}>{sq}</li>
+                ))}
+                {query.searchQueries.length === 0 && (
+                  <Text type="secondary">No search queries</Text>
+                )}
+              </ul>
+            )}
+          </div>
+
+          {/* Data Points */}
+          {query.dataPoints.length > 0 && (
+            <div>
+              <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
+                Data Points
+              </Text>
+              <Space wrap size={4}>
+                {query.dataPoints.map((dp) => (
+                  <Tag key={dp.id} color="purple">{dp.name || dp.id}</Tag>
+                ))}
+              </Space>
+            </div>
+          )}
+
+          {/* Completion */}
+          <div>
+            <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
+              Completion
+            </Text>
+            <Text style={{ color: "#d9d9d9" }}>
+              {query.completedCompanies} / {query.totalCompanies} companies ({query.completionPercent}%)
+            </Text>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 8 }}>
+            {isEditing ? (
+              <>
+                <Button
+                  type="primary"
+                  onClick={handleSave}
+                  loading={updateMutation.isPending}
+                >
+                  Save
+                </Button>
+                <Button onClick={cancelEditing}>Cancel</Button>
+              </>
+            ) : (
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => startEditing(query)}
+              >
+                Edit
+              </Button>
+            )}
+          </div>
+        </div>
+      );
+    },
+    [editingId, editState, handleSave, updateMutation.isPending, cancelEditing, startEditing, updateSearchQuery, removeSearchQuery, addSearchQuery],
+  );
+
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  return (
+    <Layout style={{ minHeight: "100vh", background: "#141414" }}>
+      <Sidebar />
+      <Layout style={{ marginLeft: 280, background: "#141414" }}>
+        <Content style={{ padding: "24px", background: "#141414", minHeight: "100vh" }}>
+          <div style={{ maxWidth: "1400px", width: "100%" }}>
+            {/* ── header ── */}
+            <div style={{ marginBottom: 24 }}>
+              <Space direction="vertical" size={4}>
+                <DeepDiveBreadcrumbs
+                  items={[
+                    { label: "Deep Dives", href: "/deep-dive" },
+                    { label: reportName, href: `/deep-dive/${reportId}` },
+                    { label: "Queries" },
+                  ]}
+                />
+                <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
+                  Report Queries — {reportName}
+                </Title>
+              </Space>
+            </div>
+
+            {/* ── summary cards ── */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} md={8}>
+                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
+                  <Text style={{ color: "#8c8c8c" }}>Total Queries</Text>
+                  <Title level={3} style={{ margin: 0, color: "#fff" }}>
+                    {summary.totalQueries}
+                  </Title>
+                </Card>
+              </Col>
+              <Col xs={24} md={8}>
+                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
+                  <Text style={{ color: "#8c8c8c" }}>Avg Completion</Text>
+                  <Title level={3} style={{ margin: 0, color: "#58bfce" }}>
+                    {summary.avgCompletion}%
+                  </Title>
+                </Card>
+              </Col>
+              <Col xs={24} md={8}>
+                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
+                  <Text style={{ color: "#8c8c8c" }}>Total Sources</Text>
+                  <Title level={3} style={{ margin: 0, color: "#52c41a" }}>
+                    {summary.totalSources}
+                  </Title>
+                </Card>
+              </Col>
+            </Row>
+
+            {/* ── query list ── */}
+            {queries.map((query) => (
+              <div key={query.id} data-query-id={query.id}>
+                <Collapse
+                  activeKey={activeKeys}
+                  onChange={(keys) => setActiveKeys(keys as string[])}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    marginBottom: 12,
+                  }}
+                  items={[{
+                    key: String(query.id),
+                    label: renderPanelHeader(query),
+                    children: renderPanelBody(query),
+                    style: {
+                      background: "#1f1f1f",
+                      border: highlightQueryId === query.id
+                        ? "2px solid #58bfce"
+                        : "1px solid #303030",
+                      borderRadius: 8,
+                    },
+                  }]}
+                />
+              </div>
+            ))}
+          </div>
+        </Content>
+      </Layout>
+    </Layout>
+  );
+}

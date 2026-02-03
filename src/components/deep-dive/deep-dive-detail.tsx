@@ -7,6 +7,7 @@ import DeepDiveStatusTag from "./status-tag";
 import SummaryCards from "./summary-cards";
 import KpiChartSection from "./kpi-chart-section";
 import CompaniesTable from "./companies-table";
+import DeepDiveBreadcrumbs from "./breadcrumbs";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -43,6 +44,12 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
             <Space direction="vertical" size={4}>
+              <DeepDiveBreadcrumbs
+                items={[
+                  { label: "Deep Dives", href: "/deep-dive" },
+                  { label: payload.report.name || `Deep Dive #${reportId}` },
+                ]}
+              />
               <Space align="center" size="middle">
                 <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
                   {payload.report.name || `Deep Dive #${reportId}`}

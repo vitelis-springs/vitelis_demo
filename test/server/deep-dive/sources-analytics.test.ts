@@ -51,9 +51,10 @@ const EMPTY_SCORES = {
 const SAMPLE_ANALYTICS_RESULT = {
   totalUnfiltered: 100,
   totalFiltered: 42,
+  vectorizedCount: 28,
   aggregations: {
     qualityClass: [{ value: "HIGH", count: 30 }, { value: "LOW", count: 12 }],
-    tierVectorized: [{ tier: 1, is_vectorized: true, count: 25 }],
+    queryIds: [{ query_id: "5", goal: "Find AI strategy", count: 25 }],
     agents: [{ value: "exa.search", count: 40 }],
     categories: [{ value: "Strategy", count: 35 }],
     tags: [{ value: "ai", count: 20 }],
@@ -215,6 +216,10 @@ describe("DeepDiveController.getScrapeCandidates", () => {
         company: SAMPLE_COMPANY,
         total: 50,
         totalFiltered: 10,
+        aggregations: {
+          agents: [],
+          queryIds: [],
+        },
         items: [],
       },
     });
@@ -293,6 +298,10 @@ describe("DeepDiveService.getScrapeCandidates", () => {
     jest.spyOn(DeepDiveRepository, "getScrapeCandidatesList").mockResolvedValueOnce({
       total: 50,
       totalFiltered: 50,
+      aggregations: {
+        agents: [{ value: "firecrawl.map", count: 50 }],
+        queryIds: [{ query_id: "3", goal: "Discover pages", count: 50 }],
+      },
       items: [
         { id: 1, url: "https://example.com/page", title: "Page", description: "desc", status: "pending", metadata: { agents: ["firecrawl.map"] }, created_at: new Date() },
       ],
@@ -315,12 +324,13 @@ describe("DeepDiveService.getScrapeCandidates", () => {
 describe("DeepDiveRepository.getSourcesAnalytics", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Set up default mock returns for all 10 parallel queries
+    // Set up default mock returns for all 11 parallel queries
     mockQueryRaw
       .mockResolvedValueOnce([{ count: 100 }])       // totalUnfiltered
       .mockResolvedValueOnce([{ count: 42 }])         // totalFiltered
       .mockResolvedValueOnce([{ value: "HIGH", count: 30 }])  // qualityClass
-      .mockResolvedValueOnce([{ tier: 1, is_vectorized: true, count: 25 }]) // tierVectorized
+      .mockResolvedValueOnce([{ count: 28 }])         // vectorizedCount
+      .mockResolvedValueOnce([{ query_id: "5", goal: "Find AI strategy", count: 25 }]) // queryIds
       .mockResolvedValueOnce([{ value: "exa.search", count: 40 }])  // agents
       .mockResolvedValueOnce([{ value: "Strategy", count: 35 }])    // categories
       .mockResolvedValueOnce([{ value: "ai", count: 20 }])          // tags
@@ -329,13 +339,15 @@ describe("DeepDiveRepository.getSourcesAnalytics", () => {
       .mockResolvedValueOnce([]);                                    // items
   });
 
-  it("executes 10 parallel queries and returns structured result", async () => {
+  it("executes 11 parallel queries and returns structured result", async () => {
     const result = await DeepDiveRepository.getSourcesAnalytics(173, { limit: 50, offset: 0 });
 
-    expect(mockQueryRaw).toHaveBeenCalledTimes(10);
+    expect(mockQueryRaw).toHaveBeenCalledTimes(11);
     expect(result.totalUnfiltered).toBe(100);
     expect(result.totalFiltered).toBe(42);
+    expect(result.vectorizedCount).toBe(28);
     expect(result.aggregations.qualityClass).toEqual([{ value: "HIGH", count: 30 }]);
+    expect(result.aggregations.queryIds).toEqual([{ query_id: "5", goal: "Find AI strategy", count: 25 }]);
     expect(result.aggregations.scores).toEqual(EMPTY_SCORES);
     expect(result.items).toEqual([]);
   });
@@ -346,7 +358,8 @@ describe("DeepDiveRepository.getSourcesAnalytics", () => {
       .mockResolvedValueOnce([])   // totalUnfiltered — empty
       .mockResolvedValueOnce([])   // totalFiltered — empty
       .mockResolvedValueOnce([])   // qualityClass
-      .mockResolvedValueOnce([])   // tierVectorized
+      .mockResolvedValueOnce([])   // vectorizedCount — empty
+      .mockResolvedValueOnce([])   // queryIds
       .mockResolvedValueOnce([])   // agents
       .mockResolvedValueOnce([])   // categories
       .mockResolvedValueOnce([])   // tags
@@ -358,6 +371,7 @@ describe("DeepDiveRepository.getSourcesAnalytics", () => {
 
     expect(result.totalUnfiltered).toBe(0);
     expect(result.totalFiltered).toBe(0);
+    expect(result.vectorizedCount).toBe(0);
     expect(result.aggregations.scores).toEqual(EMPTY_SCORES);
   });
 });
@@ -368,31 +382,39 @@ describe("DeepDiveRepository.getScrapeCandidatesList", () => {
     mockQueryRaw
       .mockResolvedValueOnce([{ count: 50 }])   // total
       .mockResolvedValueOnce([{ count: 50 }])   // totalFiltered
+      .mockResolvedValueOnce([{ value: "firecrawl.map", count: 50 }])  // agents
+      .mockResolvedValueOnce([{ query_id: "3", goal: "Discover pages", count: 50 }])  // queryIds
       .mockResolvedValueOnce([                    // items
         { id: 1, url: "https://example.com", title: "T", description: "D", status: "pending", metadata: null, created_at: new Date() },
       ]);
   });
 
-  it("executes 3 parallel queries and returns structured result", async () => {
+  it("executes 5 parallel queries and returns structured result", async () => {
     const result = await DeepDiveRepository.getScrapeCandidatesList(173, { limit: 50, offset: 0 });
 
-    expect(mockQueryRaw).toHaveBeenCalledTimes(3);
+    expect(mockQueryRaw).toHaveBeenCalledTimes(5);
     expect(result.total).toBe(50);
     expect(result.totalFiltered).toBe(50);
+    expect(result.aggregations.agents).toEqual([{ value: "firecrawl.map", count: 50 }]);
+    expect(result.aggregations.queryIds).toEqual([{ query_id: "3", goal: "Discover pages", count: 50 }]);
     expect(result.items).toHaveLength(1);
   });
 
   it("returns zero defaults for empty results", async () => {
     mockQueryRaw.mockReset();
     mockQueryRaw
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([])   // total
+      .mockResolvedValueOnce([])   // totalFiltered
+      .mockResolvedValueOnce([])   // agents
+      .mockResolvedValueOnce([])   // queryIds
+      .mockResolvedValueOnce([]);  // items
 
     const result = await DeepDiveRepository.getScrapeCandidatesList(173, { limit: 50, offset: 0 });
 
     expect(result.total).toBe(0);
     expect(result.totalFiltered).toBe(0);
+    expect(result.aggregations.agents).toEqual([]);
+    expect(result.aggregations.queryIds).toEqual([]);
     expect(result.items).toEqual([]);
   });
 });

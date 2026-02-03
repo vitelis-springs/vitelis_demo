@@ -194,6 +194,73 @@ export class DeepDiveController {
     }
   }
 
+  static async getQueries(request: NextRequest, reportIdParam: string) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const result = await DeepDiveService.getReportQueries(reportId);
+      if (!result) {
+        return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getQueries:", error);
+      return NextResponse.json({ success: false, error: "Failed to fetch report queries" }, { status: 500 });
+    }
+  }
+
+  static async updateQuery(
+    request: NextRequest,
+    reportIdParam: string,
+    queryIdParam: string,
+  ) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const queryId = Number(queryIdParam);
+
+      if (!Number.isFinite(reportId) || !Number.isFinite(queryId)) {
+        return NextResponse.json({ success: false, error: "Invalid report/query id" }, { status: 400 });
+      }
+
+      const body = await request.json() as { goal?: string; searchQueries?: string[] };
+
+      if (typeof body.goal !== "string" || !Array.isArray(body.searchQueries)) {
+        return NextResponse.json(
+          { success: false, error: "Body must include goal (string) and searchQueries (string[])" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.updateQuery(reportId, queryId, {
+        goal: body.goal,
+        searchQueries: body.searchQueries,
+      });
+
+      if (!result) {
+        return NextResponse.json({ success: false, error: "Query not found in report" }, { status: 404 });
+      }
+
+      if (!result.success) {
+        return NextResponse.json(result, { status: 400 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.updateQuery:", error);
+      return NextResponse.json({ success: false, error: "Failed to update query" }, { status: 500 });
+    }
+  }
+
   static async getScrapeCandidates(
     request: NextRequest,
     reportIdParam: string,

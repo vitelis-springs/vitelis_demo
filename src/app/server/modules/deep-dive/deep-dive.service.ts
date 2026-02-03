@@ -167,6 +167,61 @@ export class DeepDiveService {
     };
   }
 
+  static async getReportQueries(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    const rows = await DeepDiveRepository.getReportQueriesWithStats(reportId);
+
+    return {
+      success: true,
+      data: {
+        reportName: report.name,
+        queries: rows.map((row) => {
+          const total = Number(row.total_companies);
+          const completed = Number(row.completed_companies);
+          return {
+            id: Number(row.id),
+            goal: row.goal ?? "",
+            searchQueries: Array.isArray(row.search_queries) ? row.search_queries : [],
+            sourcesCount: row.sources_count,
+            candidatesCount: row.candidates_count,
+            completedCompanies: completed,
+            totalCompanies: total,
+            completionPercent: total > 0 ? Math.round((completed / total) * 100) : 0,
+            dataPoints: (row.data_points ?? []).map((dp) => ({
+              id: dp.id,
+              name: dp.name ?? "",
+              type: dp.type ?? "",
+            })),
+          };
+        }),
+      },
+    };
+  }
+
+  static async updateQuery(
+    reportId: number,
+    queryId: number,
+    payload: { goal: string; searchQueries: string[] },
+  ) {
+    const bigId = BigInt(queryId);
+
+    const link = await DeepDiveRepository.verifyQueryBelongsToReport(reportId, bigId);
+    if (!link) return null;
+
+    if (!payload.goal.trim()) {
+      return { success: false, error: "Goal cannot be empty" };
+    }
+
+    await DeepDiveRepository.updateQueryContent(bigId, {
+      goal: payload.goal.trim(),
+      search_queries: payload.searchQueries.filter((q) => q.trim() !== ""),
+    });
+
+    return { success: true };
+  }
+
   static async getCompanyDeepDive(
     reportId: number,
     companyId: number,
@@ -344,6 +399,7 @@ export class DeepDiveService {
         },
         totalUnfiltered: result.totalUnfiltered,
         totalFiltered: result.totalFiltered,
+        vectorizedCount: result.vectorizedCount,
         aggregations: result.aggregations,
         items: result.items,
       },

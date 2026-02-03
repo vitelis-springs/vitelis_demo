@@ -40,6 +40,7 @@ import remarkGfm from "remark-gfm";
 import dayjs from "dayjs";
 import Link from "next/link";
 import Sidebar from "../ui/sidebar";
+import DeepDiveBreadcrumbs from "./breadcrumbs";
 import {
   SourceItem,
   SourcesAnalyticsParams,
@@ -208,12 +209,7 @@ export default function SourcesAnalytics({
     return agg.isValid.find((v) => v.value === true)?.count ?? 0;
   }, [agg?.isValid]);
 
-  const vectorizedCount = useMemo(() => {
-    if (!agg?.isValid) return 0;
-    // Vectorized count comes from the isValid aggregation count as proxy
-    // since tierVectorized was removed. We show filtered total as approximation.
-    return totalFiltered;
-  }, [agg?.isValid, totalFiltered]);
+  const vectorizedCount = payload?.vectorizedCount ?? 0;
 
   const avgQualityScore = useMemo(() => {
     if (!agg?.scores) return 0;
@@ -403,14 +399,14 @@ export default function SourcesAnalytics({
             {/* ── header ── */}
             <div style={{ marginBottom: 24 }}>
               <Space direction="vertical" size={4}>
-                <Space size="middle">
-                  <Link
-                    href={`/deep-dive/${reportId}/companies/${companyId}`}
-                    style={{ color: "#58bfce", fontSize: 14 }}
-                  >
-                    ← Back to company
-                  </Link>
-                </Space>
+                <DeepDiveBreadcrumbs
+                  items={[
+                    { label: "Deep Dives", href: "/deep-dive" },
+                    { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+                    { label: payload?.company.name ?? `Company #${companyId}`, href: `/deep-dive/${reportId}/companies/${companyId}` },
+                    { label: "Sources" },
+                  ]}
+                />
                 <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
                   Sources Analytics — {payload?.company.name ?? `Company #${companyId}`}
                 </Title>
@@ -515,9 +511,9 @@ export default function SourcesAnalytics({
                           />
                           <Tooltip
                             contentStyle={{ background: "#1f1f1f", border: "1px solid #303030" }}
-                            formatter={(value: number) => [value, "Sources"]}
-                            labelFormatter={(label: string) => {
-                              const item = queryBarData.find((d) => d.queryId === label);
+                            formatter={(value) => [value, "Sources"]}
+                            labelFormatter={(label) => {
+                              const item = queryBarData.find((d) => d.queryId === String(label));
                               return item?.goal ?? `Query #${label}`;
                             }}
                           />
