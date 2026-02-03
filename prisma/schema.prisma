@@ -1,0 +1,735 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model alixpartner_reports {
+  id          Int       @id @default(autoincrement())
+  company_id  Int
+  use_case_id Int
+  type        String    @db.VarChar(255)
+  body        Json?
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+  companies   companies @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alixpartner_reports_company_id")
+  use_cases   use_cases @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alixpartner_reports_use_case_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model bizminer_reports {
+  id                Int        @id @default(autoincrement())
+  execution_id      Int?
+  score             Json?
+  summary           String?
+  headtohead        String?
+  levers            String?
+  sources           String?
+  report_date_start DateTime?  @db.Date
+  report_date_end   DateTime?  @db.Date
+  type              String?
+  country           String?
+  competitors       String?
+  usecase           String?
+  created_at        DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?  @default(now()) @db.Timestamp(6)
+  company_id        Int?
+  business_line     String?
+  companies         companies? @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bizminer_report_to_company")
+}
+
+model checkpoint_blobs {
+  thread_id     String
+  checkpoint_ns String @default("")
+  channel       String
+  version       String
+  type          String
+  blob          Bytes?
+
+  @@id([thread_id, checkpoint_ns, channel, version])
+  @@index([thread_id])
+}
+
+model checkpoint_migrations {
+  v Int @id
+}
+
+model checkpoint_writes {
+  thread_id     String
+  checkpoint_ns String  @default("")
+  checkpoint_id String
+  task_id       String
+  idx           Int
+  channel       String
+  type          String?
+  blob          Bytes
+  task_path     String  @default("")
+
+  @@id([thread_id, checkpoint_ns, checkpoint_id, task_id, idx])
+  @@index([thread_id])
+}
+
+model checkpoints {
+  thread_id            String
+  checkpoint_ns        String  @default("")
+  checkpoint_id        String
+  parent_checkpoint_id String?
+  type                 String?
+  checkpoint           Json
+  metadata             Json    @default("{}")
+
+  @@id([thread_id, checkpoint_ns, checkpoint_id])
+  @@index([thread_id])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model companies {
+  id                                       Int                                        @id @default(autoincrement())
+  name                                     String                                     @db.VarChar(255)
+  industry_id                              Int?
+  created_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
+  updated_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
+  country_code                             String?                                    @db.VarChar(50)
+  url                                      String?
+  additional_data                          Json?                                      @db.Json
+  invest_portal                            String?                                    @db.VarChar(255)
+  career_portal                            String?                                    @db.VarChar(255)
+  alixpartner_reports                      alixpartner_reports[]
+  bizminer_reports                         bizminer_reports[]
+  industries                               industries?                                @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company_public_reports                   company_public_reports[]
+  generated_company_reports                generated_company_reports[]
+  job_analys_companies                     job_analys_companies[]
+  job_scraper_settings                     job_scraper_settings[]
+  report_companies                         report_companies[]
+  report_data_collection_query_completions report_data_collection_query_completions[]
+  report_data_point_results                report_data_point_results[]
+  report_results                           report_results[]
+  report_step_statuses                     report_step_statuses[]
+  scape_url_candidates                     scape_url_candidates[]
+  sources                                  sources[]
+  sources_indexed                          sources_indexed[]
+  temp_resolved_data_points_result         temp_resolved_data_points_result[]
+  white_list_sources                       white_list_sources[]
+  ompany_data_collection_state             ompany_data_collection_state[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model company_public_reports {
+  id              Int               @id(map: "reports_pkey") @default(autoincrement())
+  company_id      Int
+  content         String
+  type            String            @db.VarChar(100)
+  timeline        String?           @db.VarChar(100)
+  created_at      DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamp(6)
+  url             String?
+  isVectorized    Boolean?          @default(false)
+  title           String?
+  companies       companies         @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "reports_company_id_fkey")
+  sources         sources[]
+  sources_indexed sources_indexed[]
+
+  @@unique([company_id, url], map: "company_public_reports_company_id_url")
+}
+
+model criteria_results {
+  id           Int  @id @default(autoincrement())
+  execution_id Int?
+  data         Json
+
+  @@index([execution_id], map: "idx_criteria_results_execution_id")
+}
+
+model data_collection_queries {
+  id                                       BigInt                                     @id @default(autoincrement())
+  query                                    Json
+  data_collection_query_data_point         data_collection_query_data_point[]
+  report_data_collection_queries           report_data_collection_queries[]
+  report_data_collection_query_completions report_data_collection_query_completions[]
+}
+
+model data_collection_query_data_point {
+  data_point_id            String                  @db.VarChar
+  data_collection_query_id BigInt
+  data_collection_queries  data_collection_queries @relation(fields: [data_collection_query_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "data_collection_query_data_point_data_collection_queries_fk")
+  data_points              data_points             @relation(fields: [data_point_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "data_collection_query_data_point_data_point_fk")
+
+  @@unique([data_point_id, data_collection_query_id], map: "data_collection_query_data_point_data_point_query_uniq")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model data_points {
+  id                               String                             @id @db.VarChar
+  type                             String?                            @db.VarChar
+  name                             String?                            @db.VarChar
+  settings                         Json?                              @db.Json
+  manual_method                    Boolean?
+  created_at                       DateTime?                          @default(now()) @db.Timestamp(6)
+  updates_at                       DateTime?                          @default(now()) @db.Timestamp(6)
+  include_to_report                Boolean?                           @default(true)
+  industry_id                      Int?
+  data_collection_query_data_point data_collection_query_data_point[]
+  report_data_point_results        report_data_point_results[]
+  report_data_points               report_data_points[]
+  temp_resolved_data_points_result temp_resolved_data_points_result[]
+}
+
+model drivers {
+  id                   Int       @id @default(autoincrement())
+  use_case             String?
+  kpi_category         String?
+  key_question         String?
+  kpi                  String?
+  kpi_driver           String?
+  low_criteria         String?
+  low_medium_criteria  String?
+  medium_criteria      String?
+  medium_high_criteria String?
+  high_criteria        String?
+  whitelist_sources    String?
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model execution_state {
+  id                Int       @id @default(autoincrement())
+  target_company_id Int?
+  execution_id      Int
+  use_case_id       Int?
+  industry_id       Int?
+  product_id        Int?
+  status            String?   @db.VarChar(50)
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  updated_at        DateTime? @default(now()) @db.Timestamp(6)
+  meta_data         Json?
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model generated_company_reports {
+  id         Int        @id @default(autoincrement())
+  company_id Int?
+  report_id  Int?
+  data       Json?
+  created_at DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at DateTime?  @default(now()) @db.Timestamp(6)
+  files      Json?
+  companies  companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports    reports?   @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model industries {
+  id                           Int                            @id @default(autoincrement())
+  name                         String                         @unique @db.VarChar(255)
+  created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  companies                    companies[]
+  industry_research_papers     industry_research_papers[]
+  sources                      sources[]
+  sources_indexed              sources_indexed[]
+  ompany_data_collection_state ompany_data_collection_state[]
+}
+
+model industry_research_papers {
+  id           Int        @id @default(autoincrement())
+  industry_id  Int
+  content      String
+  name         String?    @db.VarChar(255)
+  timeline     String?    @db.VarChar(100)
+  created_at   DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at   DateTime?  @default(now()) @db.Timestamp(6)
+  url          String?
+  isVectorized Boolean?   @default(false)
+  industries   industries @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model job_analys_companies {
+  job_analysis_id Int
+  company_id      Int
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @default(now()) @db.Timestamptz(6)
+  companies       companies    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  job_analysis    job_analysis @relation(fields: [job_analysis_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([job_analysis_id, company_id])
+  @@index([company_id])
+  @@index([job_analysis_id])
+}
+
+model job_analysis {
+  id                   Int                    @id @default(autoincrement())
+  name                 String
+  status               Boolean                @default(true)
+  job_category_id      Int
+  settings             Json
+  job_analys_companies job_analys_companies[]
+  job_categories       job_categories         @relation(fields: [job_category_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model job_categories {
+  id                     Int                      @id @default(autoincrement())
+  settings               Json
+  job_analysis           job_analysis[]
+  job_posting_categories job_posting_categories[]
+  job_scraper_settings   job_scraper_settings[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model job_posting_categories {
+  job_posting_id  BigInt
+  job_category_id Int
+  category        String
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime       @default(now()) @db.Timestamptz(6)
+  job_categories  job_categories @relation(fields: [job_category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  job_postings    job_postings   @relation(fields: [job_posting_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([job_posting_id, job_category_id])
+  @@index([category])
+  @@index([job_category_id])
+  @@index([job_posting_id])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model job_postings {
+  id                     BigInt                   @id @default(autoincrement())
+  external_id            String                   @unique(map: "job_postings_external_id_uk")
+  raw_result             Json
+  structured_result      Json?
+  category               String?
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  job_posting_categories job_posting_categories[]
+  job_scraper_results    job_scraper_results[]
+
+  @@index([category])
+  @@index([created_at])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model job_scraper_results {
+  job_scraper_run_id BigInt
+  job_posting_id     BigInt
+  job_postings       job_postings     @relation(fields: [job_posting_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  job_scraper_runs   job_scraper_runs @relation(fields: [job_scraper_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([job_scraper_run_id, job_posting_id])
+  @@index([job_posting_id], map: "job_scraper_results_posting_id_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model job_scraper_runs {
+  id                      BigInt                @id @default(autoincrement())
+  job_scraper_settings_id BigInt
+  run_date                DateTime              @default(dbgenerated("CURRENT_DATE")) @db.Date
+  job_scraper_results     job_scraper_results[]
+  job_scraper_settings    job_scraper_settings  @relation(fields: [job_scraper_settings_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([run_date])
+  @@index([job_scraper_settings_id], map: "job_scraper_runs_settings_id_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model job_scraper_settings {
+  id               BigInt                  @id @default(autoincrement())
+  name             String
+  company_id       Int
+  settings         Json                    @default("{}")
+  crawl_frequency  Unsupported("interval") @default(dbgenerated("'1 day'::interval"))
+  status           Boolean                 @default(true)
+  created_at       DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime                @default(now()) @db.Timestamptz(6)
+  job_category_id  Int
+  job_scraper_runs job_scraper_runs[]
+  companies        companies               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  job_categories   job_categories          @relation(fields: [job_category_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([company_id])
+  @@index([job_category_id])
+  @@index([status])
+}
+
+model keywords {
+  id     Int                     @id @default(autoincrement())
+  phrase String
+  query  Unsupported("tsquery")?
+}
+
+model opportunities_deep_dive_result {
+  id           Int  @id @default(autoincrement())
+  execution_id Int?
+  data         Json
+
+  @@index([execution_id], map: "idx_opportunities_deep_dive_result_execution_id")
+}
+
+model raw_data_points_answers {
+  id                Int     @id @default(autoincrement())
+  answer            String?
+  explanation       String?
+  execution_id      Int?
+  answered_by       String?
+  raw_data_point_id Int?
+  sources           String?
+}
+
+model report_companies {
+  id         Int        @id @default(autoincrement())
+  report_id  Int?
+  company_id Int?
+  companies  companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports    reports?   @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([report_id, company_id], map: "report_companies_report_company_unique")
+}
+
+model report_data_collection_queries {
+  id                       BigInt                  @id @default(autoincrement())
+  report_id                Int
+  data_collection_query_id BigInt
+  data_collection_queries  data_collection_queries @relation(fields: [data_collection_query_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_data_collection_queries_data_collection_queries_fk")
+  reports                  reports                 @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_data_collection_queries_reports_fk")
+
+  @@unique([report_id, data_collection_query_id], map: "report_data_collection_queries_report_query_uniq")
+}
+
+model report_data_collection_query_completions {
+  id                       BigInt                  @id @default(autoincrement())
+  report_id                Int
+  data_collection_query_id BigInt
+  company_id               Int
+  status                   Boolean?                @default(true)
+  companies                companies               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "rdcqc_companies_fk")
+  data_collection_queries  data_collection_queries @relation(fields: [data_collection_query_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "rdcqc_data_collection_queries_fk")
+  reports                  reports                 @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "rdcqc_reports_fk")
+
+  @@unique([report_id, data_collection_query_id, company_id], map: "rdcqc_report_query_company_uniq")
+}
+
+model report_data_point_results {
+  id            Int          @id @default(autoincrement())
+  company_id    Int?
+  report_id     Int?
+  data_point_id String?      @db.VarChar
+  value         String?      @db.VarChar
+  manualValue   String?      @db.VarChar
+  data          Json?        @db.Json
+  status        Boolean?
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  updates_at    DateTime?    @default(now()) @db.Timestamp(6)
+  companies     companies?   @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data_points   data_points? @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports       reports?     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([company_id, report_id, data_point_id], map: "report_data_point_results_unique_combination")
+}
+
+model report_data_points {
+  id                Int          @id @default(autoincrement())
+  report_id         Int?
+  data_point_id     String?      @db.VarChar
+  include_to_report Boolean?     @default(true)
+  data_points       data_points? @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports           reports?     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([report_id, data_point_id], map: "report_data_points_unique_report_dp")
+}
+
+model report_generation_steps {
+  id                   Int                                     @id @default(autoincrement())
+  name                 String
+  url                  String
+  settings             Json?
+  dependency           report_generation_step_dependency_enum?
+  report_step_statuses report_step_statuses[]
+  report_steps         report_steps[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model report_orhestrator {
+  id        Int                @id @default(autoincrement())
+  report_id Int                @unique(map: "report_orhestrator_report_uniq")
+  status    report_status_enum @default(PENDING)
+  metadata  Json?
+  reports   reports            @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_orhestrator_reports_fk")
+}
+
+model report_results {
+  id         Int        @id @default(autoincrement())
+  company_id Int?
+  report_id  Int?
+  data       Json?      @db.Json
+  status     Boolean?
+  created_at DateTime?  @default(now()) @db.Timestamp(6)
+  updates_at DateTime?  @default(now()) @db.Timestamp(6)
+  companies  companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports    reports?   @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model report_settings {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(256)
+  master_file_id String    @db.VarChar(256)
+  prefix         Int?
+  settings       Json      @default("{}") @db.Json
+  reports        reports[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model report_step_statuses {
+  id                      BigInt                  @id @default(autoincrement())
+  report_id               Int
+  company_id              Int
+  step_id                 Int
+  status                  report_status_enum      @default(PENDING)
+  metadata                Json?
+  updated_at              DateTime?               @default(now()) @db.Timestamptz(6)
+  companies               companies               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_statuses_companies_fk")
+  report_generation_steps report_generation_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_statuses_report_generation_steps_fk")
+  reports                 reports                 @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_statuses_reports_fk")
+
+  @@unique([report_id, company_id, step_id], map: "report_step_statuses_report_company_step_uniq")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model report_steps {
+  id                      BigInt                  @id @default(autoincrement())
+  report_id               Int
+  step_id                 Int
+  step_order              Int
+  report_generation_steps report_generation_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_steps_report_generation_steps_fk")
+  reports                 reports                 @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_steps_reports_fk")
+
+  @@unique([report_id, step_id], map: "rs_report_step_uniq")
+}
+
+model reports {
+  id                                       Int                                        @id(map: "reports_pkey1") @default(autoincrement())
+  use_case_id                              Int?
+  name                                     String?                                    @db.VarChar
+  description                              String?
+  created_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
+  updates_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
+  report_settings_id                       Int?
+  generated_company_reports                generated_company_reports[]
+  report_companies                         report_companies[]
+  report_data_collection_queries           report_data_collection_queries[]
+  report_data_collection_query_completions report_data_collection_query_completions[]
+  report_data_point_results                report_data_point_results[]
+  report_data_points                       report_data_points[]
+  report_orhestrator                       report_orhestrator?
+  report_results                           report_results[]
+  report_step_statuses                     report_step_statuses[]
+  report_steps                             report_steps[]
+  report_settings                          report_settings?                           @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  use_cases                                use_cases?                                 @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  temp_resolved_data_points_result         temp_resolved_data_points_result[]
+}
+
+model scape_url_candidates {
+  id          Int       @id @default(autoincrement())
+  company_id  Int
+  title       String?
+  description String?
+  url         String
+  status      String    @default("created") @db.VarChar(255)
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime  @default(now()) @db.Timestamp(6)
+  metadata    Json?
+  companies   companies @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "scape_candidates_company_id_fkey")
+
+  @@unique([company_id, url], map: "scape_candidates_unique_company_url")
+}
+
+model score_result {
+  id           Int  @id @default(autoincrement())
+  execution_id Int?
+  data         Json
+
+  @@index([execution_id], map: "idx_score_result_execution_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sources {
+  id                     Int                     @id @default(autoincrement())
+  url                    String
+  content                String
+  summary                String?
+  keywords               String?
+  company_id             Int
+  industry_id            Int
+  report_id              Int?
+  created_at             DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?               @default(now()) @db.Timestamp(6)
+  execution_id           Int?
+  tier                   Int?
+  date                   DateTime?               @db.Date
+  isVectorized           Boolean?                @default(false)
+  use_case_id            Int
+  metadata               Json?
+  title                  String?
+  companies              companies               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  industries             industries              @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company_public_reports company_public_reports? @relation(fields: [report_id], references: [id], onUpdate: NoAction)
+
+  @@unique([url, company_id])
+  @@index([company_id], map: "idx_sources_company_id")
+}
+
+model sources_indexed {
+  id                     Int                      @id @default(autoincrement())
+  url                    String                   @unique
+  content                String
+  company_id             Int
+  industry_id            Int
+  report_id              Int?
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(6)
+  execution_id           Int?
+  tier                   Int?
+  date                   DateTime?                @db.Date
+  use_case_id            Int
+  content_tsv            Unsupported("tsvector")?
+  companies              companies                @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  industries             industries               @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company_public_reports company_public_reports?  @relation(fields: [report_id], references: [id], onUpdate: NoAction)
+
+  @@index([content_tsv], map: "idx_sources_indexed_tsv", type: Gin)
+}
+
+model subworkflow_state_results {
+  id           Int  @id @default(autoincrement())
+  execution_id Int?
+  data         Json
+  company_id   Int?
+
+  @@index([execution_id], map: "idx_subworkflow_state_results_execution_id")
+}
+
+model temp_resolved_data_points_result {
+  id            Int          @id @default(autoincrement())
+  company_id    Int?
+  report_id     Int?
+  data_point_id String?      @db.VarChar
+  value         String?      @db.VarChar
+  manualValue   String?      @db.VarChar
+  data          Json?        @db.Json
+  status        Boolean?
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  updates_at    DateTime?    @default(now()) @db.Timestamp(6)
+  companies     companies?   @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data_points   data_points? @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports       reports?     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([company_id, report_id, data_point_id], map: "temp_resolved_data_points_result_unique_combination")
+}
+
+model univar_reports {
+  id           BigInt   @id @default(autoincrement())
+  execution_id BigInt
+  type         String
+  data         Json?    @db.Json
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model univar_sources {
+  id           Int       @id @default(autoincrement())
+  url          String    @unique
+  title        String?
+  content      String
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+  isVectorized Boolean?  @default(false)
+}
+
+model use_cases {
+  id                  Int                   @id @default(autoincrement())
+  name                String                @db.VarChar(500)
+  product_id          Int?
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
+  settings            Json?
+  alixpartner_reports alixpartner_reports[]
+  reports             reports[]
+  vitelis_products    vitelis_products?     @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model validation_results {
+  id           Int  @id @default(autoincrement())
+  execution_id Int?
+  data         Json
+
+  @@index([execution_id], map: "idx_validation_results_execution_id")
+}
+
+model vitelis_products {
+  id                           Int                            @id @default(autoincrement())
+  name                         String                         @db.VarChar(255)
+  created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?                      @default(now()) @db.Timestamp(6)
+  use_cases                    use_cases[]
+  ompany_data_collection_state ompany_data_collection_state[]
+}
+
+model websearch_results {
+  id           Int  @id @default(autoincrement())
+  execution_id Int?
+  data         Json
+
+  @@index([execution_id], map: "idx_websearch_results_execution_id")
+}
+
+model white_list_sources {
+  id         Int        @id @default(autoincrement())
+  url        String?    @unique
+  title      String?
+  type       String?
+  created_at DateTime   @default(now()) @db.Timestamp(6)
+  updated_at DateTime   @default(now()) @db.Timestamp(6)
+  company_id Int?
+  companies  companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "company_to_wls")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ompany_data_collection_state {
+  id                       Int              @id(map: "сompany_data_collection_pkey") @default(autoincrement())
+  execution_id             Int
+  company_id               Int
+  industry_id              Int
+  exec_state_id            Int
+  is_web_page_crawled      Boolean?         @default(false)
+  is_deep_search_finished  Boolean?         @default(false)
+  is_single_url_scraped    Boolean?         @default(false)
+  is_comapany_report_ready Boolean?         @default(false)
+  is_data_vectorized       Boolean?         @default(false)
+  created_at               DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?        @default(now()) @db.Timestamp(6)
+  meta_data                Json?
+  use_case_id              Int?
+  companies                companies        @relation(fields: [company_id], references: [id], onDelete: SetNull, onUpdate: SetNull, map: "сompany_data_collection_company_id_fkey")
+  industries               industries       @relation(fields: [industry_id], references: [id], onDelete: SetNull, onUpdate: SetNull, map: "сompany_data_collection_industry_id_fkey")
+  vitelis_products         vitelis_products @relation(fields: [exec_state_id], references: [id], onDelete: SetNull, onUpdate: SetNull, map: "сompany_data_collection_product_id_fkey")
+
+  @@map("сompany_data_collection_state")
+}
+
+enum report_generation_step_dependency_enum {
+  rdp
+  kpi
+  category
+  url
+}
+
+enum report_status_enum {
+  PENDING
+  PROCESSING
+  DONE
+  ERROR
+}

@@ -17,5 +17,8 @@
   },
   "jest.showCoverageOnLoad": true, // Show code coverage when the project is launched
   "jest.showTerminalOnLaunch": false, // Don't automatically open test explorer terminal on launch
-  "typescript.enablePromptUseWorkspaceTsdk": true
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+  }
 }

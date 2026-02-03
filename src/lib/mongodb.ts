@@ -50,10 +50,4 @@ export async function ensureDBConnection() {
   }
 }
 
-// Initialize database connection on module load (for server-side)
-if (typeof window === 'undefined') {
-  // Only run on server-side
-  ensureDBConnection().catch(console.error);
-}
-
 export default connectDB;
