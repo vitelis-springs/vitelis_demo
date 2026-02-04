@@ -41,7 +41,6 @@ import {
       QUALITY_COLORS,
       TIER_COLORS,
       DARK_CARD_STYLE,
-      CHART_TOOLTIP_CURSOR_STYLE,
       getSeriesColor,
 } from "../../config/chart-theme";
 import {
@@ -178,10 +177,7 @@ export default function SourcesAnalytics({
             return Math.round((total / 30) * 100);
       }, [agg?.scores]);
 
-      const validPercent =
-            totalFiltered > 0
-                  ? Math.round((validCount / totalFiltered) * 100)
-                  : 0;
+      const validPercent = totalFiltered > 0 ? validCount : 0;
       const vectorizedPercent =
             totalFiltered > 0
                   ? Math.round((vectorizedCount / totalFiltered) * 100)
@@ -472,8 +468,8 @@ export default function SourcesAnalytics({
                         </Col>
                         <Col xs={24} md={6}>
                               <StatCard
-                                    label="Valid %"
-                                    value={`${validPercent}%`}
+                                    label="Valid count"
+                                    value={`${validPercent}/${totalUnfiltered}`}
                                     valueColor="#52c41a"
                               />
                         </Col>
@@ -558,7 +554,6 @@ export default function SourcesAnalytics({
                                                       cx="50%"
                                                       cy="50%"
                                                       outerRadius={100}
-                                                      
                                                 >
                                                       {qualityPieData.map(
                                                             (entry, index) => (
