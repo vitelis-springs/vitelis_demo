@@ -167,11 +167,21 @@ export class DeepDiveService {
     };
   }
 
-  static async getReportQueries(reportId: number) {
+  static async getReportCompanyIds(reportId: number): Promise<number[] | null> {
     const report = await DeepDiveRepository.getReportById(reportId);
     if (!report) return null;
 
-    const rows = await DeepDiveRepository.getReportQueriesWithStats(reportId);
+    const companies = await DeepDiveRepository.getReportCompanies(reportId);
+    return companies
+      .map((row) => row.company_id)
+      .filter((id): id is number => typeof id === "number");
+  }
+
+  static async getReportQueries(reportId: number, params?: { sortBy?: string; sortOrder?: import("../../../../types/sorting").SortOrder }) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    const rows = await DeepDiveRepository.getReportQueriesWithStats(reportId, params?.sortBy, params?.sortOrder);
 
     return {
       success: true,

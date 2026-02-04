@@ -5,10 +5,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ConfigProvider, App } from 'antd';
-import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { antdTheme, antdLightTheme } from '../../config/theme';
+import { useThemeStore } from '../../stores/theme-store';
 
-export default function Provider({ children }: { children: React.ReactNode }) {
+export default function Provider({ children }: { children: ReactNode }) {
+  const theme = useThemeStore((state) => state.theme);
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -20,8 +24,13 @@ export default function Provider({ children }: { children: React.ReactNode }) {
       })
   );
 
-  // Use dark theme by default - ensure this is consistent between server and client
-  const [isDarkTheme] = useState(true);
+  const isDarkTheme = theme === 'dark';
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    document.documentElement.style.colorScheme = isDarkTheme ? 'dark' : 'light';
+  }, [theme, isDarkTheme]);
 
   return (
     <QueryClientProvider client={queryClient}>

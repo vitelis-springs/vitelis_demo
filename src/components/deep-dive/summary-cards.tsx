@@ -10,11 +10,10 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { DeepDiveDetailResponse } from "../../hooks/api/useDeepDiveService";
+import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
-
-const CARD_STYLE = { background: "#1f1f1f", border: "1px solid #303030" } as const;
 
 export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["data"] }) {
   const { summary, report } = data;
@@ -23,7 +22,7 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
     <>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} md={8}>
-          <Card style={CARD_STYLE}>
+          <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Companies Analyzed</Text>}
               value={summary.companiesCount}
@@ -33,7 +32,7 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8}>
-          <Card style={CARD_STYLE}>
+          <Card style={DARK_CARD_STYLE}>
             <Space direction="vertical" size={8}>
               <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Orchestrator Status</Text>
               <Space align="center" size="small">
@@ -44,7 +43,7 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8}>
-          <Card style={CARD_STYLE}>
+          <Card style={DARK_CARD_STYLE}>
             <Space direction="vertical" size={8}>
               <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Settings</Text>
               <Space align="center" size="small">
@@ -60,7 +59,7 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={8}>
-          <Card style={CARD_STYLE}>
+          <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Total Sources</Text>}
               value={summary.totalSources}
@@ -70,7 +69,7 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8}>
-          <Card style={CARD_STYLE}>
+          <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Scrape Candidates</Text>}
               value={summary.totalScrapeCandidates}
@@ -80,7 +79,7 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8}>
-          <Card style={CARD_STYLE}>
+          <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Total Queries</Text>}
               value={summary.totalQueries}

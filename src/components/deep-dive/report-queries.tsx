@@ -1,36 +1,19 @@
 "use client";
 
 import {
-  Button,
-  Card,
-  Col,
-  Collapse,
-  Input,
-  Layout,
-  message,
-  Progress,
-  Row,
-  Space,
-  Spin,
-  Tag,
-  Typography,
+  Button, Col, Collapse, Input, message, Progress,
+  Row, Space, Spin, Tag, Typography,
 } from "antd";
-import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Sidebar from "../ui/sidebar";
-import DeepDiveBreadcrumbs from "./breadcrumbs";
 import {
-  ReportQueryItem,
-  useGetReportQueries,
-  useUpdateQuery,
+  ReportQueryItem, useGetReportQueries, useUpdateQuery,
 } from "../../hooks/api/useDeepDiveService";
+import DeepDivePageLayout from "./shared/page-layout";
+import PageHeader from "./shared/page-header";
+import StatCard from "./shared/stat-card";
 
-const { Content } = Layout;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface Props {
   reportId: number;
@@ -55,15 +38,12 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
 
   /* ── auto-expand highlighted query ── */
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
-
-  /* ── auto-scroll ── */
   const scrolledRef = useRef(false);
 
   useEffect(() => {
     if (highlightQueryId && queries.length > 0 && !scrolledRef.current) {
       const key = String(highlightQueryId);
       setActiveKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
-
       setTimeout(() => {
         const el = document.querySelector(`[data-query-id="${highlightQueryId}"]`);
         el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -82,7 +62,7 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
     return { totalQueries, avgCompletion, totalSources };
   }, [queries]);
 
-  /* ── start editing ── */
+  /* ── editing handlers ── */
   const startEditing = useCallback((query: ReportQueryItem) => {
     setEditingId(query.id);
     setEditState({ goal: query.goal, searchQueries: [...query.searchQueries] });
@@ -93,7 +73,6 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
     setEditState({ goal: "", searchQueries: [] });
   }, []);
 
-  /* ── search query list manipulation ── */
   const updateSearchQuery = useCallback((index: number, value: string) => {
     setEditState((prev) => {
       const next = [...prev.searchQueries];
@@ -118,12 +97,10 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
 
   const handleSave = useCallback(async () => {
     if (!editingId) return;
-
     if (!editState.goal.trim()) {
       void message.warning("Goal cannot be empty");
       return;
     }
-
     const filtered = editState.searchQueries.filter((q) => q.trim() !== "");
     try {
       await updateMutation.mutateAsync({
@@ -137,23 +114,15 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
     }
   }, [editingId, editState, updateMutation, cancelEditing]);
 
-  /* ── render query panel header ── */
+  /* ── render helpers ── */
   const renderPanelHeader = useCallback(
     (query: ReportQueryItem) => (
       <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
         <Tag color="blue" style={{ fontFamily: "monospace" }}>#{query.id}</Tag>
-        <Text
-          style={{ flex: 1, color: "#d9d9d9" }}
-          ellipsis={{ tooltip: query.goal }}
-        >
+        <Text style={{ flex: 1, color: "#d9d9d9" }} ellipsis={{ tooltip: query.goal }}>
           {query.goal || "No goal"}
         </Text>
-        <Progress
-          percent={query.completionPercent}
-          size="small"
-          style={{ width: 120, margin: 0 }}
-          strokeColor="#58bfce"
-        />
+        <Progress percent={query.completionPercent} size="small" style={{ width: 120, margin: 0 }} strokeColor="#58bfce" />
         <Tag color="green">{query.sourcesCount} src</Tag>
         <Tag color="orange">{query.candidatesCount} cand</Tag>
       </div>
@@ -161,30 +130,21 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
     [],
   );
 
-  /* ── render query panel body ── */
   const renderPanelBody = useCallback(
     (query: ReportQueryItem) => {
       const isEditing = editingId === query.id;
-
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Goal */}
           <div>
-            <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
-              Goal
-            </Text>
+            <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>Goal</Text>
             {isEditing ? (
-              <Input.TextArea
-                value={editState.goal}
+              <Input.TextArea value={editState.goal}
                 onChange={(e) => setEditState((prev) => ({ ...prev, goal: e.target.value }))}
-                autoSize={{ minRows: 2, maxRows: 6 }}
-              />
+                autoSize={{ minRows: 2, maxRows: 6 }} />
             ) : (
               <Text style={{ color: "#d9d9d9", whiteSpace: "pre-wrap" }}>{query.goal || "—"}</Text>
             )}
           </div>
-
-          {/* Search Queries */}
           <div>
             <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
               Search Queries ({isEditing ? editState.searchQueries.length : query.searchQueries.length})
@@ -193,85 +153,42 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {editState.searchQueries.map((sq, i) => (
                   <Space key={i} style={{ width: "100%" }}>
-                    <Input
-                      value={sq}
-                      onChange={(e) => updateSearchQuery(i, e.target.value)}
-                      style={{ flex: 1, minWidth: 400 }}
-                      placeholder="Search query..."
-                    />
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeSearchQuery(i)}
-                    />
+                    <Input value={sq} onChange={(e) => updateSearchQuery(i, e.target.value)}
+                      style={{ flex: 1, minWidth: 400 }} placeholder="Search query..." />
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeSearchQuery(i)} />
                   </Space>
                 ))}
-                <Button
-                  type="dashed"
-                  icon={<PlusOutlined />}
-                  onClick={addSearchQuery}
-                  style={{ width: 200 }}
-                >
-                  Add query
-                </Button>
+                <Button type="dashed" icon={<PlusOutlined />} onClick={addSearchQuery} style={{ width: 200 }}>Add query</Button>
               </div>
             ) : (
               <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {query.searchQueries.map((sq, i) => (
-                  <li key={i} style={{ color: "#d9d9d9" }}>{sq}</li>
-                ))}
-                {query.searchQueries.length === 0 && (
-                  <Text type="secondary">No search queries</Text>
-                )}
+                {query.searchQueries.map((sq, i) => <li key={i} style={{ color: "#d9d9d9" }}>{sq}</li>)}
+                {query.searchQueries.length === 0 && <Text type="secondary">No search queries</Text>}
               </ul>
             )}
           </div>
-
-          {/* Data Points */}
           {query.dataPoints.length > 0 && (
             <div>
-              <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
-                Data Points
-              </Text>
+              <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>Data Points</Text>
               <Space wrap size={4}>
-                {query.dataPoints.map((dp) => (
-                  <Tag key={dp.id} color="purple">{dp.name || dp.id}</Tag>
-                ))}
+                {query.dataPoints.map((dp) => <Tag key={dp.id} color="purple">{dp.name || dp.id}</Tag>)}
               </Space>
             </div>
           )}
-
-          {/* Completion */}
           <div>
-            <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>
-              Completion
-            </Text>
+            <Text strong style={{ color: "#8c8c8c", display: "block", marginBottom: 4 }}>Completion</Text>
             <Text style={{ color: "#d9d9d9" }}>
               {query.completedCompanies} / {query.totalCompanies} companies ({query.completionPercent}%)
             </Text>
           </div>
-
-          {/* Actions */}
           <div style={{ display: "flex", gap: 8 }}>
             {isEditing ? (
               <>
-                <Button
-                  type="primary"
-                  onClick={handleSave}
-                  loading={updateMutation.isPending}
-                >
-                  Save
-                </Button>
+                <Button type="primary" onClick={handleSave} loading={updateMutation.isPending}>Save</Button>
                 <Button onClick={cancelEditing}>Cancel</Button>
               </>
             ) : (
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => startEditing(query)}
-              >
-                Edit
-              </Button>
+              <Button icon={<EditOutlined />} onClick={() => startEditing(query)}>Edit</Button>
             )}
           </div>
         </div>
@@ -289,84 +206,41 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
   }
 
   return (
-    <Layout style={{ minHeight: "100vh", background: "#141414" }}>
-      <Sidebar />
-      <Layout style={{ marginLeft: 280, background: "#141414" }}>
-        <Content style={{ padding: "24px", background: "#141414", minHeight: "100vh" }}>
-          <div style={{ maxWidth: "1400px", width: "100%" }}>
-            {/* ── header ── */}
-            <div style={{ marginBottom: 24 }}>
-              <Space direction="vertical" size={4}>
-                <DeepDiveBreadcrumbs
-                  items={[
-                    { label: "Deep Dives", href: "/deep-dive" },
-                    { label: reportName, href: `/deep-dive/${reportId}` },
-                    { label: "Queries" },
-                  ]}
-                />
-                <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
-                  Report Queries — {reportName}
-                </Title>
-              </Space>
-            </div>
+    <DeepDivePageLayout>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Deep Dives", href: "/deep-dive" },
+          { label: reportName, href: `/deep-dive/${reportId}` },
+          { label: "Queries" },
+        ]}
+        title={`Report Queries — ${reportName}`}
+      />
 
-            {/* ── summary cards ── */}
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-              <Col xs={24} md={8}>
-                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-                  <Text style={{ color: "#8c8c8c" }}>Total Queries</Text>
-                  <Title level={3} style={{ margin: 0, color: "#fff" }}>
-                    {summary.totalQueries}
-                  </Title>
-                </Card>
-              </Col>
-              <Col xs={24} md={8}>
-                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-                  <Text style={{ color: "#8c8c8c" }}>Avg Completion</Text>
-                  <Title level={3} style={{ margin: 0, color: "#58bfce" }}>
-                    {summary.avgCompletion}%
-                  </Title>
-                </Card>
-              </Col>
-              <Col xs={24} md={8}>
-                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-                  <Text style={{ color: "#8c8c8c" }}>Total Sources</Text>
-                  <Title level={3} style={{ margin: 0, color: "#52c41a" }}>
-                    {summary.totalSources}
-                  </Title>
-                </Card>
-              </Col>
-            </Row>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} md={8}><StatCard label="Total Queries" value={summary.totalQueries} /></Col>
+        <Col xs={24} md={8}><StatCard label="Avg Completion" value={`${summary.avgCompletion}%`} valueColor="#58bfce" /></Col>
+        <Col xs={24} md={8}><StatCard label="Total Sources" value={summary.totalSources} valueColor="#52c41a" /></Col>
+      </Row>
 
-            {/* ── query list ── */}
-            {queries.map((query) => (
-              <div key={query.id} data-query-id={query.id}>
-                <Collapse
-                  activeKey={activeKeys}
-                  onChange={(keys) => setActiveKeys(keys as string[])}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    marginBottom: 12,
-                  }}
-                  items={[{
-                    key: String(query.id),
-                    label: renderPanelHeader(query),
-                    children: renderPanelBody(query),
-                    style: {
-                      background: "#1f1f1f",
-                      border: highlightQueryId === query.id
-                        ? "2px solid #58bfce"
-                        : "1px solid #303030",
-                      borderRadius: 8,
-                    },
-                  }]}
-                />
-              </div>
-            ))}
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
+      {queries.map((query) => (
+        <div key={query.id} data-query-id={query.id}>
+          <Collapse
+            activeKey={activeKeys}
+            onChange={(keys) => setActiveKeys(keys as string[])}
+            style={{ background: "transparent", border: "none", marginBottom: 12 }}
+            items={[{
+              key: String(query.id),
+              label: renderPanelHeader(query),
+              children: renderPanelBody(query),
+              style: {
+                background: "#1f1f1f",
+                border: highlightQueryId === query.id ? "2px solid #58bfce" : "1px solid #303030",
+                borderRadius: 8,
+              },
+            }]}
+          />
+        </div>
+      ))}
+    </DeepDivePageLayout>
   );
 }

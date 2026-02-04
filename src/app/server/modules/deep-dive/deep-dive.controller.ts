@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import { report_status_enum } from "../../../../generated/prisma";
 import { DeepDiveService } from "./deep-dive.service";
+import { N8NService } from "../n8n/n8n.service";
+import type { SortOrder } from "../../../../types/sorting";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -33,6 +35,11 @@ function parseStatus(value: string | null) {
     : null;
 }
 
+function parseSortOrder(value: string | null): SortOrder | undefined {
+  if (value === "asc" || value === "desc") return value;
+  return undefined;
+}
+
 export class DeepDiveController {
   static async list(request: NextRequest): Promise<NextResponse> {
     try {
@@ -49,6 +56,8 @@ export class DeepDiveController {
       const status = parseStatus(searchParams.get("status"));
       const useCaseRaw = toNumber(searchParams.get("useCaseId"));
       const industryRaw = toNumber(searchParams.get("industryId"));
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
 
       const result = await DeepDiveService.listDeepDives({
         limit,
@@ -57,6 +66,8 @@ export class DeepDiveController {
         status: status || undefined,
         useCaseId: useCaseRaw && useCaseRaw > 0 ? useCaseRaw : undefined,
         industryId: industryRaw && industryRaw > 0 ? industryRaw : undefined,
+        sortBy,
+        sortOrder,
       });
 
       return NextResponse.json(result);
@@ -168,6 +179,8 @@ export class DeepDiveController {
       const dateFrom = parseDate(searchParams.get("dateFrom"));
       const dateTo = parseDate(searchParams.get("dateTo"));
       const search = searchParams.get("search")?.trim() || undefined;
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
 
       const result = await DeepDiveService.getSourcesAnalytics(reportId, companyId, {
         limit,
@@ -181,6 +194,8 @@ export class DeepDiveController {
         dateFrom: dateFrom ?? undefined,
         dateTo: dateTo ?? undefined,
         search,
+        sortBy,
+        sortOrder,
       });
 
       if (!result) {
@@ -204,7 +219,14 @@ export class DeepDiveController {
         return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
       }
 
-      const result = await DeepDiveService.getReportQueries(reportId);
+      const { searchParams } = new URL(request.url);
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
+
+      const result = await DeepDiveService.getReportQueries(reportId, {
+        sortBy,
+        sortOrder,
+      });
       if (!result) {
         return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
       }
@@ -284,11 +306,15 @@ export class DeepDiveController {
       );
       const offset = Math.max(toNumber(searchParams.get("offset")) ?? 0, 0);
       const search = searchParams.get("search")?.trim() || undefined;
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
 
       const result = await DeepDiveService.getScrapeCandidates(reportId, companyId, {
         limit,
         offset,
         search,
+        sortBy,
+        sortOrder,
       });
 
       if (!result) {
@@ -299,6 +325,74 @@ export class DeepDiveController {
     } catch (error) {
       console.error("❌ DeepDiveController.getScrapeCandidates:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch scrape candidates" }, { status: 500 });
+    }
+  }
+
+  static async exportReport(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const body = (await request.json()) as { company_ids?: number[] };
+
+      let companyIds = body.company_ids;
+      if (!companyIds || companyIds.length === 0) {
+        const ids = await DeepDiveService.getReportCompanyIds(reportId);
+        if (!ids) {
+          return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
+        }
+        companyIds = ids;
+      }
+
+      const n8nResponse = await N8NService.exportGroupedReport(reportId, companyIds);
+
+      return new NextResponse(n8nResponse.body, {
+        headers: {
+          "Content-Type":
+            n8nResponse.headers.get("Content-Type") ||
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition":
+            n8nResponse.headers.get("Content-Disposition") ||
+            `attachment; filename="report-${reportId}.xlsx"`,
+        },
+      });
+    } catch (error) {
+      console.error("❌ DeepDiveController.exportReport:", error);
+      return NextResponse.json({ success: false, error: "Failed to export report" }, { status: 500 });
+    }
+  }
+
+  static async tryQuery(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const body = (await request.json()) as { query: string; company_id: number };
+
+      if (!body.query || typeof body.query !== "string" || !body.query.trim()) {
+        return NextResponse.json({ success: false, error: "Query must be a non-empty string" }, { status: 400 });
+      }
+
+      if (!Number.isFinite(body.company_id)) {
+        return NextResponse.json({ success: false, error: "company_id must be a valid number" }, { status: 400 });
+      }
+
+      const result = await N8NService.tryQuery(body.query.trim(), { company_id: body.company_id });
+
+      return NextResponse.json({ success: true, data: result });
+    } catch (error) {
+      console.error("❌ DeepDiveController.tryQuery:", error);
+      return NextResponse.json({ success: false, error: "Failed to execute query" }, { status: 500 });
     }
   }
 }

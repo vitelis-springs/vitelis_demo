@@ -1,32 +1,32 @@
 'use client';
-
-import React, { useState } from 'react';
 import { Card, Typography, Select, Layout } from 'antd';
 import Sidebar from '../../../components/ui/sidebar';
+import { useThemeStore } from '../../../stores/theme-store';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 export default function SettingsPage() {
-  const [theme, setTheme] = useState('dark');
+  const theme = useThemeStore((state) => state.theme);
+  const setTheme = useThemeStore((state) => state.setTheme);
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#141414' }}>
+    <Layout style={{ minHeight: '100vh', background: 'var(--app-bg-layout)' }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: '#141414' }}>
+      <Layout style={{ marginLeft: 280, background: 'var(--app-bg-layout)' }}>
         <div style={{ padding: '24px' }}>
-          <Card style={{ background: '#1f1f1f', border: '1px solid #303030', borderRadius: '12px' }}>
-            <Title level={2} style={{ color: '#58bfce', marginBottom: '24px' }}>
+          <Card style={{ background: 'var(--chart-card-bg)', border: '1px solid var(--chart-border)', borderRadius: '12px' }}>
+            <Title level={2} style={{ color: 'var(--chart-primary)', marginBottom: '24px' }}>
               Settings
             </Title>
             
             <div style={{ marginBottom: '24px' }}>
-              <Text style={{ color: '#d9d9d9', fontSize: '16px', marginBottom: '8px', display: 'block' }}>
+              <Text style={{ color: 'var(--chart-text)', fontSize: '16px', marginBottom: '8px', display: 'block' }}>
                 Theme
               </Text>
               <Select
                 value={theme}
-                onChange={setTheme}
+                onChange={(value) => setTheme(value as 'dark' | 'light')}
                 style={{ width: '200px' }}
                 size="large"
               >

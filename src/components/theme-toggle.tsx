@@ -1,42 +1,37 @@
 'use client';
 
-import { Button, Switch } from 'antd';
+import { Switch } from 'antd';
 import { BulbOutlined, BulbFilled } from '@ant-design/icons';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useThemeStore } from '../stores/theme-store';
 
 interface ThemeToggleProps {
   onThemeChange?: (isDark: boolean) => void;
 }
 
 export default function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
-  const [isDark, setIsDark] = useState(false);
+  const theme = useThemeStore((state) => state.theme);
+  const setTheme = useThemeStore((state) => state.setTheme);
+  const isDark = theme === 'dark';
 
   useEffect(() => {
-    // Check for saved theme preference or default to light theme
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldUseDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-    
-    setIsDark(shouldUseDark);
-    onThemeChange?.(shouldUseDark);
-  }, [onThemeChange]);
+    onThemeChange?.(isDark);
+  }, [isDark, onThemeChange]);
 
   const handleThemeChange = (checked: boolean) => {
-    setIsDark(checked);
-    localStorage.setItem('theme', checked ? 'dark' : 'light');
-    onThemeChange?.(checked);
+    setTheme(checked ? 'dark' : 'light');
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <BulbOutlined style={{ color: isDark ? '#666' : '#1890ff' }} />
+      <BulbOutlined style={{ color: isDark ? '#666' : 'var(--chart-primary)' }} />
       <Switch
         checked={isDark}
         onChange={handleThemeChange}
         checkedChildren="🌙"
         unCheckedChildren="☀️"
       />
-      <BulbFilled style={{ color: isDark ? '#1890ff' : '#666' }} />
+      <BulbFilled style={{ color: isDark ? 'var(--chart-primary)' : '#666' }} />
     </div>
   );
 }
