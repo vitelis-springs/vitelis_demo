@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import { report_status_enum } from "../../../../generated/prisma";
 import { DeepDiveService } from "./deep-dive.service";
+import type { SortOrder } from "../../../../types/sorting";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -33,6 +34,11 @@ function parseStatus(value: string | null) {
     : null;
 }
 
+function parseSortOrder(value: string | null): SortOrder | undefined {
+  if (value === "asc" || value === "desc") return value;
+  return undefined;
+}
+
 export class DeepDiveController {
   static async list(request: NextRequest): Promise<NextResponse> {
     try {
@@ -49,6 +55,8 @@ export class DeepDiveController {
       const status = parseStatus(searchParams.get("status"));
       const useCaseRaw = toNumber(searchParams.get("useCaseId"));
       const industryRaw = toNumber(searchParams.get("industryId"));
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
 
       const result = await DeepDiveService.listDeepDives({
         limit,
@@ -57,6 +65,8 @@ export class DeepDiveController {
         status: status || undefined,
         useCaseId: useCaseRaw && useCaseRaw > 0 ? useCaseRaw : undefined,
         industryId: industryRaw && industryRaw > 0 ? industryRaw : undefined,
+        sortBy,
+        sortOrder,
       });
 
       return NextResponse.json(result);
@@ -168,6 +178,8 @@ export class DeepDiveController {
       const dateFrom = parseDate(searchParams.get("dateFrom"));
       const dateTo = parseDate(searchParams.get("dateTo"));
       const search = searchParams.get("search")?.trim() || undefined;
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
 
       const result = await DeepDiveService.getSourcesAnalytics(reportId, companyId, {
         limit,
@@ -181,6 +193,8 @@ export class DeepDiveController {
         dateFrom: dateFrom ?? undefined,
         dateTo: dateTo ?? undefined,
         search,
+        sortBy,
+        sortOrder,
       });
 
       if (!result) {
@@ -204,7 +218,14 @@ export class DeepDiveController {
         return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
       }
 
-      const result = await DeepDiveService.getReportQueries(reportId);
+      const { searchParams } = new URL(request.url);
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
+
+      const result = await DeepDiveService.getReportQueries(reportId, {
+        sortBy,
+        sortOrder,
+      });
       if (!result) {
         return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
       }
@@ -284,11 +305,15 @@ export class DeepDiveController {
       );
       const offset = Math.max(toNumber(searchParams.get("offset")) ?? 0, 0);
       const search = searchParams.get("search")?.trim() || undefined;
+      const sortBy = searchParams.get("sortBy")?.trim() || undefined;
+      const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
 
       const result = await DeepDiveService.getScrapeCandidates(reportId, companyId, {
         limit,
         offset,
         search,
+        sortBy,
+        sortOrder,
       });
 
       if (!result) {

@@ -1,5 +1,6 @@
 import { Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
+import type { SortOrder } from "../../../../types/sorting";
 
 export interface DeepDiveListParams {
   limit: number;
@@ -8,6 +9,8 @@ export interface DeepDiveListParams {
   status?: report_status_enum;
   useCaseId?: number;
   industryId?: number;
+  sortBy?: string;
+  sortOrder?: SortOrder;
 }
 
 export interface SourceFilterParams {
@@ -34,15 +37,31 @@ export interface SourcesAnalyticsParams {
   dateFrom?: Date;
   dateTo?: Date;
   search?: string;
+  sortBy?: string;
+  sortOrder?: SortOrder;
 }
 
 export interface ScrapeCandidatesParams {
   limit: number;
   offset: number;
   search?: string;
+  sortBy?: string;
+  sortOrder?: SortOrder;
 }
 
 export class DeepDiveRepository {
+  private static buildOrderBy(
+    sortBy: string | undefined,
+    sortOrder: SortOrder | undefined,
+    allowed: readonly string[],
+    fallbackColumn: string,
+    fallbackOrder: SortOrder = "desc",
+  ): Prisma.Sql {
+    const col = sortBy && allowed.includes(sortBy) ? sortBy : fallbackColumn;
+    const dir = sortOrder === "asc" ? Prisma.sql`ASC` : sortOrder === "desc" ? Prisma.sql`DESC` : (fallbackOrder === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`);
+    return Prisma.sql`ORDER BY ${Prisma.raw(`"${col}"`)} ${dir}`;
+  }
+
   static async listReports(params: DeepDiveListParams) {
     const where: Prisma.reportsWhereInput = {};
 
@@ -67,10 +86,20 @@ export class DeepDiveRepository {
       };
     }
 
+    const ALLOWED_SORT: Record<string, string> = {
+      name: "name",
+      created_at: "created_at",
+      updated_at: "updates_at",
+    };
+    const sortField: string = params.sortBy && ALLOWED_SORT[params.sortBy]
+      ? ALLOWED_SORT[params.sortBy]!
+      : "created_at";
+    const sortDir: Prisma.SortOrder = params.sortOrder === "asc" ? "asc" : "desc";
+
     const [items, total] = await prisma.$transaction([
       prisma.reports.findMany({
         where,
-        orderBy: { created_at: "desc" },
+        orderBy: { [sortField]: sortDir },
         skip: params.offset,
         take: params.limit,
         include: {
@@ -530,7 +559,7 @@ export class DeepDiveRepository {
       }>>(
         Prisma.sql`SELECT id, url, title, tier, date, "isVectorized" AS is_vectorized, metadata, created_at
         FROM sources WHERE ${w()}
-        ORDER BY created_at DESC
+        ${this.buildOrderBy(filters.sortBy, filters.sortOrder, ["title", "tier", "created_at"], "created_at")}
         LIMIT ${filters.limit} OFFSET ${filters.offset}`
       ),
     ]);
@@ -573,7 +602,11 @@ export class DeepDiveRepository {
     return Prisma.join(conditions, " AND ");
   }
 
-  static async getReportQueriesWithStats(reportId: number) {
+  static async getReportQueriesWithStats(
+    reportId: number,
+    sortBy?: string,
+    sortOrder?: SortOrder,
+  ) {
     return prisma.$queryRaw<
       Array<{
         id: bigint;
@@ -633,7 +666,7 @@ export class DeepDiveRepository {
           WHERE dqp.data_collection_query_id = dcq.id
         ) dp_agg ON true
         WHERE rdcq.report_id = ${reportId}
-        ORDER BY dcq.id
+        ${this.buildOrderBy(sortBy, sortOrder, ["goal", "sources_count", "candidates_count"], "id", "asc")}
       `
     );
   }
@@ -691,7 +724,7 @@ export class DeepDiveRepository {
       }>>(
         Prisma.sql`SELECT id, url, title, description, status, metadata, created_at
         FROM scape_url_candidates WHERE ${w()}
-        ORDER BY created_at DESC
+        ${this.buildOrderBy(filters.sortBy, filters.sortOrder, ["url", "status", "created_at"], "created_at")}
         LIMIT ${filters.limit} OFFSET ${filters.offset}`
       ),
     ]);

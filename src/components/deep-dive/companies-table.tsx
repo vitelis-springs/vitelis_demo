@@ -3,6 +3,7 @@
 import { Card, Space, Table, Typography } from "antd";
 import { useRouter } from "next/navigation";
 import { DeepDiveCompanyRow, DeepDiveStatus } from "../../hooks/api/useDeepDiveService";
+import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
@@ -21,8 +22,8 @@ export default function CompaniesTable({
   return (
     <Card
       title="Companies"
-      style={{ background: "#1f1f1f", border: "1px solid #303030" }}
-      styles={{ header: { borderBottom: "1px solid #303030" } }}
+      style={DARK_CARD_STYLE}
+      styles={{ header: DARK_CARD_HEADER_STYLE }}
     >
       <Table<DeepDiveCompanyRow>
         dataSource={companies}

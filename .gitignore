@@ -52,3 +52,4 @@ CLAUDE.md
 .github/copilot-instructions.md
 AGENTS.md
 /src/generated/prisma
+.ignored_files/

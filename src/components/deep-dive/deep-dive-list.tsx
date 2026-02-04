@@ -1,28 +1,18 @@
 'use client';
 
-import {
-  Card,
-  Input,
-  Layout,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
+import { Card, Input, Select, Space, Table, Tag, Typography } from "antd";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "../ui/sidebar";
-import DeepDiveStatusTag from "./status-tag";
-import DeepDiveBreadcrumbs from "./breadcrumbs";
+import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import {
-  DeepDiveListItem,
-  DeepDiveStatus,
-  useGetDeepDives,
+  DeepDiveListItem, DeepDiveStatus, useGetDeepDives,
 } from "../../hooks/api/useDeepDiveService";
+import useServerSortedTable from "../../hooks/useServerSortedTable";
+import DeepDivePageLayout from "./shared/page-layout";
+import PageHeader from "./shared/page-header";
+import DeepDiveStatusTag from "./status-tag";
 
-const { Content } = Layout;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const STATUS_OPTIONS: Array<{ label: string; value: DeepDiveStatus | "" }> = [
   { label: "All", value: "" },
@@ -77,15 +67,13 @@ function renderBadges(record: DeepDiveListItem): React.ReactNode {
 
 export default function DeepDiveList() {
   const router = useRouter();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const { page, pageSize, offset, sortBy, sortOrder, handleTableChange, resetPage } =
+    useServerSortedTable({ defaultPageSize: 20, defaultSortBy: "created_at" });
   const [searchText, setSearchText] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<DeepDiveStatus | "">("");
   const [useCaseId, setUseCaseId] = useState<number | undefined>(undefined);
   const [industryId, setIndustryId] = useState<number | undefined>(undefined);
-
-  const offset = (page - 1) * pageSize;
 
   const { data, isLoading } = useGetDeepDives({
     limit: pageSize,
@@ -94,6 +82,8 @@ export default function DeepDiveList() {
     status: status || undefined,
     useCaseId,
     industryId,
+    sortBy,
+    sortOrder,
   });
 
   const items = data?.data.items ?? [];
@@ -119,26 +109,14 @@ export default function DeepDiveList() {
   const columns = useMemo(
     () => [
       {
-        title: "Report",
-        dataIndex: "name",
-        key: "name",
+        title: "Report", dataIndex: "name", key: "name", sorter: true,
         render: (_: unknown, record: DeepDiveListItem) => (
           <div>
             <Text strong style={{ color: "#e0e0e0", fontSize: 15 }}>
               {record.name || `Deep Dive #${record.id}`}
             </Text>
             {record.description && (
-              <div
-                style={{
-                  color: "#8c8c8c",
-                  fontSize: 13,
-                  marginTop: 2,
-                  maxWidth: 500,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div style={{ color: "#8c8c8c", fontSize: 13, marginTop: 2, maxWidth: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {record.description}
               </div>
             )}
@@ -147,16 +125,11 @@ export default function DeepDiveList() {
         ),
       },
       {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
-        width: 120,
+        title: "Status", dataIndex: "status", key: "status", width: 120,
         render: (value: DeepDiveStatus) => <DeepDiveStatusTag status={value} />,
       },
       {
-        title: "Stats",
-        key: "stats",
-        width: 140,
+        title: "Stats", key: "stats", width: 140,
         render: (_: unknown, record: DeepDiveListItem) => (
           <div style={{ lineHeight: 1.6 }}>
             <div style={{ color: "#d9d9d9", fontSize: 13 }}>
@@ -169,10 +142,7 @@ export default function DeepDiveList() {
         ),
       },
       {
-        title: "Updated",
-        dataIndex: "updatedAt",
-        key: "updatedAt",
-        width: 140,
+        title: "Updated", dataIndex: "updatedAt", key: "updated_at", width: 140, sorter: true,
         render: (value: string | null) => (
           <Text style={{ color: "#8c8c8c", fontSize: 13 }}>{formatRelativeTime(value)}</Text>
         ),
@@ -182,141 +152,60 @@ export default function DeepDiveList() {
   );
 
   const handleSearch = () => {
-    setPage(1);
+    resetPage();
     setQuery(searchText.trim());
   };
 
-  const handleStatusChange = (value: DeepDiveStatus | "") => {
-    setPage(1);
-    setStatus(value);
-  };
-
-  const handleUseCaseChange = (value: number) => {
-    setPage(1);
-    setUseCaseId(value || undefined);
-  };
-
-  const handleIndustryChange = (value: number) => {
-    setPage(1);
-    setIndustryId(value || undefined);
-  };
-
-  const handlePageChange = (nextPage: number, nextPageSize?: number) => {
-    setPage(nextPage);
-    if (nextPageSize && nextPageSize !== pageSize) {
-      setPageSize(nextPageSize);
-      setPage(1);
-    }
-  };
-
   return (
-    <Layout style={{ minHeight: "100vh", background: "#141414" }}>
-      <Sidebar />
-      <Layout style={{ marginLeft: 280, background: "#141414" }}>
-        <Content
-          style={{
-            padding: "24px",
-            background: "#141414",
-            minHeight: "100vh",
+    <DeepDivePageLayout>
+      <PageHeader
+        breadcrumbs={[{ label: "Deep Dives" }]}
+        title="Deep Dive Admin"
+        extra={<Text style={{ color: "#8c8c8c" }}>Track progress, queries, and company statuses</Text>}
+      />
+
+      <Card style={{ ...DARK_CARD_STYLE, marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
+        <Space wrap size="middle" style={{ width: "100%" }}>
+          <Input.Search
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            onSearch={handleSearch}
+            placeholder="Search deep dives"
+            allowClear
+            style={{ width: 260 }}
+          />
+          <Select value={status} onChange={(v) => { resetPage(); setStatus(v); }} options={STATUS_OPTIONS} style={{ width: 160 }} />
+          <Select value={useCaseId ?? 0} onChange={(v) => { resetPage(); setUseCaseId(v || undefined); }} options={useCaseOptions} style={{ width: 200 }} />
+          <Select value={industryId ?? 0} onChange={(v) => { resetPage(); setIndustryId(v || undefined); }} options={industryOptions} style={{ width: 200 }} />
+        </Space>
+      </Card>
+
+      <Card style={DARK_CARD_STYLE} styles={{ body: { padding: 0 } }}>
+        <Table
+          dataSource={items}
+          columns={columns}
+          rowKey="id"
+          loading={isLoading}
+          onChange={handleTableChange}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: ["10", "20", "50"],
           }}
-        >
-          <div style={{ maxWidth: "1400px", width: "100%" }}>
-            <DeepDiveBreadcrumbs items={[{ label: "Deep Dives" }]} />
-            <div
-              style={{
-                marginBottom: "24px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
-                  Deep Dive Admin
-                </Title>
-                <Text style={{ color: "#8c8c8c" }}>
-                  Track progress, queries, and company statuses
-                </Text>
-              </div>
-            </div>
-
-            <Card
-              style={{
-                background: "#1f1f1f",
-                border: "1px solid #303030",
-                marginBottom: "16px",
-              }}
-              styles={{ body: { padding: "16px" } }}
-            >
-              <Space wrap size="middle" style={{ width: "100%" }}>
-                <Input.Search
-                  value={searchText}
-                  onChange={(event) => setSearchText(event.target.value)}
-                  onSearch={handleSearch}
-                  placeholder="Search deep dives"
-                  allowClear
-                  style={{ width: 260 }}
-                />
-                <Select
-                  value={status}
-                  onChange={handleStatusChange}
-                  options={STATUS_OPTIONS}
-                  style={{ width: 160 }}
-                />
-                <Select
-                  value={useCaseId ?? 0}
-                  onChange={handleUseCaseChange}
-                  options={useCaseOptions}
-                  style={{ width: 200 }}
-                />
-                <Select
-                  value={industryId ?? 0}
-                  onChange={handleIndustryChange}
-                  options={industryOptions}
-                  style={{ width: 200 }}
-                />
-              </Space>
-            </Card>
-
-            <Card
-              style={{
-                background: "#1f1f1f",
-                border: "1px solid #303030",
-              }}
-              styles={{ body: { padding: "0" } }}
-            >
-              <Table
-                dataSource={items}
-                columns={columns}
-                rowKey="id"
-                loading={isLoading}
-                pagination={{
-                  current: page,
-                  pageSize,
-                  total,
-                  onChange: handlePageChange,
-                  showSizeChanger: true,
-                  pageSizeOptions: ["10", "20", "50"],
-                }}
-                style={{ background: "#1f1f1f" }}
-                onRow={(record) => ({
-                  onClick: () => router.push(`/deep-dive/${record.id}`),
-                  style: { cursor: "pointer" },
-                })}
-                rowClassName={() => "deep-dive-row"}
-              />
-              <style jsx global>{`
-                .deep-dive-row:hover td {
-                  background: #2a2a2a !important;
-                }
-                .deep-dive-row td {
-                  transition: background 0.2s ease;
-                }
-              `}</style>
-            </Card>
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
+          style={{ background: "#1f1f1f" }}
+          onRow={(record) => ({
+            onClick: () => router.push(`/deep-dive/${record.id}`),
+            style: { cursor: "pointer" },
+          })}
+          rowClassName={() => "deep-dive-row"}
+        />
+        <style jsx global>{`
+          .deep-dive-row:hover td { background: #2a2a2a !important; }
+          .deep-dive-row td { transition: background 0.2s ease; }
+        `}</style>
+      </Card>
+    </DeepDivePageLayout>
   );
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
+import type { SortOrder } from "../../types/sorting";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
 
@@ -166,6 +167,8 @@ export interface DeepDiveListParams {
   status?: DeepDiveStatus;
   useCaseId?: number;
   industryId?: number;
+  sortBy?: string;
+  sortOrder?: SortOrder;
 }
 
 export interface DeepDiveSourcesParams {
@@ -189,6 +192,8 @@ const deepDiveApi = {
     if (params.status) searchParams.set("status", params.status);
     if (params.useCaseId !== undefined) searchParams.set("useCaseId", String(params.useCaseId));
     if (params.industryId !== undefined) searchParams.set("industryId", String(params.industryId));
+    if (params.sortBy) searchParams.set("sortBy", params.sortBy);
+    if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
 
     const response = await api.get(`/deep-dive?${searchParams.toString()}`);
     return response.data;
@@ -234,6 +239,8 @@ export const useGetDeepDives = (params: DeepDiveListParams, options?: { enabled?
       params.status ?? "",
       params.useCaseId ?? "",
       params.industryId ?? "",
+      params.sortBy ?? "",
+      params.sortOrder ?? "",
     ],
     queryFn: () => deepDiveApi.list(params),
     enabled: options?.enabled ?? true,
@@ -292,6 +299,8 @@ export interface SourcesAnalyticsParams {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  sortBy?: string;
+  sortOrder?: SortOrder;
 }
 
 export interface QueryIdAggItem {
@@ -357,6 +366,8 @@ export interface ScrapeCandidatesParams {
   limit?: number;
   offset?: number;
   search?: string;
+  sortBy?: string;
+  sortOrder?: SortOrder;
 }
 
 export interface ScrapeCandidateItem {
@@ -404,6 +415,8 @@ const sourcesApi = {
     if (params.dateFrom) sp.set("dateFrom", params.dateFrom);
     if (params.dateTo) sp.set("dateTo", params.dateTo);
     if (params.search) sp.set("search", params.search);
+    if (params.sortBy) sp.set("sortBy", params.sortBy);
+    if (params.sortOrder) sp.set("sortOrder", params.sortOrder);
 
     const suffix = sp.toString();
     const response = await api.get(
@@ -421,6 +434,8 @@ const sourcesApi = {
     if (params.limit !== undefined) sp.set("limit", String(params.limit));
     if (params.offset !== undefined) sp.set("offset", String(params.offset));
     if (params.search) sp.set("search", params.search);
+    if (params.sortBy) sp.set("sortBy", params.sortBy);
+    if (params.sortOrder) sp.set("sortOrder", params.sortOrder);
 
     const suffix = sp.toString();
     const response = await api.get(
@@ -453,6 +468,8 @@ export const useGetSourcesAnalytics = (
       params.dateFrom ?? "",
       params.dateTo ?? "",
       params.search ?? "",
+      params.sortBy ?? "",
+      params.sortOrder ?? "",
     ],
     queryFn: () => sourcesApi.getAnalytics(reportId!, companyId!, params),
     enabled:
@@ -477,6 +494,8 @@ export const useGetScrapeCandidates = (
       params.limit ?? 50,
       params.offset ?? 0,
       params.search ?? "",
+      params.sortBy ?? "",
+      params.sortOrder ?? "",
     ],
     queryFn: () => sourcesApi.getCandidates(reportId!, companyId!, params),
     enabled:

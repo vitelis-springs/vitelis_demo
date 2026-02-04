@@ -1,151 +1,34 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import {
-  Card,
-  Col,
-  DatePicker,
-  Empty,
-  Input,
-  Layout,
-  Row,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
+import { Card, Col, DatePicker, Input, Row, Select, Space, Table, Tag, Typography } from "antd";
 import dayjs from "dayjs";
-import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import { Resizable } from "react-resizable";
+import { useMemo, useState } from "react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
+  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
+  PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import remarkGfm from "remark-gfm";
 import {
-  SourceItem,
-  SourcesAnalyticsParams,
-  useGetSourcesAnalytics,
+  PIE_COLORS, QUALITY_COLORS, TIER_COLORS,
+  DARK_TOOLTIP_STYLE, DARK_CARD_STYLE,
+} from "../../config/chart-theme";
+import {
+  SourceItem, SourcesAnalyticsParams, useGetSourcesAnalytics,
 } from "../../hooks/api/useDeepDiveService";
-import Sidebar from "../ui/sidebar";
-import DeepDiveBreadcrumbs from "./breadcrumbs";
+import useServerSortedTable from "../../hooks/useServerSortedTable";
+import useShowingLabel from "../../hooks/useShowingLabel";
+import { useResizableColumns, RESIZABLE_TABLE_COMPONENTS } from "./shared/resizable-table";
+import { MarkdownCell } from "./shared/markdown-cell";
+import DeepDivePageLayout from "./shared/page-layout";
+import PageHeader from "./shared/page-header";
+import ChartCard from "./shared/chart-card";
+import FilterBar from "./shared/filter-bar";
+import StatCard from "./shared/stat-card";
+import QueryIdTags from "./shared/query-id-tags";
 
-const { Content } = Layout;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
-
-const QUALITY_COLORS: Record<string, string> = {
-  HIGH: "#52c41a",
-  MEDIUM: "#faad14",
-  LOW: "#ff4d4f",
-};
-
-const TIER_COLORS = ["#8c8c8c", "#58bfce", "#36cfc9", "#13c2c2"];
-const PIE_COLORS = ["#58bfce",  "#006d75", "#00474f", "#95de64", "#faad14", "#ff7a45", "#ff4d4f", "#b37feb","#36cfc9", "#13c2c2",];
-
-/* ─────────────── resizable column header ─────────────── */
-
-interface ResizableTitleProps extends React.HTMLAttributes<HTMLTableCellElement> {
-  onResize?: (e: React.SyntheticEvent, data: { size: { width: number } }) => void;
-  width?: number;
-}
-
-function ResizableTitle({ onResize, width, ...rest }: ResizableTitleProps) {
-  if (!width || !onResize) return <th {...rest} />;
-  return (
-    <Resizable
-      width={width}
-      height={0}
-      handle={
-        <span
-          style={{
-            position: "absolute",
-            right: -5,
-            bottom: 0,
-            zIndex: 1,
-            width: 10,
-            height: "100%",
-            cursor: "col-resize",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
-      }
-      onResize={onResize}
-      draggableOpts={{ enableUserSelectHack: false }}
-    >
-      <th {...rest} />
-    </Resizable>
-  );
-}
-
-function useResizableColumns<T>(baseColumns: TableColumnsType<T>) {
-  const [widths, setWidths] = useState<number[]>(() =>
-    baseColumns.map((c) => (c as { width?: number }).width ?? 200),
-  );
-
-  const handleResize = useCallback(
-    (index: number) =>
-      (_: React.SyntheticEvent, { size }: { size: { width: number } }) => {
-        setWidths((prev) => {
-          const next = [...prev];
-          next[index] = size.width;
-          return next;
-        });
-      },
-    [],
-  );
-
-  return useMemo(
-    () =>
-      baseColumns.map((col, i) => ({
-        ...col,
-        width: widths[i],
-        onHeaderCell: () => ({
-          width: widths[i],
-          onResize: handleResize(i),
-        }),
-      })) as TableColumnsType<T>,
-    [baseColumns, widths, handleResize],
-  );
-}
-
-/* ─────────────── markdown cell ─────────────── */
-
-function MarkdownCell({ children }: { children: string | null | undefined }) {
-  if (!children) return <span style={{ color: "#595959" }}>—</span>;
-  return (
-    <div style={{ maxHeight: 200, overflow: "auto", color: "#d9d9d9" }}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({ children: c }) => <p style={{ margin: "0 0 4px" }}>{c}</p>,
-          a: ({ href, children: c }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#58bfce" }}>{c}</a>
-          ),
-        }}
-      >
-        {children}
-      </ReactMarkdown>
-    </div>
-  );
-}
 
 /* ─────────────── helpers ─────────────── */
 
@@ -179,22 +62,20 @@ export default function SourcesAnalytics({
   const [tag, setTag] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+
+  const { page, pageSize, offset, sortBy, sortOrder, handleTableChange, resetPage } =
+    useServerSortedTable({ defaultSortBy: "created_at" });
 
   const queryParams = useMemo((): SourcesAnalyticsParams => ({
     limit: pageSize,
-    offset: (page - 1) * pageSize,
-    tier,
-    qualityClass,
-    isValid,
-    agent,
-    category,
-    tag,
+    offset,
+    tier, qualityClass, isValid, agent, category, tag,
     dateFrom: dateRange?.[0]?.toISOString(),
     dateTo: dateRange?.[1]?.toISOString(),
     search: search || undefined,
-  }), [tier, qualityClass, isValid, agent, category, tag, dateRange, search, page, pageSize]);
+    sortBy,
+    sortOrder,
+  }), [tier, qualityClass, isValid, agent, category, tag, dateRange, search, pageSize, offset, sortBy, sortOrder]);
 
   const { data, isLoading } = useGetSourcesAnalytics(reportId, companyId, queryParams);
   const payload = data?.data;
@@ -220,6 +101,7 @@ export default function SourcesAnalytics({
 
   const validPercent = totalFiltered > 0 ? Math.round((validCount / totalFiltered) * 100) : 0;
   const vectorizedPercent = totalFiltered > 0 ? Math.round((vectorizedCount / totalFiltered) * 100) : 0;
+  const showingLabel = useShowingLabel(totalFiltered, totalUnfiltered);
 
   /* ── chart data ── */
   const radarData = useMemo(() => {
@@ -237,9 +119,7 @@ export default function SourcesAnalytics({
 
   const qualityPieData = useMemo(() => {
     if (!agg?.qualityClass) return [];
-    return agg.qualityClass
-      .filter((row) => row.value)
-      .map((row) => ({ name: row.value!, value: row.count }));
+    return agg.qualityClass.filter((row) => row.value).map((row) => ({ name: row.value!, value: row.count }));
   }, [agg?.qualityClass]);
 
   const queryBarData = useMemo(() => {
@@ -255,444 +135,192 @@ export default function SourcesAnalytics({
     (agg?.agents ?? []).slice(0, 10).map((row) => ({ name: row.value, value: row.count })),
     [agg?.agents],
   );
-
   const categoriesPieData = useMemo(() =>
     (agg?.categories ?? []).slice(0, 10).map((row) => ({ name: row.value, value: row.count })),
     [agg?.categories],
   );
 
-  /* ── filter options derived from aggregations ── */
+  /* ── filter options ── */
   const agentOptions = useMemo(() =>
-    (agg?.agents ?? []).map((a) => ({ label: `${a.value} (${a.count})`, value: a.value })),
-    [agg?.agents],
-  );
+    (agg?.agents ?? []).map((a) => ({ label: `${a.value} (${a.count})`, value: a.value })), [agg?.agents]);
   const categoryOptions = useMemo(() =>
-    (agg?.categories ?? []).map((c) => ({ label: `${c.value} (${c.count})`, value: c.value })),
-    [agg?.categories],
-  );
+    (agg?.categories ?? []).map((c) => ({ label: `${c.value} (${c.count})`, value: c.value })), [agg?.categories]);
   const tagOptions = useMemo(() =>
-    (agg?.tags ?? []).map((t) => ({ label: `${t.value} (${t.count})`, value: t.value })),
-    [agg?.tags],
-  );
+    (agg?.tags ?? []).map((t) => ({ label: `${t.value} (${t.count})`, value: t.value })), [agg?.tags]);
 
-  /* ── table rows ── */
-  const tableData = useMemo((): SourceRow[] =>
-    items.map((item) => ({ ...item, key: item.id })),
-    [items],
-  );
+  /* ── table ── */
+  const tableData = useMemo((): SourceRow[] => items.map((item) => ({ ...item, key: item.id })), [items]);
 
-  /* ── table columns ── */
   const colsDef = useMemo((): TableColumnsType<SourceRow> => [
-    {
-      title: "Title",
-      dataIndex: "title",
-      width: 200,
-      render: (v: string | null) => <MarkdownCell>{v}</MarkdownCell>,
-    },
-    {
-      title: "URL",
-      dataIndex: "url",
-      width: 200,
-      render: (v: string) => (
-        <a href={v} target="_blank" rel="noopener noreferrer" style={{ color: "#58bfce", wordBreak: "break-all" }}>
-          {v.length > 60 ? `${v.slice(0, 60)}...` : v}
-        </a>
-      ),
-    },
-    {
-      title: "Tier",
-      dataIndex: "tier",
-      width: 70,
-      render: (v: number | null) => <Tag color={TIER_COLORS[v ?? 0]}>{v ?? "—"}</Tag>,
-    },
-    {
-      title: "Score",
-      width: 80,
-      render: (_: unknown, row: SourceRow) => {
+    { title: "Title", dataIndex: "title", key: "title", width: 200, sorter: true, render: (v: string | null) => <MarkdownCell>{v}</MarkdownCell> },
+    { title: "URL", dataIndex: "url", width: 200, render: (v: string) => (
+        <a href={v} target="_blank" rel="noopener noreferrer" style={{ color: "#58bfce", wordBreak: "break-all" }}>{v.length > 60 ? `${v.slice(0, 60)}...` : v}</a>
+    )},
+    { title: "Tier", dataIndex: "tier", key: "tier", width: 70, sorter: true, render: (v: number | null) => <Tag color={TIER_COLORS[v ?? 0]}>{v ?? "—"}</Tag> },
+    { title: "Score", width: 80, render: (_: unknown, row: SourceRow) => {
         const score = extractMeta(row, "total_score");
         return <Text style={{ color: "#d9d9d9" }}>{score != null ? `${score}/30` : "—"}</Text>;
-      },
-    },
-    {
-      title: "Valid",
-      width: 80,
-      render: (_: unknown, row: SourceRow) => {
+    }},
+    { title: "Valid", width: 80, render: (_: unknown, row: SourceRow) => {
         const valid = extractMeta(row, "isValid");
         if (valid === true) return <Tag color="green">Yes</Tag>;
         if (valid === false) return <Tag color="red">No</Tag>;
         return "—";
-      },
-    },
-    {
-      title: "Query IDs",
-      width: 120,
-      render: (_: unknown, row: SourceRow) => {
-        const ids = extractStringArray(row, "query_ids");
-        return ids.length
-          ? <Space size={2} wrap>{ids.map((id) => (
-              <Link key={id} href={`/deep-dive/${reportId}/query?queryId=${id}`}>
-                <Tag color="purple" style={{ cursor: "pointer" }}>#{id}</Tag>
-              </Link>
-            ))}</Space>
-          : "—";
-      },
-    },
-    {
-      title: "Tags",
-      width: 180,
-      render: (_: unknown, row: SourceRow) => {
+    }},
+    { title: "Query IDs", width: 120, render: (_: unknown, row: SourceRow) => <QueryIdTags ids={extractStringArray(row, "query_ids")} reportId={reportId} /> },
+    { title: "Tags", width: 180, render: (_: unknown, row: SourceRow) => {
         const tags = extractStringArray(row, "tags");
-        return tags.length
-          ? <Space size={2} wrap>{tags.map((t) => <Tag key={t}>{t}</Tag>)}</Space>
-          : "—";
-      },
-    },
-    {
-      title: "Agents",
-      width: 150,
-      render: (_: unknown, row: SourceRow) => {
+        return tags.length ? <Space size={2} wrap>{tags.map((t) => <Tag key={t}>{t}</Tag>)}</Space> : "—";
+    }},
+    { title: "Agents", width: 150, render: (_: unknown, row: SourceRow) => {
         const agents = extractStringArray(row, "agents");
-        return agents.length
-          ? <Space size={2} wrap>{agents.map((a) => <Tag key={a} color="blue">{a}</Tag>)}</Space>
-          : "—";
-      },
-    },
-    {
-      title: "Categories",
-      width: 150,
-      render: (_: unknown, row: SourceRow) => {
+        return agents.length ? <Space size={2} wrap>{agents.map((a) => <Tag key={a} color="blue">{a}</Tag>)}</Space> : "—";
+    }},
+    { title: "Categories", width: 150, render: (_: unknown, row: SourceRow) => {
         const cats = extractStringArray(row, "categories");
-        return cats.length
-          ? <Space size={2} wrap>{cats.map((c) => <Tag key={c} color="cyan">{c}</Tag>)}</Space>
-          : "—";
-      },
-    },
-    {
-      title: "Reasoning",
-      width: 300,
-      render: (_: unknown, row: SourceRow) => {
-        const reasoning = extractMeta(row, "reasoning") as string | null;
-        return <MarkdownCell>{reasoning}</MarkdownCell>;
-      },
-    },
-    {
-      title: "Date",
-      dataIndex: "date",
-      width: 110,
-      render: (v: string | null) => v ? dayjs(v).format("YYYY-MM-DD") : "—",
-    },
-  ], []);
+        return cats.length ? <Space size={2} wrap>{cats.map((c) => <Tag key={c} color="cyan">{c}</Tag>)}</Space> : "—";
+    }},
+    { title: "Reasoning", width: 300, render: (_: unknown, row: SourceRow) => <MarkdownCell>{extractMeta(row, "reasoning") as string | null}</MarkdownCell> },
+    { title: "Date", dataIndex: "date", key: "created_at", width: 110, sorter: true, render: (v: string | null) => v ? dayjs(v).format("YYYY-MM-DD") : "—" },
+  ], [reportId]);
 
   const columns = useResizableColumns(colsDef);
-  const tableComponents = useMemo(() => ({ header: { cell: ResizableTitle } }), []);
-
-  const showingLabel = `Showing ${totalFiltered.toLocaleString()} of ${totalUnfiltered.toLocaleString()} (${totalUnfiltered > 0 ? Math.round((totalFiltered / totalUnfiltered) * 100) : 0}%)`;
 
   /* ─────────────── render ─────────────── */
-
   return (
-    <Layout style={{ minHeight: "100vh", background: "#141414" }}>
-      <Sidebar />
-      <Layout style={{ marginLeft: 280, background: "#141414" }}>
-        <Content style={{ padding: "24px", background: "#141414", minHeight: "100vh" }}>
-          <div style={{ maxWidth: "1400px", width: "100%" }}>
-            {/* ── header ── */}
-            <div style={{ marginBottom: 24 }}>
-              <Space direction="vertical" size={4}>
-                <DeepDiveBreadcrumbs
-                  items={[
-                    { label: "Deep Dives", href: "/deep-dive" },
-                    { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
-                    { label: payload?.company.name ?? `Company #${companyId}`, href: `/deep-dive/${reportId}/companies/${companyId}` },
-                    { label: "Sources" },
-                  ]}
-                />
-                <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
-                  Sources Analytics — {payload?.company.name ?? `Company #${companyId}`}
-                </Title>
-              </Space>
-            </div>
+    <DeepDivePageLayout>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Deep Dives", href: "/deep-dive" },
+          { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+          { label: payload?.company.name ?? `Company #${companyId}`, href: `/deep-dive/${reportId}/companies/${companyId}` },
+          { label: "Sources" },
+        ]}
+        title={`Sources Analytics — ${payload?.company.name ?? `Company #${companyId}`}`}
+      />
 
-            {/* ── summary cards ── */}
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-              <Col xs={24} md={6}>
-                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-                  <Text style={{ color: "#8c8c8c" }}>Total sources</Text>
-                  <Title level={3} style={{ margin: 0, color: "#fff" }}>{totalUnfiltered}</Title>
-                </Card>
-              </Col>
-              <Col xs={24} md={6}>
-                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-                  <Text style={{ color: "#8c8c8c" }}>Valid %</Text>
-                  <Title level={3} style={{ margin: 0, color: "#52c41a" }}>{validPercent}%</Title>
-                </Card>
-              </Col>
-              <Col xs={24} md={6}>
-                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-                  <Text style={{ color: "#8c8c8c" }}>Avg quality score</Text>
-                  <Title level={3} style={{ margin: 0, color: "#faad14" }}>{avgQualityScore}%</Title>
-                </Card>
-              </Col>
-              <Col xs={24} md={6}>
-                <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-                  <Text style={{ color: "#8c8c8c" }}>Vectorized %</Text>
-                  <Title level={3} style={{ margin: 0, color: "#58bfce" }}>{vectorizedPercent}%</Title>
-                </Card>
-              </Col>
-            </Row>
+      {/* ── summary cards ── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} md={6}><StatCard label="Total sources" value={totalUnfiltered} /></Col>
+        <Col xs={24} md={6}><StatCard label="Valid %" value={`${validPercent}%`} valueColor="#52c41a" /></Col>
+        <Col xs={24} md={6}><StatCard label="Avg quality score" value={`${avgQualityScore}%`} valueColor="#faad14" /></Col>
+        <Col xs={24} md={6}><StatCard label="Vectorized %" value={`${vectorizedPercent}%`} valueColor="#58bfce" /></Col>
+      </Row>
 
-            {/* ── charts ── */}
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-              <Col xs={24} lg={12}>
-                <Card
-                  title="Quality Scores Radar"
-                  style={{ background: "#1f1f1f", border: "1px solid #303030" }}
-                  styles={{ header: { borderBottom: "1px solid #303030" } }}
-                >
-                  {radarData.length ? (
-                    <div style={{ height: 320 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
-                          <PolarGrid stroke="#303030" />
-                          <PolarAngleAxis dataKey="axis" tick={{ fill: "#d9d9d9", fontSize: 12 }} />
-                          <PolarRadiusAxis domain={[0, 5]} tick={{ fill: "#8c8c8c", fontSize: 11 }} axisLine={false} />
-                          <Tooltip contentStyle={{ background: "#1f1f1f", border: "1px solid #303030", borderRadius: 6 }} />
-                          <Radar name="Avg Score" dataKey="value" stroke="#58bfce" fill="#58bfce" fillOpacity={0.3} strokeWidth={2} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <Empty description="No score data" />
-                  )}
-                </Card>
-              </Col>
-              <Col xs={24} lg={12}>
-                <Card
-                  title="Quality Class Distribution"
-                  style={{ background: "#1f1f1f", border: "1px solid #303030" }}
-                  styles={{ header: { borderBottom: "1px solid #303030" } }}
-                >
-                  {qualityPieData.length ? (
-                    <div style={{ height: 320 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={qualityPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                            {qualityPieData.map((entry) => (
-                              <Cell key={entry.name} fill={QUALITY_COLORS[entry.name] ?? "#8c8c8c"} />
-                            ))}
-                          </Pie>
-                          <Tooltip contentStyle={{ background: "#1f1f1f", border: "1px solid #303030" }} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <Empty description="No quality class data" />
-                  )}
-                </Card>
-              </Col>
-              <Col xs={24} lg={12}>
-                <Card
-                  title="Sources by Query"
-                  style={{ background: "#1f1f1f", border: "1px solid #303030" }}
-                  styles={{ header: { borderBottom: "1px solid #303030" } }}
-                >
-                  {queryBarData.length ? (
-                    <div style={{ height: 320 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={queryBarData} layout="vertical" margin={{ left: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#303030" />
-                          <XAxis type="number" tick={{ fill: "#d9d9d9" }} />
-                          <YAxis
-                            type="category"
-                            dataKey="queryId"
-                            tick={{ fill: "#58bfce", fontSize: 11 }}
-                            width={50}
-                          />
-                          <Tooltip
-                            contentStyle={{ background: "#1f1f1f", border: "1px solid #303030" }}
-                            formatter={(value) => [value, "Sources"]}
-                            labelFormatter={(label) => {
-                              const item = queryBarData.find((d) => d.queryId === String(label));
-                              return item?.goal ?? `Query #${label}`;
-                            }}
-                          />
-                          <Bar dataKey="count" fill="#58bfce" name="Sources">
-                            {queryBarData.map((entry) => (
-                              <Cell
-                                key={entry.queryId}
-                                fill="#58bfce"
-                                cursor="pointer"
-                                onClick={() => window.open(`/deep-dive/${reportId}/query?queryId=${entry.queryId}`, "_self")}
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <Empty description="No query data" />
-                  )}
-                </Card>
-              </Col>
-              <Col xs={24} lg={12}>
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Card
-                      title="Agents"
-                      style={{ background: "#1f1f1f", border: "1px solid #303030" }}
-                      styles={{ header: { borderBottom: "1px solid #303030", fontSize: 13 } }}
-                    >
-                      {agentsPieData.length ? (
-                        <div style={{ height: 280 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie data={agentsPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={false}>
-                                {agentsPieData.map((_, i) => (
-                                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip contentStyle={{ background: "#1f1f1f", border: "1px solid #303030" }} />
-                              <Legend wrapperStyle={{ fontSize: 11 }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <Empty description="No agent data" />
-                      )}
-                    </Card>
-                  </Col>
-                  <Col span={12}>
-                    <Card
-                      title="Categories"
-                      style={{ background: "#1f1f1f", border: "1px solid #303030" }}
-                      styles={{ header: { borderBottom: "1px solid #303030", fontSize: 13 } }}
-                    >
-                      {categoriesPieData.length ? (
-                        <div style={{ height: 280 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie data={categoriesPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={false}>
-                                {categoriesPieData.map((_, i) => (
-                                  <Cell key={i} fill={PIE_COLORS[(i + 3) % PIE_COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip contentStyle={{ background: "#1f1f1f", border: "1px solid #303030" }} />
-                              <Legend wrapperStyle={{ fontSize: 11 }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      ) : (
-                        <Empty description="No category data" />
-                      )}
-                    </Card>
-                  </Col>
-                </Row>
-              </Col>
-            </Row>
+      {/* ── charts ── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <ChartCard title="Quality Scores Radar" isEmpty={!radarData.length} emptyText="No score data">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
+                <PolarGrid stroke="#303030" />
+                <PolarAngleAxis dataKey="axis" tick={{ fill: "#d9d9d9", fontSize: 12 }} />
+                <PolarRadiusAxis domain={[0, 5]} tick={{ fill: "#8c8c8c", fontSize: 11 }} axisLine={false} />
+                <Tooltip contentStyle={DARK_TOOLTIP_STYLE} />
+                <Radar name="Avg Score" dataKey="value" stroke="#58bfce" fill="#58bfce" fillOpacity={0.3} strokeWidth={2} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+        <Col xs={24} lg={12}>
+          <ChartCard title="Quality Class Distribution" isEmpty={!qualityPieData.length} emptyText="No quality class data">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={qualityPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                  {qualityPieData.map((entry) => <Cell key={entry.name} fill={QUALITY_COLORS[entry.name] ?? "#8c8c8c"} />)}
+                </Pie>
+                <Tooltip contentStyle={DARK_TOOLTIP_STYLE} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+        <Col xs={24} lg={12}>
+          <ChartCard title="Sources by Query" isEmpty={!queryBarData.length} emptyText="No query data">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={queryBarData} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#303030" />
+                <XAxis type="number" tick={{ fill: "#d9d9d9" }} />
+                <YAxis type="category" dataKey="queryId" tick={{ fill: "#58bfce", fontSize: 11 }} width={50} />
+                <Tooltip contentStyle={DARK_TOOLTIP_STYLE} formatter={(value) => [value, "Sources"]}
+                  labelFormatter={(label) => queryBarData.find((d) => d.queryId === String(label))?.goal ?? `Query #${label}`} />
+                <Bar dataKey="count" fill="#58bfce" name="Sources">
+                  {queryBarData.map((entry) => (
+                    <Cell key={entry.queryId} fill="#58bfce" cursor="pointer"
+                      onClick={() => window.open(`/deep-dive/${reportId}/query?queryId=${entry.queryId}`, "_self")} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Row gutter={[16, 16]}>
+            <Col span={12}>
+              <ChartCard title="Agents" height={280} headerFontSize={13} isEmpty={!agentsPieData.length} emptyText="No agent data">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={agentsPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={false}>
+                      {agentsPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={DARK_TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </Col>
+            <Col span={12}>
+              <ChartCard title="Categories" height={280} headerFontSize={13} isEmpty={!categoriesPieData.length} emptyText="No category data">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={categoriesPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={false}>
+                      {categoriesPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[(i + 3) % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={DARK_TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </Col>
+          </Row>
+        </Col>
+      </Row>
 
-            {/* ── filters ── */}
-            <Card
-              style={{ background: "#1f1f1f", border: "1px solid #303030", marginBottom: 16 }}
-            >
-              <Space wrap size="middle">
-                <Select
-                  placeholder="Tier"
-                  allowClear
-                  style={{ width: 100 }}
-                  value={tier}
-                  onChange={(v) => { setTier(v); setPage(1); }}
-                  options={[0, 1, 2, 3].map((t) => ({ label: `Tier ${t}`, value: t }))}
-                />
-                <Select
-                  placeholder="Quality"
-                  allowClear
-                  style={{ width: 120 }}
-                  value={qualityClass}
-                  onChange={(v) => { setQualityClass(v); setPage(1); }}
-                  options={["HIGH", "MEDIUM", "LOW"].map((q) => ({ label: q, value: q }))}
-                />
-                <Select
-                  placeholder="Valid"
-                  allowClear
-                  style={{ width: 100 }}
-                  value={isValid}
-                  onChange={(v) => { setIsValid(v); setPage(1); }}
-                  options={[
-                    { label: "Valid", value: true },
-                    { label: "Invalid", value: false },
-                  ]}
-                />
-                <Select
-                  placeholder="Agent"
-                  allowClear
-                  showSearch
-                  style={{ width: 180 }}
-                  value={agent}
-                  onChange={(v) => { setAgent(v); setPage(1); }}
-                  options={agentOptions}
-                />
-                <Select
-                  placeholder="Category"
-                  allowClear
-                  showSearch
-                  style={{ width: 180 }}
-                  value={category}
-                  onChange={(v) => { setCategory(v); setPage(1); }}
-                  options={categoryOptions}
-                />
-                <Select
-                  placeholder="Tag"
-                  allowClear
-                  showSearch
-                  style={{ width: 180 }}
-                  value={tag}
-                  onChange={(v) => { setTag(v); setPage(1); }}
-                  options={tagOptions}
-                />
-                <RangePicker
-                  value={dateRange ? [dateRange[0], dateRange[1]] : null}
-                  onChange={(dates) => {
-                    setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null);
-                    setPage(1);
-                  }}
-                  style={{ width: 260 }}
-                />
-                <Input.Search
-                  placeholder="Search title/url..."
-                  allowClear
-                  style={{ width: 220 }}
-                  onSearch={(v) => { setSearch(v); setPage(1); }}
-                />
-              </Space>
-              <div style={{ marginTop: 8 }}>
-                <Text style={{ color: "#8c8c8c" }}>{showingLabel}</Text>
-              </div>
-            </Card>
+      {/* ── filters ── */}
+      <FilterBar showingLabel={showingLabel}>
+        <Space wrap size="middle">
+          <Select placeholder="Tier" allowClear style={{ width: 100 }} value={tier}
+            onChange={(v) => { setTier(v); resetPage(); }} options={[0, 1, 2, 3].map((t) => ({ label: `Tier ${t}`, value: t }))} />
+          <Select placeholder="Quality" allowClear style={{ width: 120 }} value={qualityClass}
+            onChange={(v) => { setQualityClass(v); resetPage(); }} options={["HIGH", "MEDIUM", "LOW"].map((q) => ({ label: q, value: q }))} />
+          <Select placeholder="Valid" allowClear style={{ width: 100 }} value={isValid}
+            onChange={(v) => { setIsValid(v); resetPage(); }} options={[{ label: "Valid", value: true }, { label: "Invalid", value: false }]} />
+          <Select placeholder="Agent" allowClear showSearch style={{ width: 180 }} value={agent}
+            onChange={(v) => { setAgent(v); resetPage(); }} options={agentOptions} />
+          <Select placeholder="Category" allowClear showSearch style={{ width: 180 }} value={category}
+            onChange={(v) => { setCategory(v); resetPage(); }} options={categoryOptions} />
+          <Select placeholder="Tag" allowClear showSearch style={{ width: 180 }} value={tag}
+            onChange={(v) => { setTag(v); resetPage(); }} options={tagOptions} />
+          <RangePicker value={dateRange ? [dateRange[0], dateRange[1]] : null}
+            onChange={(dates) => { setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null); resetPage(); }}
+            style={{ width: 260 }} />
+          <Input.Search placeholder="Search title/url..." allowClear style={{ width: 220 }}
+            onSearch={(v) => { setSearch(v); resetPage(); }} />
+        </Space>
+      </FilterBar>
 
-            {/* ── table ── */}
-            <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
-              <Table
-                dataSource={tableData}
-                rowKey="key"
-                loading={isLoading}
-                columns={columns}
-                components={tableComponents}
-                scroll={{ x: 1600 }}
-                bordered
-                pagination={{
-                  current: page,
-                  pageSize,
-                  total: totalFiltered,
-                  showSizeChanger: true,
-                  pageSizeOptions: ["10", "25", "50", "100"],
-                  onChange: (p, ps) => { setPage(p); setPageSize(ps); },
-                }}
-              />
-            </Card>
-          </div>
-        </Content>
-      </Layout>
-    </Layout>
+      {/* ── table ── */}
+      <Card style={DARK_CARD_STYLE}>
+        <Table
+          dataSource={tableData} rowKey="key" loading={isLoading} columns={columns}
+          components={RESIZABLE_TABLE_COMPONENTS} scroll={{ x: 1600 }} bordered
+          onChange={handleTableChange}
+          pagination={{
+            current: page, pageSize, total: totalFiltered, showSizeChanger: true,
+            pageSizeOptions: ["10", "25", "50", "100"],
+          }}
+        />
+      </Card>
+    </DeepDivePageLayout>
   );
 }
