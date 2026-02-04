@@ -6,22 +6,19 @@ import {
   BarChart,
   BarStack,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { KpiChartItem } from "../../hooks/api/useDeepDiveService";
-
-const CHART_PALETTE = [
-  "#58bfce", "#7c4dff", "#ff9800", "#4caf50", "#f44336",
-  "#e91e63", "#00bcd4", "#ffeb3b", "#9c27b0", "#8bc34a",
-];
-
-function getColor(index: number): string {
-  return CHART_PALETTE[index % CHART_PALETTE.length]!;
-}
+import {
+  CHART_ACTIVE_BAR_STYLE,
+  CHART_AXIS_LABEL_STYLE,
+  CHART_AXIS_MUTED_TICK_STYLE,
+  CHART_GRID_STROKE,
+  getSeriesColor,
+} from "../../config/chart-theme";
+import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
 
 function formatAxisTick(value: unknown): string {
   return String(value).split(" ")[0] ?? "";
@@ -42,39 +39,36 @@ export default function KpiStackedChart({
     <div style={{ height: 620 }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 30, right: 40, left: 0, bottom: 100 }} barGap={50} maxBarSize={100}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#303030" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
           <XAxis
             dataKey="company"
             tickFormatter={formatAxisTick}
-            stroke="#a7a3a3"
-            tick={{ fill: "#a7a3a3", fontSize: 14 }}
+            stroke={CHART_AXIS_MUTED_TICK_STYLE.fill}
+            tick={{ ...CHART_AXIS_MUTED_TICK_STYLE, fontSize: 14 }}
             interval={0}
             angle={-45}
             textAnchor="start"
             dy={20}
             height={100}
-            label={{ value: "Companies", position: "insideBottom", dy: 80, style: { fill: "#8c8c8c" } }}
+            label={{ value: "Companies", position: "insideBottom", dy: 80, style: CHART_AXIS_LABEL_STYLE }}
           />
           <YAxis
-            stroke="#8c8c8c"
-            tick={{ fill: "#8c8c8c" }}
-            label={{ value: "Score", angle: -90, position: "insideLeft", style: { fill: "#8c8c8c" } }}
+            stroke={CHART_AXIS_MUTED_TICK_STYLE.fill}
+            tick={CHART_AXIS_MUTED_TICK_STYLE}
+            label={{ value: "Score", angle: -90, position: "insideLeft", style: CHART_AXIS_LABEL_STYLE }}
           />
-          <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.04)" }}
-            contentStyle={{ background: "#1f1f1f", border: "1px solid #303030", borderRadius: 6 }}
-            labelStyle={{ fontWeight: 600 }}
-          />
-          <Legend wrapperStyle={{ color: "#d9d9d9" }} />
+          <ChartTooltip />
+          <ChartLegend />
           <BarStack radius={10}>
             {categories.map((category, index) => (
               <Bar
                 key={category}
                 dataKey={category}
                 stackId="kpi"
-                fill={getColor(index)}
+                fill={getSeriesColor(category, index)}
                 name={category}
                 textAnchor="middle"
+                activeBar={CHART_ACTIVE_BAR_STYLE}
               />
             ))}
           </BarStack>

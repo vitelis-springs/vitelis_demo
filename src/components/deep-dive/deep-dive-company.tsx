@@ -4,13 +4,25 @@ import type { TableColumnsType } from "antd";
 import { Card, Col, Empty, Input, Progress, Row, Space, Table, Tabs, Tag, Typography } from "antd";
 import { useCallback, useMemo, useState } from "react";
 import {
-  Legend, PolarAngleAxis, PolarGrid, PolarRadiusAxis,
-  Radar, RadarChart, ResponsiveContainer, Tooltip,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
 } from "recharts";
-import { DARK_TOOLTIP_STYLE, DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
+import {
+  BAR_PRIMARY_COLOR,
+  CHART_AXIS_MUTED_TICK_STYLE,
+  CHART_AXIS_TICK_STYLE,
+  CHART_GRID_STROKE,
+  DARK_CARD_HEADER_STYLE,
+  DARK_CARD_STYLE,
+} from "../../config/chart-theme";
 import {
   DeepDiveCompanyResponse, DeepDiveStatus, useGetDeepDiveCompany,
 } from "../../hooks/api/useDeepDiveService";
+import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
 import { useResizableColumns, RESIZABLE_TABLE_COMPONENTS } from "./shared/resizable-table";
 import { MarkdownCell, SourcesCell } from "./shared/markdown-cell";
 import DeepDivePageLayout from "./shared/page-layout";
@@ -271,12 +283,19 @@ export default function DeepDiveCompany({
           <div style={{ height: 480 }}>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
-                <PolarGrid stroke="#303030" />
-                <PolarAngleAxis dataKey="category" tick={{ fill: "#d9d9d9", fontSize: 13 }} />
-                <PolarRadiusAxis domain={SCORE_DOMAIN} tick={{ fill: "#8c8c8c", fontSize: 11 }} axisLine={false} />
-                <Tooltip contentStyle={DARK_TOOLTIP_STYLE} labelStyle={{ color: "#d9d9d9" }} />
-                <Legend />
-                <Radar name={payload?.company.name ?? "Company"} dataKey="company" stroke="#58bfce" fill="#58bfce" fillOpacity={0.25} strokeWidth={2} />
+                <PolarGrid stroke={CHART_GRID_STROKE} />
+                <PolarAngleAxis dataKey="category" tick={{ ...CHART_AXIS_TICK_STYLE, fontSize: 13 }} />
+                <PolarRadiusAxis domain={SCORE_DOMAIN} tick={CHART_AXIS_MUTED_TICK_STYLE} axisLine={false} />
+                <ChartTooltip />
+                <ChartLegend />
+                <Radar
+                  name={payload?.company.name ?? "Company"}
+                  dataKey="company"
+                  stroke={BAR_PRIMARY_COLOR}
+                  fill={BAR_PRIMARY_COLOR}
+                  fillOpacity={0.25}
+                  strokeWidth={2}
+                />
                 <Radar name="Top-5 Average" dataKey="top5Average" stroke="#ffb74d" fill="#ffb74d" fillOpacity={0.1} strokeWidth={2} strokeDasharray="6 3" />
                 <Radar name="Report Average" dataKey="reportAverage" stroke="#90a4ae" fill="#90a4ae" fillOpacity={0.05} strokeWidth={2} strokeDasharray="3 3" />
               </RadarChart>

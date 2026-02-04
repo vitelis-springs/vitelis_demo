@@ -2,7 +2,6 @@
 
 import { Card, Typography } from "antd";
 import {
-  Legend,
   PolarAngleAxis,
   PolarGrid,
   PolarRadiusAxis,
@@ -10,101 +9,18 @@ import {
   RadarChart,
   ResponsiveContainer,
 } from "recharts";
+import {
+  BAR_PRIMARY_COLOR,
+  CHART_AXIS_TICK_STYLE,
+  CHART_AXIS_MUTED_TICK_STYLE,
+  CHART_GRID_STROKE,
+  CHART_LEGEND_STYLE,
+  DARK_CARD_STYLE,
+  getSeriesColor,
+} from "../../config/chart-theme";
+import { ChartLegend, ChartTooltip } from "./recharts-theme";
 
 const { Title } = Typography;
-
-// Base colors for categories - first 5 from the example
-const BASE_COLORS = [
-  "#F4B942", // Yellow/Gold
-  "#1E3A5F", // Dark Blue
-  "#2E5C8A", // Medium Blue
-  "#4A8BC2", // Light Blue
-  "#5FAFDB", // Cyan
-];
-
-// Convert hex to RGB for color distance calculation
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result || !result[1] || !result[2] || !result[3]) {
-    return { r: 0, g: 0, b: 0 };
-  }
-  return {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16),
-  };
-}
-
-// Calculate color distance (Euclidean distance in RGB space)
-function colorDistance(color1: string, color2: string): number {
-  const rgb1 = hexToRgb(color1);
-  const rgb2 = hexToRgb(color2);
-  return Math.sqrt(
-    Math.pow(rgb1.r - rgb2.r, 2) +
-    Math.pow(rgb1.g - rgb2.g, 2) +
-    Math.pow(rgb1.b - rgb2.b, 2)
-  );
-}
-
-// Generate random color that differs from existing colors
-function generateDistinctColor(existingColors: string[]): string {
-  const MIN_DISTANCE = 100; // Minimum color distance
-  const MAX_ATTEMPTS = 50;
-  
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    // Generate random RGB values
-    const r = Math.floor(Math.random() * 256);
-    const g = Math.floor(Math.random() * 256);
-    const b = Math.floor(Math.random() * 256);
-    
-    // Avoid too dark or too light colors
-    const brightness = (r + g + b) / 3;
-    if (brightness < 60 || brightness > 220) continue;
-    
-    const newColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-    
-    // Check if color is distinct enough from all existing colors
-    const isDistinct = existingColors.every(
-      (existingColor) => colorDistance(newColor, existingColor) >= MIN_DISTANCE
-    );
-    
-    if (isDistinct) {
-      return newColor;
-    }
-  }
-  
-  // Fallback: return a random color even if not perfectly distinct
-  const r = Math.floor(Math.random() * 200) + 50;
-  const g = Math.floor(Math.random() * 200) + 50;
-  const b = Math.floor(Math.random() * 200) + 50;
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-// Cache for generated colors
-const generatedColors: string[] = [];
-
-// Generate color for any index
-function getCategoryColor(index: number): string {
-  if (index < BASE_COLORS.length) {
-    const color = BASE_COLORS[index];
-    return color !== undefined ? color : "#F4B942"; // Fallback to first color
-  }
-  
-  // For 6+ categories, generate random distinct colors
-  const generatedIndex = index - BASE_COLORS.length;
-  
-  // Check if we already generated this color
-  if (generatedColors[generatedIndex]) {
-    return generatedColors[generatedIndex];
-  }
-  
-  // Generate new distinct color
-  const usedColors = [...BASE_COLORS, ...generatedColors];
-  const newColor = generateDistinctColor(usedColors);
-  generatedColors[generatedIndex] = newColor;
-  
-  return newColor;
-}
 
 export interface KpiRadarChartData {
   companies: string[];
@@ -126,7 +42,7 @@ export default function KpiRadarChart({
   // Transform data for recharts format
   // INVERTED: Each item represents a company with scores for all categories
   const chartData = companies.map((company, companyIndex) => {
-    const item: Record<string, any> = {
+    const item: Record<string, number | string> = {
       company: company,
     };
 
@@ -140,8 +56,7 @@ export default function KpiRadarChart({
   return (
     <Card
       style={{
-        background: "#1f1f1f",
-        border: "1px solid #303030",
+        ...DARK_CARD_STYLE,
         borderRadius: "12px",
         marginBottom: "24px",
       }}
@@ -150,7 +65,7 @@ export default function KpiRadarChart({
         <Title
           level={3}
           style={{
-            color: "#58bfce",
+            color: BAR_PRIMARY_COLOR,
             marginBottom: "24px",
             textAlign: "center",
           }}
@@ -161,21 +76,22 @@ export default function KpiRadarChart({
 
       <ResponsiveContainer width="100%" height={850}>
         <RadarChart data={chartData} margin={{ left: 150, right: 50, top: 20, bottom: 20 }}>
-          <PolarGrid stroke="#404040" />
+          <PolarGrid stroke={CHART_GRID_STROKE} />
           <PolarAngleAxis
             dataKey="company"
-            tick={{ fill: "#ffffff", fontSize: 14 }}
-            tickLine={{ stroke: "#404040" }}
+            tick={{ ...CHART_AXIS_TICK_STYLE, fontSize: 14 }}
+            tickLine={{ stroke: CHART_GRID_STROKE }}
           />
           <PolarRadiusAxis
             angle={90}
             domain={[0, 5]}
-            tick={{ fill: "#999999" }}
+            tick={CHART_AXIS_MUTED_TICK_STYLE}
             tickCount={6}
           />
+          <ChartTooltip />
 
           {categories.map((category, index) => {
-            const color = getCategoryColor(index);
+            const color = getSeriesColor(category, index);
 
             return (
               <Radar
@@ -189,7 +105,7 @@ export default function KpiRadarChart({
             );
           })}
 
-          <Legend
+          <ChartLegend
             layout="vertical"
             align="left"
             verticalAlign="middle"
@@ -203,7 +119,7 @@ export default function KpiRadarChart({
             formatter={(value) => (
               <span 
                 style={{ 
-                  color: "#ffffff", 
+                  color: CHART_LEGEND_STYLE.color,
                   fontSize: "14px",
                   display: "inline-block",
                   maxWidth: "240px",
@@ -220,4 +136,3 @@ export default function KpiRadarChart({
     </Card>
   );
 }
-
