@@ -305,11 +305,10 @@ export class DeepDiveRepository {
 
   static async getReportSourcesCount(reportId: number) {
     const result = await prisma.$queryRaw<[{ total: number }]>`
-      SELECT COALESCE(SUM(csc.sources_count), 0)::int AS total
-      FROM company_sources_count csc
-      WHERE csc.company_id IN (
-        SELECT rc.company_id FROM report_companies rc WHERE rc.report_id = ${reportId}
-      )
+      SELECT COUNT(*)::int AS total
+      FROM report_companies rc
+      JOIN sources s ON s.company_id = rc.company_id
+      WHERE rc.report_id = ${reportId}
     `;
     return result[0]?.total ?? 0;
   }
@@ -620,6 +619,49 @@ export class DeepDiveRepository {
       }>
     >(
       Prisma.sql`
+        WITH rc AS (
+          SELECT company_id
+          FROM report_companies
+          WHERE report_id = ${reportId}
+        ),
+        src AS (
+          SELECT
+            (qid.value)::bigint AS query_id,
+            COUNT(DISTINCT s.id)::int AS cnt
+          FROM sources s
+          JOIN rc ON rc.company_id = s.company_id
+          CROSS JOIN LATERAL jsonb_array_elements_text(s.metadata -> 'query_ids') AS qid(value)
+          GROUP BY (qid.value)::bigint
+        ),
+        cand AS (
+          SELECT
+            (qid.value)::bigint AS query_id,
+            COUNT(DISTINCT suc.id)::int AS cnt
+          FROM scape_url_candidates suc
+          JOIN rc ON rc.company_id = suc.company_id
+          CROSS JOIN LATERAL jsonb_array_elements_text(suc.metadata -> 'query_ids') AS qid(value)
+          GROUP BY (qid.value)::bigint
+        ),
+        comp AS (
+          SELECT
+            data_collection_query_id AS query_id,
+            COUNT(*)::int AS done
+          FROM report_data_collection_query_completions
+          WHERE report_id = ${reportId} AND status = true
+          GROUP BY data_collection_query_id
+        ),
+        tc AS (
+          SELECT COUNT(*)::int AS total
+          FROM rc
+        ),
+        dp_agg AS (
+          SELECT
+            dqp.data_collection_query_id AS query_id,
+            jsonb_agg(jsonb_build_object('id', dp.id, 'name', dp.name, 'type', dp.type)) AS data_points
+          FROM data_collection_query_data_point dqp
+          JOIN data_points dp ON dp.id = dqp.data_point_id
+          GROUP BY dqp.data_collection_query_id
+        )
         SELECT
           dcq.id,
           dcq.query ->> 'goal' AS goal,
@@ -631,40 +673,15 @@ export class DeepDiveRepository {
           COALESCE(src.cnt, 0)::int AS sources_count,
           COALESCE(cand.cnt, 0)::int AS candidates_count,
           COALESCE(comp.done, 0)::int AS completed_companies,
-          COALESCE(tc.total, 0)::int AS total_companies,
+          tc.total AS total_companies,
           dp_agg.data_points
         FROM report_data_collection_queries rdcq
         JOIN data_collection_queries dcq ON dcq.id = rdcq.data_collection_query_id
-        LEFT JOIN LATERAL (
-          SELECT COUNT(*)::int AS cnt
-          FROM sources s
-          WHERE s.company_id IN (SELECT rc.company_id FROM report_companies rc WHERE rc.report_id = ${reportId})
-            AND s.metadata -> 'query_ids' @> to_jsonb(dcq.id::text)
-        ) src ON true
-        LEFT JOIN LATERAL (
-          SELECT COUNT(*)::int AS cnt
-          FROM scape_url_candidates suc
-          WHERE suc.company_id IN (SELECT rc.company_id FROM report_companies rc WHERE rc.report_id = ${reportId})
-            AND suc.metadata -> 'query_ids' @> to_jsonb(dcq.id::text)
-        ) cand ON true
-        LEFT JOIN LATERAL (
-          SELECT COUNT(*)::int AS done
-          FROM report_data_collection_query_completions c
-          WHERE c.report_id = ${reportId}
-            AND c.data_collection_query_id = dcq.id
-            AND c.status = true
-        ) comp ON true
-        CROSS JOIN LATERAL (
-          SELECT COUNT(*)::int AS total
-          FROM report_companies rc
-          WHERE rc.report_id = ${reportId}
-        ) tc
-        LEFT JOIN LATERAL (
-          SELECT jsonb_agg(jsonb_build_object('id', dp.id, 'name', dp.name, 'type', dp.type)) AS data_points
-          FROM data_collection_query_data_point dqp
-          JOIN data_points dp ON dp.id = dqp.data_point_id
-          WHERE dqp.data_collection_query_id = dcq.id
-        ) dp_agg ON true
+        LEFT JOIN src ON src.query_id = dcq.id
+        LEFT JOIN cand ON cand.query_id = dcq.id
+        LEFT JOIN comp ON comp.query_id = dcq.id
+        CROSS JOIN tc
+        LEFT JOIN dp_agg ON dp_agg.query_id = dcq.id
         WHERE rdcq.report_id = ${reportId}
         ${this.buildOrderBy(sortBy, sortOrder, ["goal", "sources_count", "candidates_count"], "id", "asc")}
       `

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import { report_status_enum } from "../../../../generated/prisma";
 import { DeepDiveService } from "./deep-dive.service";
+import { N8NService } from "../n8n/n8n.service";
 import type { SortOrder } from "../../../../types/sorting";
 
 const DEFAULT_LIMIT = 50;
@@ -324,6 +325,74 @@ export class DeepDiveController {
     } catch (error) {
       console.error("❌ DeepDiveController.getScrapeCandidates:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch scrape candidates" }, { status: 500 });
+    }
+  }
+
+  static async exportReport(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const body = (await request.json()) as { company_ids?: number[] };
+
+      let companyIds = body.company_ids;
+      if (!companyIds || companyIds.length === 0) {
+        const ids = await DeepDiveService.getReportCompanyIds(reportId);
+        if (!ids) {
+          return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
+        }
+        companyIds = ids;
+      }
+
+      const n8nResponse = await N8NService.exportGroupedReport(reportId, companyIds);
+
+      return new NextResponse(n8nResponse.body, {
+        headers: {
+          "Content-Type":
+            n8nResponse.headers.get("Content-Type") ||
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition":
+            n8nResponse.headers.get("Content-Disposition") ||
+            `attachment; filename="report-${reportId}.xlsx"`,
+        },
+      });
+    } catch (error) {
+      console.error("❌ DeepDiveController.exportReport:", error);
+      return NextResponse.json({ success: false, error: "Failed to export report" }, { status: 500 });
+    }
+  }
+
+  static async tryQuery(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const body = (await request.json()) as { query: string; company_id: number };
+
+      if (!body.query || typeof body.query !== "string" || !body.query.trim()) {
+        return NextResponse.json({ success: false, error: "Query must be a non-empty string" }, { status: 400 });
+      }
+
+      if (!Number.isFinite(body.company_id)) {
+        return NextResponse.json({ success: false, error: "company_id must be a valid number" }, { status: 400 });
+      }
+
+      const result = await N8NService.tryQuery(body.query.trim(), { company_id: body.company_id });
+
+      return NextResponse.json({ success: true, data: result });
+    } catch (error) {
+      console.error("❌ DeepDiveController.tryQuery:", error);
+      return NextResponse.json({ success: false, error: "Failed to execute query" }, { status: 500 });
     }
   }
 }

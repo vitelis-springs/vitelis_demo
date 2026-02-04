@@ -167,6 +167,16 @@ export class DeepDiveService {
     };
   }
 
+  static async getReportCompanyIds(reportId: number): Promise<number[] | null> {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    const companies = await DeepDiveRepository.getReportCompanies(reportId);
+    return companies
+      .map((row) => row.company_id)
+      .filter((id): id is number => typeof id === "number");
+  }
+
   static async getReportQueries(reportId: number, params?: { sortBy?: string; sortOrder?: import("../../../../types/sorting").SortOrder }) {
     const report = await DeepDiveRepository.getReportById(reportId);
     if (!report) return null;
