@@ -1,8 +1,10 @@
 "use client";
 
-import { Layout, Space, Spin, Typography } from "antd";
+import { Button, Layout, Space, Spin, Typography, message } from "antd";
+import { FileExcelOutlined, SearchOutlined } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { useGetDeepDiveDetail } from "../../hooks/api/useDeepDiveService";
+import { useGetDeepDiveDetail, useExportReport } from "../../hooks/api/useDeepDiveService";
 import DeepDiveStatusTag from "./status-tag";
 import SummaryCards from "./summary-cards";
 import KpiChartSection from "./kpi-chart-section";
@@ -15,6 +17,8 @@ const { Title, Text } = Typography;
 export default function DeepDiveDetail({ reportId }: { reportId: number }) {
   const { data, isLoading } = useGetDeepDiveDetail(reportId);
   const payload = data?.data;
+  const router = useRouter();
+  const exportReport = useExportReport(reportId);
 
   const allCategories = useMemo(() => payload?.categories ?? [], [payload]);
   const kpiChart = useMemo(() => payload?.kpiChart ?? [], [payload]);
@@ -57,6 +61,23 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
                 {payload.report.status && (
                   <DeepDiveStatusTag status={payload.report.status} />
                 )}
+                <Button
+                  icon={<FileExcelOutlined />}
+                  loading={exportReport.isPending}
+                  onClick={() => {
+                    exportReport.mutate(undefined, {
+                      onError: () => void message.error("Failed to export report"),
+                    });
+                  }}
+                >
+                  Export Report
+                </Button>
+                <Button
+                  icon={<SearchOutlined />}
+                  onClick={() => router.push(`/deep-dive/${reportId}/try-query`)}
+                >
+                  Try Query
+                </Button>
               </Space>
               <Text style={{ color: "#8c8c8c" }}>
                 {payload.report.description || "Report overview and execution progress."}
@@ -89,6 +110,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
             companies={companies}
             loading={isLoading}
           />
+
         </div>
       </Content>
     </Layout>
