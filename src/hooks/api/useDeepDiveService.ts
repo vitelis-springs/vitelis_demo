@@ -582,4 +582,63 @@ export const useUpdateQuery = (reportId: number) => {
   });
 };
 
+/* ─────────────── Export & Try Query ─────────────── */
+
+export interface TryQueryResult {
+  success: boolean;
+  data: unknown;
+}
+
+const exportApi = {
+  async exportReport(reportId: number): Promise<Blob> {
+    const response = await api.post(`/deep-dive/${reportId}/export`, null, {
+      responseType: "blob",
+      timeout: 120_000,
+    });
+    return response.data as Blob;
+  },
+
+  async tryQuery(
+    reportId: number,
+    query: string,
+    companyId: number,
+    metadataFilters?: Record<string, unknown>,
+  ): Promise<TryQueryResult> {
+    const response = await api.post(`/deep-dive/${reportId}/try-query`, {
+      query,
+      company_id: companyId,
+      metadata_filters: metadataFilters,
+    });
+    return response.data;
+  },
+};
+
+export const useExportReport = (reportId: number) => {
+  return useMutation({
+    mutationFn: () => exportApi.exportReport(reportId),
+    onSuccess: (blob) => {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `report-${reportId}.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+};
+
+export const useTryQuery = (reportId: number) => {
+  return useMutation({
+    mutationFn: ({
+      query,
+      companyId,
+      metadataFilters,
+    }: {
+      query: string;
+      companyId: number;
+      metadataFilters?: Record<string, unknown>;
+    }) => exportApi.tryQuery(reportId, query, companyId, metadataFilters),
+  });
+};
+
 export default deepDiveApi;

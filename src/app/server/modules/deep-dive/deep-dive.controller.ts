@@ -338,18 +338,7 @@ export class DeepDiveController {
         return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
       }
 
-      const body = (await request.json()) as { company_ids?: number[] };
-
-      let companyIds = body.company_ids;
-      if (!companyIds || companyIds.length === 0) {
-        const ids = await DeepDiveService.getReportCompanyIds(reportId);
-        if (!ids) {
-          return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
-        }
-        companyIds = ids;
-      }
-
-      const n8nResponse = await N8NService.exportGroupedReport(reportId, companyIds);
+      const n8nResponse = await N8NService.exportGroupedReport(reportId);
 
       return new NextResponse(n8nResponse.body, {
         headers: {
@@ -377,7 +366,11 @@ export class DeepDiveController {
         return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
       }
 
-      const body = (await request.json()) as { query: string; company_id: number };
+      const body = (await request.json()) as {
+        query: string;
+        company_id: number;
+        metadata_filters?: Record<string, unknown>;
+      };
 
       if (!body.query || typeof body.query !== "string" || !body.query.trim()) {
         return NextResponse.json({ success: false, error: "Query must be a non-empty string" }, { status: 400 });
@@ -387,7 +380,12 @@ export class DeepDiveController {
         return NextResponse.json({ success: false, error: "company_id must be a valid number" }, { status: 400 });
       }
 
-      const result = await N8NService.tryQuery(body.query.trim(), { company_id: body.company_id });
+      const filters: Record<string, unknown> = {
+        ...body.metadata_filters,
+        company_id: body.company_id,
+      };
+
+      const result = await N8NService.tryQuery(body.query.trim(), filters);
 
       return NextResponse.json({ success: true, data: result });
     } catch (error) {

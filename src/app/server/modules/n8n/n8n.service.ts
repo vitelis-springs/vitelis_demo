@@ -156,7 +156,6 @@ export class N8NService {
 
   static async exportGroupedReport(
     reportId: number,
-    companyIds: number[],
   ): Promise<Response> {
     const config = this.getConfigByType();
     const url = `${config.url}webhook/deep-dive/grouped-report`;
@@ -174,7 +173,7 @@ export class N8NService {
           "Content-Type": "application/json",
           "X-N8N-API-KEY": config.apiKey,
         },
-        body: JSON.stringify({ report_id: reportId, company_ids: companyIds }),
+        body: JSON.stringify({ report_id: reportId }),
       },
       120000,
     );
