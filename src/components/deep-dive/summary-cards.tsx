@@ -4,11 +4,13 @@ import { Card, Col, Row, Space, Statistic, Typography } from "antd";
 import {
   FileSearchOutlined,
   LinkOutlined,
+  RightOutlined,
   SearchOutlined,
   SettingOutlined,
   SyncOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
 import { DeepDiveDetailResponse } from "../../hooks/api/useDeepDiveService";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import DeepDiveStatusTag from "./status-tag";
@@ -17,6 +19,7 @@ const { Text } = Typography;
 
 export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["data"] }) {
   const { summary, report } = data;
+  const router = useRouter();
 
   return (
     <>
@@ -32,9 +35,16 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8}>
-          <Card style={DARK_CARD_STYLE}>
-            <Space direction="vertical" size={8}>
-              <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Orchestrator Status</Text>
+          <Card
+            style={{ ...DARK_CARD_STYLE, cursor: "pointer", transition: "border-color 0.2s" }}
+            hoverable
+            onClick={() => router.push(`/deep-dive/${report.id}/steps`)}
+          >
+            <Space direction="vertical" size={8} style={{ width: "100%" }}>
+              <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Orchestrator Status</Text>
+                <RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
+              </Space>
               <Space align="center" size="small">
                 <SyncOutlined style={{ color: "#58bfce" }} />
                 <DeepDiveStatusTag status={summary.orchestratorStatus} />

@@ -324,6 +324,26 @@ export class DeepDiveRepository {
     return result[0]?.total ?? 0;
   }
 
+  static async getPerCompanySourcesCount(reportId: number) {
+    return prisma.$queryRaw<Array<{ company_id: number; total: number }>>`
+      SELECT rc.company_id, COUNT(s.id)::int AS total
+      FROM report_companies rc
+      LEFT JOIN sources s ON s.company_id = rc.company_id
+      WHERE rc.report_id = ${reportId}
+      GROUP BY rc.company_id
+    `;
+  }
+
+  static async getPerCompanyCandidatesCount(reportId: number) {
+    return prisma.$queryRaw<Array<{ company_id: number; total: number }>>`
+      SELECT rc.company_id, COUNT(suc.id)::int AS total
+      FROM report_companies rc
+      LEFT JOIN scape_url_candidates suc ON suc.company_id = rc.company_id
+      WHERE rc.report_id = ${reportId}
+      GROUP BY rc.company_id
+    `;
+  }
+
   static async getCompanySources(
     companyId: number,
     filters: SourceFilterParams,

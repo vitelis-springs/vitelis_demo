@@ -63,6 +63,10 @@ export interface DeepDiveCompanyRow {
   countryCode?: string | null;
   url?: string | null;
   status: DeepDiveStatus;
+  sourcesCount: number;
+  candidatesCount: number;
+  stepsDone: number;
+  stepsTotal: number;
 }
 
 export interface DeepDiveDetailResponse {

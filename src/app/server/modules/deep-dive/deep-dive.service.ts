@@ -81,12 +81,16 @@ export class DeepDiveService {
       totalScrapeCandidates,
       totalQueries,
       companyStatusRaw,
+      perCompanySources,
+      perCompanyCandidates,
     ] = await Promise.all([
       DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
       DeepDiveRepository.getReportSourcesCount(reportId),
       DeepDiveRepository.getReportScrapeCandidatesCount(reportId),
       DeepDiveRepository.getReportQueriesCount(reportId),
       DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
+      DeepDiveRepository.getPerCompanySourcesCount(reportId),
+      DeepDiveRepository.getPerCompanyCandidatesCount(reportId),
     ]);
 
     // Build KPI chart — categories are dynamic, derived from data
@@ -117,7 +121,23 @@ export class DeepDiveService {
       statusByCompany.set(row.company_id, current);
     });
 
+    const totalSteps = await DeepDiveRepository.getReportSteps(reportId);
+    const totalStepsCount = totalSteps.length;
+
+    // Per-company sources & candidates maps
+    const sourcesMap = new Map<number, number>();
+    for (const row of perCompanySources) {
+      sourcesMap.set(row.company_id, row.total);
+    }
+    const candidatesMap = new Map<number, number>();
+    for (const row of perCompanyCandidates) {
+      candidatesMap.set(row.company_id, row.total);
+    }
+
     function deriveDominantStatus(counts: Record<report_status_enum, number>): report_status_enum {
+      const total = counts.PENDING + counts.PROCESSING + counts.DONE + counts.ERROR;
+      // No statuses recorded or fewer than total steps → consider missing as PENDING
+      if (total === 0 || total < totalStepsCount) return report_status_enum.PENDING;
       if (counts.ERROR > 0) return report_status_enum.ERROR;
       if (counts.PROCESSING > 0) return report_status_enum.PROCESSING;
       if (counts.PENDING > 0) return report_status_enum.PENDING;
@@ -155,12 +175,17 @@ export class DeepDiveService {
           .map((row) => {
             const company = row.companies!;
             const counts = statusByCompany.get(company.id) ?? { ...DEFAULT_STATUS_COUNTS };
+            const doneSteps = counts.DONE;
             return {
               id: company.id,
               name: company.name,
               countryCode: company.country_code,
               url: company.url,
               status: deriveDominantStatus(counts),
+              sourcesCount: sourcesMap.get(company.id) ?? 0,
+              candidatesCount: candidatesMap.get(company.id) ?? 0,
+              stepsDone: doneSteps,
+              stepsTotal: totalStepsCount,
             };
           }),
       },
