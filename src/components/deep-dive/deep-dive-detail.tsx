@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Layout, Space, Spin, Typography, message } from "antd";
+import { App, Button, Layout, Space, Spin, Typography } from "antd";
 import { FileExcelOutlined, SearchOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -15,6 +15,7 @@ const { Content } = Layout;
 const { Title, Text } = Typography;
 
 export default function DeepDiveDetail({ reportId }: { reportId: number }) {
+  const { message } = App.useApp();
   const { data, isLoading } = useGetDeepDiveDetail(reportId);
   const payload = data?.data;
   const router = useRouter();

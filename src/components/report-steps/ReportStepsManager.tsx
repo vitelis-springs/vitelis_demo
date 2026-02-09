@@ -1,6 +1,6 @@
 "use client";
 
-import { Layout, Space, Typography, Spin, Row, Col, message } from "antd";
+import { App, Layout, Space, Typography, Spin, Row, Col } from "antd";
 import { useState } from "react";
 import {
   useGetReportSteps,
@@ -23,6 +23,7 @@ interface ReportStepsManagerProps {
 }
 
 export default function ReportStepsManager({ reportId }: ReportStepsManagerProps) {
+  const { message } = App.useApp();
   const [addingStepId, setAddingStepId] = useState<number | null>(null);
   const [removingStepId, setRemovingStepId] = useState<number | null>(null);
 
