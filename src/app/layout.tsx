@@ -1,3 +1,4 @@
+import "@ant-design/v5-patch-for-react-19";
 import type { ReactNode } from "react";
 import { Raleway } from "next/font/google";
 import StartupInitializer from "../components/startup-initializer";
@@ -16,7 +17,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={raleway.className}>
+      <body className={raleway.className} suppressHydrationWarning>
         <StartupInitializer />
         {children}
       </body>
