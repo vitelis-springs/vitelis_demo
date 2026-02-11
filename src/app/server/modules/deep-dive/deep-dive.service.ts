@@ -126,8 +126,10 @@ export class DeepDiveService {
 
     // Per-company sources & candidates maps
     const sourcesMap = new Map<number, number>();
+    const validSourcesMap = new Map<number, number>();
     for (const row of perCompanySources) {
       sourcesMap.set(row.company_id, row.total);
+      validSourcesMap.set(row.company_id, row.valid_count);
     }
     const candidatesMap = new Map<number, number>();
     for (const row of perCompanyCandidates) {
@@ -183,6 +185,7 @@ export class DeepDiveService {
               url: company.url,
               status: deriveDominantStatus(counts),
               sourcesCount: sourcesMap.get(company.id) ?? 0,
+              validSourcesCount: validSourcesMap.get(company.id) ?? 0,
               candidatesCount: candidatesMap.get(company.id) ?? 0,
               stepsDone: doneSteps,
               stepsTotal: totalStepsCount,

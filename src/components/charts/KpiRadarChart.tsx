@@ -16,7 +16,7 @@ import {
   CHART_GRID_STROKE,
   CHART_LEGEND_STYLE,
   DARK_CARD_STYLE,
-  getSeriesColor,
+  getColorByIndex,
 } from "../../config/chart-theme";
 import { ChartLegend, ChartTooltip } from "./recharts-theme";
 
@@ -91,7 +91,7 @@ export default function KpiRadarChart({
           <ChartTooltip />
 
           {categories.map((category, index) => {
-            const color = getSeriesColor(category, index);
+            const color = getColorByIndex(index);
 
             return (
               <Radar

@@ -1,14 +1,24 @@
 export const CHART_PALETTE = [
-  "#58bfce",
-  "#13c2c2",
-  "#36cfc9",
-  "#95de64",
-  "#faad14",
-  "#ff7a45",
-  "#ff4d4f",
-  "#b37feb",
-  "#40a9ff",
-  "#006d75",
+  "#58bfce", // teal (brand)
+  "#f759ab", // magenta-pink
+  "#95de64", // lime-green
+  "#faad14", // amber
+  "#597ef7", // indigo
+  "#ff7a45", // orange
+  "#9254de", // purple
+  "#36cfc9", // mint
+  "#ff4d4f", // red
+  "#73d13d", // green
+  "#40a9ff", // sky-blue
+  "#f5a623", // tangerine
+  "#c41d7f", // raspberry
+  "#bae637", // chartreuse
+  "#006d75", // deep-teal
+  "#eb2f96", // hot-pink
+  "#d4b106", // olive-gold
+  "#1d39c4", // royal-blue
+  "#cf1322", // crimson
+  "#389e0d", // forest-green
 ] as const;
 
 export const PIE_COLORS = [...CHART_PALETTE];
@@ -88,6 +98,10 @@ function getHashIndex(key: string, size: number): number {
     hash = (hash * 31 + key.charCodeAt(i)) % size;
   }
   return hash;
+}
+
+export function getColorByIndex(index: number): string {
+  return CHART_PALETTE[index % CHART_PALETTE.length]!;
 }
 
 export function getSeriesColor(value: string | number, fallbackIndex = 0): string {
