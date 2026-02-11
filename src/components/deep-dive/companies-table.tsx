@@ -1,8 +1,10 @@
 "use client";
 
-import { Card, Progress, Space, Table, Typography } from "antd";
+import { Card, Input, Progress, Space, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { SearchOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { DeepDiveCompanyRow, DeepDiveStatus } from "../../hooks/api/useDeepDiveService";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 import DeepDiveStatusTag from "./status-tag";
@@ -56,6 +58,23 @@ const columns: ColumnsType<DeepDiveCompanyRow> = [
     ),
   },
   {
+    title: "Valid",
+    dataIndex: "validSourcesCount",
+    width: 100,
+    sorter: (a, b) => a.validSourcesCount - b.validSourcesCount,
+    render: (value: number, record) => {
+      const pct = record.sourcesCount > 0
+        ? Math.round((value / record.sourcesCount) * 100)
+        : 0;
+      const color = pct >= 50 ? "#52c41a" : pct >= 25 ? "#faad14" : "#ff4d4f";
+      return (
+        <Text style={{ color }}>
+          {value.toLocaleString()} <span style={{ color: "#8c8c8c" }}>({pct}%)</span>
+        </Text>
+      );
+    },
+  },
+  {
     title: "Candidates",
     dataIndex: "candidatesCount",
     width: 110,
@@ -105,15 +124,34 @@ export default function CompaniesTable({
   loading: boolean;
 }) {
   const router = useRouter();
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return companies;
+    return companies.filter(
+      (c) => c.name.toLowerCase().includes(q) || String(c.id).includes(q),
+    );
+  }, [companies, search]);
 
   return (
     <Card
       title="Companies"
       style={DARK_CARD_STYLE}
       styles={{ header: DARK_CARD_HEADER_STYLE }}
+      extra={
+        <Input
+          placeholder="Search by name or ID"
+          prefix={<SearchOutlined style={{ color: "#8c8c8c" }} />}
+          allowClear
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 220 }}
+        />
+      }
     >
       <Table<DeepDiveCompanyRow>
-        dataSource={companies}
+        dataSource={filtered}
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 20 }}

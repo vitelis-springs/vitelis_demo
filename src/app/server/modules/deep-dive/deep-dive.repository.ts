@@ -325,8 +325,10 @@ export class DeepDiveRepository {
   }
 
   static async getPerCompanySourcesCount(reportId: number) {
-    return prisma.$queryRaw<Array<{ company_id: number; total: number }>>`
-      SELECT rc.company_id, COUNT(s.id)::int AS total
+    return prisma.$queryRaw<Array<{ company_id: number; total: number; valid_count: number }>>`
+      SELECT rc.company_id,
+        COUNT(s.id)::int AS total,
+        COUNT(CASE WHEN (s.metadata ->> 'isValid')::boolean = true THEN 1 END)::int AS valid_count
       FROM report_companies rc
       LEFT JOIN sources s ON s.company_id = rc.company_id
       WHERE rc.report_id = ${reportId}

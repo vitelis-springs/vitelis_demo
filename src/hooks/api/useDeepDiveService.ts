@@ -64,6 +64,7 @@ export interface DeepDiveCompanyRow {
   url?: string | null;
   status: DeepDiveStatus;
   sourcesCount: number;
+  validSourcesCount: number;
   candidatesCount: number;
   stepsDone: number;
   stepsTotal: number;

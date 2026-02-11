@@ -1,6 +1,7 @@
 "use client";
 
 import { Empty } from "antd";
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
@@ -16,7 +17,7 @@ import {
   CHART_AXIS_LABEL_STYLE,
   CHART_AXIS_MUTED_TICK_STYLE,
   CHART_GRID_STROKE,
-  getSeriesColor,
+  getColorByIndex,
 } from "../../config/chart-theme";
 import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
 
@@ -31,6 +32,14 @@ export default function KpiStackedChart({
   data: KpiChartItem[];
   categories: string[];
 }) {
+  const sorted = useMemo(() => {
+    return [...data].sort((a, b) => {
+      const totalA = categories.reduce((sum, cat) => sum + (Number(a[cat]) || 0), 0);
+      const totalB = categories.reduce((sum, cat) => sum + (Number(b[cat]) || 0), 0);
+      return totalB - totalA;
+    });
+  }, [data, categories]);
+
   if (data.length === 0 || categories.length === 0) {
     return <Empty description="No KPI data for selected filters" />;
   }
@@ -38,7 +47,7 @@ export default function KpiStackedChart({
   return (
     <div style={{ height: 620 }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 30, right: 40, left: 0, bottom: 100 }} barGap={50} maxBarSize={100}>
+        <BarChart data={sorted} margin={{ top: 30, right: 40, left: 0, bottom: 100 }} barGap={50} maxBarSize={100}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
           <XAxis
             dataKey="company"
@@ -65,7 +74,7 @@ export default function KpiStackedChart({
                 key={category}
                 dataKey={category}
                 stackId="kpi"
-                fill={getSeriesColor(category, index)}
+                fill={getColorByIndex(index)}
                 name={category}
                 textAnchor="middle"
                 activeBar={CHART_ACTIVE_BAR_STYLE}

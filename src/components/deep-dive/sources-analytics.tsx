@@ -41,7 +41,7 @@ import {
       QUALITY_COLORS,
       TIER_COLORS,
       DARK_CARD_STYLE,
-      getSeriesColor,
+      getColorByIndex,
 } from "../../config/chart-theme";
 import {
       SourceItem,
@@ -566,8 +566,7 @@ export default function SourcesAnalytics({
                                                                                     entry
                                                                                           .name
                                                                               ] ??
-                                                                              getSeriesColor(
-                                                                                    entry.name,
+                                                                              getColorByIndex(
                                                                                     index,
                                                                               )
                                                                         }
@@ -699,8 +698,7 @@ export default function SourcesAnalytics({
                                                                                     key={
                                                                                           entry.name
                                                                                     }
-                                                                                    fill={getSeriesColor(
-                                                                                          entry.name,
+                                                                                    fill={getColorByIndex(
                                                                                           i,
                                                                                     )}
                                                                               />
@@ -754,8 +752,7 @@ export default function SourcesAnalytics({
                                                                                     key={
                                                                                           entry.name
                                                                                     }
-                                                                                    fill={getSeriesColor(
-                                                                                          entry.name,
+                                                                                    fill={getColorByIndex(
                                                                                           i,
                                                                                     )}
                                                                               />

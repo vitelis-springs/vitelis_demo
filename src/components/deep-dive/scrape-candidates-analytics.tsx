@@ -22,7 +22,7 @@ import {
   CHART_AXIS_TICK_STYLE,
   CHART_GRID_STROKE,
   DARK_CARD_STYLE,
-  getSeriesColor,
+  getColorByIndex,
 } from "../../config/chart-theme";
 import {
   ScrapeCandidateItem,
@@ -199,7 +199,7 @@ export default function ScrapeCandidatesAnalytics({
               <PieChart>
                 <Pie data={agentsPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
                   {agentsPieData.map((entry, i) => (
-                    <Cell key={entry.name} fill={getSeriesColor(entry.name, i)} />
+                    <Cell key={entry.name} fill={getColorByIndex(i)} />
                   ))}
                 </Pie>
                 <ChartTooltip />
