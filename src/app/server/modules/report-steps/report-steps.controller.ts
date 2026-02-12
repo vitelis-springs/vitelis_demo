@@ -32,6 +32,55 @@ export class ReportStepsController {
     }
   }
 
+  static async updateGenerationStepSettings(
+    request: NextRequest,
+    stepIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const stepId = Number(stepIdParam);
+      if (!Number.isFinite(stepId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid step id" },
+          { status: 400 }
+        );
+      }
+
+      const body = (await request.json()) as {
+        settings?: Record<string, string> | null;
+      };
+
+      if (body.settings !== null && typeof body.settings !== "object") {
+        return NextResponse.json(
+          { success: false, error: "settings must be an object or null" },
+          { status: 400 }
+        );
+      }
+
+      const result = await ReportStepsService.updateGenerationStepSettings(
+        stepId,
+        body.settings ?? null
+      );
+
+      if (!result.success) {
+        return NextResponse.json(result, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error(
+        "❌ ReportStepsController.updateGenerationStepSettings:",
+        error
+      );
+      return NextResponse.json(
+        { success: false, error: "Failed to update step settings" },
+        { status: 500 }
+      );
+    }
+  }
+
   // ===== Report Steps =====
 
   static async getReportSteps(
@@ -505,7 +554,7 @@ export class ReportStepsController {
 
       const result = await ReportStepsService.updateOrchestrator(
         reportId,
-        status,
+        status ?? undefined,
         body.metadata
       );
       if (!result.success) {

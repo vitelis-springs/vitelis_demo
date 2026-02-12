@@ -169,6 +169,14 @@ const reportStepsApi = {
     return response.data;
   },
 
+  async updateGenerationStepSettings(
+    stepId: number,
+    settings: Record<string, string> | null
+  ): Promise<{ success: boolean; data?: { id: number; name: string; settings: unknown }; error?: string }> {
+    const response = await api.patch(`/generation-steps/${stepId}`, { settings });
+    return response.data;
+  },
+
   async getOrchestratorStatus(
     reportId: number
   ): Promise<OrchestratorStatusResponse> {
@@ -272,6 +280,28 @@ export const useGetOrchestratorStatus = (
 };
 
 // ===== Mutations =====
+
+export const useUpdateGenerationStepSettings = (reportId: number | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      stepId,
+      settings,
+    }: {
+      stepId: number;
+      settings: Record<string, string> | null;
+    }) => reportStepsApi.updateGenerationStepSettings(stepId, settings),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["report-steps", reportId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["generation-steps"],
+      });
+    },
+  });
+};
 
 export const useAddStepToReport = (reportId: number) => {
   const queryClient = useQueryClient();

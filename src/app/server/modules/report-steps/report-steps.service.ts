@@ -18,6 +18,30 @@ export class ReportStepsService {
     };
   }
 
+  static async updateGenerationStepSettings(
+    stepId: number,
+    settings: Record<string, string> | null
+  ) {
+    const step = await ReportStepsRepository.getGenerationStepById(stepId);
+    if (!step) {
+      return { success: false, error: "Step not found" };
+    }
+
+    const updated = await ReportStepsRepository.updateGenerationStepSettings(
+      stepId,
+      settings
+    );
+
+    return {
+      success: true,
+      data: {
+        id: updated.id,
+        name: updated.name,
+        settings: updated.settings,
+      },
+    };
+  }
+
   // ===== Report Steps =====
 
   static async getReportSteps(reportId: number) {
@@ -288,19 +312,26 @@ export class ReportStepsService {
   ) {
     try {
       // Merge metadata with existing if partial update
+      // Keys with null values are removed after merge (deletion convention)
       if (metadata && !status) {
         const existing = await ReportStepsRepository.getOrchestratorByReportId(reportId);
         if (!existing) return { success: false, error: "Orchestrator not found" };
 
         const merged = { ...(existing.metadata as object ?? {}), ...metadata };
-        await ReportStepsRepository.upsertOrchestrator(reportId, existing.status, merged);
+        const cleaned = Object.fromEntries(
+          Object.entries(merged).filter(([, v]) => v !== null)
+        );
+        await ReportStepsRepository.upsertOrchestrator(reportId, existing.status, cleaned);
         return { success: true };
       }
 
       if (status && metadata) {
         const existing = await ReportStepsRepository.getOrchestratorByReportId(reportId);
         const merged = { ...(existing?.metadata as object ?? {}), ...metadata };
-        await ReportStepsRepository.upsertOrchestrator(reportId, status, merged);
+        const cleaned = Object.fromEntries(
+          Object.entries(merged).filter(([, v]) => v !== null)
+        );
+        await ReportStepsRepository.upsertOrchestrator(reportId, status, cleaned);
         return { success: true };
       }
 

@@ -8,12 +8,14 @@ import {
   useRemoveStepFromReport,
   useUpdateStepOrder,
 } from "../../hooks/api/useReportStepsService";
+import type { ConfiguredStep } from "../../hooks/api/useReportStepsService";
 import { useGetDeepDiveDetail } from "../../hooks/api/useDeepDiveService";
 import DeepDiveBreadcrumbs from "../deep-dive/breadcrumbs";
 import OrchestratorControl from "./OrchestratorControl";
 import ConfiguredStepsList from "./ConfiguredStepsList";
 import AvailableStepsList from "./AvailableStepsList";
 import CompanyStepsTable from "./CompanyStepsTable";
+import StepSettingsModal from "./StepSettingsModal";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -26,6 +28,7 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
   const { message } = App.useApp();
   const [addingStepId, setAddingStepId] = useState<number | null>(null);
   const [removingStepId, setRemovingStepId] = useState<number | null>(null);
+  const [settingsStep, setSettingsStep] = useState<ConfiguredStep | null>(null);
 
   const { data: reportData, isLoading: reportLoading } = useGetDeepDiveDetail(reportId);
   const { data: stepsData, isLoading: stepsLoading } = useGetReportSteps(reportId);
@@ -138,6 +141,7 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
                 loading={stepsLoading}
                 onRemove={handleRemoveStep}
                 onUpdateOrder={handleUpdateOrder}
+                onOpenSettings={setSettingsStep}
                 removingStepId={removingStepId}
                 updatingOrder={updateStepOrder.isPending}
               />
@@ -154,6 +158,13 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
 
           {/* Company Steps Matrix */}
           <CompanyStepsTable reportId={reportId} />
+
+          {/* Step Settings Modal */}
+          <StepSettingsModal
+            step={settingsStep}
+            reportId={reportId}
+            onClose={() => setSettingsStep(null)}
+          />
         </div>
       </Content>
     </Layout>
