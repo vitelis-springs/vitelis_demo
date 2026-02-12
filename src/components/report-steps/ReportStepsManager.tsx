@@ -8,7 +8,7 @@ import {
   useRemoveStepFromReport,
   useUpdateStepOrder,
 } from "../../hooks/api/useReportStepsService";
-import type { ConfiguredStep } from "../../hooks/api/useReportStepsService";
+import type { GenerationStep } from "../../hooks/api/useReportStepsService";
 import { useGetDeepDiveDetail } from "../../hooks/api/useDeepDiveService";
 import DeepDiveBreadcrumbs from "../deep-dive/breadcrumbs";
 import OrchestratorControl from "./OrchestratorControl";
@@ -28,7 +28,7 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
   const { message } = App.useApp();
   const [addingStepId, setAddingStepId] = useState<number | null>(null);
   const [removingStepId, setRemovingStepId] = useState<number | null>(null);
-  const [settingsStep, setSettingsStep] = useState<ConfiguredStep | null>(null);
+  const [settingsStep, setSettingsStep] = useState<GenerationStep | null>(null);
 
   const { data: reportData, isLoading: reportLoading } = useGetDeepDiveDetail(reportId);
   const { data: stepsData, isLoading: stepsLoading } = useGetReportSteps(reportId);
@@ -141,7 +141,6 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
                 loading={stepsLoading}
                 onRemove={handleRemoveStep}
                 onUpdateOrder={handleUpdateOrder}
-                onOpenSettings={setSettingsStep}
                 removingStepId={removingStepId}
                 updatingOrder={updateStepOrder.isPending}
               />
@@ -151,6 +150,7 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
                 steps={available}
                 loading={stepsLoading}
                 onAdd={handleAddStep}
+                onOpenSettings={setSettingsStep}
                 addingStepId={addingStepId}
               />
             </Col>

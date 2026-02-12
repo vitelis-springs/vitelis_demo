@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, List, Button, Empty, Typography, Space, Tag, InputNumber } from "antd";
-import { DeleteOutlined, SettingOutlined } from "@ant-design/icons";
+import { DeleteOutlined } from "@ant-design/icons";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 import type { ConfiguredStep } from "../../hooks/api/useReportStepsService";
 
@@ -12,7 +12,6 @@ interface ConfiguredStepsListProps {
   loading: boolean;
   onRemove: (stepId: number) => void;
   onUpdateOrder: (stepId: number, order: number) => void;
-  onOpenSettings: (step: ConfiguredStep) => void;
   removingStepId: number | null;
   updatingOrder: boolean;
 }
@@ -22,7 +21,6 @@ export default function ConfiguredStepsList({
   loading,
   onRemove,
   onUpdateOrder,
-  onOpenSettings,
   removingStepId,
   updatingOrder,
 }: ConfiguredStepsListProps) {
@@ -48,13 +46,6 @@ export default function ConfiguredStepsList({
           renderItem={(step) => (
             <List.Item
               actions={[
-                <Button
-                  key="settings"
-                  type="text"
-                  size="small"
-                  icon={<SettingOutlined />}
-                  onClick={() => onOpenSettings(step)}
-                />,
                 <Button
                   key="delete"
                   type="text"

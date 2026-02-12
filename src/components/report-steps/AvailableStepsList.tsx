@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, List, Button, Empty, Typography, Space, Tag } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 import type { GenerationStep } from "../../hooks/api/useReportStepsService";
 
@@ -11,6 +11,7 @@ interface AvailableStepsListProps {
   steps: GenerationStep[];
   loading: boolean;
   onAdd: (stepId: number) => void;
+  onOpenSettings: (step: GenerationStep) => void;
   addingStepId: number | null;
 }
 
@@ -18,6 +19,7 @@ export default function AvailableStepsList({
   steps,
   loading,
   onAdd,
+  onOpenSettings,
   addingStepId,
 }: AvailableStepsListProps) {
   return (
@@ -42,6 +44,13 @@ export default function AvailableStepsList({
           renderItem={(step) => (
             <List.Item
               actions={[
+                <Button
+                  key="settings"
+                  type="text"
+                  size="small"
+                  icon={<SettingOutlined />}
+                  onClick={() => onOpenSettings(step)}
+                />,
                 <Button
                   key="add"
                   type="primary"
