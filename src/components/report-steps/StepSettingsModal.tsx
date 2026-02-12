@@ -2,13 +2,13 @@
 
 import { Modal, Input, App, Typography } from "antd";
 import { useState, useEffect } from "react";
-import type { ConfiguredStep } from "../../hooks/api/useReportStepsService";
+import type { GenerationStep } from "../../hooks/api/useReportStepsService";
 import { useUpdateGenerationStepSettings } from "../../hooks/api/useReportStepsService";
 
 const { Text } = Typography;
 
 interface StepSettingsModalProps {
-  step: ConfiguredStep | null;
+  step: GenerationStep | null;
   reportId: number;
   onClose: () => void;
 }
