@@ -1,4 +1,4 @@
-import { report_status_enum } from "../../../../generated/prisma";
+import { Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
 
 export class ReportStepsRepository {
@@ -13,6 +13,16 @@ export class ReportStepsRepository {
   static async getGenerationStepById(id: number) {
     return prisma.report_generation_steps.findUnique({
       where: { id },
+    });
+  }
+
+  static async updateGenerationStepSettings(
+    stepId: number,
+    settings: object | null
+  ) {
+    return prisma.report_generation_steps.update({
+      where: { id: stepId },
+      data: { settings: settings ?? Prisma.DbNull },
     });
   }
 

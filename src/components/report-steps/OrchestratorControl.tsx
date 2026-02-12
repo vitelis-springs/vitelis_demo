@@ -5,11 +5,13 @@ import {
   Card,
   Space,
   Typography,
-  InputNumber,
   Spin,
   Select,
   Descriptions,
   Button,
+  Divider,
+  Empty,
+  Tag,
 } from "antd";
 import {
   LoadingOutlined,
@@ -17,7 +19,9 @@ import {
   ExclamationCircleOutlined,
   ClockCircleOutlined,
   ThunderboltOutlined,
+  EditOutlined,
 } from "@ant-design/icons";
+import { useState } from "react";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 import {
   useGetOrchestratorStatus,
@@ -25,6 +29,7 @@ import {
   useTriggerEngineTick,
   type StepStatus,
 } from "../../hooks/api/useReportStepsService";
+import OrchestratorSettingsModal from "./OrchestratorSettingsModal";
 
 const { Text } = Typography;
 
@@ -41,8 +46,6 @@ const STATUS_OPTIONS: Array<{ value: StepStatus; label: string }> = [
   { value: "DONE", label: "Done" },
   { value: "ERROR", label: "Error" },
 ];
-
-const KNOWN_META_KEYS = ["parallel_limit", "started_at"] as const;
 
 const ENGINE_INSTANCES = [
   { value: 1, label: "Instance 1" },
@@ -63,20 +66,14 @@ export default function OrchestratorControl({
   const updateOrch = useUpdateOrchestrator(reportId);
   const triggerEngine = useTriggerEngineTick(reportId);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const status = data?.data?.status ?? "PENDING";
   const isProcessing = status === "PROCESSING";
   const metadata = data?.data?.metadata as Record<string, unknown> | null;
 
-  const parallelLimit =
-    typeof metadata?.parallel_limit === "number" ? metadata.parallel_limit : 1;
-
   const handleStatusChange = (newStatus: StepStatus) => {
     updateOrch.mutate({ status: newStatus });
-  };
-
-  const handleParallelLimitChange = (val: number | null) => {
-    if (val === null || val < 1) return;
-    updateOrch.mutate({ metadata: { parallel_limit: val } });
   };
 
   const handleTriggerEngine = (instance: number) => {
@@ -100,97 +97,124 @@ export default function OrchestratorControl({
     );
   }
 
-  // Collect extra metadata keys (excluding known ones)
-  const extraMeta = metadata
-    ? Object.entries(metadata).filter(
-        ([key]) => !(KNOWN_META_KEYS as readonly string[]).includes(key)
-      )
+  const settingsMeta = metadata
+    ? Object.entries(metadata)
     : [];
 
   return (
-    <Card
-      title="Orchestrator"
-      style={DARK_CARD_STYLE}
-      styles={{ header: DARK_CARD_HEADER_STYLE }}
-    >
-      <Descriptions
-        column={{ xs: 1, sm: 2, md: 3 }}
-        size="small"
-        styles={{
-          label: { color: "#8c8c8c" },
-          content: { color: "#d9d9d9" },
-        }}
+    <>
+      <Card
+        title="Orchestrator"
+        style={DARK_CARD_STYLE}
+        styles={{ header: DARK_CARD_HEADER_STYLE }}
       >
-        {/* Status - always editable */}
-        <Descriptions.Item label="Status">
-          <Space>
-            {STATUS_ICONS[status]}
-            <Select
-              size="small"
-              value={status}
-              onChange={handleStatusChange}
-              loading={
-                updateOrch.isPending &&
-                updateOrch.variables?.status !== undefined
-              }
-              style={{ width: 120 }}
-              options={STATUS_OPTIONS}
-            />
-          </Space>
-        </Descriptions.Item>
-
-        {/* Parallel Limit - always editable */}
-        <Descriptions.Item label="parallel_limit">
-          <InputNumber
-            size="small"
-            min={1}
-            max={20}
-            value={parallelLimit}
-            onChange={handleParallelLimitChange}
-            disabled={
-              updateOrch.isPending &&
-              updateOrch.variables?.metadata?.parallel_limit !== undefined
-            }
-            style={{ width: 80 }}
-          />
-        </Descriptions.Item>
-
-        {/* Trigger Engine */}
-        <Descriptions.Item label="Trigger Engine">
-          <Space size={4}>
-            {ENGINE_INSTANCES.map((inst) => (
-              <Button
-                key={inst.value}
+        {/* ── Controls ── */}
+        <Descriptions
+          column={{ xs: 1, sm: 2, md: 3 }}
+          size="small"
+          styles={{
+            label: { color: "#8c8c8c" },
+            content: { color: "#d9d9d9" },
+          }}
+        >
+          <Descriptions.Item label="Status">
+            <Space>
+              {STATUS_ICONS[status]}
+              <Select
                 size="small"
-                icon={<ThunderboltOutlined />}
-                disabled={!isProcessing}
-                loading={triggerEngine.isPending && triggerEngine.variables === inst.value}
-                onClick={() => handleTriggerEngine(inst.value)}
-              >
-                {inst.label}
-              </Button>
-            ))}
+                value={status}
+                onChange={handleStatusChange}
+                loading={
+                  updateOrch.isPending &&
+                  updateOrch.variables?.status !== undefined
+                }
+                style={{ width: 120 }}
+                options={STATUS_OPTIONS}
+              />
+            </Space>
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Trigger Engine">
+            <Space size={4}>
+              {ENGINE_INSTANCES.map((inst) => (
+                <Button
+                  key={inst.value}
+                  size="small"
+                  icon={<ThunderboltOutlined />}
+                  disabled={!isProcessing}
+                  loading={triggerEngine.isPending && triggerEngine.variables === inst.value}
+                  onClick={() => handleTriggerEngine(inst.value)}
+                >
+                  {inst.label}
+                </Button>
+              ))}
+            </Space>
+          </Descriptions.Item>
+        </Descriptions>
+
+        {/* ── Settings ── */}
+        <Divider
+          orientation="left"
+          orientationMargin={0}
+          style={{ borderColor: "#303030", margin: "16px 0 12px" }}
+        >
+          <Space>
+            <Text style={{ color: "#8c8c8c", fontSize: 13 }}>Settings</Text>
+            <Tag color="blue">{settingsMeta.length}</Tag>
+            <Button
+              size="small"
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => setSettingsOpen(true)}
+            >
+              Edit
+            </Button>
           </Space>
-        </Descriptions.Item>
+        </Divider>
 
-        {/* Started At */}
-        {metadata?.started_at && (
-          <Descriptions.Item label="started_at">
-            <Text style={{ color: "#8c8c8c", fontSize: 12 }}>
-              {new Date(metadata.started_at as string).toLocaleString()}
-            </Text>
-          </Descriptions.Item>
+        {settingsMeta.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            imageStyle={{ height: 32 }}
+            description={
+              <Text style={{ color: "#595959", fontSize: 12 }}>
+                No settings configured. Click Edit to add key-value pairs.
+              </Text>
+            }
+          />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {settingsMeta.map(([key, value]) => (
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  backgroundColor: "#1a1a1a",
+                }}
+              >
+                <Text style={{ color: "#8c8c8c", fontSize: 12, minWidth: 140, flexShrink: 0 }}>
+                  {key}
+                </Text>
+                <Text style={{ color: "#d9d9d9", fontSize: 12, wordBreak: "break-all" }}>
+                  {typeof value === "object"
+                    ? JSON.stringify(value)
+                    : String(value)}
+                </Text>
+              </div>
+            ))}
+          </div>
         )}
+      </Card>
 
-        {/* Extra metadata as key: value */}
-        {extraMeta.map(([key, value]) => (
-          <Descriptions.Item key={key} label={key}>
-            <Text style={{ color: "#d9d9d9", fontSize: 12 }}>
-              {typeof value === "object" ? JSON.stringify(value) : String(value)}
-            </Text>
-          </Descriptions.Item>
-        ))}
-      </Descriptions>
-    </Card>
+      <OrchestratorSettingsModal
+        open={settingsOpen}
+        metadata={metadata}
+        reportId={reportId}
+        onClose={() => setSettingsOpen(false)}
+      />
+    </>
   );
 }
