@@ -2,6 +2,7 @@
 
 import { Card, Col, Row, Space, Statistic, Typography } from "antd";
 import {
+  FileDoneOutlined,
   FileSearchOutlined,
   LinkOutlined,
   RightOutlined,
@@ -68,7 +69,7 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={6}>
           <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Total Sources</Text>}
@@ -78,7 +79,17 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={DARK_CARD_STYLE}>
+            <Statistic
+              title={<Text style={{ color: "#8c8c8c" }}>Used Sources</Text>}
+              value={summary.usedSources}
+              prefix={<FileDoneOutlined style={{ color: "#58bfce" }} />}
+              valueStyle={{ color: "#fff" }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
           <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Scrape Candidates</Text>}
@@ -88,8 +99,10 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={8}>
-          <Card style={DARK_CARD_STYLE}>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ ...DARK_CARD_STYLE, cursor: "pointer", transition: "border-color 0.2s" }}
+            hoverable
+            onClick={() => router.push(`/deep-dive/${report.id}/query`)}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Total Queries</Text>}
               value={summary.totalQueries}
