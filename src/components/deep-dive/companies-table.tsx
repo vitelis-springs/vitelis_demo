@@ -75,6 +75,22 @@ const columns: ColumnsType<DeepDiveCompanyRow> = [
     },
   },
   {
+    title: "Used",
+    dataIndex: "usedSourcesCount",
+    width: 100,
+    sorter: (a, b) => a.usedSourcesCount - b.usedSourcesCount,
+    render: (value: number, record) => {
+      const pct = record.validSourcesCount > 0
+        ? Math.round((value / record.validSourcesCount) * 100)
+        : 0;
+      return (
+        <Text style={{ color: "#73d13d" }}>
+          {value.toLocaleString()} <span style={{ color: "#8c8c8c" }}>({pct}%)</span>
+        </Text>
+      );
+    },
+  },
+  {
     title: "Candidates",
     dataIndex: "candidatesCount",
     width: 110,

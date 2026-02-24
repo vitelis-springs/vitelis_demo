@@ -3,6 +3,7 @@ import {
   DeepDiveRepository,
   DeepDiveListParams,
   SourceFilterParams,
+  SourceCountingContext,
   SourcesAnalyticsParams,
   ScrapeCandidatesParams,
 } from "./deep-dive.repository";
@@ -16,6 +17,12 @@ const DEFAULT_STATUS_COUNTS = {
 
 
 export class DeepDiveService {
+  private static async buildSourceCountingContext(
+    reportId: number,
+  ): Promise<SourceCountingContext> {
+    return DeepDiveRepository.getSourceCountingContext(reportId);
+  }
+
   static async listDeepDives(params: DeepDiveListParams) {
     const [{ items, total }, useCases, industries] = await Promise.all([
       DeepDiveRepository.listReports(params),
@@ -75,22 +82,28 @@ export class DeepDiveService {
       .map((row) => row.company_id)
       .filter((id): id is number => typeof id === "number");
 
+    const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+
     const [
       kpiRaw,
       totalSources,
+      totalUsedSources,
       totalScrapeCandidates,
       totalQueries,
       companyStatusRaw,
       perCompanySources,
+      perCompanyUsedSources,
       perCompanyCandidates,
     ] = await Promise.all([
       DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
-      DeepDiveRepository.getReportSourcesCount(reportId),
-      DeepDiveRepository.getReportScrapeCandidatesCount(reportId),
+      DeepDiveRepository.getReportSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getReportUsedSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getReportScrapeCandidatesCount(reportId, sourceCountingContext),
       DeepDiveRepository.getReportQueriesCount(reportId),
       DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
-      DeepDiveRepository.getPerCompanySourcesCount(reportId),
-      DeepDiveRepository.getPerCompanyCandidatesCount(reportId),
+      DeepDiveRepository.getPerCompanySourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyUsedSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyCandidatesCount(reportId, sourceCountingContext),
     ]);
 
     // Build KPI chart — categories are dynamic, derived from data
@@ -131,6 +144,10 @@ export class DeepDiveService {
       sourcesMap.set(row.company_id, row.total);
       validSourcesMap.set(row.company_id, row.valid_count);
     }
+    const usedSourcesMap = new Map<number, number>();
+    for (const row of perCompanyUsedSources) {
+      usedSourcesMap.set(row.company_id, row.total);
+    }
     const candidatesMap = new Map<number, number>();
     for (const row of perCompanyCandidates) {
       candidatesMap.set(row.company_id, row.total);
@@ -138,11 +155,11 @@ export class DeepDiveService {
 
     function deriveDominantStatus(counts: Record<report_status_enum, number>): report_status_enum {
       const total = counts.PENDING + counts.PROCESSING + counts.DONE + counts.ERROR;
-      // No statuses recorded or fewer than total steps → consider missing as PENDING
-      if (total === 0 || total < totalStepsCount) return report_status_enum.PENDING;
       if (counts.ERROR > 0) return report_status_enum.ERROR;
       if (counts.PROCESSING > 0) return report_status_enum.PROCESSING;
       if (counts.PENDING > 0) return report_status_enum.PENDING;
+      // No statuses recorded or fewer than total steps (without active processing/error) -> PENDING
+      if (total === 0 || total < totalStepsCount) return report_status_enum.PENDING;
       return report_status_enum.DONE;
     }
 
@@ -167,6 +184,7 @@ export class DeepDiveService {
           companiesCount: companies.length,
           orchestratorStatus: report.report_orhestrator?.status ?? report_status_enum.PENDING,
           totalSources,
+          usedSources: totalUsedSources,
           totalScrapeCandidates,
           totalQueries,
         },
@@ -186,6 +204,7 @@ export class DeepDiveService {
               status: deriveDominantStatus(counts),
               sourcesCount: sourcesMap.get(company.id) ?? 0,
               validSourcesCount: validSourcesMap.get(company.id) ?? 0,
+              usedSourcesCount: usedSourcesMap.get(company.id) ?? 0,
               candidatesCount: candidatesMap.get(company.id) ?? 0,
               stepsDone: doneSteps,
               stepsTotal: totalStepsCount,
@@ -209,7 +228,13 @@ export class DeepDiveService {
     const report = await DeepDiveRepository.getReportById(reportId);
     if (!report) return null;
 
-    const rows = await DeepDiveRepository.getReportQueriesWithStats(reportId, params?.sortBy, params?.sortOrder);
+    const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+    const rows = await DeepDiveRepository.getReportQueriesWithStats(
+      reportId,
+      params?.sortBy,
+      params?.sortOrder,
+      sourceCountingContext,
+    );
 
     return {
       success: true,
@@ -280,9 +305,9 @@ export class DeepDiveService {
     ] = await Promise.all([
       DeepDiveRepository.getCompanyStepStatuses(reportId, companyId),
       DeepDiveRepository.getCompanyKpiResults(reportId, companyId),
-      DeepDiveRepository.getCompanyScrapCandidates(companyId, 200),
-      DeepDiveRepository.getCompanyScrapCandidatesCount(companyId),
-      DeepDiveRepository.getCompanySources(companyId, filters),
+      DeepDiveRepository.getCompanyScrapCandidates(reportId, companyId, 200),
+      DeepDiveRepository.getCompanyScrapCandidatesCount(reportId, companyId),
+      DeepDiveRepository.getCompanySources(reportId, companyId, filters),
       DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
     ]);
 
@@ -423,7 +448,11 @@ export class DeepDiveService {
     const company = await DeepDiveRepository.getCompany(reportId, companyId);
     if (!company) return null;
 
-    const result = await DeepDiveRepository.getSourcesAnalytics(companyId, filters);
+    const result = await DeepDiveRepository.getSourcesAnalytics(
+      reportId,
+      companyId,
+      filters,
+    );
 
     return {
       success: true,
@@ -452,7 +481,11 @@ export class DeepDiveService {
     const company = await DeepDiveRepository.getCompany(reportId, companyId);
     if (!company) return null;
 
-    const result = await DeepDiveRepository.getScrapeCandidatesList(companyId, filters);
+    const result = await DeepDiveRepository.getScrapeCandidatesList(
+      reportId,
+      companyId,
+      filters,
+    );
 
     return {
       success: true,

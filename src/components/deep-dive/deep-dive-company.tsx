@@ -262,7 +262,7 @@ export default function DeepDiveCompany({
           <StatCard label="Total sources" value={sourcesTotal} href={`/deep-dive/${reportId}/companies/${companyId}/sources`} />
         </Col>
         <Col xs={24} md={8}>
-          <StatCard label="Scrape candidates" value={scrapCandidatesTotal} href={`/deep-dive/${reportId}/companies/${companyId}/source_candidates`} />
+          <StatCard label="Scrape candidates" value={scrapCandidatesTotal} href={`/deep-dive/${reportId}/companies/${companyId}/candidates`} />
         </Col>
         <Col xs={24} md={8}>
           <Card style={DARK_CARD_STYLE}>

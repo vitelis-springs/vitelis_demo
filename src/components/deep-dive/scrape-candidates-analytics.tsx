@@ -1,7 +1,7 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { Card, Col, Input, Row, Space, Table, Tag, Typography } from "antd";
+import { Card, Col, Input, Row, Space, Table, Tag } from "antd";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
 import {
@@ -40,10 +40,9 @@ import FilterBar from "./shared/filter-bar";
 import StatCard from "./shared/stat-card";
 import QueryIdTags from "./shared/query-id-tags";
 
-const { Text } = Typography;
-
 const STATUS_COLORS: Record<string, string> = {
   pending: "default",
+  processed: "green",
   scraped: "green",
   failed: "red",
   skipped: "orange",
@@ -109,18 +108,6 @@ export default function ScrapeCandidatesAnalytics({
       ),
     },
     {
-      title: "Title", dataIndex: "title", width: 250,
-      render: (v: string | null) => <Text style={{ color: "#d9d9d9" }}>{v || "—"}</Text>,
-    },
-    {
-      title: "Description", dataIndex: "description", width: 300,
-      render: (v: string | null) => (
-        <div style={{ maxHeight: 120, overflow: "auto", color: "#d9d9d9" }}>
-          {v || <span style={{ color: "#595959" }}>—</span>}
-        </div>
-      ),
-    },
-    {
       title: "Status", dataIndex: "status", key: "status", width: 100, sorter: true,
       render: (v: string) => <Tag color={STATUS_COLORS[v] ?? "default"}>{v}</Tag>,
     },
@@ -144,7 +131,7 @@ export default function ScrapeCandidatesAnalytics({
     },
     {
       title: "Created", dataIndex: "created_at", key: "created_at", width: 140, sorter: true,
-      render: (v: string) => dayjs(v).format("YYYY-MM-DD HH:mm"),
+      render: (v: string | null) => (v ? dayjs(v).format("YYYY-MM-DD HH:mm") : "—"),
     },
   ], [reportId]);
 
@@ -228,7 +215,7 @@ export default function ScrapeCandidatesAnalytics({
           loading={isLoading}
           columns={columns}
           components={RESIZABLE_TABLE_COMPONENTS}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1000 }}
           bordered
           onChange={handleTableChange}
           pagination={{

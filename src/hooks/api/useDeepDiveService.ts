@@ -47,6 +47,7 @@ export interface DeepDiveSummary {
   companiesCount: number;
   orchestratorStatus: DeepDiveStatus;
   totalSources: number;
+  usedSources: number;
   totalScrapeCandidates: number;
   totalQueries: number;
 }
@@ -65,6 +66,7 @@ export interface DeepDiveCompanyRow {
   status: DeepDiveStatus;
   sourcesCount: number;
   validSourcesCount: number;
+  usedSourcesCount: number;
   candidatesCount: number;
   stepsDone: number;
   stepsTotal: number;
@@ -382,7 +384,7 @@ export interface ScrapeCandidateItem {
   description: string | null;
   status: string;
   metadata: Record<string, unknown> | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 export interface ScrapeCandidatesResponse {
@@ -444,7 +446,7 @@ const sourcesApi = {
 
     const suffix = sp.toString();
     const response = await api.get(
-      `/deep-dive/${reportId}/companies/${companyId}/source_candidates${suffix ? `?${suffix}` : ""}`,
+      `/deep-dive/${reportId}/companies/${companyId}/candidates${suffix ? `?${suffix}` : ""}`,
     );
     return response.data;
   },
