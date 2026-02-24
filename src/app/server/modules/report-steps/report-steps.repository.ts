@@ -46,7 +46,7 @@ export class ReportStepsRepository {
 
   static async deleteStep(reportId: number, stepId: number) {
     return prisma.report_steps.delete({
-      where: { rs_report_step_uniq: { report_id: reportId, step_id: stepId } },
+      where: { report_id_step_id: { report_id: reportId, step_id: stepId } },
     });
   }
 
@@ -56,7 +56,7 @@ export class ReportStepsRepository {
     newOrder: number
   ) {
     return prisma.report_steps.update({
-      where: { rs_report_step_uniq: { report_id: reportId, step_id: stepId } },
+      where: { report_id_step_id: { report_id: reportId, step_id: stepId } },
       data: { step_order: newOrder },
     });
   }
@@ -66,7 +66,7 @@ export class ReportStepsRepository {
       orderedStepIds.map((stepId, index) =>
         prisma.report_steps.update({
           where: {
-            rs_report_step_uniq: { report_id: reportId, step_id: stepId },
+            report_id_step_id: { report_id: reportId, step_id: stepId },
           },
           data: { step_order: index + 1 },
         })

@@ -128,14 +128,26 @@ export class ReportStepsService {
     }
   }
 
-  static async reorderSteps(reportId: number, orderedStepIds: number[]) {
-    await ReportStepsRepository.reorderSteps(reportId, orderedStepIds);
-    return { success: true };
+  static async reorderSteps(_reportId: number, _orderedStepIds: number[]) {
+    return {
+      success: false,
+      error: "Bulk reorder is disabled. Update each step individually.",
+    };
   }
 
   static async updateStepOrder(reportId: number, stepId: number, order: number) {
-    await ReportStepsRepository.updateStepOrder(reportId, stepId, order);
-    return { success: true };
+    try {
+      await ReportStepsRepository.updateStepOrder(reportId, stepId, order);
+      return { success: true };
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Record to update not found")
+      ) {
+        return { success: false, error: "Step not found in report" };
+      }
+      throw error;
+    }
   }
 
   // ===== Step Statuses =====

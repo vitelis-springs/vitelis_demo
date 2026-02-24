@@ -176,7 +176,11 @@ export class ReportStepsController {
 
       // Single step order update: { step_id, order }
       if (typeof body.step_id === "number" && typeof body.order === "number") {
-        if (!Number.isFinite(body.step_id) || !Number.isFinite(body.order) || body.order < 1) {
+        if (
+          !Number.isInteger(body.step_id) ||
+          !Number.isInteger(body.order) ||
+          body.order < 1
+        ) {
           return NextResponse.json(
             { success: false, error: "Invalid step_id or order" },
             { status: 400 }
@@ -187,30 +191,46 @@ export class ReportStepsController {
           body.step_id,
           body.order
         );
+        if (!result.success) {
+          return NextResponse.json(result, {
+            status: result.error === "Step not found in report" ? 404 : 400,
+          });
+        }
         return NextResponse.json(result);
       }
 
       // Bulk reorder: { ordered_step_ids }
-      if (
-        !Array.isArray(body.ordered_step_ids) ||
-        !body.ordered_step_ids.every(
-          (id) => typeof id === "number" && Number.isFinite(id)
-        )
-      ) {
+      if (Array.isArray(body.ordered_step_ids)) {
         return NextResponse.json(
           {
             success: false,
-            error: "Provide ordered_step_ids array or step_id+order",
+            error: "Bulk reorder is disabled. Update each step individually.",
           },
           { status: 400 }
         );
       }
 
-      const result = await ReportStepsService.reorderSteps(
-        reportId,
-        body.ordered_step_ids
+      // Invalid payload
+      if (
+        body.ordered_step_ids !== undefined ||
+        body.step_id !== undefined ||
+        body.order !== undefined
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Provide valid step_id+order pair",
+          },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Provide step_id+order to update a single step",
+        },
+        { status: 400 }
       );
-      return NextResponse.json(result);
     } catch (error) {
       console.error("❌ ReportStepsController.reorderSteps:", error);
       return NextResponse.json(
