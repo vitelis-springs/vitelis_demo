@@ -190,6 +190,77 @@ export interface DeepDiveSourcesParams {
   metaGroupBy?: string;
 }
 
+export interface ReportSettingsOption {
+  id: number;
+  name: string;
+  masterFileId: string;
+  prefix: number | null;
+  settings: unknown;
+}
+
+export interface ValidatorSettingsOption {
+  id: number;
+  name: string;
+  settings: unknown;
+}
+
+export interface DeepDiveSettingsResponse {
+  success: boolean;
+  data: {
+    report: {
+      id: number;
+      name: string | null;
+    };
+    current: {
+      reportSettings: ReportSettingsOption | null;
+      validatorSettings: ValidatorSettingsOption | null;
+    };
+    options: {
+      reportSettings: ReportSettingsOption[];
+      validatorSettings: ValidatorSettingsOption[];
+    };
+  };
+}
+
+export type ReportSettingsActionPayload =
+  | { mode: "reuse"; id: number }
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      masterFileId: string;
+      prefix?: number | null;
+      settings: Record<string, unknown>;
+    };
+
+export type ValidatorSettingsActionPayload =
+  | { mode: "reuse"; id: number }
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      settings: Record<string, unknown>;
+    };
+
+export interface UpdateDeepDiveSettingsPayload {
+  reportSettingsAction?: ReportSettingsActionPayload;
+  validatorSettingsAction?: ValidatorSettingsActionPayload;
+}
+
 const deepDiveApi = {
   async list(params: DeepDiveListParams): Promise<DeepDiveListResponse> {
     const searchParams = new URLSearchParams();
@@ -208,6 +279,19 @@ const deepDiveApi = {
 
   async getById(id: number): Promise<DeepDiveDetailResponse> {
     const response = await api.get(`/deep-dive/${id}`);
+    return response.data;
+  },
+
+  async getSettings(reportId: number): Promise<DeepDiveSettingsResponse> {
+    const response = await api.get(`/deep-dive/${reportId}/settings`);
+    return response.data;
+  },
+
+  async updateSettings(
+    reportId: number,
+    payload: UpdateDeepDiveSettingsPayload
+  ): Promise<DeepDiveSettingsResponse> {
+    const response = await api.patch(`/deep-dive/${reportId}/settings`, payload);
     return response.data;
   },
 
@@ -259,6 +343,38 @@ export const useGetDeepDiveDetail = (id: number | null, options?: { enabled?: bo
     queryKey: ["deep-dive", "detail", id],
     queryFn: () => deepDiveApi.getById(id!),
     enabled: options?.enabled !== undefined ? options.enabled : id !== null,
+  });
+};
+
+export const useGetDeepDiveSettings = (
+  reportId: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "settings", reportId],
+    queryFn: () => deepDiveApi.getSettings(reportId!),
+    enabled:
+      options?.enabled !== undefined ? options.enabled : reportId !== null,
+  });
+};
+
+export const useUpdateDeepDiveSettings = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UpdateDeepDiveSettingsPayload) =>
+      deepDiveApi.updateSettings(reportId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "settings", reportId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "detail", reportId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "list"],
+      });
+    },
   });
 };
 

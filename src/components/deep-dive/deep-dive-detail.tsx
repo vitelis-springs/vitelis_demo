@@ -1,7 +1,7 @@
 "use client";
 
 import { App, Button, Layout, Space, Spin, Typography } from "antd";
-import { FileExcelOutlined, SearchOutlined } from "@ant-design/icons";
+import { FileExcelOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useGetDeepDiveDetail, useExportReport } from "../../hooks/api/useDeepDiveService";
@@ -78,6 +78,12 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
                   onClick={() => router.push(`/deep-dive/${reportId}/try-query`)}
                 >
                   Try Query
+                </Button>
+                <Button
+                  icon={<SettingOutlined />}
+                  onClick={() => router.push(`/deep-dive/${reportId}/settings`)}
+                >
+                  Settings
                 </Button>
               </Space>
               <Text style={{ color: "#8c8c8c" }}>

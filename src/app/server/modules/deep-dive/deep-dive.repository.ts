@@ -54,6 +54,29 @@ export interface SourceCountingContext {
   sourceValidationSettingsId: number | null;
 }
 
+export interface ReportSettingsProfile {
+  id: number;
+  name: string;
+  masterFileId: string;
+  prefix: number | null;
+  settings: unknown;
+}
+
+export interface ValidatorSettingsProfile {
+  id: number;
+  name: string;
+  settings: unknown;
+}
+
+export interface DeepDiveSettingsSnapshot {
+  reportId: number;
+  reportName: string | null;
+  reportSettingsId: number | null;
+  sourceValidationSettingsId: number | null;
+  reportSettings: ReportSettingsProfile | null;
+  validatorSettings: ValidatorSettingsProfile | null;
+}
+
 export class DeepDiveRepository {
   private static buildOrderBy(
     sortBy: string | undefined,
@@ -157,6 +180,154 @@ export class DeepDiveRepository {
         use_cases: true,
       },
     });
+  }
+
+  static async getReportSettingsSnapshot(
+    reportId: number
+  ): Promise<DeepDiveSettingsSnapshot | null> {
+    const row = await prisma.reports.findUnique({
+      where: { id: reportId },
+      select: {
+        id: true,
+        name: true,
+        report_settings_id: true,
+        source_validation_settings_id: true,
+        report_settings: true,
+        source_validation_settings: true,
+      },
+    });
+    if (!row) return null;
+
+    return {
+      reportId: row.id,
+      reportName: row.name,
+      reportSettingsId: row.report_settings_id,
+      sourceValidationSettingsId: row.source_validation_settings_id,
+      reportSettings: row.report_settings
+        ? {
+            id: row.report_settings.id,
+            name: row.report_settings.name,
+            masterFileId: row.report_settings.master_file_id,
+            prefix: row.report_settings.prefix,
+            settings: row.report_settings.settings,
+          }
+        : null,
+      validatorSettings: row.source_validation_settings
+        ? {
+            id: row.source_validation_settings.id,
+            name: row.source_validation_settings.name,
+            settings: row.source_validation_settings.settings,
+          }
+        : null,
+    };
+  }
+
+  static async listReportSettings(): Promise<ReportSettingsProfile[]> {
+    const rows = await prisma.report_settings.findMany({
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      masterFileId: row.master_file_id,
+      prefix: row.prefix,
+      settings: row.settings,
+    }));
+  }
+
+  static async listValidatorSettings(): Promise<ValidatorSettingsProfile[]> {
+    const rows = await prisma.source_validation_settings.findMany({
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      settings: row.settings,
+    }));
+  }
+
+  static async getReportSettingsById(
+    id: number
+  ): Promise<ReportSettingsProfile | null> {
+    const row = await prisma.report_settings.findUnique({ where: { id } });
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      name: row.name,
+      masterFileId: row.master_file_id,
+      prefix: row.prefix,
+      settings: row.settings,
+    };
+  }
+
+  static async getValidatorSettingsById(
+    id: number
+  ): Promise<ValidatorSettingsProfile | null> {
+    const row = await prisma.source_validation_settings.findUnique({ where: { id } });
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      settings: row.settings,
+    };
+  }
+
+  static async createReportSettings(data: {
+    name: string;
+    masterFileId: string;
+    prefix: number | null;
+    settings: unknown;
+  }): Promise<ReportSettingsProfile> {
+    const created = await prisma.report_settings.create({
+      data: {
+        name: data.name,
+        master_file_id: data.masterFileId,
+        prefix: data.prefix,
+        settings: data.settings as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      id: created.id,
+      name: created.name,
+      masterFileId: created.master_file_id,
+      prefix: created.prefix,
+      settings: created.settings,
+    };
+  }
+
+  static async createValidatorSettings(data: {
+    name: string;
+    settings: unknown;
+  }): Promise<ValidatorSettingsProfile> {
+    const created = await prisma.source_validation_settings.create({
+      data: {
+        name: data.name,
+        settings: data.settings as Prisma.InputJsonValue,
+      },
+    });
+    return {
+      id: created.id,
+      name: created.name,
+      settings: created.settings,
+    };
+  }
+
+  static async updateReportSettingsReferences(
+    reportId: number,
+    reportSettingsId: number | null,
+    sourceValidationSettingsId: number | null
+  ): Promise<boolean> {
+    const result = await prisma.reports.updateMany({
+      where: { id: reportId },
+      data: {
+        report_settings_id: reportSettingsId,
+        source_validation_settings_id: sourceValidationSettingsId,
+      },
+    });
+    return result.count > 0;
   }
 
   static async getReportSteps(reportId: number) {

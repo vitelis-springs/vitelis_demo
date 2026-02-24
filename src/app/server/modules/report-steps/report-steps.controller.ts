@@ -463,6 +463,37 @@ export class ReportStepsController {
     }
   }
 
+  static async ensureOrchestrator(
+    request: NextRequest,
+    reportIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      const result = await ReportStepsService.ensureOrchestrator(reportId);
+      if (!result.success) {
+        return NextResponse.json(result, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ ReportStepsController.ensureOrchestrator:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to ensure orchestrator" },
+        { status: 500 }
+      );
+    }
+  }
+
   static async startOrchestrator(
     request: NextRequest,
     reportIdParam: string

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import { report_status_enum } from "../../../../generated/prisma";
-import { DeepDiveService } from "./deep-dive.service";
+import {
+  DeepDiveService,
+  type ReportSettingsAction,
+  type ValidatorSettingsAction,
+} from "./deep-dive.service";
 import { N8NService } from "../n8n/n8n.service";
 import type { SortOrder } from "../../../../types/sorting";
 
@@ -38,6 +42,110 @@ function parseStatus(value: string | null) {
 function parseSortOrder(value: string | null): SortOrder | undefined {
   if (value === "asc" || value === "desc") return value;
   return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseReportSettingsAction(value: unknown): ReportSettingsAction | null {
+  if (!isRecord(value)) return null;
+
+  if (value.mode === "reuse") {
+    if (typeof value.id !== "number" || !Number.isInteger(value.id)) return null;
+    return { mode: "reuse", id: value.id };
+  }
+
+  if (value.mode !== "create") return null;
+  if (value.strategy === "clone") {
+    if (
+      typeof value.baseId !== "number" ||
+      !Number.isInteger(value.baseId) ||
+      !isJsonObject(value.settings)
+    ) {
+      return null;
+    }
+    return {
+      mode: "create",
+      strategy: "clone",
+      baseId: value.baseId,
+      name: typeof value.name === "string" ? value.name : undefined,
+      settings: value.settings,
+    };
+  }
+
+  if (value.strategy === "blank") {
+    if (
+      typeof value.name !== "string" ||
+      typeof value.masterFileId !== "string" ||
+      !isJsonObject(value.settings)
+    ) {
+      return null;
+    }
+    const prefix =
+      value.prefix === undefined || value.prefix === null
+        ? null
+        : typeof value.prefix === "number" && Number.isInteger(value.prefix)
+          ? value.prefix
+          : undefined;
+    if (prefix === undefined) return null;
+
+    return {
+      mode: "create",
+      strategy: "blank",
+      name: value.name,
+      masterFileId: value.masterFileId,
+      prefix,
+      settings: value.settings,
+    };
+  }
+
+  return null;
+}
+
+function parseValidatorSettingsAction(value: unknown): ValidatorSettingsAction | null {
+  if (!isRecord(value)) return null;
+
+  if (value.mode === "reuse") {
+    if (typeof value.id !== "number" || !Number.isInteger(value.id)) return null;
+    return { mode: "reuse", id: value.id };
+  }
+
+  if (value.mode !== "create") return null;
+  if (value.strategy === "clone") {
+    if (
+      typeof value.baseId !== "number" ||
+      !Number.isInteger(value.baseId) ||
+      !isJsonObject(value.settings)
+    ) {
+      return null;
+    }
+    return {
+      mode: "create",
+      strategy: "clone",
+      baseId: value.baseId,
+      name: typeof value.name === "string" ? value.name : undefined,
+      settings: value.settings,
+    };
+  }
+
+  if (value.strategy === "blank") {
+    if (typeof value.name !== "string" || !isJsonObject(value.settings)) {
+      return null;
+    }
+    return {
+      mode: "create",
+      strategy: "blank",
+      name: value.name,
+      settings: value.settings,
+    };
+  }
+
+  return null;
 }
 
 export class DeepDiveController {
@@ -96,6 +204,113 @@ export class DeepDiveController {
     } catch (error) {
       console.error("❌ DeepDiveController.getById:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch deep dive" }, { status: 500 });
+    }
+  }
+
+  static async getSettings(
+    request: NextRequest,
+    reportIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      const result = await DeepDiveService.getSettings(reportId);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getSettings:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch deep dive settings" },
+        { status: 500 }
+      );
+    }
+  }
+
+  static async updateSettings(
+    request: NextRequest,
+    reportIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      const body = (await request.json()) as unknown;
+      if (!isRecord(body)) {
+        return NextResponse.json(
+          { success: false, error: "Body must be an object" },
+          { status: 400 }
+        );
+      }
+
+      const parsedReportAction =
+        body.reportSettingsAction === undefined
+          ? undefined
+          : parseReportSettingsAction(body.reportSettingsAction);
+      if (body.reportSettingsAction !== undefined && !parsedReportAction) {
+        return NextResponse.json(
+          { success: false, error: "Invalid reportSettingsAction format" },
+          { status: 400 }
+        );
+      }
+
+      const parsedValidatorAction =
+        body.validatorSettingsAction === undefined
+          ? undefined
+          : parseValidatorSettingsAction(body.validatorSettingsAction);
+      if (body.validatorSettingsAction !== undefined && !parsedValidatorAction) {
+        return NextResponse.json(
+          { success: false, error: "Invalid validatorSettingsAction format" },
+          { status: 400 }
+        );
+      }
+
+      const reportSettingsAction = parsedReportAction ?? undefined;
+      const validatorSettingsAction = parsedValidatorAction ?? undefined;
+
+      const result = await DeepDiveService.updateSettings(reportId, {
+        reportSettingsAction,
+        validatorSettingsAction,
+      });
+
+      if (!result.success) {
+        const error =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "Failed to update deep dive settings";
+        const status = error === "Deep dive not found" ? 404 : 400;
+        return NextResponse.json({ success: false, error }, { status });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.updateSettings:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to update deep dive settings" },
+        { status: 500 }
+      );
     }
   }
 

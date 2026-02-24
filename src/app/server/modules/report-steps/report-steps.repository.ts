@@ -216,6 +216,40 @@ export class ReportStepsRepository {
     });
   }
 
+  static async reportExists(reportId: number) {
+    const report = await prisma.reports.findUnique({
+      where: { id: reportId },
+      select: { id: true },
+    });
+    return !!report;
+  }
+
+  static async ensureOrchestrator(reportId: number) {
+    const existing = await this.getOrchestratorByReportId(reportId);
+    if (existing) {
+      return { created: false, orchestrator: existing };
+    }
+
+    try {
+      const created = await prisma.report_orhestrator.create({
+        data: {
+          report_id: reportId,
+          status: report_status_enum.PENDING,
+          metadata: {},
+        },
+      });
+      return { created: true, orchestrator: created };
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("Unique constraint")) {
+        const current = await this.getOrchestratorByReportId(reportId);
+        if (current) {
+          return { created: false, orchestrator: current };
+        }
+      }
+      throw error;
+    }
+  }
+
   static async upsertOrchestrator(
     reportId: number,
     status: report_status_enum,

@@ -54,9 +54,16 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8}>
-          <Card style={DARK_CARD_STYLE}>
+          <Card
+            style={{ ...DARK_CARD_STYLE, cursor: "pointer", transition: "border-color 0.2s" }}
+            hoverable
+            onClick={() => router.push(`/deep-dive/${report.id}/settings`)}
+          >
             <Space direction="vertical" size={8}>
-              <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Settings</Text>
+              <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Settings</Text>
+                <RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
+              </Space>
               <Space align="center" size="small">
                 <SettingOutlined style={{ color: "#58bfce" }} />
                 <Text style={{ color: "#fff", fontWeight: 600 }}>

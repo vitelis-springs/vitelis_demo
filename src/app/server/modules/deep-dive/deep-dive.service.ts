@@ -15,12 +15,250 @@ const DEFAULT_STATUS_COUNTS = {
   ERROR: 0,
 };
 
+type ReuseSettingsAction = {
+  mode: "reuse";
+  id: number;
+};
+
+type CreateReportSettingsAction =
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      masterFileId: string;
+      prefix?: number | null;
+      settings: Record<string, unknown>;
+    };
+
+type CreateValidatorSettingsAction =
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      settings: Record<string, unknown>;
+    };
+
+export type ReportSettingsAction = ReuseSettingsAction | CreateReportSettingsAction;
+export type ValidatorSettingsAction = ReuseSettingsAction | CreateValidatorSettingsAction;
+
+export interface UpdateDeepDiveSettingsPayload {
+  reportSettingsAction?: ReportSettingsAction;
+  validatorSettingsAction?: ValidatorSettingsAction;
+}
 
 export class DeepDiveService {
+  private static isJsonObject(
+    value: unknown
+  ): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  private static normalizeName(value: string | undefined): string | null {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private static buildCopyName(
+    baseName: string,
+    reportId: number,
+    requestedName?: string
+  ): string {
+    const normalized = this.normalizeName(requestedName);
+    return normalized ?? `${baseName} (Report #${reportId} copy)`;
+  }
+
+  private static async resolveReportSettingsId(
+    reportId: number,
+    action: ReportSettingsAction
+  ): Promise<{ success: true; id: number } | { success: false; error: string }> {
+    if (action.mode === "reuse") {
+      const existing = await DeepDiveRepository.getReportSettingsById(action.id);
+      if (!existing) return { success: false, error: "Report settings not found" };
+      return { success: true, id: existing.id };
+    }
+
+    if (action.strategy === "clone") {
+      const base = await DeepDiveRepository.getReportSettingsById(action.baseId);
+      if (!base) {
+        return { success: false, error: "Base report settings template not found" };
+      }
+      if (!this.isJsonObject(action.settings)) {
+        return { success: false, error: "reportSettingsAction.settings must be a JSON object" };
+      }
+
+      const created = await DeepDiveRepository.createReportSettings({
+        name: this.buildCopyName(base.name, reportId, action.name),
+        masterFileId: base.masterFileId,
+        prefix: base.prefix,
+        settings: action.settings,
+      });
+      return { success: true, id: created.id };
+    }
+
+    if (!this.isJsonObject(action.settings)) {
+      return { success: false, error: "reportSettingsAction.settings must be a JSON object" };
+    }
+
+    const name = this.normalizeName(action.name);
+    if (!name) {
+      return { success: false, error: "reportSettingsAction.name is required" };
+    }
+    const masterFileId = action.masterFileId.trim();
+    if (!masterFileId) {
+      return { success: false, error: "reportSettingsAction.masterFileId is required" };
+    }
+    if (action.prefix !== undefined && action.prefix !== null && !Number.isInteger(action.prefix)) {
+      return { success: false, error: "reportSettingsAction.prefix must be an integer or null" };
+    }
+
+    const created = await DeepDiveRepository.createReportSettings({
+      name,
+      masterFileId,
+      prefix: action.prefix ?? null,
+      settings: action.settings,
+    });
+    return { success: true, id: created.id };
+  }
+
+  private static async resolveValidatorSettingsId(
+    reportId: number,
+    action: ValidatorSettingsAction
+  ): Promise<{ success: true; id: number } | { success: false; error: string }> {
+    if (action.mode === "reuse") {
+      const existing = await DeepDiveRepository.getValidatorSettingsById(action.id);
+      if (!existing) return { success: false, error: "Validator settings not found" };
+      return { success: true, id: existing.id };
+    }
+
+    if (action.strategy === "clone") {
+      const base = await DeepDiveRepository.getValidatorSettingsById(action.baseId);
+      if (!base) {
+        return { success: false, error: "Base validator settings template not found" };
+      }
+      if (!this.isJsonObject(action.settings)) {
+        return { success: false, error: "validatorSettingsAction.settings must be a JSON object" };
+      }
+
+      const created = await DeepDiveRepository.createValidatorSettings({
+        name: this.buildCopyName(base.name, reportId, action.name),
+        settings: action.settings,
+      });
+      return { success: true, id: created.id };
+    }
+
+    if (!this.isJsonObject(action.settings)) {
+      return { success: false, error: "validatorSettingsAction.settings must be a JSON object" };
+    }
+
+    const name = this.normalizeName(action.name);
+    if (!name) {
+      return { success: false, error: "validatorSettingsAction.name is required" };
+    }
+
+    const created = await DeepDiveRepository.createValidatorSettings({
+      name,
+      settings: action.settings,
+    });
+    return { success: true, id: created.id };
+  }
+
   private static async buildSourceCountingContext(
     reportId: number,
   ): Promise<SourceCountingContext> {
     return DeepDiveRepository.getSourceCountingContext(reportId);
+  }
+
+  static async getSettings(reportId: number) {
+    const [snapshot, reportSettingsOptions, validatorSettingsOptions] = await Promise.all([
+      DeepDiveRepository.getReportSettingsSnapshot(reportId),
+      DeepDiveRepository.listReportSettings(),
+      DeepDiveRepository.listValidatorSettings(),
+    ]);
+
+    if (!snapshot) return null;
+
+    return {
+      success: true,
+      data: {
+        report: {
+          id: snapshot.reportId,
+          name: snapshot.reportName,
+        },
+        current: {
+          reportSettings: snapshot.reportSettings,
+          validatorSettings: snapshot.validatorSettings,
+        },
+        options: {
+          reportSettings: reportSettingsOptions,
+          validatorSettings: validatorSettingsOptions,
+        },
+      },
+    };
+  }
+
+  static async updateSettings(
+    reportId: number,
+    payload: UpdateDeepDiveSettingsPayload
+  ) {
+    const snapshot = await DeepDiveRepository.getReportSettingsSnapshot(reportId);
+    if (!snapshot) {
+      return { success: false, error: "Deep dive not found" };
+    }
+
+    if (!payload.reportSettingsAction && !payload.validatorSettingsAction) {
+      return { success: false, error: "At least one settings action is required" };
+    }
+
+    let reportSettingsId = snapshot.reportSettingsId;
+    let validatorSettingsId = snapshot.sourceValidationSettingsId;
+
+    if (payload.reportSettingsAction) {
+      const resolved = await this.resolveReportSettingsId(
+        reportId,
+        payload.reportSettingsAction
+      );
+      if (!resolved.success) return resolved;
+      reportSettingsId = resolved.id;
+    }
+
+    if (payload.validatorSettingsAction) {
+      const resolved = await this.resolveValidatorSettingsId(
+        reportId,
+        payload.validatorSettingsAction
+      );
+      if (!resolved.success) return resolved;
+      validatorSettingsId = resolved.id;
+    }
+
+    const updated = await DeepDiveRepository.updateReportSettingsReferences(
+      reportId,
+      reportSettingsId,
+      validatorSettingsId
+    );
+    if (!updated) {
+      return { success: false, error: "Deep dive not found" };
+    }
+
+    const result = await this.getSettings(reportId);
+    if (!result) {
+      return { success: false, error: "Deep dive not found" };
+    }
+
+    return result;
   }
 
   static async listDeepDives(params: DeepDiveListParams) {

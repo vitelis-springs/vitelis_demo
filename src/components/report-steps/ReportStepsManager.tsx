@@ -1,12 +1,13 @@
 "use client";
 
 import { App, Layout, Space, Typography, Spin, Row, Col } from "antd";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useGetReportSteps,
   useAddStepToReport,
   useRemoveStepFromReport,
   useUpdateStepOrder,
+  useEnsureOrchestrator,
 } from "../../hooks/api/useReportStepsService";
 import type { GenerationStep } from "../../hooks/api/useReportStepsService";
 import { useGetDeepDiveDetail } from "../../hooks/api/useDeepDiveService";
@@ -36,10 +37,22 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
   const addStep = useAddStepToReport(reportId);
   const removeStep = useRemoveStepFromReport(reportId);
   const updateStepOrder = useUpdateStepOrder(reportId);
+  const ensureOrchestrator = useEnsureOrchestrator(reportId);
+  const hasEnsuredRef = useRef(false);
 
   const report = reportData?.data?.report;
   const configured = stepsData?.data?.configured ?? [];
   const available = stepsData?.data?.available ?? [];
+
+  useEffect(() => {
+    if (hasEnsuredRef.current) return;
+    hasEnsuredRef.current = true;
+    ensureOrchestrator.mutate(undefined, {
+      onError: () => {
+        message.error("Failed to initialize orchestrator");
+      },
+    });
+  }, [ensureOrchestrator, message]);
 
   const handleAddStep = (stepId: number) => {
     setAddingStepId(stepId);

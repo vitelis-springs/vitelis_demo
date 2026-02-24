@@ -266,6 +266,24 @@ export class ReportStepsService {
     };
   }
 
+  static async ensureOrchestrator(reportId: number) {
+    const reportExists = await ReportStepsRepository.reportExists(reportId);
+    if (!reportExists) {
+      return { success: false, error: "Report not found" };
+    }
+
+    const { created, orchestrator } = await ReportStepsRepository.ensureOrchestrator(reportId);
+    return {
+      success: true,
+      data: {
+        created,
+        reportId: orchestrator.report_id,
+        status: orchestrator.status,
+        metadata: orchestrator.metadata,
+      },
+    };
+  }
+
   static async startOrchestrator(
     reportId: number,
     options: { parallel_limit?: number } = {}
