@@ -52,7 +52,7 @@ export default function SummaryCards({
             onClick={() => router.push(`/deep-dive/${report.id}/steps`)}
           >
             <Space direction="vertical" size={8} style={{ width: "100%" }}>
-              <Space style={{ width: "100%", justifyContent: "space-between" }}>
+              <Space style={{ width: "100%", justifyContent: "start", gap: 4 }}>
                 <Text style={{ color: "#8c8c8c", fontSize: 14 }}>
                   Orchestrator Status
                 </Text>
@@ -76,7 +76,7 @@ export default function SummaryCards({
             onClick={() => router.push(`/deep-dive/${report.id}/settings`)}
           >
             <Space direction="vertical" size={8}>
-              <Space style={{ width: "100%", justifyContent: "space-between" }}>
+              <Space style={{ width: "100%", justifyContent: "start", gap: 4 }}>
                 <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Settings</Text>
                 <RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
               </Space>
@@ -138,7 +138,7 @@ export default function SummaryCards({
             <Statistic
               title={
                 <Space
-                  style={{ width: "100%", justifyContent: "space-between" }}
+                  style={{ width: "100%", justifyContent: "start", gap: 4 }}
                 >
                   <Text style={{ color: "#8c8c8c" }}>Total Queries</Text>
                   <RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
