@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "ignorePatterns": [
+    ".next/",
+    "out/",
+    "node_modules/",
+    "src/generated/"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "test/**/*.ts",
+        "test/**/*.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "env": {
+        "jest": true,
+        "node": true
+      }
+    }
+  ]
+}
