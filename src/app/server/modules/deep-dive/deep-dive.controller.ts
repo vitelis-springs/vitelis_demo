@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import { report_status_enum } from "../../../../generated/prisma";
 import {
+  isKpiScoreTier,
+  isKpiScoreValue,
+  type KpiScoreTier,
+  type KpiScoreValue,
+} from "../../../../shared/kpi-score";
+import {
   DeepDiveService,
+  type UpdateCompanyDataPointPayload,
   type ReportSettingsAction,
   type ValidatorSettingsAction,
 } from "./deep-dive.service";
@@ -360,6 +367,139 @@ export class DeepDiveController {
     } catch (error) {
       console.error("❌ DeepDiveController.getCompany:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch company deep dive" }, { status: 500 });
+    }
+  }
+
+  static async updateCompanyDataPoint(
+    request: NextRequest,
+    reportIdParam: string,
+    companyIdParam: string,
+    resultIdParam: string,
+  ) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const companyId = Number(companyIdParam);
+      const resultId = Number(resultIdParam);
+
+      if (!Number.isFinite(reportId) || !Number.isFinite(companyId) || !Number.isFinite(resultId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report/company/result id" },
+          { status: 400 },
+        );
+      }
+
+      const body = (await request.json()) as unknown;
+      if (!isRecord(body)) {
+        return NextResponse.json(
+          { success: false, error: "Body must be an object" },
+          { status: 400 },
+        );
+      }
+
+      const payload: UpdateCompanyDataPointPayload = {};
+
+      if ("reasoning" in body) {
+        if (body.reasoning !== null && typeof body.reasoning !== "string") {
+          return NextResponse.json(
+            { success: false, error: "reasoning must be a string or null" },
+            { status: 400 },
+          );
+        }
+        payload.reasoning = body.reasoning as string | null;
+      }
+
+      if ("sources" in body) {
+        if (body.sources !== null && typeof body.sources !== "string") {
+          return NextResponse.json(
+            { success: false, error: "sources must be a string or null" },
+            { status: 400 },
+          );
+        }
+        payload.sources = body.sources as string | null;
+      }
+
+      if ("score" in body) {
+        const score = body.score;
+        if (
+          score !== null &&
+          typeof score !== "string" &&
+          typeof score !== "number"
+        ) {
+          return NextResponse.json(
+            { success: false, error: "score must be a string, number, or null" },
+            { status: 400 },
+          );
+        }
+        payload.score = score as string | number | null;
+      }
+
+      if ("scoreValue" in body) {
+        const scoreValue = body.scoreValue;
+        if (scoreValue !== null && !isKpiScoreValue(scoreValue)) {
+          return NextResponse.json(
+            { success: false, error: "scoreValue must be an integer from 1 to 5 or null" },
+            { status: 400 },
+          );
+        }
+        payload.scoreValue = scoreValue as KpiScoreValue | null;
+      }
+
+      if ("scoreTier" in body) {
+        const scoreTier = body.scoreTier;
+        if (scoreTier !== null && !isKpiScoreTier(scoreTier)) {
+          return NextResponse.json(
+            { success: false, error: "scoreTier must be one of: Low, Low-Medium, Medium, Medium-High, High, or null" },
+            { status: 400 },
+          );
+        }
+        payload.scoreTier = scoreTier as KpiScoreTier | null;
+      }
+
+      if ("status" in body) {
+        if (typeof body.status !== "boolean") {
+          return NextResponse.json(
+            { success: false, error: "status must be a boolean" },
+            { status: 400 },
+          );
+        }
+        payload.status = body.status;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        return NextResponse.json(
+          { success: false, error: "At least one field is required" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.updateCompanyDataPoint(
+        reportId,
+        companyId,
+        resultId,
+        payload,
+      );
+
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Data point result not found in report/company" },
+          { status: 404 },
+        );
+      }
+
+      if (!result.success) {
+        return NextResponse.json(result, { status: 400 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.updateCompanyDataPoint:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to update data point" },
+        { status: 500 },
+      );
     }
   }
 

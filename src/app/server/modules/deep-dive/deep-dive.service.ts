@@ -1,5 +1,14 @@
 import { report_status_enum } from "../../../../generated/prisma";
 import {
+  buildKpiScoreValue,
+  isKpiScoreTier,
+  isKpiScoreValue,
+  KPI_SCORE_TIER_BY_VALUE,
+  type KpiScoreTier,
+  type KpiScoreValue,
+} from "../../../../shared/kpi-score";
+import {
+  CompanyDataPointResultUpdateData,
   DeepDiveRepository,
   DeepDiveListParams,
   SourceFilterParams,
@@ -58,6 +67,15 @@ export type ValidatorSettingsAction = ReuseSettingsAction | CreateValidatorSetti
 export interface UpdateDeepDiveSettingsPayload {
   reportSettingsAction?: ReportSettingsAction;
   validatorSettingsAction?: ValidatorSettingsAction;
+}
+
+export interface UpdateCompanyDataPointPayload {
+  reasoning?: string | null;
+  sources?: string | null;
+  score?: string | number | null;
+  scoreValue?: KpiScoreValue | null;
+  scoreTier?: KpiScoreTier | null;
+  status?: boolean;
 }
 
 export class DeepDiveService {
@@ -180,6 +198,220 @@ export class DeepDiveService {
     reportId: number,
   ): Promise<SourceCountingContext> {
     return DeepDiveRepository.getSourceCountingContext(reportId);
+  }
+
+  private static normalizeTextInput(value: string | null): string | null {
+    if (value === null) return null;
+    const normalized = value.trim();
+    return normalized ? normalized : null;
+  }
+
+  private static normalizeRawScoreInput(value: string | number | null): {
+    textValue: string | null;
+    numericValue: number | null;
+  } | null {
+    if (value === null) {
+      return { textValue: null, numericValue: null };
+    }
+
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) return null;
+      return { textValue: String(value), numericValue: value };
+    }
+
+    const normalized = value.trim();
+    if (!normalized) {
+      return { textValue: null, numericValue: null };
+    }
+
+    const parsedNumber = Number(normalized);
+    return {
+      textValue: normalized,
+      numericValue: Number.isFinite(parsedNumber) ? parsedNumber : null,
+    };
+  }
+
+  private static normalizeKpiScoreInput(payload: UpdateCompanyDataPointPayload): {
+    provided: boolean;
+    success: boolean;
+    error?: string;
+    concatenatedValue?: string | null;
+    scoreValue?: KpiScoreValue | null;
+    scoreTier?: KpiScoreTier | null;
+  } {
+    const hasScoreValue = payload.scoreValue !== undefined;
+    const hasScoreTier = payload.scoreTier !== undefined;
+    const hasLegacyScore = payload.score !== undefined;
+    const provided = hasScoreValue || hasScoreTier || hasLegacyScore;
+
+    if (!provided) return { provided: false, success: true };
+
+    if (hasLegacyScore) {
+      return {
+        provided: true,
+        success: false,
+        error: "Use scoreValue and scoreTier for KPI category/driver updates",
+      };
+    }
+
+    if (!hasScoreValue || !hasScoreTier) {
+      return {
+        provided: true,
+        success: false,
+        error: "scoreValue and scoreTier must be provided together",
+      };
+    }
+
+    const scoreValue = payload.scoreValue ?? null;
+    const scoreTier = payload.scoreTier ?? null;
+
+    if (scoreValue === null && scoreTier === null) {
+      return {
+        provided: true,
+        success: true,
+        concatenatedValue: null,
+        scoreValue: null,
+        scoreTier: null,
+      };
+    }
+
+    if (!isKpiScoreValue(scoreValue) || !isKpiScoreTier(scoreTier)) {
+      return {
+        provided: true,
+        success: false,
+        error: "scoreValue must be 1-5 and scoreTier must be a valid tier",
+      };
+    }
+
+    const expectedTier = KPI_SCORE_TIER_BY_VALUE[scoreValue];
+    if (scoreTier !== expectedTier) {
+      return {
+        provided: true,
+        success: false,
+        error: `scoreTier must be ${expectedTier} for scoreValue ${scoreValue}`,
+      };
+    }
+
+    return {
+      provided: true,
+      success: true,
+      concatenatedValue: buildKpiScoreValue(scoreValue, scoreTier),
+      scoreValue,
+      scoreTier,
+    };
+  }
+
+  static async updateCompanyDataPoint(
+    reportId: number,
+    companyId: number,
+    resultId: number,
+    payload: UpdateCompanyDataPointPayload,
+  ) {
+    const existing = await DeepDiveRepository.getCompanyDataPointResultById(
+      reportId,
+      companyId,
+      resultId,
+    );
+    if (!existing) return null;
+
+    const dataPointType = existing.data_points?.type ?? "";
+    const dataPointId = existing.data_point_id ?? "";
+    const isCategory = dataPointType === "kpi_category" || dataPointId.startsWith("kpi_category");
+    const isDriver = dataPointType === "kpi_driver" || dataPointId.startsWith("kpi_driver");
+    const isRaw = dataPointType === "raw_data_point" || dataPointId.startsWith("raw_data_point");
+
+    const mutableData: Record<string, unknown> = this.isJsonObject(existing.data)
+      ? { ...existing.data }
+      : {};
+
+    const patch: CompanyDataPointResultUpdateData = {};
+    let dataChanged = false;
+
+    if (payload.reasoning !== undefined) {
+      const reasoning = payload.reasoning === null
+        ? null
+        : this.normalizeTextInput(payload.reasoning);
+
+      if (isRaw) {
+        mutableData.explanation = reasoning;
+      }
+      mutableData.Reasoning = reasoning;
+      dataChanged = true;
+    }
+
+    if (payload.sources !== undefined) {
+      const sources = payload.sources === null
+        ? null
+        : this.normalizeTextInput(payload.sources);
+
+      mutableData.Sources = sources;
+      mutableData.sources = sources;
+      dataChanged = true;
+    }
+
+    if (isCategory || isDriver) {
+      const normalizedKpiScore = this.normalizeKpiScoreInput(payload);
+      if (!normalizedKpiScore.success) {
+        return { success: false, error: normalizedKpiScore.error || "Invalid KPI score payload" } as const;
+      }
+      if (normalizedKpiScore.provided) {
+        patch.value = normalizedKpiScore.concatenatedValue ?? null;
+        if (isCategory) {
+          mutableData["KPI Score"] = normalizedKpiScore.concatenatedValue ?? null;
+        } else {
+          mutableData.Score = normalizedKpiScore.concatenatedValue ?? null;
+        }
+        dataChanged = true;
+      }
+    } else if (payload.score !== undefined) {
+      const normalizedScore = this.normalizeRawScoreInput(payload.score);
+      if (!normalizedScore) {
+        return { success: false, error: "score must be a finite number, string, or null" } as const;
+      }
+
+      if (isRaw) {
+        patch.manualValue = normalizedScore.textValue;
+        mutableData.answer = normalizedScore.numericValue ?? normalizedScore.textValue;
+        dataChanged = true;
+      } else {
+        patch.value = normalizedScore.textValue;
+        mutableData.Score = normalizedScore.numericValue ?? normalizedScore.textValue;
+        dataChanged = true;
+      }
+    }
+
+    if (payload.status !== undefined) {
+      patch.status = payload.status;
+    }
+
+    if (dataChanged) {
+      patch.data = mutableData as unknown as CompanyDataPointResultUpdateData["data"];
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return { success: false, error: "No fields to update" } as const;
+    }
+
+    const updated = await DeepDiveRepository.updateCompanyDataPointResult(
+      resultId,
+      patch,
+    );
+
+    return {
+      success: true as const,
+      data: {
+        id: updated.id,
+        reportId: updated.report_id,
+        companyId: updated.company_id,
+        dataPointId: updated.data_point_id,
+        type: updated.data_points?.type ?? null,
+        value: updated.value,
+        manualValue: updated.manualValue,
+        status: updated.status,
+        data: updated.data,
+        updatedAt: updated.updates_at,
+      },
+    };
   }
 
   static async getSettings(reportId: number) {

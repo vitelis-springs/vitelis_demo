@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
+import type { KpiScoreTier, KpiScoreValue } from "../../shared/kpi-score";
 import type { SortOrder } from "../../types/sorting";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
@@ -167,6 +168,32 @@ export interface DeepDiveCompanyResponse {
   };
 }
 
+export interface UpdateCompanyDataPointPayload {
+  reasoning?: string | null;
+  sources?: string | null;
+  score?: string | number | null;
+  scoreValue?: KpiScoreValue | null;
+  scoreTier?: KpiScoreTier | null;
+  status?: boolean;
+}
+
+export interface UpdateCompanyDataPointResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    id: number;
+    reportId: number | null;
+    companyId: number | null;
+    dataPointId: string | null;
+    type: string | null;
+    value: string | null;
+    manualValue: string | null;
+    status: boolean | null;
+    data: unknown;
+    updatedAt: string | null;
+  };
+}
+
 export interface DeepDiveListParams {
   limit?: number;
   offset?: number;
@@ -317,6 +344,19 @@ const deepDiveApi = {
     );
     return response.data;
   },
+
+  async updateCompanyDataPoint(
+    reportId: number,
+    companyId: number,
+    resultId: number,
+    payload: UpdateCompanyDataPointPayload,
+  ): Promise<UpdateCompanyDataPointResponse> {
+    const response = await api.patch(
+      `/deep-dive/${reportId}/companies/${companyId}/data-points/${resultId}`,
+      payload,
+    );
+    return response.data;
+  },
 };
 
 export const useGetDeepDives = (params: DeepDiveListParams, options?: { enabled?: boolean }) => {
@@ -405,6 +445,28 @@ export const useGetDeepDiveCompany = (
       options?.enabled !== undefined
         ? options.enabled
         : reportId !== null && companyId !== null,
+  });
+};
+
+export const useUpdateCompanyDataPoint = (
+  reportId: number,
+  companyId: number,
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      resultId,
+      payload,
+    }: {
+      resultId: number;
+      payload: UpdateCompanyDataPointPayload;
+    }) => deepDiveApi.updateCompanyDataPoint(reportId, companyId, resultId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "company", reportId, companyId],
+      });
+    },
   });
 };
 
