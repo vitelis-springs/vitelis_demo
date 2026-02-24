@@ -83,6 +83,12 @@ const SAMPLE_QUERY_ROWS = [
 
 /* ─── helpers ─── */
 
+function mockContextThenRows(rows: unknown) {
+  mockQueryRaw
+    .mockResolvedValueOnce([{ source_validation_settings_id: null, use_new_model: false }])
+    .mockResolvedValueOnce(rows);
+}
+
 function makeRequest(path: string, options?: RequestInit): NextRequest {
   return new NextRequest(new URL(path, "http://localhost:3000"), options);
 }
@@ -146,7 +152,7 @@ describe("E2E: GET /api/deep-dive/[id]/queries", () => {
 
   it("returns queries with stats and computed completion percent", async () => {
     mockFindUnique.mockResolvedValueOnce(SAMPLE_REPORT);
-    mockQueryRaw.mockResolvedValueOnce(SAMPLE_QUERY_ROWS);
+    mockContextThenRows(SAMPLE_QUERY_ROWS);
 
     const res = await callGetQueries("10");
     const body = await res.json();
@@ -176,7 +182,7 @@ describe("E2E: GET /api/deep-dive/[id]/queries", () => {
 
   it("handles empty queries list", async () => {
     mockFindUnique.mockResolvedValueOnce(SAMPLE_REPORT);
-    mockQueryRaw.mockResolvedValueOnce([]);
+    mockContextThenRows([]);
 
     const res = await callGetQueries("10");
     const body = await res.json();
@@ -186,7 +192,7 @@ describe("E2E: GET /api/deep-dive/[id]/queries", () => {
 
   it("computes 0% completion when total_companies is 0", async () => {
     mockFindUnique.mockResolvedValueOnce(SAMPLE_REPORT);
-    mockQueryRaw.mockResolvedValueOnce([{
+    mockContextThenRows([{
       ...SAMPLE_QUERY_ROWS[0],
       completed_companies: 0,
       total_companies: 0,

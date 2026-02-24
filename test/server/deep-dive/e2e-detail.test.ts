@@ -11,6 +11,7 @@ import { NextRequest } from "next/server";
 jest.mock("../../../src/lib/prisma", () => {
   const fu = jest.fn();
   const fm = jest.fn();
+  const rfm = jest.fn();
   const gb = jest.fn();
   const cnt = jest.fn();
   const qr = jest.fn();
@@ -19,11 +20,12 @@ jest.mock("../../../src/lib/prisma", () => {
     default: {
       reports: { findUnique: fu },
       report_companies: { findMany: fm },
+      report_steps: { findMany: rfm },
       report_step_statuses: { groupBy: gb },
       report_data_collection_queries: { count: cnt },
       $queryRaw: qr,
     },
-    _fu: fu, _fm: fm, _gb: gb, _cnt: cnt, _qr: qr,
+    _fu: fu, _fm: fm, _rfm: rfm, _gb: gb, _cnt: cnt, _qr: qr,
   };
 });
 
@@ -38,7 +40,14 @@ import { GET } from "../../../src/app/api/deep-dive/[id]/route";
 import { extractAdminFromRequest } from "../../../src/lib/auth";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { _fu: mockFindUnique, _fm: mockFindMany, _gb: mockGroupBy, _cnt: mockCount, _qr: mockQueryRaw } =
+const {
+  _fu: mockFindUnique,
+  _fm: mockFindMany,
+  _rfm: mockReportStepsFindMany,
+  _gb: mockGroupBy,
+  _cnt: mockCount,
+  _qr: mockQueryRaw,
+} =
   require("../../../src/lib/prisma") as Record<string, jest.Mock>;
 
 /* ─── fixtures ─── */
@@ -87,10 +96,13 @@ function callGET(id: string): Promise<Response> {
 function setupDetailMocks(report = SAMPLE_REPORT) {
   mockFindUnique.mockResolvedValueOnce(report);
   mockFindMany.mockResolvedValueOnce(SAMPLE_COMPANIES);
-  // Promise.all: kpiRaw, totalSources, totalScrapeCandidates, totalQueries, companyStatusRaw
+  mockReportStepsFindMany.mockResolvedValueOnce([]);
+  // First $queryRaw: getSourceCountingContext, then KPI/count queries
   mockQueryRaw
+    .mockResolvedValueOnce([{ source_validation_settings_id: null, use_new_model: false }])
     .mockResolvedValueOnce(SAMPLE_KPI_SCORES)       // getKpiCategoryScoresByCompany
     .mockResolvedValueOnce([{ total: 150 }])         // getReportSourcesCount
+    .mockResolvedValueOnce([{ total: 70 }])          // getReportUsedSourcesCount
     .mockResolvedValueOnce([{ total: 42 }]);         // getReportScrapeCandidatesCount
   mockCount.mockResolvedValueOnce(8);                // getReportQueriesCount
   mockGroupBy.mockResolvedValueOnce(SAMPLE_STATUS_SUMMARY);
@@ -148,6 +160,7 @@ describe("E2E: GET /api/deep-dive/[id]", () => {
     // Summary
     expect(body.data.summary.companiesCount).toBe(2);
     expect(body.data.summary.totalSources).toBe(150);
+    expect(body.data.summary.usedSources).toBe(70);
     expect(body.data.summary.totalScrapeCandidates).toBe(42);
     expect(body.data.summary.totalQueries).toBe(8);
 
@@ -176,8 +189,11 @@ describe("E2E: GET /api/deep-dive/[id]", () => {
   it("handles report with no companies", async () => {
     mockFindUnique.mockResolvedValueOnce(SAMPLE_REPORT);
     mockFindMany.mockResolvedValueOnce([]);
+    mockReportStepsFindMany.mockResolvedValueOnce([]);
     mockQueryRaw
+      .mockResolvedValueOnce([{ source_validation_settings_id: null, use_new_model: false }])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ total: 0 }])
       .mockResolvedValueOnce([{ total: 0 }])
       .mockResolvedValueOnce([{ total: 0 }]);
     mockCount.mockResolvedValueOnce(0);

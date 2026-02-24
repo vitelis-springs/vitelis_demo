@@ -120,7 +120,7 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
         <Tag color="blue" style={{ fontFamily: "monospace" }}>#{query.id}</Tag>
         <Text style={{ flex: 1, color: "#d9d9d9" }} ellipsis={{ tooltip: query.goal }}>
-          {query.goal || "No goal"}
+          {query.goal.slice(0, 70) + "..." || "No goal"}
         </Text>
         <Progress percent={query.completionPercent} size="small" style={{ width: 120, margin: 0 }} strokeColor="#58bfce" />
         <Tag color="green">{query.sourcesCount} src</Tag>

@@ -46,7 +46,7 @@ export class ReportStepsRepository {
 
   static async deleteStep(reportId: number, stepId: number) {
     return prisma.report_steps.delete({
-      where: { rs_report_step_uniq: { report_id: reportId, step_id: stepId } },
+      where: { report_id_step_id: { report_id: reportId, step_id: stepId } },
     });
   }
 
@@ -56,7 +56,7 @@ export class ReportStepsRepository {
     newOrder: number
   ) {
     return prisma.report_steps.update({
-      where: { rs_report_step_uniq: { report_id: reportId, step_id: stepId } },
+      where: { report_id_step_id: { report_id: reportId, step_id: stepId } },
       data: { step_order: newOrder },
     });
   }
@@ -66,7 +66,7 @@ export class ReportStepsRepository {
       orderedStepIds.map((stepId, index) =>
         prisma.report_steps.update({
           where: {
-            rs_report_step_uniq: { report_id: reportId, step_id: stepId },
+            report_id_step_id: { report_id: reportId, step_id: stepId },
           },
           data: { step_order: index + 1 },
         })
@@ -214,6 +214,40 @@ export class ReportStepsRepository {
     return prisma.report_orhestrator.findUnique({
       where: { report_id: reportId },
     });
+  }
+
+  static async reportExists(reportId: number) {
+    const report = await prisma.reports.findUnique({
+      where: { id: reportId },
+      select: { id: true },
+    });
+    return !!report;
+  }
+
+  static async ensureOrchestrator(reportId: number) {
+    const existing = await this.getOrchestratorByReportId(reportId);
+    if (existing) {
+      return { created: false, orchestrator: existing };
+    }
+
+    try {
+      const created = await prisma.report_orhestrator.create({
+        data: {
+          report_id: reportId,
+          status: report_status_enum.PENDING,
+          metadata: {},
+        },
+      });
+      return { created: true, orchestrator: created };
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("Unique constraint")) {
+        const current = await this.getOrchestratorByReportId(reportId);
+        if (current) {
+          return { created: false, orchestrator: current };
+        }
+      }
+      throw error;
+    }
   }
 
   static async upsertOrchestrator(

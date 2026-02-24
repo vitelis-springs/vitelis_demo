@@ -203,7 +203,7 @@ describe("E2E: GET /api/deep-dive/[id]/companies/[companyId]", () => {
 
     await callGET("10", "173", "?sourcesLimit=20&sourcesOffset=5&tier=2&isVectorized=true");
 
-    const filters = sourcesSpy.mock.calls[0]![1];
+    const filters = sourcesSpy.mock.calls[0]![2];
     expect(filters.limit).toBe(20);
     expect(filters.offset).toBe(5);
     expect(filters.tier).toBe(2);
