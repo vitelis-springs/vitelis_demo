@@ -18,7 +18,11 @@ import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
 
-export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["data"] }) {
+export default function SummaryCards({
+  data,
+}: {
+  data: DeepDiveDetailResponse["data"];
+}) {
   const { summary, report } = data;
   const router = useRouter();
 
@@ -28,7 +32,9 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
         <Col xs={24} sm={12} md={8}>
           <Card style={DARK_CARD_STYLE}>
             <Statistic
-              title={<Text style={{ color: "#8c8c8c" }}>Companies Analyzed</Text>}
+              title={
+                <Text style={{ color: "#8c8c8c" }}>Companies Analyzed</Text>
+              }
               value={summary.companiesCount}
               prefix={<TeamOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
@@ -37,13 +43,19 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
         </Col>
         <Col xs={24} sm={12} md={8}>
           <Card
-            style={{ ...DARK_CARD_STYLE, cursor: "pointer", transition: "border-color 0.2s" }}
+            style={{
+              ...DARK_CARD_STYLE,
+              cursor: "pointer",
+              transition: "border-color 0.2s",
+            }}
             hoverable
             onClick={() => router.push(`/deep-dive/${report.id}/steps`)}
           >
             <Space direction="vertical" size={8} style={{ width: "100%" }}>
               <Space style={{ width: "100%", justifyContent: "space-between" }}>
-                <Text style={{ color: "#8c8c8c", fontSize: 14 }}>Orchestrator Status</Text>
+                <Text style={{ color: "#8c8c8c", fontSize: 14 }}>
+                  Orchestrator Status
+                </Text>
                 <RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
               </Space>
               <Space align="center" size="small">
@@ -55,7 +67,11 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
         </Col>
         <Col xs={24} sm={12} md={8}>
           <Card
-            style={{ ...DARK_CARD_STYLE, cursor: "pointer", transition: "border-color 0.2s" }}
+            style={{
+              ...DARK_CARD_STYLE,
+              cursor: "pointer",
+              transition: "border-color 0.2s",
+            }}
             hoverable
             onClick={() => router.push(`/deep-dive/${report.id}/settings`)}
           >
@@ -99,7 +115,9 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
         <Col xs={24} sm={12} md={6}>
           <Card style={DARK_CARD_STYLE}>
             <Statistic
-              title={<Text style={{ color: "#8c8c8c" }}>Scrape Candidates</Text>}
+              title={
+                <Text style={{ color: "#8c8c8c" }}>Scrape Candidates</Text>
+              }
               value={summary.totalScrapeCandidates}
               prefix={<LinkOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
@@ -107,11 +125,25 @@ export default function SummaryCards({ data }: { data: DeepDiveDetailResponse["d
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card style={{ ...DARK_CARD_STYLE, cursor: "pointer", transition: "border-color 0.2s" }}
+          <Card
+            style={{
+              ...DARK_CARD_STYLE,
+              display: "flex",
+              cursor: "pointer",
+              transition: "border-color 0.2s",
+            }}
             hoverable
-            onClick={() => router.push(`/deep-dive/${report.id}/query`)}>
+            onClick={() => router.push(`/deep-dive/${report.id}/query`)}
+          >
             <Statistic
-              title={<Text style={{ color: "#8c8c8c" }}>Total Queries</Text>}
+              title={
+                <Space
+                  style={{ width: "100%", justifyContent: "space-between" }}
+                >
+                  <Text style={{ color: "#8c8c8c" }}>Total Queries</Text>
+                  <RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
+                </Space>
+              }
               value={summary.totalQueries}
               prefix={<SearchOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
