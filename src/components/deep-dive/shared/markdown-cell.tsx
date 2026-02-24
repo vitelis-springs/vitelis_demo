@@ -44,15 +44,15 @@ export function MarkdownCell({ children, maxHeight = 200, extended }: MarkdownCe
 export function SourcesCell({ sources }: { sources: string[] }) {
   if (!sources.length) return <span style={{ color: "#595959" }}>—</span>;
   const md = sources
-    .map((s) => {
+    .map((s, index) => {
       if (s.startsWith("http")) {
         try {
-          return `- [${new URL(s).hostname}](${s})`;
+          return `${index + 1}. [${s}](${s})`;
         } catch {
-          return `- ${s}`;
+          return `${index + 1}. ${s}`;
         }
       }
-      return `- ${s}`;
+      return `${index + 1}. ${s}`;
     })
     .join("\n");
   return <MarkdownCell extended>{md}</MarkdownCell>;

@@ -1,7 +1,8 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { Card, Col, Empty, Input, Progress, Row, Space, Table, Tabs, Tag, Typography } from "antd";
+import { App, Button, Card, Col, Empty, Input, Progress, Row, Space, Table, Tabs, Tag, Typography } from "antd";
+import { EditOutlined } from "@ant-design/icons";
 import { useCallback, useMemo, useState } from "react";
 import {
   PolarAngleAxis,
@@ -20,9 +21,15 @@ import {
   DARK_CARD_STYLE,
 } from "../../config/chart-theme";
 import {
-  DeepDiveCompanyResponse, DeepDiveStatus, useGetDeepDiveCompany,
+  DeepDiveCompanyResponse,
+  DeepDiveStatus,
+  useGetDeepDiveCompany,
+  useUpdateCompanyDataPoint,
+  type UpdateCompanyDataPointPayload,
 } from "../../hooks/api/useDeepDiveService";
+import { parseKpiScoreSelection } from "../../shared/kpi-score";
 import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
+import DatapointEditModal, { type DatapointEditTarget } from "./datapoint-edit-modal";
 import { useResizableColumns, RESIZABLE_TABLE_COMPONENTS } from "./shared/resizable-table";
 import { MarkdownCell, SourcesCell } from "./shared/markdown-cell";
 import DeepDivePageLayout from "./shared/page-layout";
@@ -40,17 +47,17 @@ type DataRecord = Record<string, unknown>;
 
 type CategoryRow = {
   key: number; dataPointId: string; category: string; score: number | null;
-  scoreLabel: string; reasoning: string | null;
+  scoreLabel: string; reasoning: string | null; editTarget: DatapointEditTarget;
 };
 
 type DriverRow = {
   key: number; dataPointId: string; category: string; kpi: string; driver: string;
-  score: number | null; scoreLabel: string; reasoning: string | null; sources: string[];
+  score: number | null; scoreLabel: string; reasoning: string | null; sources: string[]; editTarget: DatapointEditTarget;
 };
 
 type RawDataPointRow = {
   key: number; question: string; answer: string;
-  explanation: string | null; sources: string[];
+  explanation: string | null; sources: string[]; dataPointId: string; editTarget: DatapointEditTarget;
 };
 
 type RadarDataPoint = {
@@ -86,15 +93,58 @@ const toScoreLabel = (value: unknown, fallback?: number | null): string => {
   return "—";
 };
 
+const SOURCE_URL_REGEX = /https?:\/\/[^\s<>"`]+/g;
+
+const trimSourceToken = (value: string): string => value.replace(/^[\[(]*/, "").replace(/[)\],.;:]+$/, "");
+
 const normalizeSources = (value: unknown): string[] => {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
-  if (typeof value === "string") {
-    const matches = value.match(/https?:\/\/[^\s,]+/g);
-    if (matches?.length) return Array.from(new Set(matches));
-    return value.split(/\s*,\s*/).map((item) => item.trim()).filter(Boolean);
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .map((item) => item.replace(/^\d+\.\s*/, ""))
+      .map((item) => {
+        const match = item.match(SOURCE_URL_REGEX);
+        return match?.[0] ? trimSourceToken(match[0]) : item;
+      })
+      .filter(Boolean);
   }
+
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (!normalized) return [];
+
+    const lines = normalized
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const chunks = lines.length > 1
+      ? lines
+      : normalized.split(/\s*,\s*/).map((item) => item.trim()).filter(Boolean);
+
+    const result: string[] = [];
+    chunks.forEach((chunk) => {
+      const matches = chunk.match(SOURCE_URL_REGEX);
+      if (matches?.length) {
+        matches.forEach((entry) => {
+          const token = trimSourceToken(entry);
+          if (token) result.push(token);
+        });
+      } else {
+        const cleaned = chunk.replace(/^\d+\.\s*/, "").trim();
+        if (cleaned) result.push(cleaned);
+      }
+    });
+
+    return result;
+  }
+
   return [];
 };
+
+const toSourcesText = (value: unknown): string => normalizeSources(value)
+  .map((source, index) => `${index + 1}. ${source}`)
+  .join("\n");
 
 const deriveCompanyStatus = (
   steps: DeepDiveCompanyResponse["data"]["steps"],
@@ -115,12 +165,14 @@ export default function DeepDiveCompany({
   reportId: number;
   companyId: number;
 }) {
+  const { message } = App.useApp();
   const sourceParams = useMemo(() => ({ sourcesLimit: 50, sourcesOffset: 0 }), []);
   const { data, isLoading } = useGetDeepDiveCompany(reportId, companyId, sourceParams);
+  const updateDataPoint = useUpdateCompanyDataPoint(reportId, companyId);
   const payload = data?.data;
 
-  const steps = payload?.steps ?? [];
-  const kpiResults = payload?.kpiResults ?? [];
+  const steps = useMemo(() => payload?.steps ?? [], [payload?.steps]);
+  const kpiResults = useMemo(() => payload?.kpiResults ?? [], [payload?.kpiResults]);
   const sourcesTotal = payload?.sources?.total ?? 0;
   const scrapCandidatesTotal = payload?.scrapCandidatesTotal ?? payload?.scrapCandidates.length ?? 0;
 
@@ -131,6 +183,42 @@ export default function DeepDiveCompany({
   }, [steps]);
 
   const companyStatus = useMemo(() => deriveCompanyStatus(steps), [steps]);
+  const [editingTarget, setEditingTarget] = useState<DatapointEditTarget | null>(null);
+
+  const handleOpenEdit = useCallback((target: DatapointEditTarget) => {
+    setEditingTarget(target);
+  }, []);
+
+  const handleSaveDataPoint = useCallback((updatePayload: UpdateCompanyDataPointPayload) => {
+    if (!editingTarget) return;
+
+    updateDataPoint.mutate(
+      {
+        resultId: editingTarget.resultId,
+        payload: updatePayload,
+      },
+      {
+        onSuccess: (result) => {
+          if (!result.success) {
+            message.error(result.error || "Failed to update data point");
+            return;
+          }
+          message.success("Data point updated");
+          setEditingTarget(null);
+        },
+        onError: (error: unknown) => {
+          const errorMessage =
+            typeof error === "object" &&
+            error !== null &&
+            "response" in error &&
+            typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error === "string"
+              ? (error as { response?: { data?: { error?: string } } }).response!.data!.error!
+              : "Failed to update data point";
+          message.error(errorMessage);
+        },
+      },
+    );
+  }, [editingTarget, message, updateDataPoint]);
 
   /* ── parse KPI results ── */
   const { categoryRows, driverRows, rawRows } = useMemo(() => {
@@ -149,25 +237,85 @@ export default function DeepDiveCompany({
 
       if (isCategory) {
         const sv = parseScore(result.value ?? dr["KPI Score"]);
+        const scoreText = toScoreLabel(result.value ?? dr["KPI Score"], sv);
+        const parsedScore = parseKpiScoreSelection(result.value ?? dr["KPI Score"]);
+        const categoryName = getString(dr, "KPI Category") || result.name || result.dataPointId || "—";
         categories.push({
-          key: result.id, dataPointId: dpId, category: getString(dr, "KPI Category") || result.name || result.dataPointId || "—",
-          score: sv, scoreLabel: toScoreLabel(result.value ?? dr["KPI Score"], sv), reasoning: getString(dr, "Reasoning"),
+          key: result.id,
+          dataPointId: dpId,
+          category: categoryName,
+          score: sv,
+          scoreLabel: scoreText,
+          reasoning: getString(dr, "Reasoning"),
+          editTarget: {
+            resultId: result.id,
+            dataPointId: dpId,
+            type,
+            label: categoryName,
+            reasoning: getString(dr, "Reasoning") || "",
+            sources: toSourcesText(dr["Sources"] ?? dr["sources"]),
+            score: scoreText === "—" ? "" : scoreText,
+            scoreValue: parsedScore.scoreValue,
+            scoreTier: parsedScore.scoreTier,
+            status: result.status ?? true,
+          },
         });
       } else if (isDriver) {
         const sv = parseScore(result.value ?? dr["Score"]);
+        const categoryName = getString(dr, "KPI Category") || "Uncategorized";
+        const kpiName = getString(dr, "Definition (KPI)") || getString(dr, "KPI") || "—";
+        const driverName = getString(dr, "Metric (KPI Driver)") || getString(dr, "KPI Driver") || result.name || result.dataPointId || "—";
+        const scoreText = toScoreLabel(result.value ?? dr["Score"], sv);
+        const parsedScore = parseKpiScoreSelection(result.value ?? dr["Score"]);
         drivers.push({
-          key: result.id, dataPointId: dpId, category: getString(dr, "KPI Category") || "Uncategorized",
-          kpi: getString(dr, "Definition (KPI)") || getString(dr, "KPI") || "—",
-          driver: getString(dr, "Metric (KPI Driver)") || getString(dr, "KPI Driver") || result.name || result.dataPointId || "—",
-          score: sv, scoreLabel: toScoreLabel(result.value ?? dr["Score"], sv),
-          reasoning: getString(dr, "Reasoning"), sources: normalizeSources(dr["Sources"] ?? dr["sources"]),
+          key: result.id,
+          dataPointId: dpId,
+          category: categoryName,
+          kpi: kpiName,
+          driver: driverName,
+          score: sv,
+          scoreLabel: scoreText,
+          reasoning: getString(dr, "Reasoning"),
+          sources: normalizeSources(dr["Sources"] ?? dr["sources"]),
+          editTarget: {
+            resultId: result.id,
+            dataPointId: dpId,
+            type,
+            label: driverName,
+            reasoning: getString(dr, "Reasoning") || "",
+            sources: toSourcesText(dr["Sources"] ?? dr["sources"]),
+            score: scoreText === "—" ? "" : scoreText,
+            scoreValue: parsedScore.scoreValue,
+            scoreTier: parsedScore.scoreTier,
+            status: result.status ?? true,
+          },
         });
       } else if (isRaw) {
+        const question = getString(dr, "raw_data_point") || result.name || result.dataPointId || "—";
+        const answer = getString(dr, "answer")
+          || result.manualValue
+          || (typeof result.value === "string" ? result.value : "—");
+        const explanation = getString(dr, "explanation") || getString(dr, "Reasoning");
+        const scoreText = getString(dr, "answer") || result.manualValue || "";
         rawDataPoints.push({
-          key: result.id, question: getString(dr, "raw_data_point") || result.name || result.dataPointId || "—",
-          answer: getString(dr, "answer") || (typeof result.value === "string" ? result.value : "—"),
-          explanation: getString(dr, "explanation") || getString(dr, "Reasoning"),
+          key: result.id,
+          dataPointId: dpId,
+          question,
+          answer,
+          explanation,
           sources: normalizeSources(dr["sources"] ?? dr["Sources"]),
+          editTarget: {
+            resultId: result.id,
+            dataPointId: dpId,
+            type,
+            label: question,
+            reasoning: explanation || "",
+            sources: toSourcesText(dr["sources"] ?? dr["Sources"]),
+            score: scoreText,
+            scoreValue: null,
+            scoreTier: null,
+            status: result.status ?? true,
+          },
         });
       }
     }
@@ -216,7 +364,22 @@ export default function DeepDiveCompany({
     { title: "Category", dataIndex: "category", width: 200, sorter: (a: CategoryRow, b: CategoryRow) => a.category.localeCompare(b.category), render: (v: string) => <MarkdownCell extended>{v}</MarkdownCell> },
     { title: "Score", dataIndex: "scoreLabel", width: 100, sorter: (a: CategoryRow, b: CategoryRow) => (a.score ?? -1) - (b.score ?? -1), render: (v: string) => <Text style={{ color: "#d9d9d9" }}>{v}</Text> },
     { title: "Reasoning", dataIndex: "reasoning", width: 600, render: (v: string | null) => <MarkdownCell extended>{v}</MarkdownCell> },
-  ], []);
+    {
+      title: "Actions",
+      key: "actions",
+      width: 110,
+      fixed: "right",
+      render: (_: unknown, row: CategoryRow) => (
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleOpenEdit(row.editTarget)}
+        >
+          Edit
+        </Button>
+      ),
+    },
+  ], [handleOpenEdit]);
 
   const driverColsDef = useMemo((): TableColumnsType<DriverRow> => [
     { title: "ID", dataIndex: "dataPointId", width: 160, render: (v: string) => <Tag color="blue" style={{ fontFamily: "monospace", fontSize: 11 }}>{v}</Tag> },
@@ -226,14 +389,45 @@ export default function DeepDiveCompany({
     { title: "Score", dataIndex: "scoreLabel", width: 90, sorter: (a: DriverRow, b: DriverRow) => (a.score ?? -1) - (b.score ?? -1), render: (v: string) => <Text style={{ color: "#d9d9d9" }}>{v}</Text> },
     { title: "Reasoning", dataIndex: "reasoning", width: 350, render: (v: string | null) => <MarkdownCell extended>{v}</MarkdownCell> },
     { title: "Sources", dataIndex: "sources", width: 250, render: (v: string[]) => <SourcesCell sources={v} /> },
-  ], []);
+    {
+      title: "Actions",
+      key: "actions",
+      width: 110,
+      fixed: "right",
+      render: (_: unknown, row: DriverRow) => (
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleOpenEdit(row.editTarget)}
+        >
+          Edit
+        </Button>
+      ),
+    },
+  ], [handleOpenEdit]);
 
   const rawColsDef = useMemo((): TableColumnsType<RawDataPointRow> => [
+    { title: "ID", dataIndex: "dataPointId", width: 170, render: (v: string) => <Tag color="blue" style={{ fontFamily: "monospace", fontSize: 11 }}>{v}</Tag> },
     { title: "Question", dataIndex: "question", width: 300, render: (v: string) => <MarkdownCell extended>{v}</MarkdownCell> },
     { title: "Answer", dataIndex: "answer", width: 200, render: (v: string) => <MarkdownCell extended>{v}</MarkdownCell> },
     { title: "Explanation", dataIndex: "explanation", width: 400, render: (v: string | null) => <MarkdownCell extended>{v}</MarkdownCell> },
     { title: "Sources", dataIndex: "sources", width: 250, render: (v: string[]) => <SourcesCell sources={v} /> },
-  ], []);
+    {
+      title: "Actions",
+      key: "actions",
+      width: 110,
+      fixed: "right",
+      render: (_: unknown, row: RawDataPointRow) => (
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleOpenEdit(row.editTarget)}
+        >
+          Edit
+        </Button>
+      ),
+    },
+  ], [handleOpenEdit]);
 
   const categoryCols = useResizableColumns(categoryColsDef);
   const driverCols = useResizableColumns(driverColsDef);
@@ -326,7 +520,7 @@ export default function DeepDiveCompany({
                   </Text>
                 )}
                 <Table dataSource={filteredCategoryRows} rowKey="key" loading={isLoading} pagination={{ pageSize: 10 }}
-                  scroll={{ x: 1060 }} components={RESIZABLE_TABLE_COMPONENTS} columns={categoryCols} bordered />
+                  scroll={{ x: 1180 }} components={RESIZABLE_TABLE_COMPONENTS} columns={categoryCols} bordered />
               </div>
             ),
           },
@@ -347,7 +541,7 @@ export default function DeepDiveCompany({
                   </Text>
                 )}
                 <Table dataSource={filteredDriverRows} rowKey="key" loading={isLoading} pagination={{ pageSize: 10 }}
-                  scroll={{ x: 1520 }} components={RESIZABLE_TABLE_COMPONENTS} columns={driverCols} bordered />
+                  scroll={{ x: 1640 }} components={RESIZABLE_TABLE_COMPONENTS} columns={driverCols} bordered />
               </div>
             ),
           },
@@ -355,13 +549,21 @@ export default function DeepDiveCompany({
             key: "raw", label: `Raw Data Points (${rawRows.length})`,
             children: rawRows.length ? (
               <Table dataSource={rawRows} rowKey="key" loading={isLoading} pagination={{ pageSize: 10 }}
-                scroll={{ x: 1150 }} components={RESIZABLE_TABLE_COMPONENTS} columns={rawCols} bordered />
+                scroll={{ x: 1320 }} components={RESIZABLE_TABLE_COMPONENTS} columns={rawCols} bordered />
             ) : (
               <Empty description="No raw data points for this company" />
             ),
           },
         ]} />
       </Card>
+
+      <DatapointEditModal
+        open={!!editingTarget}
+        loading={updateDataPoint.isPending}
+        target={editingTarget}
+        onClose={() => setEditingTarget(null)}
+        onSubmit={handleSaveDataPoint}
+      />
     </DeepDivePageLayout>
   );
 }

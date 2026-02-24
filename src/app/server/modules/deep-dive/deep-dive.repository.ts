@@ -77,6 +77,13 @@ export interface DeepDiveSettingsSnapshot {
   validatorSettings: ValidatorSettingsProfile | null;
 }
 
+export interface CompanyDataPointResultUpdateData {
+  value?: string | null;
+  manualValue?: string | null;
+  data?: Prisma.InputJsonValue;
+  status?: boolean;
+}
+
 export class DeepDiveRepository {
   private static buildOrderBy(
     sortBy: string | undefined,
@@ -433,6 +440,32 @@ export class DeepDiveRepository {
     });
   }
 
+  static async getCompanyDataPointResultById(
+    reportId: number,
+    companyId: number,
+    resultId: number,
+  ) {
+    return prisma.report_data_point_results.findFirst({
+      where: {
+        id: resultId,
+        report_id: reportId,
+        company_id: companyId,
+      },
+      include: { data_points: true },
+    });
+  }
+
+  static async updateCompanyDataPointResult(
+    resultId: number,
+    data: CompanyDataPointResultUpdateData,
+  ) {
+    return prisma.report_data_point_results.update({
+      where: { id: resultId },
+      data,
+      include: { data_points: true },
+    });
+  }
+
   static async getCompanyScrapCandidates(
     reportId: number,
     companyId: number,
@@ -541,14 +574,14 @@ export class DeepDiveRepository {
         rdpr.company_id,
         c.name AS company_name,
         dp.name AS category,
-        AVG(rdpr.value::numeric)::float AS avg_score
+        AVG((regexp_match(rdpr.value, '^\s*([0-9]+(?:\.[0-9]+)?)'))[1]::numeric)::float AS avg_score
       FROM report_data_point_results rdpr
       JOIN data_points dp ON dp.id = rdpr.data_point_id
       JOIN companies c ON c.id = rdpr.company_id
       WHERE rdpr.report_id = ${reportId}
         AND dp.type = 'kpi_category'
         AND rdpr.value IS NOT NULL
-        AND rdpr.value ~ '^[0-9]+\.?[0-9]*$'
+        AND rdpr.value ~ '^\s*[0-9]+(\.[0-9]+)?(\s+.+)?$'
       GROUP BY rdpr.company_id, c.name, dp.name
       ORDER BY rdpr.company_id, dp.name
     `;
