@@ -7,6 +7,7 @@ import {
   BarChart,
   BarStack,
   CartesianGrid,
+  LabelList,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -21,8 +22,25 @@ import {
 } from "../../config/chart-theme";
 import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
 
+type KpiChartRowWithTotal = KpiChartItem & {
+  totalByCategories: number;
+};
+
 function formatAxisTick(value: unknown): string {
   return String(value).split(" ")[0] ?? "";
+}
+
+function toNumericScore(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function formatScore(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 export default function KpiStackedChart({
@@ -32,12 +50,16 @@ export default function KpiStackedChart({
   data: KpiChartItem[];
   categories: string[];
 }) {
-  const sorted = useMemo(() => {
-    return [...data].sort((a, b) => {
-      const totalA = categories.reduce((sum, cat) => sum + (Number(a[cat]) || 0), 0);
-      const totalB = categories.reduce((sum, cat) => sum + (Number(b[cat]) || 0), 0);
-      return totalB - totalA;
-    });
+  const sortedWithTotals = useMemo(() => {
+    const withTotals = data.map((item) => ({
+      ...item,
+      totalByCategories: categories.reduce(
+        (sum, cat) => sum + toNumericScore(item[cat]),
+        0,
+      ),
+    }));
+
+    return withTotals.sort((a, b) => b.totalByCategories - a.totalByCategories);
   }, [data, categories]);
 
   if (data.length === 0 || categories.length === 0) {
@@ -47,7 +69,7 @@ export default function KpiStackedChart({
   return (
     <div style={{ height: 620 }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={sorted} margin={{ top: 30, right: 40, left: 0, bottom: 100 }} barGap={50} maxBarSize={100}>
+        <BarChart data={sortedWithTotals} margin={{ top: 40, right: 40, left: 0, bottom: 100 }} barGap={50} maxBarSize={100}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
           <XAxis
             dataKey="company"
@@ -66,7 +88,13 @@ export default function KpiStackedChart({
             tick={CHART_AXIS_MUTED_TICK_STYLE}
             label={{ value: "Score", angle: -90, position: "insideLeft", style: CHART_AXIS_LABEL_STYLE }}
           />
-          <ChartTooltip />
+          <ChartTooltip
+            labelFormatter={(companyName, payload) => {
+              const row = payload?.[0]?.payload as KpiChartRowWithTotal | undefined;
+              if (!row) return String(companyName);
+              return `${String(companyName)} (Total by categories: ${formatScore(row.totalByCategories)})`;
+            }}
+          />
           <ChartLegend />
           <BarStack radius={10}>
             {categories.map((category, index) => (
@@ -78,7 +106,19 @@ export default function KpiStackedChart({
                 name={category}
                 textAnchor="middle"
                 activeBar={CHART_ACTIVE_BAR_STYLE}
-              />
+              >
+                {index === categories.length - 1 && (
+                  <LabelList
+                    dataKey="totalByCategories"
+                    position="top"
+                    fill={CHART_AXIS_MUTED_TICK_STYLE.fill}
+                    fontSize={11}
+                    formatter={(value: unknown) =>
+                      `Total: ${formatScore(toNumericScore(value))}`
+                    }
+                  />
+                )}
+              </Bar>
             ))}
           </BarStack>
         </BarChart>
