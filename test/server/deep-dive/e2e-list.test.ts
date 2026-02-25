@@ -34,7 +34,6 @@ jest.mock("../../../src/lib/auth", () => ({
 import { GET } from "../../../src/app/api/deep-dive/route";
 import { extractAdminFromRequest } from "../../../src/lib/auth";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { _mockTransaction: mockTransaction, _mockQueryRaw: mockQueryRaw } =
   require("../../../src/lib/prisma") as { _mockTransaction: jest.Mock; _mockQueryRaw: jest.Mock };
 

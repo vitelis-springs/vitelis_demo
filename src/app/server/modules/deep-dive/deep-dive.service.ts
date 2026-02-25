@@ -78,6 +78,18 @@ export interface UpdateCompanyDataPointPayload {
   status?: boolean;
 }
 
+export type DeepDiveMetricKey =
+  | "companies-count"
+  | "orchestrator-status"
+  | "total-sources"
+  | "used-sources"
+  | "total-scrape-candidates"
+  | "total-queries";
+
+type ReportWithRelations = NonNullable<
+  Awaited<ReturnType<typeof DeepDiveRepository.getReportById>>
+>;
+
 export class DeepDiveService {
   private static isJsonObject(
     value: unknown
@@ -493,6 +505,66 @@ export class DeepDiveService {
     return result;
   }
 
+  private static mapOverviewReport(report: ReportWithRelations) {
+    return {
+      id: report.id,
+      name: report.name,
+      description: report.description,
+      createdAt: report.created_at,
+      updatedAt: report.updates_at,
+      status: report.report_orhestrator?.status ?? report_status_enum.PENDING,
+      useCase: report.use_cases
+        ? { id: report.use_cases.id, name: report.use_cases.name }
+        : null,
+      settings: report.report_settings
+        ? { id: report.report_settings.id, name: report.report_settings.name }
+        : null,
+    };
+  }
+
+  private static buildKpiChart(
+    kpiRaw: Array<{
+      company_id: number;
+      company_name: string;
+      category: string;
+      avg_score: number;
+    }>
+  ) {
+    const categoriesSet = new Set<string>();
+    const chartMap = new Map<number, Record<string, unknown>>();
+
+    for (const row of kpiRaw) {
+      categoriesSet.add(row.category);
+
+      if (!chartMap.has(row.company_id)) {
+        chartMap.set(row.company_id, {
+          company: row.company_name,
+          companyId: row.company_id,
+        });
+      }
+
+      const entry = chartMap.get(row.company_id)!;
+      entry[row.category] = Math.round(row.avg_score * 10) / 10;
+    }
+
+    return {
+      categories: Array.from(categoriesSet).sort(),
+      kpiChart: Array.from(chartMap.values()),
+    };
+  }
+
+  private static deriveDominantStatus(
+    counts: Record<report_status_enum, number>,
+    totalStepsCount: number,
+  ): report_status_enum {
+    const total = counts.PENDING + counts.PROCESSING + counts.DONE + counts.ERROR;
+    if (counts.ERROR > 0) return report_status_enum.ERROR;
+    if (counts.PROCESSING > 0) return report_status_enum.PROCESSING;
+    if (counts.PENDING > 0) return report_status_enum.PENDING;
+    if (total === 0 || total < totalStepsCount) return report_status_enum.PENDING;
+    return report_status_enum.DONE;
+  }
+
   static async listDeepDives(params: DeepDiveListParams) {
     const [{ items, total }, useCases, industries] = await Promise.all([
       DeepDiveRepository.listReports(params),
@@ -539,6 +611,164 @@ export class DeepDiveService {
           useCases,
           industries,
         },
+      },
+    };
+  }
+
+  static async getDeepDiveOverview(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    return {
+      success: true,
+      data: {
+        report: this.mapOverviewReport(report),
+      },
+    };
+  }
+
+  static async getDeepDiveMetric(reportId: number, metric: DeepDiveMetricKey) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    let value: number | report_status_enum;
+
+    switch (metric) {
+      case "companies-count":
+        value = await DeepDiveRepository.getReportCompaniesCount(reportId);
+        break;
+      case "orchestrator-status":
+        value = report.report_orhestrator?.status ?? report_status_enum.PENDING;
+        break;
+      case "total-sources": {
+        const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+        value = await DeepDiveRepository.getReportSourcesCount(
+          reportId,
+          sourceCountingContext
+        );
+        break;
+      }
+      case "used-sources": {
+        const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+        value = await DeepDiveRepository.getReportUsedSourcesCount(
+          reportId,
+          sourceCountingContext
+        );
+        break;
+      }
+      case "total-scrape-candidates": {
+        const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+        value = await DeepDiveRepository.getReportScrapeCandidatesCount(
+          reportId,
+          sourceCountingContext
+        );
+        break;
+      }
+      case "total-queries":
+        value = await DeepDiveRepository.getReportQueriesCount(reportId);
+        break;
+    }
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        metric,
+        value,
+      },
+    };
+  }
+
+  static async getDeepDiveKpiChart(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    const kpiRaw = await DeepDiveRepository.getKpiCategoryScoresByCompany(reportId);
+    const { categories, kpiChart } = this.buildKpiChart(kpiRaw);
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        categories,
+        kpiChart,
+      },
+    };
+  }
+
+  static async getDeepDiveCompaniesTable(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    const companies = await DeepDiveRepository.getReportCompanies(reportId);
+    const companyIds = companies
+      .map((row) => row.company_id)
+      .filter((id): id is number => typeof id === "number");
+
+    const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+    const [
+      companyStatusRaw,
+      perCompanySources,
+      perCompanyUsedSources,
+      perCompanyCandidates,
+      totalStepsCount,
+    ] = await Promise.all([
+      DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
+      DeepDiveRepository.getPerCompanySourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyUsedSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyCandidatesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getReportStepsCount(reportId),
+    ]);
+
+    const statusByCompany = new Map<number, Record<report_status_enum, number>>();
+    companyStatusRaw.forEach((row) => {
+      const current = statusByCompany.get(row.company_id) ?? { ...DEFAULT_STATUS_COUNTS };
+      current[row.status] = row._count._all;
+      statusByCompany.set(row.company_id, current);
+    });
+
+    const sourcesMap = new Map<number, number>();
+    const validSourcesMap = new Map<number, number>();
+    for (const row of perCompanySources) {
+      sourcesMap.set(row.company_id, row.total);
+      validSourcesMap.set(row.company_id, row.valid_count);
+    }
+
+    const usedSourcesMap = new Map<number, number>();
+    for (const row of perCompanyUsedSources) {
+      usedSourcesMap.set(row.company_id, row.total);
+    }
+
+    const candidatesMap = new Map<number, number>();
+    for (const row of perCompanyCandidates) {
+      candidatesMap.set(row.company_id, row.total);
+    }
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        companies: companies
+          .filter((row) => row.companies !== null)
+          .map((row) => {
+            const company = row.companies!;
+            const counts = statusByCompany.get(company.id) ?? { ...DEFAULT_STATUS_COUNTS };
+            const doneSteps = counts.DONE;
+
+            return {
+              id: company.id,
+              name: company.name,
+              countryCode: company.country_code,
+              url: company.url,
+              status: this.deriveDominantStatus(counts, totalStepsCount),
+              sourcesCount: sourcesMap.get(company.id) ?? 0,
+              validSourcesCount: validSourcesMap.get(company.id) ?? 0,
+              usedSourcesCount: usedSourcesMap.get(company.id) ?? 0,
+              candidatesCount: candidatesMap.get(company.id) ?? 0,
+              stepsDone: doneSteps,
+              stepsTotal: totalStepsCount,
+            };
+          }),
       },
     };
   }

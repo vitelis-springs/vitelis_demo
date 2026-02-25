@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Select, Space, Tabs, Typography } from "antd";
+import { Card, Select, Skeleton, Space, Tabs, Typography } from "antd";
 import { KpiChartItem } from "../../hooks/api/useDeepDiveService";
 import { useChartFilters } from "./use-chart-filters";
 import KpiStackedChart from "./kpi-stacked-chart";
@@ -11,12 +11,30 @@ export default function KpiChartSection({
   reportId,
   kpiChart,
   allCategories,
+  loading,
 }: {
   reportId: number;
   kpiChart: KpiChartItem[];
   allCategories: string[];
+  loading: boolean;
 }) {
   const f = useChartFilters(reportId, kpiChart, allCategories);
+
+  if (loading) {
+    return (
+      <Card
+        title="KPI Scores by Company"
+        style={{
+          background: "#1f1f1f",
+          border: "1px solid #303030",
+          marginBottom: 24,
+        }}
+        styles={{ header: { borderBottom: "1px solid #303030" } }}
+      >
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </Card>
+    );
+  }
 
   if (!f.ready) return null;
 

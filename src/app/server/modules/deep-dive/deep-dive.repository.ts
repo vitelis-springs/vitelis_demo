@@ -347,6 +347,12 @@ export class DeepDiveRepository {
     });
   }
 
+  static async getReportStepsCount(reportId: number) {
+    return prisma.report_steps.count({
+      where: { report_id: reportId },
+    });
+  }
+
   static async getReportQueries(reportId: number) {
     return prisma.report_data_collection_queries.findMany({
       where: { report_id: reportId },
@@ -362,6 +368,12 @@ export class DeepDiveRepository {
       include: {
         companies: true,
       },
+    });
+  }
+
+  static async getReportCompaniesCount(reportId: number) {
+    return prisma.report_companies.count({
+      where: { report_id: reportId },
     });
   }
 

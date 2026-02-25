@@ -32,7 +32,6 @@ import { DeepDiveService } from "../../../src/app/server/modules/deep-dive/deep-
 import { DeepDiveRepository } from "../../../src/app/server/modules/deep-dive/deep-dive.repository";
 import { extractAdminFromRequest } from "../../../src/lib/auth";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { _mockQueryRaw: mockQueryRaw } = require("../../../src/lib/prisma") as {
   _mockQueryRaw: jest.Mock;
 };

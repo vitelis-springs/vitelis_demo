@@ -39,7 +39,6 @@ jest.mock("../../../src/lib/auth", () => ({
 import { GET } from "../../../src/app/api/deep-dive/[id]/route";
 import { extractAdminFromRequest } from "../../../src/lib/auth";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
   _fu: mockFindUnique,
   _fm: mockFindMany,

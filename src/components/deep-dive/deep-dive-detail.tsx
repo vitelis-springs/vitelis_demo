@@ -1,10 +1,15 @@
 "use client";
 
-import { App, Button, Layout, Space, Spin, Typography } from "antd";
+import { App, Button, Layout, Space, Typography } from "antd";
 import { FileExcelOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { useGetDeepDiveDetail, useExportReport } from "../../hooks/api/useDeepDiveService";
+import {
+  useGetDeepDiveOverview,
+  useGetDeepDiveKpiChart,
+  useGetDeepDiveCompanies,
+  useExportReport,
+} from "../../hooks/api/useDeepDiveService";
 import DeepDiveStatusTag from "./status-tag";
 import SummaryCards from "./summary-cards";
 import KpiChartSection from "./kpi-chart-section";
@@ -16,32 +21,21 @@ const { Title, Text } = Typography;
 
 export default function DeepDiveDetail({ reportId }: { reportId: number }) {
   const { message } = App.useApp();
-  const { data, isLoading } = useGetDeepDiveDetail(reportId);
-  const payload = data?.data;
+  const { data: overviewData } = useGetDeepDiveOverview(reportId);
+  const { data: kpiData, isLoading: isKpiLoading } = useGetDeepDiveKpiChart(reportId);
+  const { data: companiesData, isLoading: isCompaniesLoading } =
+    useGetDeepDiveCompanies(reportId);
+
+  const report = overviewData?.data.report;
   const router = useRouter();
   const exportReport = useExportReport(reportId);
-  
 
-  const allCategories = useMemo(() => payload?.categories ?? [], [payload]);
-  const kpiChart = useMemo(() => payload?.kpiChart ?? [], [payload]);
-  const companies = useMemo(() => payload?.companies ?? [], [payload]);
-
-  if (isLoading || !payload) {
-    return (
-      <Layout style={{ minHeight: "100vh", background: "#141414" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100vh",
-          }}
-        >
-          <Spin size="large" />
-        </div>
-      </Layout>
-    );
-  }
+  const allCategories = useMemo(() => kpiData?.data.categories ?? [], [kpiData]);
+  const kpiChart = useMemo(() => kpiData?.data.kpiChart ?? [], [kpiData]);
+  const companies = useMemo(
+    () => companiesData?.data.companies ?? [],
+    [companiesData]
+  );
 
   return (
     <Layout style={{ minHeight: "100vh", background: "#141414" }}>
@@ -53,15 +47,15 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
               <DeepDiveBreadcrumbs
                 items={[
                   { label: "Deep Dives", href: "/deep-dive" },
-                  { label: payload.report.name || `Deep Dive #${reportId}` },
+                  { label: report?.name || `Deep Dive #${reportId}` },
                 ]}
               />
               <Space align="center" size="middle">
                 <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
-                  {payload.report.name || `Deep Dive #${reportId}`}
+                  {report?.name || `Deep Dive #${reportId}`}
                 </Title>
-                {payload.report.status && (
-                  <DeepDiveStatusTag status={payload.report.status} />
+                {report?.status && (
+                  <DeepDiveStatusTag status={report.status} />
                 )}
                 <Button
                   icon={<FileExcelOutlined />}
@@ -88,35 +82,36 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
                 </Button>
               </Space>
               <Text style={{ color: "#8c8c8c" }}>
-                {payload.report.description || "Report overview and execution progress."}
+                {report?.description || "Report overview and execution progress."}
               </Text>
               <Space size="middle" style={{ marginTop: 4 }}>
-                {payload.report.useCase && (
+                {report?.useCase && (
                   <Text style={{ color: "#8c8c8c" }}>
                     Use Case:{" "}
-                    <Text style={{ color: "#d9d9d9" }}>{payload.report.useCase.name}</Text>
+                    <Text style={{ color: "#d9d9d9" }}>{report.useCase.name}</Text>
                   </Text>
                 )}
-                {payload.report.settings && (
+                {report?.settings && (
                   <Text style={{ color: "#8c8c8c" }}>
                     Settings:{" "}
-                    <Text style={{ color: "#d9d9d9" }}>{payload.report.settings.name}</Text>
+                    <Text style={{ color: "#d9d9d9" }}>{report.settings.name}</Text>
                   </Text>
                 )}
               </Space>
             </Space>
           </div>
 
-          <SummaryCards data={payload} />
+          <SummaryCards reportId={reportId} settingsName={report?.settings?.name ?? null} />
           <KpiChartSection
             reportId={reportId}
             kpiChart={kpiChart}
             allCategories={allCategories}
+            loading={isKpiLoading}
           />
           <CompaniesTable
             reportId={reportId}
             companies={companies}
-            loading={isLoading}
+            loading={isCompaniesLoading}
           />
 
         </div>

@@ -39,7 +39,6 @@ import { GET } from "../../../src/app/api/deep-dive/[id]/queries/route";
 import { PUT } from "../../../src/app/api/deep-dive/[id]/queries/[queryId]/route";
 import { extractAdminFromRequest } from "../../../src/lib/auth";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { _fu: mockFindUnique, _ff: mockFindFirst, _up: mockUpdate, _qr: mockQueryRaw } =
   require("../../../src/lib/prisma") as Record<string, jest.Mock>;
 
