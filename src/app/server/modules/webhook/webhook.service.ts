@@ -1,5 +1,6 @@
 import { AnalyzeRepository } from '../analyze/analyze.repository';
 import { SalesMinerRepository } from '../sales-miner/sales-miner.repository';
+import { VitelisSalesRepository } from '../vitelis-sales/vitelis-sales.repository';
 import { YamlService } from '../../services/yamlService.server';
 
 export class WebhookService {
@@ -129,6 +130,56 @@ export class WebhookService {
         status: updated.status,
         executionStatus: updated.executionStatus,
         s3Url: yamlFileUrl,
+      },
+    };
+  }
+
+  static async updateVitelisSalesProgress(executionId: string, step: number) {
+    const updated = await VitelisSalesRepository.updateByExecutionId(executionId, {
+      executionStep: step,
+      executionStatus: step > 0 ? 'inProgress' : 'started',
+    } as any);
+
+    if (!updated) {
+      return { success: false, error: 'VitelisSales analyze record not found with the provided executionId' };
+    }
+
+    console.log(`✅ WebhookService: Updated VitelisSales executionStep to ${step} for executionId: ${executionId}`);
+
+    return {
+      success: true,
+      data: {
+        executionId: updated.executionId,
+        executionStep: updated.executionStep,
+        executionStatus: updated.executionStatus,
+      },
+    };
+  }
+
+  static async updateVitelisSalesResult(executionId: string, generatedReportId?: number) {
+    const updatePayload: Record<string, unknown> = {
+      status: 'finished',
+      executionStatus: 'finished',
+    };
+    if (generatedReportId !== undefined) {
+      updatePayload.generatedReportId = generatedReportId;
+    }
+
+    const updated = await VitelisSalesRepository.updateByExecutionId(executionId, updatePayload as any);
+
+    if (!updated) {
+      return { success: false, error: 'VitelisSales analyze record not found with the provided executionId' };
+    }
+
+    console.log(`✅ WebhookService: VitelisSales marked finished for executionId: ${executionId}`);
+
+    return {
+      success: true,
+      data: {
+        executionId: updated.executionId,
+        status: updated.status,
+        executionStatus: updated.executionStatus,
+        ...(updated.generatedReportId !== undefined && { generatedReportId: updated.generatedReportId }),
       },
     };
   }

@@ -50,6 +50,13 @@ export default function Sidebar() {
       icon: <BarChartOutlined style={{ fontSize: '18px' }} />,
       label: 'SalesMiner Analysis',
     },
+    ...(user?.role === 'admin'
+      ? [{
+          key: '/analyze-vitelis-sales-quiz',
+          icon: <BarChartOutlined style={{ fontSize: '18px' }} />,
+          label: 'VitelisSales Analysis',
+        }]
+      : []),
     {
       key: '/history',
       icon: <HistoryOutlined style={{ fontSize: '18px' }} />,

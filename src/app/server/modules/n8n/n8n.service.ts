@@ -27,9 +27,17 @@ interface SalesMinerWorkflowData {
   competitors?: { name: string; url: string }[];
 }
 
+interface VitelisSalesWorkflowData {
+  companyName: string;
+  url: string;
+  useCase?: string;
+  industry_id: number;
+}
+
 const BIZMINER_PATH_V2_ALLIANZ = "webhook/v2/bizminer/allianz";
 const BIZMINER_PATH_V2_DEFAULT = "webhook/v2/bizminer/default";
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer";
+const VITELIS_SALES_PATH_V1 = "webhook/v1/vitelis_sales_intelligence";
 
 export class N8NService {
   private static getBizMinerConfig(): N8NConfig {
@@ -55,7 +63,21 @@ export class N8NService {
     return { url, apiKey };
   }
 
+  private static getVitelisSalesConfig(): N8NConfig {
+    const url = process.env.N8N_API_URL || "https://vitelis.app.n8n.cloud/";
+    const apiKey = process.env.N8N_API_KEY;
+
+    if (!url || !apiKey) {
+      throw new Error("N8N VitelisSales configuration not found");
+    }
+
+    return { url, apiKey };
+  }
+
   private static getConfigByType(type?: string | null): N8NConfig {
+    if (type === "vitelis_sales") {
+      return this.getVitelisSalesConfig();
+    }
     if (type === "salesminer") {
       return this.getSalesMinerConfig();
     }
@@ -131,6 +153,35 @@ export class N8NService {
     const config = this.getSalesMinerConfig();
     const triggerUrl = `${config.url}${SALESMINER_PATH_V1}`;
     console.log("🌐 N8NService: Making SalesMiner API request to:", triggerUrl);
+
+    const response = await this.fetchWithTimeout(triggerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-N8N-API-KEY": config.apiKey,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`N8N API request failed with status ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result?.executionId) {
+      console.warn("⚠️ N8NService: N8N response does not contain executionId");
+    }
+
+    return result;
+  }
+
+  static async startVitelisSalesWorkflow(
+    data: VitelisSalesWorkflowData
+  ): Promise<any> {
+    const config = this.getVitelisSalesConfig();
+    const triggerUrl = `${config.url}${VITELIS_SALES_PATH_V1}`;
+    console.log("🌐 N8NService: Making VitelisSales API request to:", triggerUrl);
 
     const response = await this.fetchWithTimeout(triggerUrl, {
       method: "POST",

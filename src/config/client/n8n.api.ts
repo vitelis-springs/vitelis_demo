@@ -115,6 +115,48 @@ export class N8NApiClient {
 
     return result;
   }
+
+  async startVitelisSalesWorkflow(data: {
+    companyName: string;
+    url: string;
+    useCase?: string;
+    industry_id: number;
+  }): Promise<any> {
+    console.log("🌐 Client: Starting VitelisSales workflow via backend API");
+    console.log("📤 Client: Request data:", data);
+
+    const { useAuthStore } = await import("../../stores/auth-store");
+    const token = useAuthStore.getState().token;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch("/api/n8n/vitelis-sales/start", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("❌ Client: VitelisSales workflow start failed:", error);
+      throw new Error(error.error || "Failed to start VitelisSales workflow");
+    }
+
+    const result = await response.json();
+    console.log("📥 Client: VitelisSales workflow result.data:", result);
+
+    if (!result.executionId) {
+      console.warn("⚠️ Client: No executionId in response from backend!");
+    }
+
+    return result;
+  }
 }
 
 export default N8NApiClient;
