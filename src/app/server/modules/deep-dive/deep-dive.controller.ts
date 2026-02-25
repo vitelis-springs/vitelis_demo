@@ -9,6 +9,7 @@ import {
 } from "../../../../shared/kpi-score";
 import {
   DeepDiveService,
+  type DeepDiveMetricKey,
   type UpdateCompanyDataPointPayload,
   type ReportSettingsAction,
   type ValidatorSettingsAction,
@@ -49,6 +50,17 @@ function parseStatus(value: string | null) {
 function parseSortOrder(value: string | null): SortOrder | undefined {
   if (value === "asc" || value === "desc") return value;
   return undefined;
+}
+
+function isDeepDiveMetricKey(value: string): value is DeepDiveMetricKey {
+  return (
+    value === "companies-count" ||
+    value === "orchestrator-status" ||
+    value === "total-sources" ||
+    value === "used-sources" ||
+    value === "total-scrape-candidates" ||
+    value === "total-queries"
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -211,6 +223,150 @@ export class DeepDiveController {
     } catch (error) {
       console.error("❌ DeepDiveController.getById:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch deep dive" }, { status: 500 });
+    }
+  }
+
+  static async getOverview(
+    request: NextRequest,
+    reportIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      const result = await DeepDiveService.getDeepDiveOverview(reportId);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getOverview:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch deep dive overview" },
+        { status: 500 }
+      );
+    }
+  }
+
+  static async getMetric(
+    request: NextRequest,
+    reportIdParam: string,
+    metricParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      if (!isDeepDiveMetricKey(metricParam)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid metric key" },
+          { status: 400 }
+        );
+      }
+
+      const result = await DeepDiveService.getDeepDiveMetric(reportId, metricParam);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getMetric:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch deep dive metric" },
+        { status: 500 }
+      );
+    }
+  }
+
+  static async getKpiChart(
+    request: NextRequest,
+    reportIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      const result = await DeepDiveService.getDeepDiveKpiChart(reportId);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getKpiChart:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch deep dive KPI chart" },
+        { status: 500 }
+      );
+    }
+  }
+
+  static async getCompaniesTable(
+    request: NextRequest,
+    reportIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      const result = await DeepDiveService.getDeepDiveCompaniesTable(reportId);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getCompaniesTable:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch deep dive companies" },
+        { status: 500 }
+      );
     }
   }
 

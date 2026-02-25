@@ -12,19 +12,35 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
-import { DeepDiveDetailResponse } from "../../hooks/api/useDeepDiveService";
+import {
+  DeepDiveStatus,
+  useGetDeepDiveMetric,
+} from "../../hooks/api/useDeepDiveService";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
 
 export default function SummaryCards({
-  data,
+  reportId,
+  settingsName,
 }: {
-  data: DeepDiveDetailResponse["data"];
+  reportId: number;
+  settingsName: string | null;
 }) {
-  const { summary, report } = data;
   const router = useRouter();
+  const companiesCount = useGetDeepDiveMetric<number>(reportId, "companies-count");
+  const orchestratorStatus = useGetDeepDiveMetric<DeepDiveStatus>(
+    reportId,
+    "orchestrator-status"
+  );
+  const totalSources = useGetDeepDiveMetric<number>(reportId, "total-sources");
+  const usedSources = useGetDeepDiveMetric<number>(reportId, "used-sources");
+  const scrapeCandidates = useGetDeepDiveMetric<number>(
+    reportId,
+    "total-scrape-candidates"
+  );
+  const totalQueries = useGetDeepDiveMetric<number>(reportId, "total-queries");
 
   return (
     <>
@@ -35,7 +51,11 @@ export default function SummaryCards({
               title={
                 <Text style={{ color: "#8c8c8c" }}>Companies Analyzed</Text>
               }
-              value={summary.companiesCount}
+              value={
+                companiesCount.isLoading
+                  ? "..."
+                  : (companiesCount.data?.data.value ?? "—")
+              }
               prefix={<TeamOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
             />
@@ -49,7 +69,7 @@ export default function SummaryCards({
               transition: "border-color 0.2s",
             }}
             hoverable
-            onClick={() => router.push(`/deep-dive/${report.id}/steps`)}
+            onClick={() => router.push(`/deep-dive/${reportId}/steps`)}
           >
             <Space direction="vertical" size={8} style={{ width: "100%" }}>
               <Space style={{ width: "100%", justifyContent: "start", gap: 4 }}>
@@ -60,7 +80,13 @@ export default function SummaryCards({
               </Space>
               <Space align="center" size="small">
                 <SyncOutlined style={{ color: "#58bfce" }} />
-                <DeepDiveStatusTag status={summary.orchestratorStatus} />
+                {orchestratorStatus.isLoading ? (
+                  <Text style={{ color: "#8c8c8c" }}>Loading...</Text>
+                ) : orchestratorStatus.data?.data.value ? (
+                  <DeepDiveStatusTag status={orchestratorStatus.data.data.value} />
+                ) : (
+                  <Text style={{ color: "#8c8c8c" }}>—</Text>
+                )}
               </Space>
             </Space>
           </Card>
@@ -73,7 +99,7 @@ export default function SummaryCards({
               transition: "border-color 0.2s",
             }}
             hoverable
-            onClick={() => router.push(`/deep-dive/${report.id}/settings`)}
+            onClick={() => router.push(`/deep-dive/${reportId}/settings`)}
           >
             <Space direction="vertical" size={8}>
               <Space style={{ width: "100%", justifyContent: "start", gap: 4 }}>
@@ -83,7 +109,7 @@ export default function SummaryCards({
               <Space align="center" size="small">
                 <SettingOutlined style={{ color: "#58bfce" }} />
                 <Text style={{ color: "#fff", fontWeight: 600 }}>
-                  {report.settings?.name ?? "—"}
+                  {settingsName ?? "—"}
                 </Text>
               </Space>
             </Space>
@@ -96,7 +122,9 @@ export default function SummaryCards({
           <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Total Sources</Text>}
-              value={summary.totalSources}
+              value={
+                totalSources.isLoading ? "..." : (totalSources.data?.data.value ?? "—")
+              }
               prefix={<FileSearchOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
             />
@@ -106,7 +134,7 @@ export default function SummaryCards({
           <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={<Text style={{ color: "#8c8c8c" }}>Used Sources</Text>}
-              value={summary.usedSources}
+              value={usedSources.isLoading ? "..." : (usedSources.data?.data.value ?? "—")}
               prefix={<FileDoneOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
             />
@@ -118,7 +146,11 @@ export default function SummaryCards({
               title={
                 <Text style={{ color: "#8c8c8c" }}>Scrape Candidates</Text>
               }
-              value={summary.totalScrapeCandidates}
+              value={
+                scrapeCandidates.isLoading
+                  ? "..."
+                  : (scrapeCandidates.data?.data.value ?? "—")
+              }
               prefix={<LinkOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
             />
@@ -133,7 +165,7 @@ export default function SummaryCards({
               transition: "border-color 0.2s",
             }}
             hoverable
-            onClick={() => router.push(`/deep-dive/${report.id}/query`)}
+            onClick={() => router.push(`/deep-dive/${reportId}/query`)}
           >
             <Statistic
               title={
@@ -144,7 +176,9 @@ export default function SummaryCards({
                   <RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
                 </Space>
               }
-              value={summary.totalQueries}
+              value={
+                totalQueries.isLoading ? "..." : (totalQueries.data?.data.value ?? "—")
+              }
               prefix={<SearchOutlined style={{ color: "#58bfce" }} />}
               valueStyle={{ color: "#fff" }}
             />

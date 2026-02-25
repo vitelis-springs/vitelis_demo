@@ -93,6 +93,58 @@ export interface DeepDiveDetailResponse {
   };
 }
 
+export interface DeepDiveOverviewResponse {
+  success: boolean;
+  data: {
+    report: {
+      id: number;
+      name?: string | null;
+      description?: string | null;
+      createdAt?: string | null;
+      updatedAt?: string | null;
+      status: DeepDiveStatus;
+      useCase?: { id: number; name: string } | null;
+      settings?: { id: number; name: string } | null;
+    };
+  };
+}
+
+export type DeepDiveMetricName =
+  | "companies-count"
+  | "orchestrator-status"
+  | "total-sources"
+  | "used-sources"
+  | "total-scrape-candidates"
+  | "total-queries";
+
+export interface DeepDiveMetricResponse<
+  TValue extends number | string = number | string,
+> {
+  success: boolean;
+  data: {
+    reportId: number;
+    metric: DeepDiveMetricName;
+    value: TValue;
+  };
+}
+
+export interface DeepDiveKpiChartResponse {
+  success: boolean;
+  data: {
+    reportId: number;
+    categories: string[];
+    kpiChart: KpiChartItem[];
+  };
+}
+
+export interface DeepDiveCompaniesResponse {
+  success: boolean;
+  data: {
+    reportId: number;
+    companies: DeepDiveCompanyRow[];
+  };
+}
+
 export interface KpiAverages {
   reportAverage: Record<string, number>;
   top5Average: Record<string, number>;
@@ -309,6 +361,29 @@ const deepDiveApi = {
     return response.data;
   },
 
+  async getOverview(id: number): Promise<DeepDiveOverviewResponse> {
+    const response = await api.get(`/deep-dive/${id}/overview`);
+    return response.data;
+  },
+
+  async getMetric<TValue extends number | string>(
+    id: number,
+    metric: DeepDiveMetricName
+  ): Promise<DeepDiveMetricResponse<TValue>> {
+    const response = await api.get(`/deep-dive/${id}/metric/${metric}`);
+    return response.data as DeepDiveMetricResponse<TValue>;
+  },
+
+  async getKpiChart(id: number): Promise<DeepDiveKpiChartResponse> {
+    const response = await api.get(`/deep-dive/${id}/kpi-chart`);
+    return response.data;
+  },
+
+  async getCompanies(id: number): Promise<DeepDiveCompaniesResponse> {
+    const response = await api.get(`/deep-dive/${id}/companies`);
+    return response.data;
+  },
+
   async getSettings(reportId: number): Promise<DeepDiveSettingsResponse> {
     const response = await api.get(`/deep-dive/${reportId}/settings`);
     return response.data;
@@ -386,6 +461,60 @@ export const useGetDeepDiveDetail = (id: number | null, options?: { enabled?: bo
   });
 };
 
+export const useGetDeepDiveOverview = (
+  id: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "overview", id],
+    queryFn: () => deepDiveApi.getOverview(id!),
+    enabled: options?.enabled !== undefined ? options.enabled : id !== null,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetDeepDiveMetric = <TValue extends number | string>(
+  reportId: number | null,
+  metric: DeepDiveMetricName,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "metric", reportId, metric],
+    queryFn: () => deepDiveApi.getMetric<TValue>(reportId!, metric),
+    enabled:
+      options?.enabled !== undefined ? options.enabled : reportId !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetDeepDiveKpiChart = (
+  id: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "kpi-chart", id],
+    queryFn: () => deepDiveApi.getKpiChart(id!),
+    enabled: options?.enabled !== undefined ? options.enabled : id !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetDeepDiveCompanies = (
+  id: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "companies", id],
+    queryFn: () => deepDiveApi.getCompanies(id!),
+    enabled: options?.enabled !== undefined ? options.enabled : id !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
 export const useGetDeepDiveSettings = (
   reportId: number | null,
   options?: { enabled?: boolean }
@@ -410,6 +539,9 @@ export const useUpdateDeepDiveSettings = (reportId: number) => {
       });
       void queryClient.invalidateQueries({
         queryKey: ["deep-dive", "detail", reportId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "overview", reportId],
       });
       void queryClient.invalidateQueries({
         queryKey: ["deep-dive", "list"],
