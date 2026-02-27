@@ -1,11 +1,8 @@
 "use client";
 
 import { FileTextOutlined, ReloadOutlined } from "@ant-design/icons";
-import {
-  downloadBlobAsFile,
-  fetchSellerBriefDocx,
-  type GeneratedCompanyReport,
-} from "@hooks/api/useGeneratedCompanyReportsService";
+import { downloadBlobAsFile, type GeneratedCompanyReport } from "@hooks/api/useGeneratedCompanyReportsService";
+import { api } from "../../lib/api-client";
 import { App, Button, Card, Layout, Space, Spin, Typography } from "antd";
 import mammoth from "mammoth";
 import { useCallback, useEffect, useState } from "react";
@@ -19,6 +16,25 @@ interface VitelisSalesReportResultProps {
   onReset: () => void;
 }
 
+function extractFilename(contentDisposition: string | null, fallback: string): string {
+  if (!contentDisposition) {
+    return fallback;
+  }
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return fallback;
+    }
+  }
+  const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  if (asciiMatch?.[1]) {
+    return asciiMatch[1];
+  }
+  return fallback;
+}
+
 export default function VitelisSalesReportResult({
   report,
   onReset,
@@ -30,11 +46,20 @@ export default function VitelisSalesReportResult({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  const fetchReportDocx = useCallback(async () => {
+    const response = await api.post("/generated-company-reports", { id: report.id }, { responseType: "blob" });
+    const blob = response.data as Blob;
+    const fallbackName = `seller-brief-${report.id}.docx`;
+    const disposition = response.headers["content-disposition"] as string | undefined ?? null;
+    const filename = extractFilename(disposition, fallbackName);
+    return { blob, filename };
+  }, [report.id]);
+
   const loadDocx = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const { blob, filename } = await fetchSellerBriefDocx(report.id);
+      const { blob, filename } = await fetchReportDocx();
       setDocxBlob({ blob, filename });
       const arrayBuffer = await blob.arrayBuffer();
       const { value } = await mammoth.convertToHtml({ arrayBuffer });
@@ -48,7 +73,7 @@ export default function VitelisSalesReportResult({
     } finally {
       setIsLoading(false);
     }
-  }, [report.id, notification]);
+  }, [fetchReportDocx, notification]);
 
   useEffect(() => {
     loadDocx();
@@ -65,7 +90,7 @@ export default function VitelisSalesReportResult({
     }
     setIsDownloading(true);
     try {
-      const { blob, filename } = await fetchSellerBriefDocx(report.id);
+      const { blob, filename } = await fetchReportDocx();
       setDocxBlob({ blob, filename });
       downloadBlobAsFile(blob, filename);
       notification.success({

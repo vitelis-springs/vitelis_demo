@@ -5,6 +5,7 @@ import { useGetGeneratedCompanyReport } from "@hooks/api/useGeneratedCompanyRepo
 import { useVitelisSalesWorkflow } from "@hooks/api/useN8NService";
 import { useGetVitelisSalesAnalyze, useVitelisSalesAnalyzeService } from "@hooks/api/useVitelisSalesAnalyzeService";
 import { App, Button, Card, Form, Input, InputNumber, Layout, Spin, Typography } from "antd";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "../ui/sidebar";
 import VitelisSalesAnimation from "./VitelisSalesAnimation";
@@ -26,6 +27,7 @@ interface VitelisSalesQuizProps {
 
 export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) {
   const { notification } = App.useApp();
+  const searchParams = useSearchParams();
   const [form] = Form.useForm<VitelisSalesQuizData>();
   const [analyzeId, setAnalyzeId] = useState<string | null>(null);
   const [executionId, setExecutionId] = useState<string>("");
@@ -61,6 +63,13 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
         refetchInterval: 5000,
       }
     );
+
+  useEffect(() => {
+    const urlAnalyzeId = searchParams.get("analyzeId");
+    if (urlAnalyzeId) {
+      setAnalyzeId(urlAnalyzeId);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!analyzeData) {

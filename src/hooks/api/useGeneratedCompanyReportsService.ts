@@ -27,29 +27,7 @@ const generatedCompanyReportsApi = {
     return response.data;
   },
 
-  async fetchSellerBriefDocx(id: number): Promise<{ blob: Blob; filename: string }> {
-    const response = await api.post(
-      "/generated-company-reports",
-      { id },
-      { responseType: "blob" }
-    );
-
-    const contentDisposition = response.headers["content-disposition"] as string | undefined;
-    const utf8Match = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i);
-    const asciiMatch = contentDisposition?.match(/filename="?([^";]+)"?/i);
-    const filename = utf8Match?.[1]
-      ? decodeURIComponent(utf8Match[1])
-      : asciiMatch?.[1] || `seller-brief-${id}.docx`;
-
-    return {
-      blob: response.data as Blob,
-      filename,
-    };
-  },
 };
-
-export const fetchSellerBriefDocx = (id: number) =>
-  generatedCompanyReportsApi.fetchSellerBriefDocx(id);
 
 export const downloadBlobAsFile = (blob: Blob, filename: string): void => {
   const objectUrl = window.URL.createObjectURL(blob);

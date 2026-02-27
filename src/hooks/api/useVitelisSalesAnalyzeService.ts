@@ -35,6 +35,22 @@ const vitelisSalesAnalyzeApi = {
     return response.data;
   },
 
+  async getByUser(
+    userId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{
+    data: IVitelisSalesAnalyze[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const response = await api.get(
+      `/vitelis-sales-analyze?userId=${userId}&page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
   async getAll(
     page: number = 1,
     limit: number = 10
@@ -112,6 +128,18 @@ export const useGetVitelisSalesAnalyze = (
     queryFn: () => vitelisSalesAnalyzeApi.getById(id!),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
     refetchInterval: options?.refetchInterval,
+  });
+};
+
+export const useGetVitelisSalesAnalyzesByUser = (
+  userId: string | null,
+  page: number = 1,
+  limit: number = 10
+) => {
+  return useQuery({
+    queryKey: ["vitelis-sales-analyzes", userId, page, limit],
+    queryFn: () => vitelisSalesAnalyzeApi.getByUser(userId!, page, limit),
+    enabled: !!userId,
   });
 };
 

@@ -10,7 +10,6 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.AWS_S3_BUCKET!;
-
 export interface UploadResult {
   url: string;
   key: string;
@@ -39,7 +38,7 @@ export class AWSS3Service {
   ): Promise<UploadResult> {
     try {
       const key = this.generateKey(originalName, folder);
-      
+
       const uploadParams = {
         Bucket: BUCKET_NAME,
         Key: key,
@@ -52,9 +51,9 @@ export class AWSS3Service {
       await s3Client.send(command);
 
       const url = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
-      
+
       console.log('✅ S3: File uploaded successfully:', { key, url });
-      
+
       return {
         url,
         key,
@@ -77,7 +76,7 @@ export class AWSS3Service {
       });
 
       await s3Client.send(command);
-      
+
       console.log('✅ S3: File deleted successfully:', { key });
     } catch (error) {
       console.error('❌ S3: Error deleting file:', error);
@@ -89,10 +88,10 @@ export class AWSS3Service {
    * Check if S3 is properly configured
    */
   static isConfigured(): boolean {
-    return !!(process.env.AWS_ACCESS_KEY_ID && 
-              process.env.AWS_SECRET_ACCESS_KEY && 
-              process.env.AWS_S3_BUCKET && 
-              process.env.AWS_REGION);
+    return !!(process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY &&
+      process.env.AWS_S3_BUCKET &&
+      process.env.AWS_REGION);
   }
 }
 

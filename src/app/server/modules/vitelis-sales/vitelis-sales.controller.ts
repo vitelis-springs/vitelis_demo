@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractAdminFromRequest } from "../../../../lib/auth";
+import { extractAdminFromRequest, extractAuthFromRequest } from "../../../../lib/auth";
 import { VitelisSalesService } from "./vitelis-sales.service";
 
 export class VitelisSalesController {
   static async get(request: NextRequest): Promise<NextResponse> {
     try {
-      const auth = extractAdminFromRequest(request);
+      const auth = extractAuthFromRequest(request);
       if (!auth.success) return auth.response;
 
       const { searchParams } = new URL(request.url);
@@ -23,6 +23,10 @@ export class VitelisSalesController {
             { status: 404 }
           );
         }
+        const isOwn = String(analyze.user) === String(auth.user.userId);
+        if (!isOwn && auth.user.role !== "admin") {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
         return NextResponse.json(analyze);
       }
 
@@ -35,11 +39,26 @@ export class VitelisSalesController {
             { status: 404 }
           );
         }
+        const isOwn = String(analyze.user) === String(auth.user.userId);
+        if (!isOwn && auth.user.role !== "admin") {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
         return NextResponse.json(analyze);
       }
 
+      const effectiveUserId = userId ?? (auth.user.role === "admin" ? "all" : auth.user.userId);
+      if (effectiveUserId !== "all") {
+        const isAuthorized =
+          effectiveUserId === auth.user.userId || auth.user.role === "admin";
+        if (!isAuthorized) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+      } else if (auth.user.role !== "admin") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const result = await VitelisSalesService.getVitelisSalesAnalyzesByUser(
-        userId || "all",
+        effectiveUserId,
         page,
         limit
       );
