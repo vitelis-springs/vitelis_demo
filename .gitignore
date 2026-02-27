@@ -45,10 +45,14 @@ npm-debug.log*
 # yarn release (avoid secret scanner false positives)
 .yarn/releases/*
 
+# Migration backups
+scripts/migrate-s3-backup.json
+
 # AI agent files
 CLAUDE.md
 .cursorrules
 .cursor/
+.claude/
 .github/copilot-instructions.md
 AGENTS.md
 /src/generated/prisma

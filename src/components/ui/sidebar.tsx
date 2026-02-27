@@ -19,6 +19,7 @@ import {
   AppstoreOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 const { Sider } = Layout;
@@ -28,6 +29,26 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const logo = user?.logo;
+    if (!logo) { setLogoUrl(null); return; }
+
+    // Если полный URL — используем напрямую, если S3-ключ — получаем presigned URL
+    if (logo.startsWith('http')) {
+      setLogoUrl(logo);
+    } else {
+      fetch('/api/s3/presigned-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: logo }),
+      })
+        .then(res => res.json())
+        .then(data => setLogoUrl(data.presignedUrl ?? null))
+        .catch(() => setLogoUrl(null));
+    }
+  }, [user?.logo]);
 
   const handleLogout = () => {
     logout();
@@ -101,13 +122,12 @@ export default function Sidebar() {
         {/* Logo */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <Image
-            src={user?.logo || "/logo.png"}
-            alt={user?.logo ? `${user.companyName || 'Company'} Logo` : "Vitelis Logo"}
+            src={logoUrl || "/logo.png"}
+            alt={logoUrl ? `${user?.companyName || 'Company'} Logo` : "Vitelis Logo"}
             width={120}
             height={40}
             style={{ objectFit: 'contain' }}
             onError={(e) => {
-              // Fallback to Vitelis logo if user logo fails to load
               const target = e.target as HTMLImageElement;
               target.src = "/logo.png";
             }}
