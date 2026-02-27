@@ -27,6 +27,12 @@ const nextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "b1.eu-central-1.storage.railway.app",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
   webpack: (config, { isServer }) => {
