@@ -8,7 +8,8 @@ import {
   FileTextOutlined,
   LoadingOutlined,
   RobotOutlined,
-  StopOutlined
+  StopOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
   message as antMessage,
@@ -30,6 +31,7 @@ import { useAnalyzeService, useGetAllAnalyzes, useGetAnalyzesByUser } from '../.
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
 import SalesMinerAnalysisHistory from './salesminer-analysis-history';
+import VitelisSalesAnalysisHistory from './vitelis-sales-analysis-history';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -396,6 +398,16 @@ export default function AnalysisHistory() {
         </span>
       ),
       children: <SalesMinerAnalysisHistory />,
+    },
+    {
+      key: 'vitelis-sales',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ThunderboltOutlined />
+          VitelisSales Analysis
+        </span>
+      ),
+      children: <VitelisSalesAnalysisHistory />,
     },
   ];
 
