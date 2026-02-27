@@ -2,7 +2,7 @@
 
 import { Button, Card, Layout, Space, Typography, message, Spin } from "antd";
 import { DownloadOutlined, LinkOutlined, ReloadOutlined, CheckCircleOutlined } from "@ant-design/icons";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Sidebar from "../ui/sidebar";
 
 const { Title, Text } = Typography;
@@ -32,10 +32,29 @@ export default function SalesMinerYamlViewer({
 	const [yamlContent, setYamlContent] = useState<string>("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+
+	// Резолвим S3-ключ в presigned URL (или используем URL напрямую)
+	useEffect(() => {
+		if (!yamlFileUrl) { setResolvedUrl(null); return; }
+
+		if (yamlFileUrl.startsWith('http')) {
+			setResolvedUrl(yamlFileUrl);
+		} else {
+			fetch('/api/s3/presigned-url', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ key: yamlFileUrl }),
+			})
+				.then(res => res.json())
+				.then(data => setResolvedUrl(data.presignedUrl ?? null))
+				.catch(() => setResolvedUrl(null));
+		}
+	}, [yamlFileUrl]);
 
 	// Fetch YAML content from URL using proxy
-	const fetchYamlContent = async () => {
-		if (!yamlFileUrl) {
+	const fetchYamlContent = useCallback(async () => {
+		if (!resolvedUrl) {
 			setError("No YAML file URL provided");
 			return;
 		}
@@ -45,7 +64,7 @@ export default function SalesMinerYamlViewer({
 
 		try {
 			// Use proxy route to avoid CORS issues
-			const proxyUrl = `/api/yaml-proxy?url=${encodeURIComponent(yamlFileUrl)}`;
+			const proxyUrl = `/api/yaml-proxy?url=${encodeURIComponent(resolvedUrl)}`;
 			const response = await fetch(proxyUrl);
 			
 			if (!response.ok) {
@@ -61,21 +80,21 @@ export default function SalesMinerYamlViewer({
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [resolvedUrl]);
 
-	// Load YAML content on component mount
+	// Загружаем контент когда resolvedUrl готов
 	useEffect(() => {
-		if (yamlFileUrl) {
+		if (resolvedUrl) {
 			fetchYamlContent();
 		}
-	}, [yamlFileUrl]);
+	}, [resolvedUrl, fetchYamlContent]);
 
 	// Download YAML file
 	const handleDownload = () => {
-		if (!yamlFileUrl) return;
-		
+		if (!resolvedUrl) return;
+
 		const link = document.createElement('a');
-		link.href = yamlFileUrl;
+		link.href = resolvedUrl;
 		link.download = 'salesminer-config.yaml';
 		document.body.appendChild(link);
 		link.click();
@@ -85,8 +104,8 @@ export default function SalesMinerYamlViewer({
 
 	// Open YAML file in new tab
 	const handleOpenInNewTab = () => {
-		if (!yamlFileUrl) return;
-		window.open(yamlFileUrl, '_blank');
+		if (!resolvedUrl) return;
+		window.open(resolvedUrl, '_blank');
 	};
 
 	// Format YAML content for display
@@ -250,7 +269,7 @@ export default function SalesMinerYamlViewer({
 							</Card>
 
 							{/* YAML File Info */}
-							{yamlFileUrl && (
+							{resolvedUrl && (
 								<Card
 									style={{
 										background: "#262626",
@@ -266,7 +285,7 @@ export default function SalesMinerYamlViewer({
 												YAML File Information
 											</Title>
 											<Text style={{ color: "#8c8c8c", fontSize: "12px" }}>
-												File URL: {yamlFileUrl}
+												File key: {yamlFileUrl}
 											</Text>
 										</div>
 										<Space>
