@@ -1,15 +1,19 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-// AWS S3 Configuration
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
+  ...(process.env.S3_ENDPOINT_URL ? { endpoint: process.env.S3_ENDPOINT_URL, forcePathStyle: true } : {}),
 });
 
 const BUCKET_NAME = process.env.AWS_S3_BUCKET!;
+
+const PRESIGNED_TTL = parseInt(process.env.S3_PRESIGNED_TTL || '3600', 10);
+
 export interface UploadResult {
   url: string;
   key: string;
@@ -17,9 +21,6 @@ export interface UploadResult {
 }
 
 export class AWSS3Service {
-  /**
-   * Generate a unique key for the uploaded file
-   */
   private static generateKey(originalName: string, folder: string = 'uploads'): string {
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
@@ -27,71 +28,55 @@ export class AWSS3Service {
     return `${folder}/${timestamp}-${randomString}.${extension}`;
   }
 
-  /**
-   * Upload a file buffer to S3
-   */
+  private static buildUrl(key: string): string {
+    if (process.env.S3_ENDPOINT_URL) {
+      return `${process.env.S3_ENDPOINT_URL}/${BUCKET_NAME}/${key}`;
+    }
+    return `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+  }
+
   static async uploadFile(
     fileBuffer: Buffer,
     originalName: string,
     contentType: string,
     folder: string = 'uploads'
   ): Promise<UploadResult> {
-    try {
-      const key = this.generateKey(originalName, folder);
+    const key = this.generateKey(originalName, folder);
 
-      const uploadParams = {
-        Bucket: BUCKET_NAME,
-        Key: key,
-        Body: fileBuffer,
-        ContentType: contentType,
-        CacheControl: 'max-age=31536000', // Cache for 1 year
-      };
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: contentType,
+      CacheControl: 'max-age=31536000',
+    });
 
-      const command = new PutObjectCommand(uploadParams);
-      await s3Client.send(command);
+    await s3Client.send(command);
 
-      const url = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const url = this.buildUrl(key);
+    console.log('✅ S3: File uploaded successfully:', { key, url });
 
-      console.log('✅ S3: File uploaded successfully:', { key, url });
-
-      return {
-        url,
-        key,
-        bucket: BUCKET_NAME,
-      };
-    } catch (error) {
-      console.error('❌ S3: Error uploading file:', error);
-      throw new Error('Failed to upload file to S3');
-    }
+    return { url, key, bucket: BUCKET_NAME };
   }
 
-  /**
-   * Delete a file from S3
-   */
   static async deleteFile(key: string): Promise<void> {
-    try {
-      const command = new DeleteObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-      });
-
-      await s3Client.send(command);
-
-      console.log('✅ S3: File deleted successfully:', { key });
-    } catch (error) {
-      console.error('❌ S3: Error deleting file:', error);
-      throw new Error('Failed to delete file from S3');
-    }
+    const command = new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: key });
+    await s3Client.send(command);
+    console.log('✅ S3: File deleted successfully:', { key });
   }
 
-  /**
-   * Check if S3 is properly configured
-   */
+  static async getPresignedUrl(key: string, expiresIn: number = PRESIGNED_TTL): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key });
+    return getSignedUrl(s3Client, command, { expiresIn });
+  }
+
   static isConfigured(): boolean {
-    return !!(process.env.AWS_ACCESS_KEY_ID &&
+    return !!(
+      process.env.AWS_ACCESS_KEY_ID &&
       process.env.AWS_SECRET_ACCESS_KEY &&
       process.env.AWS_S3_BUCKET &&
-      process.env.AWS_REGION);
+      process.env.AWS_REGION
+    );
   }
 }
 

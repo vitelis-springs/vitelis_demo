@@ -1,16 +1,8 @@
 import type { generated_company_reports } from "../../../../generated/prisma";
 import { GeneratedCompanyReportsRepository } from "./generated-company-reports.repository";
+import { AWSS3Service } from "../../../../lib/aws-s3";
 
 export class GeneratedCompanyReportsService {
-  private static readonly PRESIGNED_URL_ENDPOINT = "/generate-presigned-url";
-
-  private static getExcelMergerBaseUrl(): string {
-    const base = process.env.VITELIS_EXCEL_MERGER_URL;
-    if (!base) {
-      throw new Error("VITELIS_EXCEL_MERGER_URL is not configured");
-    }
-    return base.replace(/\/$/, "");
-  }
 
   static async getById(id: number): Promise<generated_company_reports | null> {
     return GeneratedCompanyReportsRepository.findById(id);
@@ -98,47 +90,35 @@ export class GeneratedCompanyReportsService {
     key?: string;
     bucket?: string;
   }): Promise<string> {
-    const base = this.getExcelMergerBaseUrl();
-    const url = `${base}${this.PRESIGNED_URL_ENDPOINT}`;
+    const key = this.resolveS3Key(docxFile);
+    return AWSS3Service.getPresignedUrl(key);
+  }
 
-    const body: Record<string, unknown> = {
-      object_key: docxFile.key ?? docxFile.url,
-      expiration: 3600,
-    };
-    if (docxFile.bucket) {
-      body.bucket = docxFile.bucket;
+  private static resolveS3Key(docxFile: { url: string; key?: string }): string {
+    if (docxFile.key) {
+      return docxFile.key;
     }
 
-    console.log("[generate-presigned-url] request:", { url, body });
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[generate-presigned-url] failed:", response.status, errorText);
-      throw new Error(
-        `Presigned URL request failed (${response.status}): ${errorText || "No details"}`
-      );
+    const rawUrl = docxFile.url;
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      throw new Error(`Invalid DOCX file url: ${rawUrl}`);
     }
 
-    const json = (await response.json()) as { presigned_url?: string; expires_in?: number; key?: string; bucket?: string };
-    console.log("[generate-presigned-url] response:", {
-      presigned_url: json.presigned_url ? `${json.presigned_url.slice(0, 80)}...` : undefined,
-      presigned_url_full: json.presigned_url,
-      expires_in: json.expires_in,
-      key: json.key,
-      bucket: json.bucket,
-    });
-
-    if (!json.presigned_url) {
-      throw new Error("Presigned URL response missing presigned_url");
+    const bucket = process.env.AWS_S3_BUCKET;
+    if (!bucket) {
+      throw new Error("AWS_S3_BUCKET is not configured");
     }
 
-    return json.presigned_url;
+    const path = parsed.pathname.replace(/^\/+/, "");
+
+    if (path.startsWith(`${bucket}/`)) {
+      return path.slice(bucket.length + 1);
+    }
+
+    return path;
   }
 
   private static async fetchFileFromUrl(url: string): Promise<Buffer> {
