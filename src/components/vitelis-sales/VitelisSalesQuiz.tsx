@@ -4,9 +4,10 @@ import { SendOutlined } from "@ant-design/icons";
 import { useGetGeneratedCompanyReport } from "@hooks/api/useGeneratedCompanyReportsService";
 import { useVitelisSalesWorkflow } from "@hooks/api/useN8NService";
 import { useGetVitelisSalesAnalyze, useVitelisSalesAnalyzeService } from "@hooks/api/useVitelisSalesAnalyzeService";
-import { App, Button, Card, Form, Input, InputNumber, Layout, Spin, Typography } from "antd";
+import { useGetIndustries, useIndustriesService } from "@hooks/api/useIndustriesService";
+import { App, Button, Card, Form, Input, Layout, Modal, Select, Spin, Typography } from "antd";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../ui/sidebar";
 import VitelisSalesAnimation from "./VitelisSalesAnimation";
 import VitelisSalesReportResult from "./VitelisSalesReportResult";
@@ -17,7 +18,6 @@ const { Content } = Layout;
 interface VitelisSalesQuizData {
   companyName: string;
   url: string;
-  useCase?: string;
   industry_id: number;
 }
 
@@ -33,6 +33,8 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
   const [executionId, setExecutionId] = useState<string>("");
   const [quizData, setQuizData] = useState<VitelisSalesQuizData | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [isIndustryModalOpen, setIsIndustryModalOpen] = useState(false);
+  const [newIndustryName, setNewIndustryName] = useState("");
 
   const { mutateAsync: runWorkflow, isPending: isWorkflowPending } =
     useVitelisSalesWorkflow();
@@ -40,6 +42,17 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
     createVitelisSalesAnalyze,
     updateVitelisSalesAnalyze,
   } = useVitelisSalesAnalyzeService();
+  const { data: industries } = useGetIndustries();
+  const { createIndustry } = useIndustriesService();
+
+  const industryOptions = useMemo(
+    () =>
+      (industries ?? []).map((ind) => ({
+        label: ind.name,
+        value: ind.id,
+      })),
+    [industries]
+  );
 
   const { data: analyzeData, isLoading: isLoadingAnalyze } = useGetVitelisSalesAnalyze(
     analyzeId || undefined,
@@ -94,7 +107,6 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
       const created = await createVitelisSalesAnalyze.mutateAsync({
         companyName: values.companyName,
         url: values.url,
-        useCase: values.useCase || "",
         industry_id: Number(values.industry_id),
         status: "progress",
         currentStep: 1,
@@ -107,7 +119,6 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
         data: {
           companyName: values.companyName,
           url: values.url,
-          useCase: values.useCase || "",
           industry_id: Number(values.industry_id),
         },
       });
@@ -277,7 +288,7 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
               form={form}
               layout="vertical"
               onFinish={onFinish}
-              initialValues={{ useCase: "", industry_id: 24 }}
+              initialValues={{}}
             >
               <Form.Item
                 name="companyName"
@@ -309,25 +320,49 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
               </Form.Item>
 
               <Form.Item
-                name="useCase"
-                label={<Text style={{ color: "#d9d9d9" }}>Use Case</Text>}
-              >
-                <Input placeholder="Optional" size="large" />
-              </Form.Item>
-
-              <Form.Item
                 name="industry_id"
-                label={<Text style={{ color: "#d9d9d9" }}>Industry ID</Text>}
+                label={<Text style={{ color: "#d9d9d9" }}>Industry</Text>}
                 rules={[
-                  { required: true, message: "Industry ID is required" },
-                  { type: "number", min: 1, message: "Industry ID must be positive" },
+                  { required: true, message: "Industry is required" },
                 ]}
               >
-                <InputNumber
-                  min={1}
-                  style={{ width: "100%" }}
+                <Select
+                  showSearch
+                  placeholder="Select industry"
                   size="large"
-                  placeholder="e.g., 24"
+                  options={industryOptions}
+                  optionFilterProp="label"
+                  dropdownRender={(menu) => (
+                    <div>
+                      {menu}
+                      <div
+                        style={{
+                          borderTop: "1px solid #303030",
+                          padding: "8px 12px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <Text style={{ color: "#8c8c8c", fontSize: 12 }}>
+                          Need a new industry?
+                        </Text>
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsIndustryModalOpen(true);
+                          }}
+                          style={{ padding: 0 }}
+                        >
+                          Add industry
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 />
               </Form.Item>
 
@@ -345,6 +380,51 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
                 Run VitelisSales Workflow
               </Button>
             </Form>
+
+            <Modal
+              title="Add Industry"
+              open={isIndustryModalOpen}
+              onCancel={() => {
+                setIsIndustryModalOpen(false);
+                setNewIndustryName("");
+              }}
+              onOk={async () => {
+                const name = newIndustryName.trim();
+                if (!name) {
+                  notification.error({
+                    message: "Industry name is required",
+                  });
+                  return;
+                }
+                try {
+                  const created = await createIndustry.mutateAsync(name);
+                  form.setFieldValue("industry_id", created.id);
+                  setIsIndustryModalOpen(false);
+                  setNewIndustryName("");
+                  notification.success({
+                    message: "Industry saved",
+                    description: created.name,
+                  });
+                } catch (error) {
+                  notification.error({
+                    message: "Failed to save industry",
+                    description:
+                      error instanceof Error ? error.message : "Unexpected error",
+                  });
+                }
+              }}
+              okText="Save"
+            >
+              <Form layout="vertical">
+                <Form.Item label="Industry name" required>
+                  <Input
+                    value={newIndustryName}
+                    onChange={(e) => setNewIndustryName(e.target.value)}
+                    placeholder="e.g., Heavy Machinery"
+                  />
+                </Form.Item>
+              </Form>
+            </Modal>
           </Card>
         </Content>
       </Layout>
