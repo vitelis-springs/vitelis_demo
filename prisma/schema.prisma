@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider   = "prisma-client-js"
+  output     = "../src/generated/prisma"
   engineType = "client"
 }
 
@@ -101,6 +101,7 @@ model companies {
   alixpartner_reports                      alixpartner_reports[]
   bizminer_reports                         bizminer_reports[]
   industries                               industries?                                @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company_data_points                      company_data_points[]
   company_public_reports                   company_public_reports[]
   generated_company_reports                generated_company_reports[]
   job_analys_companies                     job_analys_companies[]
@@ -110,7 +111,9 @@ model companies {
   report_data_point_results                report_data_point_results[]
   report_results                           report_results[]
   report_step_statuses                     report_step_statuses[]
+  report_url_candidates                    report_url_candidates[]
   scape_url_candidates                     scape_url_candidates[]
+  source_metadata                          source_metadata[]
   sources                                  sources[]
   sources_indexed                          sources_indexed[]
   temp_resolved_data_points_result         temp_resolved_data_points_result[]
@@ -151,6 +154,7 @@ model data_collection_queries {
   data_collection_query_data_point         data_collection_query_data_point[]
   report_data_collection_queries           report_data_collection_queries[]
   report_data_collection_query_completions report_data_collection_query_completions[]
+  report_url_candidates                    report_url_candidates[]
 }
 
 model data_collection_query_data_point {
@@ -173,6 +177,7 @@ model data_points {
   updates_at                       DateTime?                          @default(now()) @db.Timestamp(6)
   include_to_report                Boolean?                           @default(true)
   industry_id                      Int?
+  company_data_points              company_data_points[]
   data_collection_query_data_point data_collection_query_data_point[]
   report_data_point_results        report_data_point_results[]
   report_data_points               report_data_points[]
@@ -212,15 +217,18 @@ model execution_state {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model generated_company_reports {
-  id         Int        @id @default(autoincrement())
-  company_id Int?
-  report_id  Int?
-  data       Json?
-  created_at DateTime?  @default(now()) @db.Timestamp(6)
-  updated_at DateTime?  @default(now()) @db.Timestamp(6)
-  files      Json?
-  companies  companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reports    reports?   @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id          Int        @id @default(autoincrement())
+  company_id  Int?
+  report_id   Int?
+  data        Json?
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime?  @default(now()) @db.Timestamp(6)
+  files       Json?
+  report_type String?
+  companies   companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports     reports?   @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([report_type])
 }
 
 model industries {
@@ -413,19 +421,20 @@ model report_data_collection_query_completions {
 }
 
 model report_data_point_results {
-  id            Int          @id @default(autoincrement())
-  company_id    Int?
-  report_id     Int?
-  data_point_id String?      @db.VarChar
-  value         String?      @db.VarChar
-  manualValue   String?      @db.VarChar
-  data          Json?        @db.Json
-  status        Boolean?
-  created_at    DateTime?    @default(now()) @db.Timestamp(6)
-  updates_at    DateTime?    @default(now()) @db.Timestamp(6)
-  companies     companies?   @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  data_points   data_points? @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reports       reports?     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                            Int                             @id @default(autoincrement())
+  company_id                    Int?
+  report_id                     Int?
+  data_point_id                 String?                         @db.VarChar
+  value                         String?                         @db.VarChar
+  manualValue                   String?                         @db.VarChar
+  data                          Json?                           @db.Json
+  status                        Boolean?
+  created_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  updates_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  companies                     companies?                      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data_points                   data_points?                    @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports                       reports?                        @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_data_point_validations report_data_point_validations[]
 
   @@unique([company_id, report_id, data_point_id], map: "report_data_point_results_unique_combination")
 }
@@ -517,6 +526,7 @@ model reports {
   created_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
   updates_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
   report_settings_id                       Int?
+  source_validation_settings_id            Int?
   generated_company_reports                generated_company_reports[]
   report_companies                         report_companies[]
   report_data_collection_queries           report_data_collection_queries[]
@@ -527,9 +537,13 @@ model reports {
   report_results                           report_results[]
   report_step_statuses                     report_step_statuses[]
   report_steps                             report_steps[]
+  report_url_candidates                    report_url_candidates[]
   report_settings                          report_settings?                           @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source_validation_settings               source_validation_settings?                @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   use_cases                                use_cases?                                 @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   temp_resolved_data_points_result         temp_resolved_data_points_result[]
+
+  @@index([source_validation_settings_id], map: "idx_reports_source_validation_settings_id")
 }
 
 model scape_url_candidates {
@@ -545,6 +559,11 @@ model scape_url_candidates {
   companies   companies @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "scape_candidates_company_id_fkey")
 
   @@unique([company_id, url], map: "scape_candidates_unique_company_url")
+  @@index([company_id, created_at(sort: Desc)], map: "idx_scape_candidates_company_created_at_desc")
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "idx_scape_candidates_description_trgm", type: Gin)
+  @@index([metadata(ops: JsonbPathOps)], map: "idx_scape_candidates_metadata_gin", type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], map: "idx_scape_candidates_title_trgm", type: Gin)
+  @@index([url(ops: raw("gin_trgm_ops"))], map: "idx_scape_candidates_url_trgm", type: Gin)
 }
 
 model score_result {
@@ -556,6 +575,7 @@ model score_result {
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model sources {
   id                     Int                     @id @default(autoincrement())
   url                    String
@@ -580,6 +600,10 @@ model sources {
 
   @@unique([url, company_id])
   @@index([company_id], map: "idx_sources_company_id")
+  @@index([company_id, created_at(sort: Desc)], map: "idx_sources_company_created_at_desc")
+  @@index([metadata(ops: JsonbPathOps)], map: "idx_sources_metadata_gin", type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], map: "idx_sources_title_trgm", type: Gin)
+  @@index([url(ops: raw("gin_trgm_ops"))], map: "idx_sources_url_trgm", type: Gin)
 }
 
 model sources_indexed {
@@ -656,6 +680,7 @@ model use_cases {
   created_at          DateTime?             @default(now()) @db.Timestamp(6)
   updated_at          DateTime?             @default(now()) @db.Timestamp(6)
   settings            Json?
+  description         String?
   alixpartner_reports alixpartner_reports[]
   reports             reports[]
   vitelis_products    vitelis_products?     @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -720,6 +745,100 @@ model ompany_data_collection_state {
   @@map("сompany_data_collection_state")
 }
 
+model company_data_points {
+  company_id    Int
+  data_point_id String      @db.VarChar
+  created_at    DateTime    @default(now()) @db.Timestamp(6)
+  companies     companies   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  data_points   data_points @relation(fields: [data_point_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([company_id, data_point_id])
+}
+
+model report_data_point_validations {
+  id                          Int                       @id @default(autoincrement())
+  status                      validation_status
+  reasoning                   String?
+  created_at                  DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime?                 @default(now()) @db.Timestamp(6)
+  validation_rule_id          Int
+  report_data_point_result_id Int
+  check_status                Boolean                   @default(true)
+  report_data_point_results   report_data_point_results @relation(fields: [report_data_point_result_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_data_point_validations_result_fkey")
+  validation_rules            validation_rules          @relation(fields: [validation_rule_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_data_point_validations_rule_fkey")
+
+  @@unique([validation_rule_id, report_data_point_result_id], map: "report_data_point_validations_unique_rule_result")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model report_url_candidates {
+  id                      BigInt                   @id @default(autoincrement())
+  company_id              Int
+  report_id               Int
+  url                     String
+  agent                   String?                  @db.VarChar(50)
+  query_id                BigInt?
+  publish_date            String?                  @db.VarChar(50)
+  type                    String?                  @db.VarChar(255)
+  year                    String?                  @db.VarChar(50)
+  proccesed               Boolean                  @default(false)
+  companies               companies                @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data_collection_queries data_collection_queries? @relation(fields: [query_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports                 reports                  @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([report_id, company_id], map: "ix_report_url_candidates_report_company")
+}
+
+model source_metadata {
+  id                            Int                        @id @default(autoincrement())
+  source_id                     BigInt
+  company_id                    Int
+  source_validation_settings_id Int
+  tier                          Int?
+  metadata                      Json?
+  companies                     companies                  @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sources_new                   sources_new                @relation(fields: [source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source_validation_settings    source_validation_settings @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([company_id, source_validation_settings_id, source_id], map: "source_metadata_company_settings_source_uniq")
+  @@index([company_id], map: "idx_source_metadata_company_id")
+  @@index([source_id], map: "idx_source_metadata_source_id")
+  @@index([source_validation_settings_id], map: "idx_source_metadata_sv_settings_id")
+}
+
+model source_validation_settings {
+  id              Int               @id @default(autoincrement())
+  name            String            @db.VarChar
+  settings        Json
+  reports         reports[]
+  source_metadata source_metadata[]
+}
+
+model sources_new {
+  id              BigInt            @id @default(autoincrement())
+  url             String            @unique
+  content         String
+  title           String?
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  scrapped_at     DateTime?         @db.Timestamp(6)
+  isVectorized    Boolean           @default(false)
+  source_metadata source_metadata[]
+}
+
+model validation_rules {
+  id                            Int                             @id @default(autoincrement())
+  name                          String                          @unique @db.VarChar(255)
+  level                         validation_rule_level
+  enabled                       Boolean                         @default(true)
+  description                   String?
+  criteria                      Json
+  created_at                    DateTime                        @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime                        @default(now()) @db.Timestamp(6)
+  label                         String?                         @db.VarChar(255)
+  report_data_point_validations report_data_point_validations[]
+}
+
 enum report_generation_step_dependency_enum {
   rdp
   kpi
@@ -732,4 +851,15 @@ enum report_status_enum {
   PROCESSING
   DONE
   ERROR
+}
+
+enum validation_rule_level {
+  driver
+  category
+}
+
+enum validation_status {
+  pass
+  failed
+  warn
 }

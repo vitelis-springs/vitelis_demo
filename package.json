@@ -15,9 +15,24 @@
     "dev": "next dev",
     "build": "prisma generate && next build --no-lint",
     "postinstall": "prisma generate",
+    "prisma:pull": "prisma db pull",
+    "prisma:generate": "prisma generate",
     "start": "next start",
+    "lint": "eslint --cache --max-warnings=0 --ext .js,.jsx,.ts,.tsx src test",
+    "lint:staged": "lint-staged",
     "type": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "test:deep-dive:e2e": "jest test/server/deep-dive --runInBand",
+    "precommit:checks": "yarn lint:staged && yarn test:deep-dive:e2e",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "eslint --max-warnings=0"
+    ],
+    "test/**/*.{js,jsx,ts,tsx}": [
+      "eslint --max-warnings=0"
+    ]
   },
   "dependencies": {
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
@@ -69,8 +84,12 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.1",
     "@types/react-resizable": "^3.0.8",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.5.12",
+    "husky": "^9.1.7",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "lint-staged": "^16.2.7",
     "prisma": "^7.3.0",
     "typescript": "^5.8.3"
   },

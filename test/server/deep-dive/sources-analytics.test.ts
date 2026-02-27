@@ -32,7 +32,6 @@ import { DeepDiveService } from "../../../src/app/server/modules/deep-dive/deep-
 import { DeepDiveRepository } from "../../../src/app/server/modules/deep-dive/deep-dive.repository";
 import { extractAdminFromRequest } from "../../../src/lib/auth";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { _mockQueryRaw: mockQueryRaw } = require("../../../src/lib/prisma") as {
   _mockQueryRaw: jest.Mock;
 };
@@ -224,7 +223,7 @@ describe("DeepDiveController.getScrapeCandidates", () => {
       },
     });
 
-    const req = makeRequest("/api/deep-dive/10/companies/173/source_candidates?search=mckinsey&limit=20");
+    const req = makeRequest("/api/deep-dive/10/companies/173/candidates?search=mckinsey&limit=20");
     const res = await DeepDiveController.getScrapeCandidates(req, "10", "173");
     const body = await res.json();
 
@@ -278,7 +277,7 @@ describe("DeepDiveService.getSourcesAnalytics", () => {
     const filters = { limit: 25, offset: 10, tier: 2, qualityClass: "HIGH" as const, search: "test" };
     await DeepDiveService.getSourcesAnalytics(10, 173, filters);
 
-    expect(repoSpy).toHaveBeenCalledWith(173, filters);
+    expect(repoSpy).toHaveBeenCalledWith(10, 173, filters);
     repoSpy.mockRestore();
   });
 });
@@ -340,7 +339,12 @@ describe("DeepDiveRepository.getSourcesAnalytics", () => {
   });
 
   it("executes 11 parallel queries and returns structured result", async () => {
-    const result = await DeepDiveRepository.getSourcesAnalytics(173, { limit: 50, offset: 0 });
+    const result = await DeepDiveRepository.getSourcesAnalytics(
+      10,
+      173,
+      { limit: 50, offset: 0 },
+      { useNewModel: false, sourceValidationSettingsId: null },
+    );
 
     expect(mockQueryRaw).toHaveBeenCalledTimes(11);
     expect(result.totalUnfiltered).toBe(100);
@@ -367,7 +371,12 @@ describe("DeepDiveRepository.getSourcesAnalytics", () => {
       .mockResolvedValueOnce([])   // scores — empty triggers default
       .mockResolvedValueOnce([]);  // items
 
-    const result = await DeepDiveRepository.getSourcesAnalytics(173, { limit: 50, offset: 0 });
+    const result = await DeepDiveRepository.getSourcesAnalytics(
+      10,
+      173,
+      { limit: 50, offset: 0 },
+      { useNewModel: false, sourceValidationSettingsId: null },
+    );
 
     expect(result.totalUnfiltered).toBe(0);
     expect(result.totalFiltered).toBe(0);
@@ -390,7 +399,12 @@ describe("DeepDiveRepository.getScrapeCandidatesList", () => {
   });
 
   it("executes 5 parallel queries and returns structured result", async () => {
-    const result = await DeepDiveRepository.getScrapeCandidatesList(173, { limit: 50, offset: 0 });
+    const result = await DeepDiveRepository.getScrapeCandidatesList(
+      10,
+      173,
+      { limit: 50, offset: 0 },
+      { useNewModel: false, sourceValidationSettingsId: null },
+    );
 
     expect(mockQueryRaw).toHaveBeenCalledTimes(5);
     expect(result.total).toBe(50);
@@ -409,7 +423,12 @@ describe("DeepDiveRepository.getScrapeCandidatesList", () => {
       .mockResolvedValueOnce([])   // queryIds
       .mockResolvedValueOnce([]);  // items
 
-    const result = await DeepDiveRepository.getScrapeCandidatesList(173, { limit: 50, offset: 0 });
+    const result = await DeepDiveRepository.getScrapeCandidatesList(
+      10,
+      173,
+      { limit: 50, offset: 0 },
+      { useNewModel: false, sourceValidationSettingsId: null },
+    );
 
     expect(result.total).toBe(0);
     expect(result.totalFiltered).toBe(0);

@@ -76,6 +76,16 @@ export interface OrchestratorStatusResponse {
   };
 }
 
+export interface EnsureOrchestratorResponse {
+  success: boolean;
+  data: {
+    created: boolean;
+    reportId: number;
+    status: StepStatus;
+    metadata: unknown;
+  };
+}
+
 // ===== API Functions =====
 
 const reportStepsApi = {
@@ -181,6 +191,13 @@ const reportStepsApi = {
     reportId: number
   ): Promise<OrchestratorStatusResponse> {
     const response = await api.get(`/deep-dive/${reportId}/orchestrator`);
+    return response.data;
+  },
+
+  async ensureOrchestrator(
+    reportId: number
+  ): Promise<EnsureOrchestratorResponse> {
+    const response = await api.put(`/deep-dive/${reportId}/orchestrator`);
     return response.data;
   },
 
@@ -417,6 +434,19 @@ export const useStartOrchestrator = (reportId: number) => {
       });
       void queryClient.invalidateQueries({
         queryKey: ["steps-matrix", reportId],
+      });
+    },
+  });
+};
+
+export const useEnsureOrchestrator = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => reportStepsApi.ensureOrchestrator(reportId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["orchestrator", reportId],
       });
     },
   });

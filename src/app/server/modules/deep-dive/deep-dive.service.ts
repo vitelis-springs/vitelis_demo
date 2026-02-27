@@ -1,8 +1,18 @@
 import { report_status_enum } from "../../../../generated/prisma";
 import {
+  buildKpiScoreValue,
+  isKpiScoreTier,
+  isKpiScoreValue,
+  KPI_SCORE_TIER_BY_VALUE,
+  type KpiScoreTier,
+  type KpiScoreValue,
+} from "../../../../shared/kpi-score";
+import {
+  CompanyDataPointResultUpdateData,
   DeepDiveRepository,
   DeepDiveListParams,
   SourceFilterParams,
+  SourceCountingContext,
   SourcesAnalyticsParams,
   ScrapeCandidatesParams,
 } from "./deep-dive.repository";
@@ -14,8 +24,547 @@ const DEFAULT_STATUS_COUNTS = {
   ERROR: 0,
 };
 
+type ReuseSettingsAction = {
+  mode: "reuse";
+  id: number;
+};
+
+type CreateReportSettingsAction =
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      masterFileId: string;
+      prefix?: number | null;
+      settings: Record<string, unknown>;
+    };
+
+type CreateValidatorSettingsAction =
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      settings: Record<string, unknown>;
+    };
+
+export type ReportSettingsAction = ReuseSettingsAction | CreateReportSettingsAction;
+export type ValidatorSettingsAction = ReuseSettingsAction | CreateValidatorSettingsAction;
+
+export interface UpdateDeepDiveSettingsPayload {
+  reportSettingsAction?: ReportSettingsAction;
+  validatorSettingsAction?: ValidatorSettingsAction;
+}
+
+export interface UpdateCompanyDataPointPayload {
+  reasoning?: string | null;
+  sources?: string | null;
+  score?: string | number | null;
+  scoreValue?: KpiScoreValue | null;
+  scoreTier?: KpiScoreTier | null;
+  status?: boolean;
+}
+
+export type DeepDiveMetricKey =
+  | "companies-count"
+  | "orchestrator-status"
+  | "total-sources"
+  | "used-sources"
+  | "total-scrape-candidates"
+  | "total-queries";
+
+type ReportWithRelations = NonNullable<
+  Awaited<ReturnType<typeof DeepDiveRepository.getReportById>>
+>;
 
 export class DeepDiveService {
+  private static isJsonObject(
+    value: unknown
+  ): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  private static normalizeName(value: string | undefined): string | null {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private static buildCopyName(
+    baseName: string,
+    reportId: number,
+    requestedName?: string
+  ): string {
+    const normalized = this.normalizeName(requestedName);
+    return normalized ?? `${baseName} (Report #${reportId} copy)`;
+  }
+
+  private static async resolveReportSettingsId(
+    reportId: number,
+    action: ReportSettingsAction
+  ): Promise<{ success: true; id: number } | { success: false; error: string }> {
+    if (action.mode === "reuse") {
+      const existing = await DeepDiveRepository.getReportSettingsById(action.id);
+      if (!existing) return { success: false, error: "Report settings not found" };
+      return { success: true, id: existing.id };
+    }
+
+    if (action.strategy === "clone") {
+      const base = await DeepDiveRepository.getReportSettingsById(action.baseId);
+      if (!base) {
+        return { success: false, error: "Base report settings template not found" };
+      }
+      if (!this.isJsonObject(action.settings)) {
+        return { success: false, error: "reportSettingsAction.settings must be a JSON object" };
+      }
+
+      const created = await DeepDiveRepository.createReportSettings({
+        name: this.buildCopyName(base.name, reportId, action.name),
+        masterFileId: base.masterFileId,
+        prefix: base.prefix,
+        settings: action.settings,
+      });
+      return { success: true, id: created.id };
+    }
+
+    if (!this.isJsonObject(action.settings)) {
+      return { success: false, error: "reportSettingsAction.settings must be a JSON object" };
+    }
+
+    const name = this.normalizeName(action.name);
+    if (!name) {
+      return { success: false, error: "reportSettingsAction.name is required" };
+    }
+    const masterFileId = action.masterFileId.trim();
+    if (!masterFileId) {
+      return { success: false, error: "reportSettingsAction.masterFileId is required" };
+    }
+    if (action.prefix !== undefined && action.prefix !== null && !Number.isInteger(action.prefix)) {
+      return { success: false, error: "reportSettingsAction.prefix must be an integer or null" };
+    }
+
+    const created = await DeepDiveRepository.createReportSettings({
+      name,
+      masterFileId,
+      prefix: action.prefix ?? null,
+      settings: action.settings,
+    });
+    return { success: true, id: created.id };
+  }
+
+  private static async resolveValidatorSettingsId(
+    reportId: number,
+    action: ValidatorSettingsAction
+  ): Promise<{ success: true; id: number } | { success: false; error: string }> {
+    if (action.mode === "reuse") {
+      const existing = await DeepDiveRepository.getValidatorSettingsById(action.id);
+      if (!existing) return { success: false, error: "Validator settings not found" };
+      return { success: true, id: existing.id };
+    }
+
+    if (action.strategy === "clone") {
+      const base = await DeepDiveRepository.getValidatorSettingsById(action.baseId);
+      if (!base) {
+        return { success: false, error: "Base validator settings template not found" };
+      }
+      if (!this.isJsonObject(action.settings)) {
+        return { success: false, error: "validatorSettingsAction.settings must be a JSON object" };
+      }
+
+      const created = await DeepDiveRepository.createValidatorSettings({
+        name: this.buildCopyName(base.name, reportId, action.name),
+        settings: action.settings,
+      });
+      return { success: true, id: created.id };
+    }
+
+    if (!this.isJsonObject(action.settings)) {
+      return { success: false, error: "validatorSettingsAction.settings must be a JSON object" };
+    }
+
+    const name = this.normalizeName(action.name);
+    if (!name) {
+      return { success: false, error: "validatorSettingsAction.name is required" };
+    }
+
+    const created = await DeepDiveRepository.createValidatorSettings({
+      name,
+      settings: action.settings,
+    });
+    return { success: true, id: created.id };
+  }
+
+  private static async buildSourceCountingContext(
+    reportId: number,
+  ): Promise<SourceCountingContext> {
+    return DeepDiveRepository.getSourceCountingContext(reportId);
+  }
+
+  private static normalizeTextInput(value: string | null): string | null {
+    if (value === null) return null;
+    const normalized = value.trim();
+    return normalized ? normalized : null;
+  }
+
+  private static normalizeRawScoreInput(value: string | number | null): {
+    textValue: string | null;
+    numericValue: number | null;
+  } | null {
+    if (value === null) {
+      return { textValue: null, numericValue: null };
+    }
+
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) return null;
+      return { textValue: String(value), numericValue: value };
+    }
+
+    const normalized = value.trim();
+    if (!normalized) {
+      return { textValue: null, numericValue: null };
+    }
+
+    const parsedNumber = Number(normalized);
+    return {
+      textValue: normalized,
+      numericValue: Number.isFinite(parsedNumber) ? parsedNumber : null,
+    };
+  }
+
+  private static normalizeKpiScoreInput(payload: UpdateCompanyDataPointPayload): {
+    provided: boolean;
+    success: boolean;
+    error?: string;
+    concatenatedValue?: string | null;
+    scoreValue?: KpiScoreValue | null;
+    scoreTier?: KpiScoreTier | null;
+  } {
+    const hasScoreValue = payload.scoreValue !== undefined;
+    const hasScoreTier = payload.scoreTier !== undefined;
+    const hasLegacyScore = payload.score !== undefined;
+    const provided = hasScoreValue || hasScoreTier || hasLegacyScore;
+
+    if (!provided) return { provided: false, success: true };
+
+    if (hasLegacyScore) {
+      return {
+        provided: true,
+        success: false,
+        error: "Use scoreValue and scoreTier for KPI category/driver updates",
+      };
+    }
+
+    if (!hasScoreValue || !hasScoreTier) {
+      return {
+        provided: true,
+        success: false,
+        error: "scoreValue and scoreTier must be provided together",
+      };
+    }
+
+    const scoreValue = payload.scoreValue ?? null;
+    const scoreTier = payload.scoreTier ?? null;
+
+    if (scoreValue === null && scoreTier === null) {
+      return {
+        provided: true,
+        success: true,
+        concatenatedValue: null,
+        scoreValue: null,
+        scoreTier: null,
+      };
+    }
+
+    if (!isKpiScoreValue(scoreValue) || !isKpiScoreTier(scoreTier)) {
+      return {
+        provided: true,
+        success: false,
+        error: "scoreValue must be 1-5 and scoreTier must be a valid tier",
+      };
+    }
+
+    const expectedTier = KPI_SCORE_TIER_BY_VALUE[scoreValue];
+    if (scoreTier !== expectedTier) {
+      return {
+        provided: true,
+        success: false,
+        error: `scoreTier must be ${expectedTier} for scoreValue ${scoreValue}`,
+      };
+    }
+
+    return {
+      provided: true,
+      success: true,
+      concatenatedValue: buildKpiScoreValue(scoreValue, scoreTier),
+      scoreValue,
+      scoreTier,
+    };
+  }
+
+  static async updateCompanyDataPoint(
+    reportId: number,
+    companyId: number,
+    resultId: number,
+    payload: UpdateCompanyDataPointPayload,
+  ) {
+    const existing = await DeepDiveRepository.getCompanyDataPointResultById(
+      reportId,
+      companyId,
+      resultId,
+    );
+    if (!existing) return null;
+
+    const dataPointType = existing.data_points?.type ?? "";
+    const dataPointId = existing.data_point_id ?? "";
+    const isCategory = dataPointType === "kpi_category" || dataPointId.startsWith("kpi_category");
+    const isDriver = dataPointType === "kpi_driver" || dataPointId.startsWith("kpi_driver");
+    const isRaw = dataPointType === "raw_data_point" || dataPointId.startsWith("raw_data_point");
+
+    const mutableData: Record<string, unknown> = this.isJsonObject(existing.data)
+      ? { ...existing.data }
+      : {};
+
+    const patch: CompanyDataPointResultUpdateData = {};
+    let dataChanged = false;
+
+    if (payload.reasoning !== undefined) {
+      const reasoning = payload.reasoning === null
+        ? null
+        : this.normalizeTextInput(payload.reasoning);
+
+      if (isRaw) {
+        mutableData.explanation = reasoning;
+      }
+      mutableData.Reasoning = reasoning;
+      dataChanged = true;
+    }
+
+    if (payload.sources !== undefined) {
+      const sources = payload.sources === null
+        ? null
+        : this.normalizeTextInput(payload.sources);
+
+      mutableData.Sources = sources;
+      mutableData.sources = sources;
+      dataChanged = true;
+    }
+
+    if (isCategory || isDriver) {
+      const normalizedKpiScore = this.normalizeKpiScoreInput(payload);
+      if (!normalizedKpiScore.success) {
+        return { success: false, error: normalizedKpiScore.error || "Invalid KPI score payload" } as const;
+      }
+      if (normalizedKpiScore.provided) {
+        patch.value = normalizedKpiScore.concatenatedValue ?? null;
+        if (isCategory) {
+          mutableData["KPI Score"] = normalizedKpiScore.concatenatedValue ?? null;
+        } else {
+          mutableData.Score = normalizedKpiScore.concatenatedValue ?? null;
+        }
+        dataChanged = true;
+      }
+    } else if (payload.score !== undefined) {
+      const normalizedScore = this.normalizeRawScoreInput(payload.score);
+      if (!normalizedScore) {
+        return { success: false, error: "score must be a finite number, string, or null" } as const;
+      }
+
+      if (isRaw) {
+        patch.manualValue = normalizedScore.textValue;
+        mutableData.answer = normalizedScore.numericValue ?? normalizedScore.textValue;
+        dataChanged = true;
+      } else {
+        patch.value = normalizedScore.textValue;
+        mutableData.Score = normalizedScore.numericValue ?? normalizedScore.textValue;
+        dataChanged = true;
+      }
+    }
+
+    if (payload.status !== undefined) {
+      patch.status = payload.status;
+    }
+
+    if (dataChanged) {
+      patch.data = mutableData as unknown as CompanyDataPointResultUpdateData["data"];
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return { success: false, error: "No fields to update" } as const;
+    }
+
+    const updated = await DeepDiveRepository.updateCompanyDataPointResult(
+      resultId,
+      patch,
+    );
+
+    return {
+      success: true as const,
+      data: {
+        id: updated.id,
+        reportId: updated.report_id,
+        companyId: updated.company_id,
+        dataPointId: updated.data_point_id,
+        type: updated.data_points?.type ?? null,
+        value: updated.value,
+        manualValue: updated.manualValue,
+        status: updated.status,
+        data: updated.data,
+        updatedAt: updated.updates_at,
+      },
+    };
+  }
+
+  static async getSettings(reportId: number) {
+    const [snapshot, reportSettingsOptions, validatorSettingsOptions] = await Promise.all([
+      DeepDiveRepository.getReportSettingsSnapshot(reportId),
+      DeepDiveRepository.listReportSettings(),
+      DeepDiveRepository.listValidatorSettings(),
+    ]);
+
+    if (!snapshot) return null;
+
+    return {
+      success: true,
+      data: {
+        report: {
+          id: snapshot.reportId,
+          name: snapshot.reportName,
+        },
+        current: {
+          reportSettings: snapshot.reportSettings,
+          validatorSettings: snapshot.validatorSettings,
+        },
+        options: {
+          reportSettings: reportSettingsOptions,
+          validatorSettings: validatorSettingsOptions,
+        },
+      },
+    };
+  }
+
+  static async updateSettings(
+    reportId: number,
+    payload: UpdateDeepDiveSettingsPayload
+  ) {
+    const snapshot = await DeepDiveRepository.getReportSettingsSnapshot(reportId);
+    if (!snapshot) {
+      return { success: false, error: "Deep dive not found" };
+    }
+
+    if (!payload.reportSettingsAction && !payload.validatorSettingsAction) {
+      return { success: false, error: "At least one settings action is required" };
+    }
+
+    let reportSettingsId = snapshot.reportSettingsId;
+    let validatorSettingsId = snapshot.sourceValidationSettingsId;
+
+    if (payload.reportSettingsAction) {
+      const resolved = await this.resolveReportSettingsId(
+        reportId,
+        payload.reportSettingsAction
+      );
+      if (!resolved.success) return resolved;
+      reportSettingsId = resolved.id;
+    }
+
+    if (payload.validatorSettingsAction) {
+      const resolved = await this.resolveValidatorSettingsId(
+        reportId,
+        payload.validatorSettingsAction
+      );
+      if (!resolved.success) return resolved;
+      validatorSettingsId = resolved.id;
+    }
+
+    const updated = await DeepDiveRepository.updateReportSettingsReferences(
+      reportId,
+      reportSettingsId,
+      validatorSettingsId
+    );
+    if (!updated) {
+      return { success: false, error: "Deep dive not found" };
+    }
+
+    const result = await this.getSettings(reportId);
+    if (!result) {
+      return { success: false, error: "Deep dive not found" };
+    }
+
+    return result;
+  }
+
+  private static mapOverviewReport(report: ReportWithRelations) {
+    return {
+      id: report.id,
+      name: report.name,
+      description: report.description,
+      createdAt: report.created_at,
+      updatedAt: report.updates_at,
+      status: report.report_orhestrator?.status ?? report_status_enum.PENDING,
+      useCase: report.use_cases
+        ? { id: report.use_cases.id, name: report.use_cases.name }
+        : null,
+      settings: report.report_settings
+        ? { id: report.report_settings.id, name: report.report_settings.name }
+        : null,
+    };
+  }
+
+  private static buildKpiChart(
+    kpiRaw: Array<{
+      company_id: number;
+      company_name: string;
+      category: string;
+      avg_score: number;
+    }>
+  ) {
+    const categoriesSet = new Set<string>();
+    const chartMap = new Map<number, Record<string, unknown>>();
+
+    for (const row of kpiRaw) {
+      categoriesSet.add(row.category);
+
+      if (!chartMap.has(row.company_id)) {
+        chartMap.set(row.company_id, {
+          company: row.company_name,
+          companyId: row.company_id,
+        });
+      }
+
+      const entry = chartMap.get(row.company_id)!;
+      entry[row.category] = Math.round(row.avg_score * 10) / 10;
+    }
+
+    return {
+      categories: Array.from(categoriesSet).sort(),
+      kpiChart: Array.from(chartMap.values()),
+    };
+  }
+
+  private static deriveDominantStatus(
+    counts: Record<report_status_enum, number>,
+    totalStepsCount: number,
+  ): report_status_enum {
+    const total = counts.PENDING + counts.PROCESSING + counts.DONE + counts.ERROR;
+    if (counts.ERROR > 0) return report_status_enum.ERROR;
+    if (counts.PROCESSING > 0) return report_status_enum.PROCESSING;
+    if (counts.PENDING > 0) return report_status_enum.PENDING;
+    if (total === 0 || total < totalStepsCount) return report_status_enum.PENDING;
+    return report_status_enum.DONE;
+  }
+
   static async listDeepDives(params: DeepDiveListParams) {
     const [{ items, total }, useCases, industries] = await Promise.all([
       DeepDiveRepository.listReports(params),
@@ -66,6 +615,164 @@ export class DeepDiveService {
     };
   }
 
+  static async getDeepDiveOverview(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    return {
+      success: true,
+      data: {
+        report: this.mapOverviewReport(report),
+      },
+    };
+  }
+
+  static async getDeepDiveMetric(reportId: number, metric: DeepDiveMetricKey) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    let value: number | report_status_enum;
+
+    switch (metric) {
+      case "companies-count":
+        value = await DeepDiveRepository.getReportCompaniesCount(reportId);
+        break;
+      case "orchestrator-status":
+        value = report.report_orhestrator?.status ?? report_status_enum.PENDING;
+        break;
+      case "total-sources": {
+        const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+        value = await DeepDiveRepository.getReportSourcesCount(
+          reportId,
+          sourceCountingContext
+        );
+        break;
+      }
+      case "used-sources": {
+        const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+        value = await DeepDiveRepository.getReportUsedSourcesCount(
+          reportId,
+          sourceCountingContext
+        );
+        break;
+      }
+      case "total-scrape-candidates": {
+        const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+        value = await DeepDiveRepository.getReportScrapeCandidatesCount(
+          reportId,
+          sourceCountingContext
+        );
+        break;
+      }
+      case "total-queries":
+        value = await DeepDiveRepository.getReportQueriesCount(reportId);
+        break;
+    }
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        metric,
+        value,
+      },
+    };
+  }
+
+  static async getDeepDiveKpiChart(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    const kpiRaw = await DeepDiveRepository.getKpiCategoryScoresByCompany(reportId);
+    const { categories, kpiChart } = this.buildKpiChart(kpiRaw);
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        categories,
+        kpiChart,
+      },
+    };
+  }
+
+  static async getDeepDiveCompaniesTable(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    const companies = await DeepDiveRepository.getReportCompanies(reportId);
+    const companyIds = companies
+      .map((row) => row.company_id)
+      .filter((id): id is number => typeof id === "number");
+
+    const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+    const [
+      companyStatusRaw,
+      perCompanySources,
+      perCompanyUsedSources,
+      perCompanyCandidates,
+      totalStepsCount,
+    ] = await Promise.all([
+      DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
+      DeepDiveRepository.getPerCompanySourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyUsedSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyCandidatesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getReportStepsCount(reportId),
+    ]);
+
+    const statusByCompany = new Map<number, Record<report_status_enum, number>>();
+    companyStatusRaw.forEach((row) => {
+      const current = statusByCompany.get(row.company_id) ?? { ...DEFAULT_STATUS_COUNTS };
+      current[row.status] = row._count._all;
+      statusByCompany.set(row.company_id, current);
+    });
+
+    const sourcesMap = new Map<number, number>();
+    const validSourcesMap = new Map<number, number>();
+    for (const row of perCompanySources) {
+      sourcesMap.set(row.company_id, row.total);
+      validSourcesMap.set(row.company_id, row.valid_count);
+    }
+
+    const usedSourcesMap = new Map<number, number>();
+    for (const row of perCompanyUsedSources) {
+      usedSourcesMap.set(row.company_id, row.total);
+    }
+
+    const candidatesMap = new Map<number, number>();
+    for (const row of perCompanyCandidates) {
+      candidatesMap.set(row.company_id, row.total);
+    }
+
+    return {
+      success: true,
+      data: {
+        reportId,
+        companies: companies
+          .filter((row) => row.companies !== null)
+          .map((row) => {
+            const company = row.companies!;
+            const counts = statusByCompany.get(company.id) ?? { ...DEFAULT_STATUS_COUNTS };
+            const doneSteps = counts.DONE;
+
+            return {
+              id: company.id,
+              name: company.name,
+              countryCode: company.country_code,
+              url: company.url,
+              status: this.deriveDominantStatus(counts, totalStepsCount),
+              sourcesCount: sourcesMap.get(company.id) ?? 0,
+              validSourcesCount: validSourcesMap.get(company.id) ?? 0,
+              usedSourcesCount: usedSourcesMap.get(company.id) ?? 0,
+              candidatesCount: candidatesMap.get(company.id) ?? 0,
+              stepsDone: doneSteps,
+              stepsTotal: totalStepsCount,
+            };
+          }),
+      },
+    };
+  }
+
   static async getDeepDiveById(reportId: number) {
     const report = await DeepDiveRepository.getReportById(reportId);
     if (!report) return null;
@@ -75,22 +782,28 @@ export class DeepDiveService {
       .map((row) => row.company_id)
       .filter((id): id is number => typeof id === "number");
 
+    const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+
     const [
       kpiRaw,
       totalSources,
+      totalUsedSources,
       totalScrapeCandidates,
       totalQueries,
       companyStatusRaw,
       perCompanySources,
+      perCompanyUsedSources,
       perCompanyCandidates,
     ] = await Promise.all([
       DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
-      DeepDiveRepository.getReportSourcesCount(reportId),
-      DeepDiveRepository.getReportScrapeCandidatesCount(reportId),
+      DeepDiveRepository.getReportSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getReportUsedSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getReportScrapeCandidatesCount(reportId, sourceCountingContext),
       DeepDiveRepository.getReportQueriesCount(reportId),
       DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
-      DeepDiveRepository.getPerCompanySourcesCount(reportId),
-      DeepDiveRepository.getPerCompanyCandidatesCount(reportId),
+      DeepDiveRepository.getPerCompanySourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyUsedSourcesCount(reportId, sourceCountingContext),
+      DeepDiveRepository.getPerCompanyCandidatesCount(reportId, sourceCountingContext),
     ]);
 
     // Build KPI chart — categories are dynamic, derived from data
@@ -131,6 +844,10 @@ export class DeepDiveService {
       sourcesMap.set(row.company_id, row.total);
       validSourcesMap.set(row.company_id, row.valid_count);
     }
+    const usedSourcesMap = new Map<number, number>();
+    for (const row of perCompanyUsedSources) {
+      usedSourcesMap.set(row.company_id, row.total);
+    }
     const candidatesMap = new Map<number, number>();
     for (const row of perCompanyCandidates) {
       candidatesMap.set(row.company_id, row.total);
@@ -138,11 +855,11 @@ export class DeepDiveService {
 
     function deriveDominantStatus(counts: Record<report_status_enum, number>): report_status_enum {
       const total = counts.PENDING + counts.PROCESSING + counts.DONE + counts.ERROR;
-      // No statuses recorded or fewer than total steps → consider missing as PENDING
-      if (total === 0 || total < totalStepsCount) return report_status_enum.PENDING;
       if (counts.ERROR > 0) return report_status_enum.ERROR;
       if (counts.PROCESSING > 0) return report_status_enum.PROCESSING;
       if (counts.PENDING > 0) return report_status_enum.PENDING;
+      // No statuses recorded or fewer than total steps (without active processing/error) -> PENDING
+      if (total === 0 || total < totalStepsCount) return report_status_enum.PENDING;
       return report_status_enum.DONE;
     }
 
@@ -167,6 +884,7 @@ export class DeepDiveService {
           companiesCount: companies.length,
           orchestratorStatus: report.report_orhestrator?.status ?? report_status_enum.PENDING,
           totalSources,
+          usedSources: totalUsedSources,
           totalScrapeCandidates,
           totalQueries,
         },
@@ -186,6 +904,7 @@ export class DeepDiveService {
               status: deriveDominantStatus(counts),
               sourcesCount: sourcesMap.get(company.id) ?? 0,
               validSourcesCount: validSourcesMap.get(company.id) ?? 0,
+              usedSourcesCount: usedSourcesMap.get(company.id) ?? 0,
               candidatesCount: candidatesMap.get(company.id) ?? 0,
               stepsDone: doneSteps,
               stepsTotal: totalStepsCount,
@@ -209,7 +928,13 @@ export class DeepDiveService {
     const report = await DeepDiveRepository.getReportById(reportId);
     if (!report) return null;
 
-    const rows = await DeepDiveRepository.getReportQueriesWithStats(reportId, params?.sortBy, params?.sortOrder);
+    const sourceCountingContext = await this.buildSourceCountingContext(reportId);
+    const rows = await DeepDiveRepository.getReportQueriesWithStats(
+      reportId,
+      params?.sortBy,
+      params?.sortOrder,
+      sourceCountingContext,
+    );
 
     return {
       success: true,
@@ -280,9 +1005,9 @@ export class DeepDiveService {
     ] = await Promise.all([
       DeepDiveRepository.getCompanyStepStatuses(reportId, companyId),
       DeepDiveRepository.getCompanyKpiResults(reportId, companyId),
-      DeepDiveRepository.getCompanyScrapCandidates(companyId, 200),
-      DeepDiveRepository.getCompanyScrapCandidatesCount(companyId),
-      DeepDiveRepository.getCompanySources(companyId, filters),
+      DeepDiveRepository.getCompanyScrapCandidates(reportId, companyId, 200),
+      DeepDiveRepository.getCompanyScrapCandidatesCount(reportId, companyId),
+      DeepDiveRepository.getCompanySources(reportId, companyId, filters),
       DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
     ]);
 
@@ -423,7 +1148,11 @@ export class DeepDiveService {
     const company = await DeepDiveRepository.getCompany(reportId, companyId);
     if (!company) return null;
 
-    const result = await DeepDiveRepository.getSourcesAnalytics(companyId, filters);
+    const result = await DeepDiveRepository.getSourcesAnalytics(
+      reportId,
+      companyId,
+      filters,
+    );
 
     return {
       success: true,
@@ -452,7 +1181,11 @@ export class DeepDiveService {
     const company = await DeepDiveRepository.getCompany(reportId, companyId);
     if (!company) return null;
 
-    const result = await DeepDiveRepository.getScrapeCandidatesList(companyId, filters);
+    const result = await DeepDiveRepository.getScrapeCandidatesList(
+      reportId,
+      companyId,
+      filters,
+    );
 
     return {
       success: true,

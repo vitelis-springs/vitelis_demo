@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
+import type { KpiScoreTier, KpiScoreValue } from "../../shared/kpi-score";
 import type { SortOrder } from "../../types/sorting";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
@@ -47,6 +48,7 @@ export interface DeepDiveSummary {
   companiesCount: number;
   orchestratorStatus: DeepDiveStatus;
   totalSources: number;
+  usedSources: number;
   totalScrapeCandidates: number;
   totalQueries: number;
 }
@@ -65,6 +67,7 @@ export interface DeepDiveCompanyRow {
   status: DeepDiveStatus;
   sourcesCount: number;
   validSourcesCount: number;
+  usedSourcesCount: number;
   candidatesCount: number;
   stepsDone: number;
   stepsTotal: number;
@@ -86,6 +89,58 @@ export interface DeepDiveDetailResponse {
     summary: DeepDiveSummary;
     categories: string[];
     kpiChart: KpiChartItem[];
+    companies: DeepDiveCompanyRow[];
+  };
+}
+
+export interface DeepDiveOverviewResponse {
+  success: boolean;
+  data: {
+    report: {
+      id: number;
+      name?: string | null;
+      description?: string | null;
+      createdAt?: string | null;
+      updatedAt?: string | null;
+      status: DeepDiveStatus;
+      useCase?: { id: number; name: string } | null;
+      settings?: { id: number; name: string } | null;
+    };
+  };
+}
+
+export type DeepDiveMetricName =
+  | "companies-count"
+  | "orchestrator-status"
+  | "total-sources"
+  | "used-sources"
+  | "total-scrape-candidates"
+  | "total-queries";
+
+export interface DeepDiveMetricResponse<
+  TValue extends number | string = number | string,
+> {
+  success: boolean;
+  data: {
+    reportId: number;
+    metric: DeepDiveMetricName;
+    value: TValue;
+  };
+}
+
+export interface DeepDiveKpiChartResponse {
+  success: boolean;
+  data: {
+    reportId: number;
+    categories: string[];
+    kpiChart: KpiChartItem[];
+  };
+}
+
+export interface DeepDiveCompaniesResponse {
+  success: boolean;
+  data: {
+    reportId: number;
     companies: DeepDiveCompanyRow[];
   };
 }
@@ -165,6 +220,32 @@ export interface DeepDiveCompanyResponse {
   };
 }
 
+export interface UpdateCompanyDataPointPayload {
+  reasoning?: string | null;
+  sources?: string | null;
+  score?: string | number | null;
+  scoreValue?: KpiScoreValue | null;
+  scoreTier?: KpiScoreTier | null;
+  status?: boolean;
+}
+
+export interface UpdateCompanyDataPointResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    id: number;
+    reportId: number | null;
+    companyId: number | null;
+    dataPointId: string | null;
+    type: string | null;
+    value: string | null;
+    manualValue: string | null;
+    status: boolean | null;
+    data: unknown;
+    updatedAt: string | null;
+  };
+}
+
 export interface DeepDiveListParams {
   limit?: number;
   offset?: number;
@@ -188,6 +269,77 @@ export interface DeepDiveSourcesParams {
   metaGroupBy?: string;
 }
 
+export interface ReportSettingsOption {
+  id: number;
+  name: string;
+  masterFileId: string;
+  prefix: number | null;
+  settings: unknown;
+}
+
+export interface ValidatorSettingsOption {
+  id: number;
+  name: string;
+  settings: unknown;
+}
+
+export interface DeepDiveSettingsResponse {
+  success: boolean;
+  data: {
+    report: {
+      id: number;
+      name: string | null;
+    };
+    current: {
+      reportSettings: ReportSettingsOption | null;
+      validatorSettings: ValidatorSettingsOption | null;
+    };
+    options: {
+      reportSettings: ReportSettingsOption[];
+      validatorSettings: ValidatorSettingsOption[];
+    };
+  };
+}
+
+export type ReportSettingsActionPayload =
+  | { mode: "reuse"; id: number }
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      masterFileId: string;
+      prefix?: number | null;
+      settings: Record<string, unknown>;
+    };
+
+export type ValidatorSettingsActionPayload =
+  | { mode: "reuse"; id: number }
+  | {
+      mode: "create";
+      strategy: "clone";
+      baseId: number;
+      name?: string;
+      settings: Record<string, unknown>;
+    }
+  | {
+      mode: "create";
+      strategy: "blank";
+      name: string;
+      settings: Record<string, unknown>;
+    };
+
+export interface UpdateDeepDiveSettingsPayload {
+  reportSettingsAction?: ReportSettingsActionPayload;
+  validatorSettingsAction?: ValidatorSettingsActionPayload;
+}
+
 const deepDiveApi = {
   async list(params: DeepDiveListParams): Promise<DeepDiveListResponse> {
     const searchParams = new URLSearchParams();
@@ -206,6 +358,42 @@ const deepDiveApi = {
 
   async getById(id: number): Promise<DeepDiveDetailResponse> {
     const response = await api.get(`/deep-dive/${id}`);
+    return response.data;
+  },
+
+  async getOverview(id: number): Promise<DeepDiveOverviewResponse> {
+    const response = await api.get(`/deep-dive/${id}/overview`);
+    return response.data;
+  },
+
+  async getMetric<TValue extends number | string>(
+    id: number,
+    metric: DeepDiveMetricName
+  ): Promise<DeepDiveMetricResponse<TValue>> {
+    const response = await api.get(`/deep-dive/${id}/metric/${metric}`);
+    return response.data as DeepDiveMetricResponse<TValue>;
+  },
+
+  async getKpiChart(id: number): Promise<DeepDiveKpiChartResponse> {
+    const response = await api.get(`/deep-dive/${id}/kpi-chart`);
+    return response.data;
+  },
+
+  async getCompanies(id: number): Promise<DeepDiveCompaniesResponse> {
+    const response = await api.get(`/deep-dive/${id}/companies`);
+    return response.data;
+  },
+
+  async getSettings(reportId: number): Promise<DeepDiveSettingsResponse> {
+    const response = await api.get(`/deep-dive/${reportId}/settings`);
+    return response.data;
+  },
+
+  async updateSettings(
+    reportId: number,
+    payload: UpdateDeepDiveSettingsPayload
+  ): Promise<DeepDiveSettingsResponse> {
+    const response = await api.patch(`/deep-dive/${reportId}/settings`, payload);
     return response.data;
   },
 
@@ -228,6 +416,19 @@ const deepDiveApi = {
     const suffix = searchParams.toString();
     const response = await api.get(
       `/deep-dive/${reportId}/companies/${companyId}${suffix ? `?${suffix}` : ""}`
+    );
+    return response.data;
+  },
+
+  async updateCompanyDataPoint(
+    reportId: number,
+    companyId: number,
+    resultId: number,
+    payload: UpdateCompanyDataPointPayload,
+  ): Promise<UpdateCompanyDataPointResponse> {
+    const response = await api.patch(
+      `/deep-dive/${reportId}/companies/${companyId}/data-points/${resultId}`,
+      payload,
     );
     return response.data;
   },
@@ -260,6 +461,95 @@ export const useGetDeepDiveDetail = (id: number | null, options?: { enabled?: bo
   });
 };
 
+export const useGetDeepDiveOverview = (
+  id: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "overview", id],
+    queryFn: () => deepDiveApi.getOverview(id!),
+    enabled: options?.enabled !== undefined ? options.enabled : id !== null,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetDeepDiveMetric = <TValue extends number | string>(
+  reportId: number | null,
+  metric: DeepDiveMetricName,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "metric", reportId, metric],
+    queryFn: () => deepDiveApi.getMetric<TValue>(reportId!, metric),
+    enabled:
+      options?.enabled !== undefined ? options.enabled : reportId !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetDeepDiveKpiChart = (
+  id: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "kpi-chart", id],
+    queryFn: () => deepDiveApi.getKpiChart(id!),
+    enabled: options?.enabled !== undefined ? options.enabled : id !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetDeepDiveCompanies = (
+  id: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "companies", id],
+    queryFn: () => deepDiveApi.getCompanies(id!),
+    enabled: options?.enabled !== undefined ? options.enabled : id !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetDeepDiveSettings = (
+  reportId: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "settings", reportId],
+    queryFn: () => deepDiveApi.getSettings(reportId!),
+    enabled:
+      options?.enabled !== undefined ? options.enabled : reportId !== null,
+  });
+};
+
+export const useUpdateDeepDiveSettings = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UpdateDeepDiveSettingsPayload) =>
+      deepDiveApi.updateSettings(reportId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "settings", reportId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "detail", reportId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "overview", reportId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "list"],
+      });
+    },
+  });
+};
+
 export const useGetDeepDiveCompany = (
   reportId: number | null,
   companyId: number | null,
@@ -287,6 +577,28 @@ export const useGetDeepDiveCompany = (
       options?.enabled !== undefined
         ? options.enabled
         : reportId !== null && companyId !== null,
+  });
+};
+
+export const useUpdateCompanyDataPoint = (
+  reportId: number,
+  companyId: number,
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      resultId,
+      payload,
+    }: {
+      resultId: number;
+      payload: UpdateCompanyDataPointPayload;
+    }) => deepDiveApi.updateCompanyDataPoint(reportId, companyId, resultId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "company", reportId, companyId],
+      });
+    },
   });
 };
 
@@ -382,7 +694,7 @@ export interface ScrapeCandidateItem {
   description: string | null;
   status: string;
   metadata: Record<string, unknown> | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 export interface ScrapeCandidatesResponse {
@@ -444,7 +756,7 @@ const sourcesApi = {
 
     const suffix = sp.toString();
     const response = await api.get(
-      `/deep-dive/${reportId}/companies/${companyId}/source_candidates${suffix ? `?${suffix}` : ""}`,
+      `/deep-dive/${reportId}/companies/${companyId}/candidates${suffix ? `?${suffix}` : ""}`,
     );
     return response.data;
   },
