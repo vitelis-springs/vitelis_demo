@@ -71,6 +71,24 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function serializeError(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { message: String(error) };
+  }
+
+  const details: Record<string, unknown> = {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+  };
+
+  const withCode = error as Error & { code?: unknown; meta?: unknown };
+  if (withCode.code !== undefined) details.code = withCode.code;
+  if (withCode.meta !== undefined) details.meta = withCode.meta;
+
+  return details;
+}
+
 function parseReportSettingsAction(value: unknown): ReportSettingsAction | null {
   if (!isRecord(value)) return null;
 
@@ -340,12 +358,35 @@ export class DeepDiveController {
     request: NextRequest,
     reportIdParam: string
   ): Promise<NextResponse> {
+    const startedAt = Date.now();
+    const requestId = request.headers.get("x-request-id");
+    const endpointContext = {
+      endpoint: "/api/deep-dive/[id]/companies",
+      method: request.method,
+      pathname: request.nextUrl.pathname,
+      reportIdParam,
+      requestId,
+      hasAuthorizationHeader: Boolean(request.headers.get("authorization")),
+    };
+
     try {
       const auth = extractAdminFromRequest(request);
-      if (!auth.success) return auth.response;
+      if (!auth.success) {
+        console.warn("⚠️ DeepDiveController.getCompaniesTable auth failed", {
+          ...endpointContext,
+          status: auth.response.status,
+          durationMs: Date.now() - startedAt,
+        });
+        return auth.response;
+      }
 
       const reportId = Number(reportIdParam);
       if (!Number.isFinite(reportId)) {
+        console.warn("⚠️ DeepDiveController.getCompaniesTable invalid report id", {
+          ...endpointContext,
+          status: 400,
+          durationMs: Date.now() - startedAt,
+        });
         return NextResponse.json(
           { success: false, error: "Invalid report id" },
           { status: 400 }
@@ -354,6 +395,12 @@ export class DeepDiveController {
 
       const result = await DeepDiveService.getDeepDiveCompaniesTable(reportId);
       if (!result) {
+        console.warn("⚠️ DeepDiveController.getCompaniesTable deep dive not found", {
+          ...endpointContext,
+          reportId,
+          status: 404,
+          durationMs: Date.now() - startedAt,
+        });
         return NextResponse.json(
           { success: false, error: "Deep dive not found" },
           { status: 404 }
@@ -362,7 +409,12 @@ export class DeepDiveController {
 
       return NextResponse.json(result);
     } catch (error) {
-      console.error("❌ DeepDiveController.getCompaniesTable:", error);
+      console.error("❌ DeepDiveController.getCompaniesTable failed", {
+        ...endpointContext,
+        status: 500,
+        durationMs: Date.now() - startedAt,
+        error: serializeError(error),
+      });
       return NextResponse.json(
         { success: false, error: "Failed to fetch deep dive companies" },
         { status: 500 }
