@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { N8NService } from './n8n.service';
+import { extractAdminFromRequest } from '../../../../lib/auth';
 
 export class N8NController {
   static async startBizMiner(request: NextRequest): Promise<NextResponse> {
@@ -46,6 +47,39 @@ export class N8NController {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'N8N API request failed';
       console.error('❌ N8NController.startSalesMiner:', message);
+      return NextResponse.json({ success: false, error: message }, { status: 500 });
+    }
+  }
+
+  static async startVitelisSales(request: NextRequest): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const body = await request.json();
+      const { companyName, url, useCase, industry_id } = body;
+
+      if (!companyName || !url || industry_id === undefined) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Missing required fields: companyName, url, industry_id',
+          },
+          { status: 400 }
+        );
+      }
+
+      const data = await N8NService.startVitelisSalesWorkflow({
+        companyName,
+        url,
+        useCase,
+        industry_id: Number(industry_id),
+      });
+
+      return NextResponse.json(data);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'N8N API request failed';
+      console.error('❌ N8NController.startVitelisSales:', message);
       return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
   }

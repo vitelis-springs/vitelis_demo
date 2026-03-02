@@ -24,10 +24,18 @@ import Image from 'next/image';
 const { Sider } = Layout;
 const { Title } = Typography;
 
+function getLogoUrl(logo: string | null | undefined): string | null {
+  if (!logo) return null;
+  if (logo.startsWith('http')) return logo;
+  return `/api/s3/proxy?key=${encodeURIComponent(logo)}`;
+}
+
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const logoUrl = getLogoUrl(user?.logo);
 
   const handleLogout = () => {
     logout();
@@ -50,6 +58,13 @@ export default function Sidebar() {
       icon: <BarChartOutlined style={{ fontSize: '18px' }} />,
       label: 'SalesMiner Analysis',
     },
+    ...(user?.role === 'admin'
+      ? [{
+          key: '/analyze-vitelis-sales-quiz',
+          icon: <BarChartOutlined style={{ fontSize: '18px' }} />,
+          label: 'VitelisSales Analysis',
+        }]
+      : []),
     {
       key: '/history',
       icon: <HistoryOutlined style={{ fontSize: '18px' }} />,
@@ -101,13 +116,13 @@ export default function Sidebar() {
         {/* Logo */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <Image
-            src={user?.logo || "/logo.png"}
-            alt={user?.logo ? `${user.companyName || 'Company'} Logo` : "Vitelis Logo"}
+            src={logoUrl || "/logo.png"}
+            alt={logoUrl ? `${user?.companyName || 'Company'} Logo` : "Vitelis Logo"}
             width={120}
             height={40}
             style={{ objectFit: 'contain' }}
+            unoptimized
             onError={(e) => {
-              // Fallback to Vitelis logo if user logo fails to load
               const target = e.target as HTMLImageElement;
               target.src = "/logo.png";
             }}

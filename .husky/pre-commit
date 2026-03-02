@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
-source ~/.nvm/nvm.sh
+. ~/.nvm/nvm.sh
 nvm use 22 >/dev/null
 yarn precommit:checks

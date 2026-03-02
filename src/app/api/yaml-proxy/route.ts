@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     // Validate that the URL is from your S3 bucket for security
     const allowedDomains = [
       'vitelis-temp.s3.us-east-1.amazonaws.com',
-      's3.us-east-1.amazonaws.com'
+      's3.us-east-1.amazonaws.com',
+      'b1.eu-central-1.storage.railway.app',
     ];
     
     const url = new URL(yamlUrl);

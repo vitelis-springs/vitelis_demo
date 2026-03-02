@@ -104,10 +104,39 @@ export const useSalesMinerWorkflow = () => {
   });
 };
 
+export const useVitelisSalesWorkflow = () => {
+  return useMutation({
+    mutationFn: async (params: {
+      workflowId?: string;
+      data?:
+        | {
+            companyName: string;
+            url: string;
+            useCase?: string;
+            industry_id: number;
+          }
+        | any;
+      isTest?: boolean;
+    }) => {
+      const { workflowId, data, isTest = false } = params;
+
+      return n8nApi.startVitelisSalesWorkflow(
+        data as {
+          companyName: string;
+          url: string;
+          useCase?: string;
+          industry_id: number;
+        }
+      );
+    },
+    retry: false,
+  });
+};
+
 // Get Execution Details Hook - fetches execution status and custom data
 export const useGetExecutionDetails = (
   executionId: string | null,
-  instanceType: "bizminer" | "salesminer" = "bizminer",
+  instanceType: "bizminer" | "salesminer" | "vitelis_sales" = "bizminer",
   options?: {
     enabled?: boolean;
     refetchInterval?: number;

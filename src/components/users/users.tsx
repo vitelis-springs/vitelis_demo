@@ -144,7 +144,7 @@ export default function Users() {
                         render: (record: User) => (
                               <Space>
                                     <Avatar
-                                          src={record.logo || undefined}
+                                          src={record.logo ? (record.logo.startsWith('http') ? record.logo : `/api/s3/proxy?key=${encodeURIComponent(record.logo)}`) : undefined}
                                           icon={
                                                 !record.logo ? (
                                                       <UserOutlined />

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Define protected routes
 const protectedRoutes = [
   '/api/analyze',
+  '/api/vitelis-sales-analyze',
   '/api/chats',
   '/api/messages',
   '/api/n8n'

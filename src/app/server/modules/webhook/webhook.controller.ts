@@ -144,4 +144,82 @@ export class WebhookController {
       );
     }
   }
+
+  static async vitelisSalesProgress(request: NextRequest): Promise<NextResponse> {
+    try {
+      await ensureDBConnection();
+
+      const body = await request.json();
+      const { executionId, step } = body;
+
+      if (!executionId || step === undefined) {
+        return NextResponse.json(
+          { success: false, error: 'Missing required fields: executionId and step' },
+          { status: 200 }
+        );
+      }
+
+      if (typeof step !== 'number' || step < 0) {
+        return NextResponse.json(
+          { success: false, error: 'Step must be a non-negative number' },
+          { status: 200 }
+        );
+      }
+
+      const result = await WebhookService.updateVitelisSalesProgress(executionId, step);
+
+      if (!result.success) {
+        return NextResponse.json(result, { status: 200 });
+      }
+
+      return NextResponse.json({ success: true, message: 'VitelisSales progress updated successfully', data: result.data });
+    } catch (error) {
+      console.error('❌ WebhookController.vitelisSalesProgress:', error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 200 }
+      );
+    }
+  }
+
+  static async vitelisSalesResult(request: NextRequest): Promise<NextResponse> {
+    try {
+      await ensureDBConnection();
+
+      const body = await request.json();
+      const { executionId, generated_report_id } = body;
+
+      if (!executionId) {
+        return NextResponse.json(
+          { success: false, error: 'Missing required field: executionId' },
+          { status: 200 }
+        );
+      }
+
+      const generatedReportId =
+        generated_report_id !== undefined && generated_report_id !== null
+          ? Number(generated_report_id)
+          : undefined;
+      if (generatedReportId !== undefined && !Number.isFinite(generatedReportId)) {
+        return NextResponse.json(
+          { success: false, error: 'generated_report_id must be a number' },
+          { status: 200 }
+        );
+      }
+
+      const result = await WebhookService.updateVitelisSalesResult(executionId, generatedReportId);
+
+      if (!result.success) {
+        return NextResponse.json(result, { status: 200 });
+      }
+
+      return NextResponse.json({ success: true, message: 'VitelisSales result updated successfully', data: result.data });
+    } catch (error) {
+      console.error('❌ WebhookController.vitelisSalesResult:', error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 200 }
+      );
+    }
+  }
 }
