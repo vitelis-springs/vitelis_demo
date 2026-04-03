@@ -66,7 +66,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
                     });
                   }}
                 >
-                  Export Report
+                  Export xlsx report
                 </Button>
                 <Button
                   icon={<SearchOutlined />}
