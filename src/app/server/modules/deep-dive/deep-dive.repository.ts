@@ -129,13 +129,14 @@ export class DeepDiveRepository {
     }
 
     const ALLOWED_SORT: Record<string, string> = {
+      id: "id",
       name: "name",
       created_at: "created_at",
       updated_at: "updates_at",
     };
     const sortField: string = params.sortBy && ALLOWED_SORT[params.sortBy]
       ? ALLOWED_SORT[params.sortBy]!
-      : "created_at";
+      : "id";
     const sortDir: Prisma.SortOrder = params.sortOrder === "asc" ? "asc" : "desc";
 
     const [items, total] = await prisma.$transaction([

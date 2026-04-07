@@ -15,7 +15,7 @@ import DeepDiveStatusTag from "./status-tag";
 const { Text } = Typography;
 
 const STATUS_OPTIONS: Array<{ label: string; value: DeepDiveStatus | "" }> = [
-  { label: "All", value: "" },
+  { label: "All Statuses", value: "" },
   { label: "Pending", value: "PENDING" },
   { label: "Processing", value: "PROCESSING" },
   { label: "Done", value: "DONE" },
@@ -75,7 +75,7 @@ function renderBadges(record: DeepDiveListItem): React.ReactNode {
 export default function DeepDiveList() {
   const router = useRouter();
   const { page, pageSize, offset, sortBy, sortOrder, handleTableChange, resetPage } =
-    useServerSortedTable({ defaultPageSize: 20, defaultSortBy: "created_at" });
+    useServerSortedTable({ defaultPageSize: 20, defaultSortBy: "id", defaultSortOrder: "desc" });
   const [searchText, setSearchText] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<DeepDiveStatus | "">("");
@@ -117,6 +117,12 @@ export default function DeepDiveList() {
 
   const columns = useMemo(
     () => [
+      {
+        title: "ID", dataIndex: "id", key: "id", width: 70, sorter: true,
+        render: (value: number) => (
+          <Text style={{ color: "#8c8c8c", fontFamily: "monospace" }}>#{value}</Text>
+        ),
+      },
       {
         title: "Report", dataIndex: "name", key: "name", sorter: true,
         render: (_: unknown, record: DeepDiveListItem) => (
