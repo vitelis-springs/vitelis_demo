@@ -1,9 +1,10 @@
 "use client";
 
-import { Card, List, Button, Empty, Typography, Space, Tag } from "antd";
+import { Card, List, Button, Empty, Typography, Space, Tag, Segmented } from "antd";
 import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
+import { useEffect, useMemo, useState } from "react";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
-import type { GenerationStep } from "../../hooks/api/useReportStepsService";
+import type { GenerationStep, StepReportType } from "../../hooks/api/useReportStepsService";
 
 const { Text } = Typography;
 
@@ -13,6 +14,7 @@ interface AvailableStepsListProps {
   onAdd: (stepId: number) => void;
   onOpenSettings: (step: GenerationStep) => void;
   addingStepId: number | null;
+  reportType?: string | null;
 }
 
 export default function AvailableStepsList({
@@ -21,14 +23,44 @@ export default function AvailableStepsList({
   onAdd,
   onOpenSettings,
   addingStepId,
+  reportType,
 }: AvailableStepsListProps) {
+  const [filter, setFilter] = useState<StepReportType | "all">("all");
+
+  useEffect(() => {
+    if (reportType === "biz_miner" || reportType === "sales_miner") {
+      setFilter(reportType);
+    }
+  }, [reportType]);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return steps;
+    return steps.filter((s) => s.reportType === filter || s.reportType === null);
+  }, [steps, filter]);
+
   return (
     <Card
       title="Available Steps"
       style={DARK_CARD_STYLE}
-      styles={{ header: DARK_CARD_HEADER_STYLE }}
+      styles={{
+        header: DARK_CARD_HEADER_STYLE,
+        body: { padding: 0 },
+      }}
+      extra={
+        <Segmented
+          size="small"
+          value={filter}
+          onChange={(v) => setFilter(v as StepReportType | "all")}
+          options={[
+            { label: "All", value: "all" },
+            { label: "BizMiner", value: "biz_miner" },
+            { label: "SalesMiner", value: "sales_miner" },
+          ]}
+        />
+      }
     >
-      {steps.length === 0 ? (
+      <div style={{ height: 480, overflowY: "auto", padding: "8px 24px" }}>
+      {filtered.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={
@@ -40,7 +72,7 @@ export default function AvailableStepsList({
       ) : (
         <List
           loading={loading}
-          dataSource={steps}
+          dataSource={filtered}
           renderItem={(step) => (
             <List.Item
               actions={[
@@ -87,6 +119,7 @@ export default function AvailableStepsList({
           )}
         />
       )}
+      </div>
     </Card>
   );
 }

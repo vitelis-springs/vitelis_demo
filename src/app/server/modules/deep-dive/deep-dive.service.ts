@@ -513,6 +513,7 @@ export class DeepDiveService {
       createdAt: report.created_at,
       updatedAt: report.updates_at,
       status: report.report_orhestrator?.status ?? report_status_enum.PENDING,
+      reportType: report.report_type ?? null,
       useCase: report.use_cases
         ? { id: report.use_cases.id, name: report.use_cases.name }
         : null,
@@ -601,6 +602,7 @@ export class DeepDiveService {
                 }
               : null,
             industryName: firstCompany?.industries?.name ?? null,
+            reportType: report.report_type ?? null,
             counts: {
               companies: report._count.report_companies,
               steps: report._count.report_steps,

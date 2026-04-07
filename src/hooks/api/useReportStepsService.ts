@@ -6,12 +6,15 @@ import { api } from "../../lib/api-client";
 export type StepStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
 export type StepDependency = "rdp" | "kpi" | "category" | "url" | null;
 
+export type StepReportType = "biz_miner" | "sales_miner" | null;
+
 export interface GenerationStep {
   id: number;
   name: string;
   url: string;
   dependency: StepDependency;
   settings: unknown;
+  reportType: StepReportType;
 }
 
 export interface ConfiguredStep extends GenerationStep {

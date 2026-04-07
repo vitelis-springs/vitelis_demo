@@ -456,6 +456,7 @@ model report_generation_steps {
   url                  String
   settings             Json?
   dependency           report_generation_step_dependency_enum?
+  report_type          String?
   report_step_statuses report_step_statuses[]
   report_steps         report_steps[]
 }
@@ -527,6 +528,7 @@ model reports {
   updates_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
   report_settings_id                       Int?
   source_validation_settings_id            Int?
+  report_type                              String?                                    @db.VarChar(100)
   generated_company_reports                generated_company_reports[]
   report_companies                         report_companies[]
   report_data_collection_queries           report_data_collection_queries[]

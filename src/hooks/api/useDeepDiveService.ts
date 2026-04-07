@@ -24,6 +24,7 @@ export interface DeepDiveListItem {
     name: string;
   } | null;
   industryName?: string | null;
+  reportType?: string | null;
   counts: {
     companies: number;
     steps: number;
@@ -103,6 +104,7 @@ export interface DeepDiveOverviewResponse {
       createdAt?: string | null;
       updatedAt?: string | null;
       status: DeepDiveStatus;
+      reportType?: string | null;
       useCase?: { id: number; name: string } | null;
       settings?: { id: number; name: string } | null;
     };
@@ -253,6 +255,7 @@ export interface DeepDiveListParams {
   status?: DeepDiveStatus;
   useCaseId?: number;
   industryId?: number;
+  reportType?: string;
   sortBy?: string;
   sortOrder?: SortOrder;
 }
@@ -349,6 +352,7 @@ const deepDiveApi = {
     if (params.status) searchParams.set("status", params.status);
     if (params.useCaseId !== undefined) searchParams.set("useCaseId", String(params.useCaseId));
     if (params.industryId !== undefined) searchParams.set("industryId", String(params.industryId));
+    if (params.reportType) searchParams.set("reportType", params.reportType);
     if (params.sortBy) searchParams.set("sortBy", params.sortBy);
     if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
 
@@ -445,6 +449,7 @@ export const useGetDeepDives = (params: DeepDiveListParams, options?: { enabled?
       params.status ?? "",
       params.useCaseId ?? "",
       params.industryId ?? "",
+      params.reportType ?? "",
       params.sortBy ?? "",
       params.sortOrder ?? "",
     ],

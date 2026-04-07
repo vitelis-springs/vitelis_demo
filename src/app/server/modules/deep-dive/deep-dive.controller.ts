@@ -203,6 +203,9 @@ export class DeepDiveController {
       const industryRaw = toNumber(searchParams.get("industryId"));
       const sortBy = searchParams.get("sortBy")?.trim() || undefined;
       const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
+      const reportTypeRaw = searchParams.get("reportType")?.trim();
+      const VALID_REPORT_TYPES = ["biz_miner", "sales_miner", "internal"];
+      const reportType = reportTypeRaw && VALID_REPORT_TYPES.includes(reportTypeRaw) ? reportTypeRaw : undefined;
 
       const result = await DeepDiveService.listDeepDives({
         limit,
@@ -211,6 +214,7 @@ export class DeepDiveController {
         status: status || undefined,
         useCaseId: useCaseRaw && useCaseRaw > 0 ? useCaseRaw : undefined,
         industryId: industryRaw && industryRaw > 0 ? industryRaw : undefined,
+        reportType,
         sortBy,
         sortOrder,
       });

@@ -22,6 +22,13 @@ const STATUS_OPTIONS: Array<{ label: string; value: DeepDiveStatus | "" }> = [
   { label: "Error", value: "ERROR" },
 ];
 
+const REPORT_TYPE_OPTIONS: Array<{ label: string; value: string | "" }> = [
+  { label: "All Types", value: "" },
+  { label: "BizMiner", value: "biz_miner" },
+  { label: "SalesMiner", value: "sales_miner" },
+  { label: "Internal", value: "internal" },
+];
+
 function formatRelativeTime(value?: string | null) {
   if (!value) return "—";
   const date = new Date(value);
@@ -74,6 +81,7 @@ export default function DeepDiveList() {
   const [status, setStatus] = useState<DeepDiveStatus | "">("");
   const [useCaseId, setUseCaseId] = useState<number | undefined>(undefined);
   const [industryId, setIndustryId] = useState<number | undefined>(undefined);
+  const [reportType, setReportType] = useState<string | undefined>(undefined);
 
   const { data, isLoading } = useGetDeepDives({
     limit: pageSize,
@@ -82,6 +90,7 @@ export default function DeepDiveList() {
     status: status || undefined,
     useCaseId,
     industryId,
+    reportType,
     sortBy,
     sortOrder,
   });
@@ -123,6 +132,23 @@ export default function DeepDiveList() {
             {renderBadges(record)}
           </div>
         ),
+      },
+      {
+        title: "Type", dataIndex: "reportType", key: "reportType", width: 130,
+        render: (value: string | null) => {
+          if (!value) return <Text style={{ color: "#8c8c8c" }}>—</Text>;
+          const colors: Record<string, string> = {
+            biz_miner: "blue",
+            sales_miner: "green",
+            internal: "purple",
+          };
+          const labels: Record<string, string> = {
+            biz_miner: "BizMiner",
+            sales_miner: "SalesMiner",
+            internal: "Internal",
+          };
+          return <Tag color={colors[value] ?? "default"}>{labels[value] ?? value}</Tag>;
+        },
       },
       {
         title: "Status", dataIndex: "status", key: "status", width: 120,
@@ -175,6 +201,7 @@ export default function DeepDiveList() {
             style={{ width: 260 }}
           />
           <Select value={status} onChange={(v) => { resetPage(); setStatus(v); }} options={STATUS_OPTIONS} style={{ width: 160 }} />
+          <Select value={reportType ?? ""} onChange={(v) => { resetPage(); setReportType(v || undefined); }} options={REPORT_TYPE_OPTIONS} style={{ width: 160 }} />
           <Select value={useCaseId ?? 0} onChange={(v) => { resetPage(); setUseCaseId(v || undefined); }} options={useCaseOptions} style={{ width: 200 }} />
           <Select value={industryId ?? 0} onChange={(v) => { resetPage(); setIndustryId(v || undefined); }} options={industryOptions} style={{ width: 200 }} />
         </Space>

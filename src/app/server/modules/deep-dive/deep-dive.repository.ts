@@ -9,6 +9,7 @@ export interface DeepDiveListParams {
   status?: report_status_enum;
   useCaseId?: number;
   industryId?: number;
+  reportType?: string;
   sortBy?: string;
   sortOrder?: SortOrder;
 }
@@ -98,7 +99,9 @@ export class DeepDiveRepository {
   }
 
   static async listReports(params: DeepDiveListParams) {
-    const where: Prisma.reportsWhereInput = {};
+    const where: Prisma.reportsWhereInput = {
+      report_type: { not: null },
+    };
 
     if (params.query) {
       where.OR = [
@@ -119,6 +122,10 @@ export class DeepDiveRepository {
       where.report_companies = {
         some: { companies: { industry_id: params.industryId } },
       };
+    }
+
+    if (params.reportType) {
+      where.report_type = params.reportType;
     }
 
     const ALLOWED_SORT: Record<string, string> = {
