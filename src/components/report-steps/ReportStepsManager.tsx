@@ -1,6 +1,7 @@
 "use client";
 
-import { App, Layout, Space, Typography, Spin, Row, Col } from "antd";
+import { App, Collapse, Layout, Space, Typography, Spin, Row, Col } from "antd";
+import { SettingOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState } from "react";
 import {
   useGetReportSteps,
@@ -147,27 +148,50 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
           </div>
 
           {/* Steps Configuration */}
-          <Row gutter={24} style={{ marginBottom: 24 }}>
-            <Col xs={24} lg={14}>
-              <ConfiguredStepsList
-                steps={configured}
-                loading={stepsLoading}
-                onRemove={handleRemoveStep}
-                onUpdateOrder={handleUpdateOrder}
-                removingStepId={removingStepId}
-                updatingOrder={updateStepOrder.isPending}
-              />
-            </Col>
-            <Col xs={24} lg={10}>
-              <AvailableStepsList
-                steps={available}
-                loading={stepsLoading}
-                onAdd={handleAddStep}
-                onOpenSettings={setSettingsStep}
-                addingStepId={addingStepId}
-              />
-            </Col>
-          </Row>
+          <Collapse
+            style={{ marginBottom: 24, background: "#1f1f1f", border: "1px solid #303030" }}
+            items={[
+              {
+                key: "steps-config",
+                label: (
+                  <Space>
+                    <SettingOutlined style={{ color: "#58bfce" }} />
+                    <span style={{ color: "#d9d9d9", fontWeight: 600 }}>
+                      Step Configuration
+                    </span>
+                    <span style={{ color: "#8c8c8c", fontSize: 13 }}>
+                      {configured.length} configured · {available.length} available
+                    </span>
+                  </Space>
+                ),
+                children: (
+                  <Row gutter={24}>
+                    <Col xs={24} lg={12}>
+                      <ConfiguredStepsList
+                        steps={configured}
+                        loading={stepsLoading}
+                        onRemove={handleRemoveStep}
+                        onUpdateOrder={handleUpdateOrder}
+                        removingStepId={removingStepId}
+                        updatingOrder={updateStepOrder.isPending}
+                      />
+                    </Col>
+                    <Col xs={24} lg={12}>
+                      <AvailableStepsList
+                        steps={available}
+                        loading={stepsLoading}
+                        onAdd={handleAddStep}
+                        onOpenSettings={setSettingsStep}
+                        addingStepId={addingStepId}
+                        reportType={report?.reportType}
+                      />
+                    </Col>
+                  </Row>
+                ),
+                style: { background: "#1f1f1f", border: "none" },
+              },
+            ]}
+          />
 
           {/* Company Steps Matrix */}
           <CompanyStepsTable reportId={reportId} />

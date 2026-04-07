@@ -14,6 +14,7 @@ export class ReportStepsService {
         url: s.url,
         dependency: s.dependency,
         settings: s.settings,
+        reportType: s.report_type ?? null,
       })),
     };
   }
@@ -52,6 +53,8 @@ export class ReportStepsService {
 
     const configuredIds = new Set(configuredSteps.map((s) => s.step_id));
 
+    console.log("🔍 [ReportStepsService] allSteps report_type values:", allSteps.map((s) => ({ id: s.id, name: s.name, report_type: s.report_type })));
+
     return {
       success: true,
       data: {
@@ -71,6 +74,7 @@ export class ReportStepsService {
             url: s.url,
             dependency: s.dependency,
             settings: s.settings,
+            reportType: s.report_type ?? null,
           })),
       },
     };

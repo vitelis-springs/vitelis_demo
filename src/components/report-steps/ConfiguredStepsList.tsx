@@ -28,8 +28,12 @@ export default function ConfiguredStepsList({
     <Card
       title={`Configured Steps (${steps.length})`}
       style={DARK_CARD_STYLE}
-      styles={{ header: DARK_CARD_HEADER_STYLE }}
+      styles={{
+        header: DARK_CARD_HEADER_STYLE,
+        body: { padding: 0 },
+      }}
     >
+      <div style={{ height: 480, overflowY: "auto", padding: "8px 24px" }}>
       {steps.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -98,6 +102,7 @@ export default function ConfiguredStepsList({
           )}
         />
       )}
+      </div>
     </Card>
   );
 }
