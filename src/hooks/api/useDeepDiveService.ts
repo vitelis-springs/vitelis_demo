@@ -153,10 +153,80 @@ export interface KpiAverages {
   top5Companies: Array<{ id: number; name: string; total: number }>;
 }
 
+export interface SalesMinerOpportunity {
+  id: string;
+  entityName?: string;
+  title: string | null;
+  score: number | null;
+  portfolioPriorityScore: number | null;
+  portfolioPriorityReason: string | null;
+  track: string | null;
+  horizon: string | null;
+  dealSize: string | null;
+  whyNow: string | null;
+  businessProblem: string | null;
+  valueProposition: string | null;
+  rankPosition?: number | null;
+  isTop10?: boolean | null;
+  solutionCenter?: string | null;
+}
+
+export interface SalesMinerSignal {
+  id: string;
+  themeCode: string | null;
+  strengthScore: number | null;
+  confidenceScore: number | null;
+  freshnessScore: number | null;
+  summaryText: string | null;
+  signalName: string | null;
+  signalDescription: string | null;
+}
+
+export interface SalesMinerStakeholder {
+  id: string;
+  fullName: string | null;
+  linkedinUrl: string | null;
+  gateRole: string | null;
+  gateRoleType: string | null;
+  roleTitle: string | null;
+  entityName: string | null;
+  entityLevel: string | null;
+  rationale: string | null;
+  opportunityId: string | null;
+}
+
+export type SalesMinerCompanyResponse =
+  | {
+      success: boolean;
+      data: {
+        level: "account";
+        reportId: number;
+        company: { id: number; name: string; url?: string | null };
+        accountSnapshot: unknown;
+        accountAssessment: unknown;
+        sellerBrief: unknown;
+        validation: unknown;
+        topOpportunities: SalesMinerOpportunity[];
+      };
+    }
+  | {
+      success: boolean;
+      data: {
+        level: "entity";
+        reportId: number;
+        company: { id: number; name: string; url?: string | null };
+        signals: SalesMinerSignal[];
+        opportunities: SalesMinerOpportunity[];
+        stakeholders: SalesMinerStakeholder[];
+      };
+    };
+
 export interface DeepDiveCompanyResponse {
   success: boolean;
   data: {
     reportId: number;
+    reportType?: string | null;
+    typeLevel?: string | null;
     company: {
       id: number;
       name: string;
@@ -433,6 +503,16 @@ const deepDiveApi = {
     const response = await api.patch(
       `/deep-dive/${reportId}/companies/${companyId}/data-points/${resultId}`,
       payload,
+    );
+    return response.data;
+  },
+
+  async getSalesMinerCompany(
+    reportId: number,
+    companyId: number,
+  ): Promise<SalesMinerCompanyResponse> {
+    const response = await api.get(
+      `/deep-dive/${reportId}/companies/${companyId}/sales-miner`
     );
     return response.data;
   },
@@ -960,6 +1040,23 @@ export const useTryQuery = (reportId: number) => {
       companyId: number;
       metadataFilters?: Record<string, unknown>;
     }) => exportApi.tryQuery(reportId, query, companyId, metadataFilters),
+  });
+};
+
+export const useGetSalesMinerCompany = (
+  reportId: number | null,
+  companyId: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "sales-miner", reportId, companyId],
+    queryFn: () => deepDiveApi.getSalesMinerCompany(reportId!, companyId!),
+    enabled:
+      options?.enabled !== undefined
+        ? options.enabled
+        : reportId !== null && companyId !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 };
 

@@ -992,8 +992,22 @@ export class DeepDiveService {
     companyId: number,
     filters: SourceFilterParams
   ) {
-    const company = await DeepDiveRepository.getCompany(reportId, companyId);
+    const [company, report] = await Promise.all([
+      DeepDiveRepository.getCompany(reportId, companyId),
+      DeepDiveRepository.getReportById(reportId),
+    ]);
     if (!company) return null;
+
+    const reportSettings = report?.report_settings?.settings;
+    const typeLevel = (
+      typeof reportSettings === "object" &&
+      reportSettings !== null &&
+      !Array.isArray(reportSettings) &&
+      "type_level" in reportSettings &&
+      typeof (reportSettings as Record<string, unknown>).type_level === "string"
+    )
+      ? (reportSettings as Record<string, unknown>).type_level as string
+      : null;
 
     const steps = await DeepDiveRepository.getReportSteps(reportId);
 
@@ -1090,6 +1104,8 @@ export class DeepDiveService {
       success: true,
       data: {
         reportId,
+        reportType: report?.report_type ?? null,
+        typeLevel,
         company: {
           id: company.id,
           name: company.name,
@@ -1203,6 +1219,119 @@ export class DeepDiveService {
         totalFiltered: result.totalFiltered,
         aggregations: result.aggregations,
         items: result.items,
+      },
+    };
+  }
+
+  static async getSalesMinerCompanyData(reportId: number, companyId: number) {
+    const [company, report] = await Promise.all([
+      DeepDiveRepository.getCompany(reportId, companyId),
+      DeepDiveRepository.getReportById(reportId),
+    ]);
+
+    if (!company || !report) return null;
+    if (report.report_type !== "sales_miner") return null;
+
+    const settings = report.report_settings?.settings;
+    const isRecord = (v: unknown): v is Record<string, unknown> =>
+      typeof v === "object" && v !== null && !Array.isArray(v);
+
+    const typeLevel = (isRecord(settings) && typeof settings.type_level === "string")
+      ? settings.type_level
+      : null;
+
+    if (typeLevel === "account") {
+      const relatedReportId = isRecord(settings) && typeof settings.related_report_id === "number"
+        ? settings.related_report_id
+        : null;
+
+      const [stepResults, topOpportunities] = await Promise.all([
+        DeepDiveRepository.getSalesMinerStepResults(reportId, companyId),
+        relatedReportId
+          ? DeepDiveRepository.getAccountTopOpportunities(relatedReportId, company.name, 10)
+          : Promise.resolve([]),
+      ]);
+
+      const stepMap = new Map(stepResults.map((r) => [r.step_key, r.payload]));
+
+      return {
+        success: true,
+        data: {
+          level: "account" as const,
+          reportId,
+          company: { id: company.id, name: company.name, url: company.url },
+          accountSnapshot: stepMap.get("sclr.account-snapshot") ?? null,
+          accountAssessment: stepMap.get("sclr.account-assessment") ?? null,
+          sellerBrief: stepMap.get("sclr.seller-brief") ?? null,
+          validation: stepMap.get("sclr.validation") ?? null,
+          topOpportunities: topOpportunities.map((o) => ({
+            id: String(o.id),
+            entityName: o.entity_name,
+            title: o.title,
+            score: o.score ? parseFloat(o.score) : null,
+            portfolioPriorityScore: o.portfolio_priority_score ? parseFloat(o.portfolio_priority_score) : null,
+            portfolioPriorityReason: o.portfolio_priority_reason,
+            track: o.org_unit,
+            horizon: o.horizon,
+            dealSize: o.deal_size_general,
+            whyNow: o.why_now,
+            businessProblem: o.primary_business_problem,
+            valueProposition: o.primary_value_proposition,
+          })),
+        },
+      };
+    }
+
+    // entity level
+    const [signals, opportunities, stakeholders] = await Promise.all([
+      DeepDiveRepository.getEntitySignals(companyId, reportId),
+      DeepDiveRepository.getEntityOpportunities(companyId, reportId),
+      DeepDiveRepository.getEntityStakeholders(companyId, reportId),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        level: "entity" as const,
+        reportId,
+        company: { id: company.id, name: company.name, url: company.url },
+        signals: signals.map((s) => ({
+          id: String(s.id),
+          themeCode: s.theme_code,
+          strengthScore: s.strength_score ? parseFloat(s.strength_score) : null,
+          confidenceScore: s.confidence_score ? parseFloat(s.confidence_score) : null,
+          freshnessScore: s.freshness_score ? parseFloat(s.freshness_score) : null,
+          summaryText: s.summary_text,
+          signalName: s.signal_name,
+          signalDescription: s.signal_description,
+        })),
+        opportunities: opportunities.map((o) => ({
+          id: String(o.id),
+          title: o.title,
+          score: o.score ? parseFloat(o.score) : null,
+          portfolioPriorityScore: o.portfolio_priority_score ? parseFloat(o.portfolio_priority_score) : null,
+          rankPosition: o.rank_position,
+          isTop10: o.is_top_10,
+          track: o.org_unit,
+          horizon: o.horizon,
+          dealSize: o.deal_size_general,
+          whyNow: o.why_now,
+          businessProblem: o.primary_business_problem,
+          valueProposition: o.primary_value_proposition,
+          solutionCenter: o.solution_center,
+        })),
+        stakeholders: stakeholders.map((s) => ({
+          id: String(s.id),
+          fullName: s.full_name,
+          linkedinUrl: s.linkedin_url,
+          gateRole: s.gate_role,
+          gateRoleType: s.gate_role_type,
+          roleTitle: s.role_title,
+          entityName: s.entity_name,
+          entityLevel: s.entity_level,
+          rationale: s.rationale,
+          opportunityId: s.opportunity_id ? String(s.opportunity_id) : null,
+        })),
       },
     };
   }

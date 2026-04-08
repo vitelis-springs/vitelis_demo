@@ -27,6 +27,7 @@ import {
   useUpdateCompanyDataPoint,
   type UpdateCompanyDataPointPayload,
 } from "../../hooks/api/useDeepDiveService";
+import SalesMinerCompany from "./sales-miner-company";
 import { parseKpiScoreSelection } from "../../shared/kpi-score";
 import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
 import DatapointEditModal, { type DatapointEditTarget } from "./datapoint-edit-modal";
@@ -434,6 +435,17 @@ export default function DeepDiveCompany({
   const rawCols = useResizableColumns(rawColsDef);
 
   /* ─────────────── render ─────────────── */
+  if (payload?.reportType === "sales_miner") {
+    return (
+      <SalesMinerCompany
+        reportId={reportId}
+        companyId={companyId}
+        typeLevel={payload.typeLevel ?? "entity"}
+        companyName={payload.company.name}
+      />
+    );
+  }
+
   return (
     <DeepDivePageLayout>
       <PageHeader

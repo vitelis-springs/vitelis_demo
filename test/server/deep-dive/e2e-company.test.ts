@@ -90,6 +90,7 @@ function callGET(reportId: string, companyId: string, query = ""): Promise<Respo
 
 function setupCompanyMocks() {
   jest.spyOn(DeepDiveRepository, "getCompany").mockResolvedValueOnce(SAMPLE_COMPANY as never);
+  jest.spyOn(DeepDiveRepository, "getReportById").mockResolvedValueOnce(null);
   jest.spyOn(DeepDiveRepository, "getReportSteps").mockResolvedValueOnce(SAMPLE_STEPS as never);
   jest.spyOn(DeepDiveRepository, "getCompanyStepStatuses").mockResolvedValueOnce(SAMPLE_STEP_STATUSES as never);
   jest.spyOn(DeepDiveRepository, "getCompanyKpiResults").mockResolvedValueOnce(SAMPLE_KPI_RESULTS as never);
@@ -131,6 +132,7 @@ describe("E2E: GET /api/deep-dive/[id]/companies/[companyId]", () => {
 
   it("returns 404 when company not found in report", async () => {
     jest.spyOn(DeepDiveRepository, "getCompany").mockResolvedValueOnce(null);
+    jest.spyOn(DeepDiveRepository, "getReportById").mockResolvedValueOnce(null);
 
     const res = await callGET("10", "999");
     const body = await res.json();
@@ -194,6 +196,7 @@ describe("E2E: GET /api/deep-dive/[id]/companies/[companyId]", () => {
     } as never);
 
     jest.spyOn(DeepDiveRepository, "getCompany").mockResolvedValueOnce(SAMPLE_COMPANY as never);
+    jest.spyOn(DeepDiveRepository, "getReportById").mockResolvedValueOnce(null);
     jest.spyOn(DeepDiveRepository, "getReportSteps").mockResolvedValueOnce([]);
     jest.spyOn(DeepDiveRepository, "getCompanyStepStatuses").mockResolvedValueOnce([]);
     jest.spyOn(DeepDiveRepository, "getCompanyKpiResults").mockResolvedValueOnce([]);
@@ -212,6 +215,7 @@ describe("E2E: GET /api/deep-dive/[id]/companies/[companyId]", () => {
 
   it("assigns PENDING status to steps without a status record", async () => {
     jest.spyOn(DeepDiveRepository, "getCompany").mockResolvedValueOnce(SAMPLE_COMPANY as never);
+    jest.spyOn(DeepDiveRepository, "getReportById").mockResolvedValueOnce(null);
     jest.spyOn(DeepDiveRepository, "getReportSteps").mockResolvedValueOnce(SAMPLE_STEPS as never);
     jest.spyOn(DeepDiveRepository, "getCompanyStepStatuses").mockResolvedValueOnce([]); // no statuses
     jest.spyOn(DeepDiveRepository, "getCompanyKpiResults").mockResolvedValueOnce([]);

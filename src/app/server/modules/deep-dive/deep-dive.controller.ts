@@ -582,6 +582,35 @@ export class DeepDiveController {
     }
   }
 
+  static async getSalesMinerCompany(
+    request: NextRequest,
+    reportIdParam: string,
+    companyIdParam: string,
+  ) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const companyId = Number(companyIdParam);
+
+      if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+        return NextResponse.json({ success: false, error: "Invalid parameters" }, { status: 400 });
+      }
+
+      const result = await DeepDiveService.getSalesMinerCompanyData(reportId, companyId);
+
+      if (!result) {
+        return NextResponse.json({ success: false, error: "Not found or not a sales_miner report" }, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getSalesMinerCompany:", error);
+      return NextResponse.json({ success: false, error: "Failed to fetch sales miner data" }, { status: 500 });
+    }
+  }
+
   static async updateCompanyDataPoint(
     request: NextRequest,
     reportIdParam: string,

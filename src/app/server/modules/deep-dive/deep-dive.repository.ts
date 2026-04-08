@@ -1966,4 +1966,163 @@ export class DeepDiveRepository {
       items,
     };
   }
+
+  // ─────────────── Sales Miner ───────────────
+
+  static async getSalesMinerStepResults(reportId: number, companyId: number) {
+    return prisma.$queryRaw<Array<{ step_key: string; payload: unknown }>>`
+      SELECT step_key, payload
+      FROM sales_report_step_intermediate_results
+      WHERE report_id = ${reportId} AND company_id = ${companyId}
+    `;
+  }
+
+  static async getAccountTopOpportunities(relatedReportId: number, accountName: string, limit = 10) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      company_id: number;
+      entity_name: string;
+      title: string | null;
+      score: string | null;
+      portfolio_priority_score: string | null;
+      portfolio_priority_reason: string | null;
+      org_unit: string | null;
+      horizon: string | null;
+      deal_size_general: string | null;
+      why_now: string | null;
+      primary_business_problem: string | null;
+      primary_value_proposition: string | null;
+    }>>`
+      SELECT
+        oc.id,
+        oc.company_id,
+        c.name AS entity_name,
+        oc.title,
+        oc.score::text,
+        oc.portfolio_priority_score::text,
+        oc.portfolio_priority_reason,
+        oc.org_unit,
+        oc.horizon,
+        oc.deal_size_general,
+        oc.why_now,
+        oc.primary_business_problem,
+        oc.primary_value_proposition
+      FROM opportunity_candidates oc
+      JOIN research_runs rr ON rr.id = oc.research_run_id
+      JOIN companies c ON c.id = oc.company_id
+      WHERE rr.report_id = ${relatedReportId}
+        AND (
+          c.additional_data->>'parent_company' = ${accountName}
+          OR c.name = ${accountName}
+        )
+      ORDER BY oc.portfolio_priority_score DESC NULLS LAST
+      LIMIT ${limit}
+    `;
+  }
+
+  static async getEntitySignals(companyId: number, reportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      theme_code: string | null;
+      strength_score: string | null;
+      confidence_score: string | null;
+      freshness_score: string | null;
+      summary_text: string | null;
+      signal_name: string | null;
+      signal_description: string | null;
+    }>>`
+      SELECT
+        cssi.id,
+        cssi.theme_code,
+        cssi.strength_score::text,
+        cssi.confidence_score::text,
+        cssi.freshness_score::text,
+        cssi.summary_text,
+        sd.name AS signal_name,
+        sd.description AS signal_description
+      FROM company_signal_summary_items cssi
+      JOIN company_signal_summaries css ON css.id = cssi.company_signal_summary_id
+      JOIN research_runs rr ON rr.id = css.research_run_id
+      JOIN signal_definitions sd ON sd.id::text = cssi.signal_definition_id::text
+      WHERE rr.company_id = ${companyId}
+        AND rr.report_id = ${reportId}
+      ORDER BY cssi.strength_score DESC NULLS LAST
+    `;
+  }
+
+  static async getEntityOpportunities(companyId: number, reportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      title: string | null;
+      score: string | null;
+      portfolio_priority_score: string | null;
+      rank_position: number | null;
+      is_top_10: boolean | null;
+      org_unit: string | null;
+      horizon: string | null;
+      deal_size_general: string | null;
+      why_now: string | null;
+      primary_business_problem: string | null;
+      primary_value_proposition: string | null;
+      solution_center: string | null;
+    }>>`
+      SELECT
+        oc.id,
+        oc.title,
+        oc.score::text,
+        oc.portfolio_priority_score::text,
+        oc.rank_position,
+        oc.is_top_10,
+        oc.org_unit,
+        oc.horizon,
+        oc.deal_size_general,
+        oc.why_now,
+        oc.primary_business_problem,
+        oc.primary_value_proposition,
+        oc.solution_center
+      FROM opportunity_candidates oc
+      JOIN research_runs rr ON rr.id = oc.research_run_id
+      WHERE rr.company_id = ${companyId}
+        AND rr.report_id = ${reportId}
+      ORDER BY oc.portfolio_priority_score DESC NULLS LAST, oc.score DESC NULLS LAST
+    `;
+  }
+
+  static async getEntityStakeholders(companyId: number, reportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      gate_role: string | null;
+      gate_role_type: string | null;
+      role_title: string | null;
+      entity_name: string | null;
+      entity_level: string | null;
+      rationale: string | null;
+      full_name: string | null;
+      linkedin_url: string | null;
+      opportunity_id: bigint | null;
+    }>>`
+      SELECT
+        sv.id,
+        sv.gate_role,
+        sv.gate_role_type,
+        sv.role_title,
+        sv.entity_name,
+        sv.entity_level,
+        sv.rationale,
+        p.full_name,
+        p.linkedin_url,
+        sv.opportunity_id
+      FROM stakeholders_v2 sv
+      LEFT JOIN persons p ON p.id = sv.person_id
+      WHERE sv.company_id = ${companyId}
+        AND sv.opportunity_id IN (
+          SELECT oc.id
+          FROM opportunity_candidates oc
+          JOIN research_runs rr ON rr.id = oc.research_run_id
+          WHERE rr.company_id = ${companyId}
+            AND rr.report_id = ${reportId}
+        )
+      ORDER BY sv.id
+    `;
+  }
 }
