@@ -8,3 +8,11 @@ export async function GET(
   const { id, companyId } = await params;
   return DeepDiveController.getCompany(request, id, companyId);
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; companyId: string }> }
+) {
+  const { id, companyId } = await params;
+  return DeepDiveController.updateCompany(request, id, companyId);
+}

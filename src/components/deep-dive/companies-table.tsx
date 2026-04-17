@@ -1,13 +1,16 @@
 "use client";
 
+import React from "react";
 import { App, Button, Card, Input, Progress, Space, Table, Tooltip, Typography } from "antd";
-import type { ColumnsType, TableRowSelection } from "antd/es/table";
-import { DownloadOutlined, SearchOutlined } from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
+import type { TableRowSelection } from "antd/lib/table/interface";
+import { DownloadOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { DeepDiveCompanyRow, DeepDiveStatus } from "../../hooks/api/useDeepDiveService";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 import DeepDiveStatusTag from "./status-tag";
+import AddCompanyModal from "./add-company-modal";
 
 const { Text } = Typography;
 
@@ -15,7 +18,7 @@ const columns: ColumnsType<DeepDiveCompanyRow> = [
   {
     title: "ID",
     dataIndex: "id",
-    width: 70,
+    width: 90,
     sorter: (a, b) => a.id - b.id,
     render: (value: number) => (
       <Text style={{ color: "#8c8c8c", fontFamily: "monospace" }}>#{value}</Text>
@@ -134,16 +137,19 @@ export default function CompaniesTable({
   reportId,
   companies,
   loading,
+  basePath = "/deep-dive",
 }: {
   reportId: number;
   companies: DeepDiveCompanyRow[];
   loading: boolean;
+  basePath?: string;
 }) {
   const { message } = App.useApp();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [downloading, setDownloading] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -155,7 +161,7 @@ export default function CompaniesTable({
 
   const rowSelection: TableRowSelection<DeepDiveCompanyRow> = {
     selectedRowKeys,
-    onChange: (keys) => setSelectedRowKeys(keys),
+    onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
     preserveSelectedRowKeys: true,
   };
 
@@ -271,6 +277,12 @@ export default function CompaniesTable({
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: 220 }}
           />
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => setAddModalOpen(true)}
+          >
+            Add Company
+          </Button>
         </Space>
       }
     >
@@ -286,11 +298,16 @@ export default function CompaniesTable({
             if (target.closest(".ant-checkbox-wrapper") || target.closest(".ant-checkbox")) {
               return;
             }
-            router.push(`/deep-dive/${reportId}/companies/${record.id}`);
+            router.push(`${basePath}/${reportId}/companies/${record.id}`);
           },
           style: { cursor: "pointer" },
         })}
         columns={columns}
+      />
+      <AddCompanyModal
+        reportId={reportId}
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
       />
     </Card>
   );

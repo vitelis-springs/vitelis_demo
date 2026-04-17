@@ -28,6 +28,11 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 
   const report = overviewData?.data.report;
   const router = useRouter();
+
+  const { listLabel, listHref, basePath } = (() => {
+    if (report?.reportType === "internal") return { listLabel: "Vitelis Sales", listHref: "/vitelis-sales", basePath: "/vitelis-sales" };
+    return { listLabel: "Biz Miner", listHref: "/biz-miner", basePath: "/biz-miner" };
+  })();
   const exportReport = useExportReport(reportId);
 
   const allCategories = useMemo(() => kpiData?.data.categories ?? [], [kpiData]);
@@ -46,8 +51,8 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
             <Space direction="vertical" size={4}>
               <DeepDiveBreadcrumbs
                 items={[
-                  { label: "Deep Dives", href: "/deep-dive" },
-                  { label: report?.name || `Deep Dive #${reportId}` },
+                  { label: listLabel, href: listHref },
+                  { label: report?.name || `Report #${reportId}` },
                 ]}
               />
               <Space align="center" size="middle">
@@ -70,13 +75,13 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
                 </Button>
                 <Button
                   icon={<SearchOutlined />}
-                  onClick={() => router.push(`/deep-dive/${reportId}/try-query`)}
+                  onClick={() => router.push(`${basePath}/${reportId}/try-query`)}
                 >
                   Try Query
                 </Button>
                 <Button
                   icon={<SettingOutlined />}
-                  onClick={() => router.push(`/deep-dive/${reportId}/settings`)}
+                  onClick={() => router.push(`${basePath}/${reportId}/settings`)}
                 >
                   Settings
                 </Button>
@@ -101,7 +106,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
             </Space>
           </div>
 
-          <SummaryCards reportId={reportId} settingsName={report?.settings?.name ?? null} />
+          <SummaryCards reportId={reportId} settingsName={report?.settings?.name ?? null} basePath={basePath} />
           <KpiChartSection
             reportId={reportId}
             kpiChart={kpiChart}
@@ -112,6 +117,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
             reportId={reportId}
             companies={companies}
             loading={isCompaniesLoading}
+            basePath={basePath}
           />
 
         </div>

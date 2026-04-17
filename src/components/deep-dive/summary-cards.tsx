@@ -24,9 +24,13 @@ const { Text } = Typography;
 export default function SummaryCards({
   reportId,
   settingsName,
+  basePath = "/deep-dive",
+  compact = false,
 }: {
   reportId: number;
   settingsName: string | null;
+  basePath?: string;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const companiesCount = useGetDeepDiveMetric<number>(reportId, "companies-count");
@@ -44,12 +48,12 @@ export default function SummaryCards({
 
   return (
     <>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: compact ? 24 : 16 }}>
         <Col xs={24} sm={12} md={8}>
           <Card style={DARK_CARD_STYLE}>
             <Statistic
               title={
-                <Text style={{ color: "#8c8c8c" }}>Companies Analyzed</Text>
+                <Text style={{ color: "#8c8c8c" }}>Total Companies</Text>
               }
               value={
                 companiesCount.isLoading
@@ -69,7 +73,7 @@ export default function SummaryCards({
               transition: "border-color 0.2s",
             }}
             hoverable
-            onClick={() => router.push(`/deep-dive/${reportId}/steps`)}
+            onClick={() => router.push(`${basePath}/${reportId}/steps`)}
           >
             <Space direction="vertical" size={8} style={{ width: "100%" }}>
               <Space style={{ width: "100%", justifyContent: "start", gap: 4 }}>
@@ -99,7 +103,7 @@ export default function SummaryCards({
               transition: "border-color 0.2s",
             }}
             hoverable
-            onClick={() => router.push(`/deep-dive/${reportId}/settings`)}
+            onClick={() => router.push(`${basePath}/${reportId}/settings`)}
           >
             <Space direction="vertical" size={8}>
               <Space style={{ width: "100%", justifyContent: "start", gap: 4 }}>
@@ -117,7 +121,7 @@ export default function SummaryCards({
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      {!compact && <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
           <Card style={DARK_CARD_STYLE}>
             <Statistic
@@ -165,7 +169,7 @@ export default function SummaryCards({
               transition: "border-color 0.2s",
             }}
             hoverable
-            onClick={() => router.push(`/deep-dive/${reportId}/query`)}
+            onClick={() => router.push(`${basePath}/${reportId}/query`)}
           >
             <Statistic
               title={
@@ -184,7 +188,7 @@ export default function SummaryCards({
             />
           </Card>
         </Col>
-      </Row>
+      </Row>}
     </>
   );
 }

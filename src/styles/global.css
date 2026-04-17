@@ -896,6 +896,110 @@ a {
   }
 }
 
+/* vanilla-jsoneditor theme override — matches app color palette */
+.jse-theme-dark {
+  /* accent: app primary teal */
+  --jse-theme-color: #58bfce;
+  --jse-theme-color-highlight: #7dd3dc;
+
+  /* backgrounds */
+  --jse-background-color: #1f1f1f;
+  --jse-modal-background: #262626;
+  --jse-modal-code-background: #1f1f1f;
+
+  /* borders */
+  --jse-main-border: 1px solid #434343;
+  --jse-panel-border: 1px solid #303030;
+  --jse-panel-background-border: 1px solid #303030;
+
+  /* panels (toolbar, gutter) */
+  --jse-panel-background: #262626;
+  --jse-panel-color: #d9d9d9;
+  --jse-panel-color-readonly: #8c8c8c;
+  --jse-panel-button-background-highlight: #303030;
+  --jse-panel-button-color-highlight: #d9d9d9;
+
+  /* navigation bar */
+  --jse-navigation-bar-background: #262626;
+  --jse-navigation-bar-background-highlight: #303030;
+  --jse-navigation-bar-dropdown-color: #d9d9d9;
+
+  /* context menu */
+  --jse-context-menu-background: #262626;
+  --jse-context-menu-background-highlight: #303030;
+  --jse-context-menu-separator-color: #434343;
+  --jse-context-menu-color: #d9d9d9;
+  --jse-context-menu-pointer-background: #434343;
+  --jse-context-menu-pointer-background-highlight: #525252;
+
+  /* JSON value colors */
+  --jse-key-color: #58bfce;
+  --jse-value-color: #d9d9d9;
+  --jse-value-color-number: #e6b87d;
+  --jse-value-color-boolean: #7dd3dc;
+  --jse-value-color-null: #8c8c8c;
+  --jse-value-color-string: #a8d8a8;
+  --jse-value-color-url: #58bfce;
+  --jse-delimiter-color: #737373;
+  --jse-edit-outline: 2px solid #58bfce;
+
+  /* selection / hover */
+  --jse-selection-background-color: rgba(88, 191, 206, 0.18);
+  --jse-selection-background-inactive-color: rgba(88, 191, 206, 0.08);
+  --jse-hover-background-color: rgba(88, 191, 206, 0.07);
+  --jse-active-line-background-color: rgba(88, 191, 206, 0.05);
+
+  /* search */
+  --jse-search-match-background-color: rgba(88, 191, 206, 0.15);
+  --jse-search-match-color: rgba(88, 191, 206, 0.3);
+  --jse-search-match-outline: 1px solid #58bfce;
+  --jse-search-match-active-color: rgba(88, 191, 206, 0.45);
+  --jse-search-match-active-outline: 1px solid #7dd3dc;
+
+  /* collapsed items */
+  --jse-collapsed-items-background-color: #262626;
+  --jse-collapsed-items-selected-background-color: rgba(88, 191, 206, 0.18);
+  --jse-collapsed-items-link-color: #8c8c8c;
+  --jse-collapsed-items-link-color-highlight: #58bfce;
+
+  /* inline tags */
+  --jse-tag-background: #303030;
+  --jse-tag-color: #8c8c8c;
+
+  /* table */
+  --jse-table-header-background: #262626;
+  --jse-table-header-background-highlight: #303030;
+  --jse-table-row-odd-background: rgba(255, 255, 255, 0.04);
+
+  /* tooltip */
+  --jse-tooltip-color: #d9d9d9;
+  --jse-tooltip-background: #262626;
+  --jse-tooltip-border: 1px solid #434343;
+  --jse-tooltip-action-button-color: #141414;
+  --jse-tooltip-action-button-background: #58bfce;
+
+  /* inputs & buttons */
+  --jse-input-background: #303030;
+  --jse-input-border: 1px solid #434343;
+  --jse-button-background: #58bfce;
+  --jse-button-background-highlight: #7dd3dc;
+  --jse-button-color: #141414;
+  --jse-button-secondary-background: #303030;
+  --jse-button-secondary-background-highlight: #3a3a3a;
+  --jse-button-secondary-background-disabled: #262626;
+  --jse-button-secondary-color: #d9d9d9;
+  --jse-a-color: #58bfce;
+  --jse-a-color-highlight: #7dd3dc;
+
+  /* svelte-select (used in some modals inside editor) */
+  --jse-svelte-select-background: #303030;
+  --jse-svelte-select-border: 1px solid #434343;
+  --list-background: #262626;
+  --item-hover-bg: #303030;
+  --input-color: #d9d9d9;
+  --list-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
 /* Custom button hover effects */
 .custom-button:hover {
   background: #58bfce !important;

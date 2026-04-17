@@ -233,6 +233,11 @@ export interface DeepDiveCompanyResponse {
       countryCode?: string | null;
       url?: string | null;
       industryId?: number | null;
+      slug?: string | null;
+      investPortal?: string | null;
+      careerPortal?: string | null;
+      reportRole?: string | null;
+      additionalData?: unknown;
     };
     kpiAverages: KpiAverages;
     steps: Array<{
@@ -413,7 +418,37 @@ export interface UpdateDeepDiveSettingsPayload {
   validatorSettingsAction?: ValidatorSettingsActionPayload;
 }
 
+export interface CloneOptions {
+  orchestrator: boolean;
+  kpiModel: boolean;
+  companies: boolean;
+}
+
+export interface CreateReportPayload {
+  name: string;
+  description?: string;
+  useCaseId?: number;
+  reportType: string;
+  reportSettings?: {
+    name: string;
+    masterFileId?: string;
+    prefix?: number;
+    settings: object;
+  };
+  sourceValidationSettings?: {
+    name: string;
+    settings: object;
+  };
+  cloneFromId?: number;
+  cloneOptions?: CloneOptions;
+}
+
 const deepDiveApi = {
+  async create(payload: CreateReportPayload): Promise<{ success: boolean; data: { id: number; name: string | null } }> {
+    const response = await api.post("/deep-dive", payload);
+    return response.data;
+  },
+
   async list(params: DeepDiveListParams): Promise<DeepDiveListResponse> {
     const searchParams = new URLSearchParams();
     if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
@@ -516,6 +551,13 @@ const deepDiveApi = {
     );
     return response.data;
   },
+
+  async getSalesMinerReportOverview(
+    reportId: number,
+  ): Promise<SalesMinerReportOverviewResponse> {
+    const response = await api.get(`/deep-dive/${reportId}/sales-miner-overview`);
+    return response.data;
+  },
 };
 
 export const useGetDeepDives = (params: DeepDiveListParams, options?: { enabled?: boolean }) => {
@@ -535,6 +577,58 @@ export const useGetDeepDives = (params: DeepDiveListParams, options?: { enabled?
     ],
     queryFn: () => deepDiveApi.list(params),
     enabled: options?.enabled ?? true,
+  });
+};
+
+export interface ReportCloneData {
+  name: string;
+  description: string;
+  reportType: string;
+  useCaseId: number | null;
+  useCaseName: string | null;
+  reportSettings: {
+    name: string;
+    masterFileId: string;
+    prefix: number | null;
+    settings: unknown;
+  } | null;
+  sourceValidationSettings: {
+    name: string;
+    settings: unknown;
+  } | null;
+}
+
+export const useGetReportCloneData = (reportId: number | null) => {
+  return useQuery({
+    queryKey: ["deep-dive", "clone", reportId],
+    queryFn: async () => {
+      const response = await api.get(`/deep-dive/${reportId}/clone`);
+      return response.data as { success: boolean; data: ReportCloneData };
+    },
+    enabled: reportId !== null,
+    staleTime: 0,
+  });
+};
+
+export const useGetNextReportId = (enabled: boolean) => {
+  return useQuery({
+    queryKey: ["deep-dive", "next-id"],
+    queryFn: async () => {
+      const response = await api.get("/deep-dive/next-id");
+      return response.data as { success: boolean; data: { nextId: number } };
+    },
+    enabled,
+    staleTime: 0,
+  });
+};
+
+export const useCreateReport = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateReportPayload) => deepDiveApi.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deep-dive", "list"] });
+    },
   });
 };
 
@@ -1043,6 +1137,55 @@ export const useTryQuery = (reportId: number) => {
   });
 };
 
+/* ─────────────── Sales Miner Report Overview ─────────────── */
+
+export interface SalesMinerOppSummaryRow {
+  motionFamily: string | null;
+  horizon: string | null;
+  count: number;
+  avgPriority: number | null;
+  companiesCount: number;
+}
+
+export interface SalesMinerSignalSummaryRow {
+  themeCode: string;
+  signalCount: number;
+  avgStrength: number | null;
+  companiesCount: number;
+}
+
+export interface SalesMinerReportCompanyRow {
+  id: number;
+  name: string;
+  oppCount: number;
+  avgPriority: number | null;
+  signalCount: number;
+  stepsDone?: number;
+  isAnalyzed?: boolean;
+}
+
+export type SalesMinerReportOverviewResponse =
+  | {
+      success: boolean;
+      data: {
+        level: "entity";
+        reportId: number;
+        signalSummary: SalesMinerSignalSummaryRow[];
+        oppSummary: SalesMinerOppSummaryRow[];
+        topCompanies: SalesMinerReportCompanyRow[];
+      };
+    }
+  | {
+      success: boolean;
+      data: {
+        level: "account";
+        reportId: number;
+        relatedReportId: number | null;
+        oppSummary: SalesMinerOppSummaryRow[];
+        companies: SalesMinerReportCompanyRow[];
+      };
+    };
+
 export const useGetSalesMinerCompany = (
   reportId: number | null,
   companyId: number | null,
@@ -1056,6 +1199,96 @@ export const useGetSalesMinerCompany = (
         ? options.enabled
         : reportId !== null && companyId !== null,
     staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetSalesMinerReportOverview = (
+  reportId: number | null,
+  options?: { enabled?: boolean }
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "sales-miner-overview", reportId],
+    queryFn: () => deepDiveApi.getSalesMinerReportOverview(reportId!),
+    enabled: options?.enabled !== undefined ? options.enabled : reportId !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export interface CompanyUpdatePayload {
+  name?: string;
+  url?: string | null;
+  countryCode?: string | null;
+  industryId?: number | null;
+  investPortal?: string | null;
+  careerPortal?: string | null;
+  slug?: string | null;
+  reportRole?: string | null;
+  additionalData?: unknown;
+}
+
+export const useUpdateCompany = (reportId: number, companyId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CompanyUpdatePayload) => {
+      const response = await api.patch(`/deep-dive/${reportId}/companies/${companyId}`, payload);
+      return response.data as { success: boolean; error?: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deep-dive", "company", reportId, companyId] });
+      queryClient.invalidateQueries({ queryKey: ["deep-dive", "companies", reportId] });
+    },
+  });
+};
+
+export interface CompanySearchResult {
+  id: number;
+  name: string;
+  countryCode?: string | null;
+  url?: string | null;
+}
+
+export type AddCompanyPayload =
+  | { mode: "existing"; companyId: number }
+  | {
+      mode: "new";
+      name: string;
+      url?: string | null;
+      countryCode?: string | null;
+      industryId?: number | null;
+      investPortal?: string | null;
+      careerPortal?: string | null;
+      slug?: string | null;
+      reportRole?: string | null;
+      additionalData?: unknown;
+    };
+
+export const useAddCompanyToReport = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: AddCompanyPayload) => {
+      const response = await api.post(`/deep-dive/${reportId}/companies`, payload);
+      return response.data as { success: boolean; data?: { companyId: number } };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deep-dive", "companies", reportId] });
+      queryClient.invalidateQueries({ queryKey: ["deep-dive", "summary", reportId] });
+    },
+  });
+};
+
+export const useSearchCompanies = (query: string) => {
+  return useQuery({
+    queryKey: ["companies", "search", query],
+    queryFn: async () => {
+      const response = await api.get(`/companies/search?q=${encodeURIComponent(query)}`);
+      return response.data as { success: boolean; data: CompanySearchResult[] };
+    },
+    enabled: query.trim().length >= 2,
+    staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 };

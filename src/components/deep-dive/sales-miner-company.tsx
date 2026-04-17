@@ -418,7 +418,7 @@ function AccountLevelView({
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          { label: "Deep Dives", href: "/deep-dive" },
+          { label: "Sales Miner", href: "/sales-miner" },
           { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
           { label: companyName },
         ]}
@@ -691,7 +691,7 @@ function EntityLevelView({
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          { label: "Deep Dives", href: "/deep-dive" },
+          { label: "Sales Miner", href: "/sales-miner" },
           { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
           { label: companyName },
         ]}
