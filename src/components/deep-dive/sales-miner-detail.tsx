@@ -1,7 +1,7 @@
 "use client";
 
 import { App, Badge, Button, Card, Col, Input, Layout, Row, Space, Spin, Table, Tag, Tooltip, Typography } from "antd";
-import { DownloadOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
+import { DownloadOutlined, PlusOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableRowSelection } from "antd/lib/table/interface";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -14,6 +14,7 @@ import {
 import DeepDiveBreadcrumbs from "./breadcrumbs";
 import DeepDiveStatusTag from "./status-tag";
 import SummaryCards from "./summary-cards";
+import AddCompanyModal from "./add-company-modal";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 
 const { Content } = Layout;
@@ -68,17 +69,20 @@ function CompaniesTable({
   reportId,
   showSignals,
   title,
+  basePath = "/sales-miner",
 }: {
   companies: SalesMinerReportCompanyRow[];
   reportId: number;
   showSignals: boolean;
   title: string;
+  basePath?: string;
 }) {
   const { message } = App.useApp();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [downloading, setDownloading] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -261,6 +265,12 @@ function CompaniesTable({
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: 220 }}
           />
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => setAddModalOpen(true)}
+          >
+            Add Company
+          </Button>
         </Space>
       }
     >
@@ -276,11 +286,16 @@ function CompaniesTable({
           onClick: (e) => {
             const target = e.target as HTMLElement;
             if (target.closest(".ant-checkbox-wrapper") || target.closest(".ant-checkbox")) return;
-            router.push(`/deep-dive/${reportId}/companies/${record.id}`);
+            router.push(`${basePath}/${reportId}/companies/${record.id}`);
           },
           style: { cursor: "pointer" },
         })}
         rowClassName={() => "sm-company-row"}
+      />
+      <AddCompanyModal
+        reportId={reportId}
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
       />
     </Card>
   );

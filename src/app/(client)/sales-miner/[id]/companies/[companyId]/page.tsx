@@ -6,7 +6,7 @@ import { Button, Result, Spin } from "antd";
 import { useAuth } from "../../../../../../hooks/useAuth";
 import DeepDiveCompany from "../../../../../../components/deep-dive/deep-dive-company";
 
-export default function BizMinerCompanyPage() {
+export default function SalesMinerCompanyPage() {
   const { isLoggedIn, isAdmin } = useAuth();
   const router = useRouter();
   const params = useParams();
@@ -45,10 +45,10 @@ export default function BizMinerCompanyPage() {
   if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
     return (
       <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Result status="404" title="Company not found" extra={<Button type="primary" onClick={() => router.push("/biz-miner")}>Back to list</Button>} />
+        <Result status="404" title="Company not found" extra={<Button type="primary" onClick={() => router.push("/sales-miner")}>Back to list</Button>} />
       </div>
     );
   }
 
-  return <DeepDiveCompany reportId={reportId} companyId={companyId} basePath="/biz-miner" showAdditionalData={false} />;
+  return <DeepDiveCompany reportId={reportId} companyId={companyId} basePath="/sales-miner" />;
 }
