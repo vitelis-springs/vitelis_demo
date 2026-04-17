@@ -18,6 +18,7 @@ const { Text } = Typography;
 interface Props {
   reportId: number;
   highlightQueryId: number | null;
+  backHref?: string;
 }
 
 interface EditState {
@@ -25,11 +26,11 @@ interface EditState {
   searchQueries: string[];
 }
 
-export default function ReportQueries({ reportId, highlightQueryId }: Props) {
+export default function ReportQueries({ reportId, highlightQueryId, backHref }: Props) {
   const { data, isLoading } = useGetReportQueries(reportId);
   const updateMutation = useUpdateQuery(reportId);
 
-  const queries = data?.data?.queries ?? [];
+  const queries = useMemo(() => data?.data?.queries ?? [], [data]);
   const reportName = data?.data?.reportName ?? `Report #${reportId}`;
 
   /* ── edit state ── */
@@ -210,7 +211,7 @@ export default function ReportQueries({ reportId, highlightQueryId }: Props) {
       <PageHeader
         breadcrumbs={[
           { label: "Deep Dives", href: "/deep-dive" },
-          { label: reportName, href: `/deep-dive/${reportId}` },
+          { label: reportName, href: backHref ?? `/deep-dive/${reportId}` },
           { label: "Queries" },
         ]}
         title={`Report Queries — ${reportName}`}

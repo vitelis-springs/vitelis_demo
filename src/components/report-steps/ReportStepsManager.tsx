@@ -26,6 +26,18 @@ interface ReportStepsManagerProps {
   reportId: number;
 }
 
+function resolveSection(reportType?: string | null): { label: string; href: string } {
+  if (reportType === "biz_miner") return { label: "Biz Miner", href: "/biz-miner" };
+  if (reportType === "sales_miner") return { label: "Sales Miner", href: "/sales-miner" };
+  if (reportType === "internal") return { label: "Vitelis Sales", href: "/vitelis-sales" };
+  return { label: "Deep Dives", href: "/deep-dive" };
+}
+
+function resolveBackHref(reportId: number, reportType?: string | null): string {
+  const section = resolveSection(reportType);
+  return `${section.href}/${reportId}`;
+}
+
 export default function ReportStepsManager({ reportId }: ReportStepsManagerProps) {
   const { message } = App.useApp();
   const [addingStepId, setAddingStepId] = useState<number | null>(null);
@@ -125,10 +137,10 @@ export default function ReportStepsManager({ reportId }: ReportStepsManagerProps
             <Space direction="vertical" size={4}>
               <DeepDiveBreadcrumbs
                 items={[
-                  { label: "Deep Dives", href: "/deep-dive" },
+                  resolveSection(report?.reportType),
                   {
-                    label: report?.name || `Deep Dive #${reportId}`,
-                    href: `/deep-dive/${reportId}`,
+                    label: report?.name || `Report #${reportId}`,
+                    href: resolveBackHref(reportId, report?.reportType),
                   },
                   { label: "Steps" },
                 ]}

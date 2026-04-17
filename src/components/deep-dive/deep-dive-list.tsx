@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, Input, Select, Space, Table, Tag, Typography } from "antd";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import {
@@ -11,6 +11,7 @@ import useServerSortedTable from "../../hooks/useServerSortedTable";
 import DeepDivePageLayout from "./shared/page-layout";
 import PageHeader from "./shared/page-header";
 import DeepDiveStatusTag from "./status-tag";
+import CreateReportModal, { CloneReportButton } from "./create-report-modal";
 
 const { Text } = Typography;
 
@@ -72,7 +73,11 @@ function renderBadges(record: DeepDiveListItem): React.ReactNode {
   return <div style={{ marginTop: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div>;
 }
 
-export default function DeepDiveList() {
+interface DeepDiveListProps {
+  fixedReportType?: string;
+}
+
+export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
   const router = useRouter();
   const { page, pageSize, offset, sortBy, sortOrder, handleTableChange, resetPage } =
     useServerSortedTable({ defaultPageSize: 20, defaultSortBy: "id", defaultSortOrder: "desc" });
@@ -81,7 +86,8 @@ export default function DeepDiveList() {
   const [status, setStatus] = useState<DeepDiveStatus | "">("");
   const [useCaseId, setUseCaseId] = useState<number | undefined>(undefined);
   const [industryId, setIndustryId] = useState<number | undefined>(undefined);
-  const [reportType, setReportType] = useState<string | undefined>(undefined);
+  const [reportType, setReportType] = useState<string | undefined>(fixedReportType);
+  const [cloneFromId, setCloneFromId] = useState<number | null>(null);
 
   const { data, isLoading } = useGetDeepDives({
     limit: pageSize,
@@ -98,6 +104,13 @@ export default function DeepDiveList() {
   const items = data?.data.items ?? [];
   const total = data?.data.total ?? 0;
   const filters = data?.data.filters;
+  const useCasesForModal = filters?.useCases ?? [];
+
+  const pageTitle =
+    fixedReportType === "biz_miner" ? "Biz Miner Reports" :
+    fixedReportType === "sales_miner" ? "Sales Miner Reports" :
+    fixedReportType === "internal" ? "Vitelis Sales Reports" :
+    "Deep Dive Admin";
 
   const useCaseOptions = useMemo(
     () => [
@@ -139,7 +152,7 @@ export default function DeepDiveList() {
           </div>
         ),
       },
-      {
+      ...(!fixedReportType ? [{
         title: "Type", dataIndex: "reportType", key: "reportType", width: 130,
         render: (value: string | null) => {
           if (!value) return <Text style={{ color: "#8c8c8c" }}>—</Text>;
@@ -155,7 +168,7 @@ export default function DeepDiveList() {
           };
           return <Tag color={colors[value] ?? "default"}>{labels[value] ?? value}</Tag>;
         },
-      },
+      }] : []),
       {
         title: "Status", dataIndex: "status", key: "status", width: 120,
         render: (value: DeepDiveStatus) => <DeepDiveStatusTag status={value} />,
@@ -179,8 +192,25 @@ export default function DeepDiveList() {
           <Text style={{ color: "#8c8c8c", fontSize: 13 }}>{formatRelativeTime(value)}</Text>
         ),
       },
+      ...(fixedReportType === "biz_miner" || fixedReportType === "sales_miner" ? [{
+        title: "", key: "actions", width: 48,
+        render: (_: unknown, record: DeepDiveListItem) => (
+          <CloneReportButton onClone={() => setCloneFromId(record.id)} />
+        ),
+      }] : []),
     ],
-    []
+    [fixedReportType]
+  );
+
+  const getRecordHref = useCallback(
+    (record: DeepDiveListItem) => {
+      const type = fixedReportType ?? record.reportType;
+      if (type === "biz_miner") return `/biz-miner/${record.id}`;
+      if (type === "sales_miner") return `/sales-miner/${record.id}`;
+      if (type === "internal") return `/vitelis-sales/${record.id}`;
+      return `/deep-dive/${record.id}`;
+    },
+    [fixedReportType],
   );
 
   const handleSearch = () => {
@@ -191,9 +221,28 @@ export default function DeepDiveList() {
   return (
     <DeepDivePageLayout>
       <PageHeader
-        breadcrumbs={[{ label: "Deep Dives" }]}
-        title="Deep Dive Admin"
-        extra={<Text style={{ color: "#8c8c8c" }}>Track progress, queries, and company statuses</Text>}
+        breadcrumbs={[{ label: pageTitle }]}
+        title={pageTitle}
+        extra={
+          (fixedReportType === "biz_miner" || fixedReportType === "sales_miner") ? (
+            <>
+              <CreateReportModal
+                reportType={fixedReportType}
+                useCases={useCasesForModal}
+              />
+              {cloneFromId !== null && (
+                <CreateReportModal
+                  reportType={fixedReportType}
+                  useCases={useCasesForModal}
+                  cloneFromId={cloneFromId}
+                  onCloneClose={() => setCloneFromId(null)}
+                />
+              )}
+            </>
+          ) : (
+            <Text style={{ color: "#8c8c8c" }}>Track progress, queries, and company statuses</Text>
+          )
+        }
       />
 
       <Card style={{ ...DARK_CARD_STYLE, marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
@@ -207,7 +256,9 @@ export default function DeepDiveList() {
             style={{ width: 260 }}
           />
           <Select value={status} onChange={(v) => { resetPage(); setStatus(v); }} options={STATUS_OPTIONS} style={{ width: 160 }} />
-          <Select value={reportType ?? ""} onChange={(v) => { resetPage(); setReportType(v || undefined); }} options={REPORT_TYPE_OPTIONS} style={{ width: 160 }} />
+          {!fixedReportType && (
+            <Select value={reportType ?? ""} onChange={(v) => { resetPage(); setReportType(v || undefined); }} options={REPORT_TYPE_OPTIONS} style={{ width: 160 }} />
+          )}
           <Select value={useCaseId ?? 0} onChange={(v) => { resetPage(); setUseCaseId(v || undefined); }} options={useCaseOptions} style={{ width: 200 }} />
           <Select value={industryId ?? 0} onChange={(v) => { resetPage(); setIndustryId(v || undefined); }} options={industryOptions} style={{ width: 200 }} />
         </Space>
@@ -229,7 +280,7 @@ export default function DeepDiveList() {
           }}
           style={{ background: "#1f1f1f" }}
           onRow={(record) => ({
-            onClick: () => router.push(`/deep-dive/${record.id}`),
+            onClick: () => router.push(getRecordHref(record)),
             style: { cursor: "pointer" },
           })}
           rowClassName={() => "deep-dive-row"}

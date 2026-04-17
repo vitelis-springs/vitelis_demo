@@ -1,7 +1,7 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Card, Col, Empty, Input, Progress, Row, Space, Table, Tabs, Tag, Typography } from "antd";
+import { App, Button, Card, Col, Empty, Input, Progress, Row, Space, Spin, Table, Tabs, Tag, Typography } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -27,6 +27,8 @@ import {
   useUpdateCompanyDataPoint,
   type UpdateCompanyDataPointPayload,
 } from "../../hooks/api/useDeepDiveService";
+import SalesMinerCompany from "./sales-miner-company";
+import EditCompanyModal from "./edit-company-modal";
 import { parseKpiScoreSelection } from "../../shared/kpi-score";
 import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
 import DatapointEditModal, { type DatapointEditTarget } from "./datapoint-edit-modal";
@@ -161,9 +163,11 @@ const deriveCompanyStatus = (
 export default function DeepDiveCompany({
   reportId,
   companyId,
+  basePath = "/deep-dive",
 }: {
   reportId: number;
   companyId: number;
+  basePath?: string;
 }) {
   const { message } = App.useApp();
   const sourceParams = useMemo(() => ({ sourcesLimit: 50, sourcesOffset: 0 }), []);
@@ -184,6 +188,7 @@ export default function DeepDiveCompany({
 
   const companyStatus = useMemo(() => deriveCompanyStatus(steps), [steps]);
   const [editingTarget, setEditingTarget] = useState<DatapointEditTarget | null>(null);
+  const [editCompanyOpen, setEditCompanyOpen] = useState(false);
 
   const handleOpenEdit = useCallback((target: DatapointEditTarget) => {
     setEditingTarget(target);
@@ -434,29 +439,64 @@ export default function DeepDiveCompany({
   const rawCols = useResizableColumns(rawColsDef);
 
   /* ─────────────── render ─────────────── */
+  if (isLoading && !payload) {
+    return (
+      <DeepDivePageLayout>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400 }}>
+          <Spin size="large" />
+        </div>
+      </DeepDivePageLayout>
+    );
+  }
+
+  if (payload?.reportType === "sales_miner") {
+    return (
+      <SalesMinerCompany
+        reportId={reportId}
+        companyId={companyId}
+        typeLevel={payload.typeLevel ?? "entity"}
+        companyName={payload.company.name}
+      />
+    );
+  }
+
   return (
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          { label: "Deep Dives", href: "/deep-dive" },
-          { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+          { label: payload?.reportType === "internal" ? "Vitelis Sales" : "Biz Miner", href: payload?.reportType === "internal" ? "/vitelis-sales" : "/biz-miner" },
+          { label: `Report #${reportId}`, href: `${basePath}/${reportId}` },
           { label: payload?.company.name || `Company #${companyId}` },
         ]}
         title={payload?.company.name || `Company #${companyId}`}
-        extra={companyStatus && <DeepDiveStatusTag status={companyStatus} />}
+        extra={
+          <Space>
+            {companyStatus && <DeepDiveStatusTag status={companyStatus} />}
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => setEditCompanyOpen(true)}
+              disabled={!payload}
+            >
+              Edit
+            </Button>
+          </Space>
+        }
       />
       <Space size="middle" wrap style={{ marginBottom: 24 }}>
         <Text style={{ color: "#8c8c8c" }}>Country: <Text style={{ color: "#d9d9d9" }}>{payload?.company.countryCode || "—"}</Text></Text>
         {payload?.company.url && <Text style={{ color: "#8c8c8c" }}>Website: <Text style={{ color: "#d9d9d9" }}>{payload.company.url}</Text></Text>}
+        {payload?.company.investPortal && <Text style={{ color: "#8c8c8c" }}>Invest: <Text style={{ color: "#d9d9d9" }}>{payload.company.investPortal}</Text></Text>}
+        {payload?.company.careerPortal && <Text style={{ color: "#8c8c8c" }}>Careers: <Text style={{ color: "#d9d9d9" }}>{payload.company.careerPortal}</Text></Text>}
+        {payload?.company.reportRole && <Text style={{ color: "#8c8c8c" }}>Role: <Text style={{ color: "#d9d9d9" }}>{payload.company.reportRole}</Text></Text>}
       </Space>
 
       {/* ── stat cards ── */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={8}>
-          <StatCard label="Total sources" value={sourcesTotal} href={`/deep-dive/${reportId}/companies/${companyId}/sources`} />
+          <StatCard label="Total sources" value={sourcesTotal} href={`${basePath}/${reportId}/companies/${companyId}/sources`} />
         </Col>
         <Col xs={24} md={8}>
-          <StatCard label="Scrape candidates" value={scrapCandidatesTotal} href={`/deep-dive/${reportId}/companies/${companyId}/candidates`} />
+          <StatCard label="Scrape candidates" value={scrapCandidatesTotal} href={`${basePath}/${reportId}/companies/${companyId}/candidates`} />
         </Col>
         <Col xs={24} md={8}>
           <Card style={DARK_CARD_STYLE}>
@@ -557,6 +597,27 @@ export default function DeepDiveCompany({
         ]} />
       </Card>
 
+      {payload?.company.additionalData != null && (
+        <Card
+          title="Additional Data"
+          style={{ ...DARK_CARD_STYLE, marginTop: 24 }}
+          styles={{ header: DARK_CARD_HEADER_STYLE }}
+        >
+          <pre
+            style={{
+              margin: 0,
+              color: "#d9d9d9",
+              fontFamily: "monospace",
+              fontSize: 12,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+            }}
+          >
+            {JSON.stringify(payload.company.additionalData, null, 2)}
+          </pre>
+        </Card>
+      )}
+
       <DatapointEditModal
         open={!!editingTarget}
         loading={updateDataPoint.isPending}
@@ -564,6 +625,15 @@ export default function DeepDiveCompany({
         onClose={() => setEditingTarget(null)}
         onSubmit={handleSaveDataPoint}
       />
+
+      {payload?.company && (
+        <EditCompanyModal
+          reportId={reportId}
+          company={payload.company}
+          open={editCompanyOpen}
+          onClose={() => setEditCompanyOpen(false)}
+        />
+      )}
     </DeepDivePageLayout>
   );
 }

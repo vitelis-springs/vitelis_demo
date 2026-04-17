@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
-import { report_status_enum } from "../../../../generated/prisma";
+import { Prisma, report_status_enum } from "../../../../generated/prisma";
 import {
   isKpiScoreTier,
   isKpiScoreValue,
@@ -186,6 +186,102 @@ function parseValidatorSettingsAction(value: unknown): ValidatorSettingsAction |
 }
 
 export class DeepDiveController {
+  static async getReportCloneData(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const data = await DeepDiveService.getReportCloneData(reportId);
+      if (!data) {
+        return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, data });
+    } catch (error) {
+      console.error("❌ DeepDiveController.getReportCloneData:", error);
+      return NextResponse.json({ success: false, error: "Failed to get clone data" }, { status: 500 });
+    }
+  }
+
+  static async getNextReportId(request: NextRequest): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const { _max } = await (await import("../../../../lib/prisma")).default.reports.aggregate({ _max: { id: true } });
+      return NextResponse.json({ success: true, data: { nextId: (_max.id ?? 0) + 1 } });
+    } catch (error) {
+      console.error("❌ DeepDiveController.getNextReportId:", error);
+      return NextResponse.json({ success: false, error: "Failed to get next report id" }, { status: 500 });
+    }
+  }
+
+  static async createReport(request: NextRequest): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object") {
+        return NextResponse.json({ success: false, error: "Invalid request body" }, { status: 400 });
+      }
+
+      const VALID_REPORT_TYPES = ["biz_miner", "sales_miner", "internal"];
+      const { name, description, useCaseId, reportType, reportSettings, sourceValidationSettings, cloneFromId, cloneOptions } = body as Record<string, unknown>;
+
+      if (typeof name !== "string" || !name.trim()) {
+        return NextResponse.json({ success: false, error: "name is required" }, { status: 400 });
+      }
+      if (typeof reportType !== "string" || !VALID_REPORT_TYPES.includes(reportType)) {
+        return NextResponse.json({ success: false, error: "Invalid reportType" }, { status: 400 });
+      }
+
+      const toRecord = (v: unknown): Record<string, unknown> | null =>
+        typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
+
+      const rs = toRecord(reportSettings);
+      const svs = toRecord(sourceValidationSettings);
+
+      const cloneOpts = toRecord(cloneOptions);
+
+      const result = await DeepDiveService.createReport({
+        name: name.trim(),
+        description: typeof description === "string" ? description.trim() : undefined,
+        useCaseId: typeof useCaseId === "number" && useCaseId > 0 ? useCaseId : undefined,
+        reportType,
+        reportSettings: rs && typeof rs.name === "string" ? {
+          name: rs.name,
+          masterFileId: typeof rs.masterFileId === "string" ? rs.masterFileId : "",
+          prefix: typeof rs.prefix === "number" ? rs.prefix : undefined,
+          settings: (typeof rs.settings === "object" && rs.settings !== null) ? rs.settings as object : {},
+        } : undefined,
+        sourceValidationSettings: svs && typeof svs.name === "string" ? {
+          name: svs.name,
+          settings: (typeof svs.settings === "object" && svs.settings !== null) ? svs.settings as object : {},
+        } : undefined,
+        cloneFromId: typeof cloneFromId === "number" ? cloneFromId : undefined,
+        cloneOptions: cloneOpts ? {
+          orchestrator: cloneOpts.orchestrator === true,
+          kpiModel: cloneOpts.kpiModel === true,
+          companies: cloneOpts.companies === true,
+        } : undefined,
+      });
+
+      return NextResponse.json({ success: true, data: result }, { status: 201 });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return NextResponse.json({ success: false, error: "ID_CONFLICT" }, { status: 409 });
+      }
+      console.error("❌ DeepDiveController.createReport:", error);
+      return NextResponse.json({ success: false, error: "Failed to create report" }, { status: 500 });
+    }
+  }
+
   static async list(request: NextRequest): Promise<NextResponse> {
     try {
       const auth = extractAdminFromRequest(request);
@@ -582,6 +678,60 @@ export class DeepDiveController {
     }
   }
 
+  static async getSalesMinerCompany(
+    request: NextRequest,
+    reportIdParam: string,
+    companyIdParam: string,
+  ) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const companyId = Number(companyIdParam);
+
+      if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+        return NextResponse.json({ success: false, error: "Invalid parameters" }, { status: 400 });
+      }
+
+      const result = await DeepDiveService.getSalesMinerCompanyData(reportId, companyId);
+
+      if (!result) {
+        return NextResponse.json({ success: false, error: "Not found or not a sales_miner report" }, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getSalesMinerCompany:", error);
+      return NextResponse.json({ success: false, error: "Failed to fetch sales miner data" }, { status: 500 });
+    }
+  }
+
+  static async getSalesMinerReportOverview(
+    request: NextRequest,
+    reportIdParam: string,
+  ) {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const result = await DeepDiveService.getSalesMinerReportOverview(reportId);
+      if (!result) {
+        return NextResponse.json({ success: false, error: "Not found or not a sales_miner report" }, { status: 404 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getSalesMinerReportOverview:", error);
+      return NextResponse.json({ success: false, error: "Failed to fetch sales miner report overview" }, { status: 500 });
+    }
+  }
+
   static async updateCompanyDataPoint(
     request: NextRequest,
     reportIdParam: string,
@@ -958,6 +1108,83 @@ export class DeepDiveController {
     } catch (error) {
       console.error("❌ DeepDiveController.tryQuery:", error);
       return NextResponse.json({ success: false, error: "Failed to execute query" }, { status: 500 });
+    }
+  }
+
+  static async updateCompany(request: NextRequest, reportIdParam: string, companyIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const companyId = Number(companyIdParam);
+      if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+        return NextResponse.json({ success: false, error: "Invalid id" }, { status: 400 });
+      }
+
+      const body = await request.json();
+      const result = await DeepDiveService.updateCompany(reportId, companyId, body);
+
+      if (!result.success) {
+        return NextResponse.json(result, { status: 404 });
+      }
+      return NextResponse.json(result);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Unique constraint")) {
+        return NextResponse.json({ success: false, error: "Slug already taken" }, { status: 409 });
+      }
+      console.error("❌ DeepDiveController.updateCompany:", error);
+      return NextResponse.json({ success: false, error: "Failed to update company" }, { status: 500 });
+    }
+  }
+
+  static async addCompanyToReport(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const body = await request.json();
+      const result = await DeepDiveService.addCompanyToReport(reportId, body);
+
+      if (!result.success) {
+        return NextResponse.json(result, { status: 400 });
+      }
+
+      return NextResponse.json(result);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Unique constraint")) {
+        return NextResponse.json(
+          { success: false, error: "Company is already linked to this report" },
+          { status: 409 }
+        );
+      }
+      console.error("❌ DeepDiveController.addCompanyToReport:", error);
+      return NextResponse.json({ success: false, error: "Failed to add company" }, { status: 500 });
+    }
+  }
+
+  static async searchCompanies(request: NextRequest): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const q = new URL(request.url).searchParams.get("q") ?? "";
+      if (q.trim().length < 2) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+
+      const result = await DeepDiveService.searchCompanies(q.trim());
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.searchCompanies:", error);
+      return NextResponse.json({ success: false, error: "Search failed" }, { status: 500 });
     }
   }
 }

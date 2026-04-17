@@ -1,4 +1,5 @@
 import { report_status_enum } from "../../../../generated/prisma";
+import prisma from "../../../../lib/prisma";
 import {
   buildKpiScoreValue,
   isKpiScoreTier,
@@ -566,6 +567,86 @@ export class DeepDiveService {
     return report_status_enum.DONE;
   }
 
+  static async getReportCloneData(reportId: number) {
+    const report = await prisma.reports.findUnique({
+      where: { id: reportId },
+      include: {
+        report_settings: true,
+        source_validation_settings: true,
+        use_cases: true,
+      },
+    });
+    if (!report) return null;
+
+    return {
+      name: report.name ?? "",
+      description: report.description ?? "",
+      reportType: report.report_type ?? "",
+      useCaseId: report.use_case_id ?? null,
+      useCaseName: report.use_cases?.name ?? null,
+      reportSettings: report.report_settings
+        ? {
+            name: report.report_settings.name,
+            masterFileId: report.report_settings.master_file_id,
+            prefix: report.report_settings.prefix ?? null,
+            settings: report.report_settings.settings,
+          }
+        : null,
+      sourceValidationSettings: report.source_validation_settings
+        ? {
+            name: report.source_validation_settings.name,
+            settings: report.source_validation_settings.settings,
+          }
+        : null,
+    };
+  }
+
+  static async createReport(payload: {
+    name: string;
+    description?: string;
+    useCaseId?: number;
+    reportType: string;
+    reportSettings?: {
+      name: string;
+      masterFileId?: string;
+      prefix?: number;
+      settings: object;
+    };
+    sourceValidationSettings?: {
+      name: string;
+      settings: object;
+    };
+    cloneFromId?: number;
+    cloneOptions?: { orchestrator: boolean; kpiModel: boolean; companies: boolean };
+  }) {
+    const report = await DeepDiveRepository.createReport({
+      name: payload.name,
+      description: payload.description,
+      useCaseId: payload.useCaseId,
+      reportType: payload.reportType,
+      reportSettings: {
+        name: payload.reportSettings?.name || payload.name,
+        masterFileId: payload.reportSettings?.masterFileId ?? "",
+        prefix: payload.reportSettings?.prefix ?? null,
+        settings: payload.reportSettings?.settings ?? {},
+      },
+      sourceValidationSettings: {
+        name: payload.sourceValidationSettings?.name || payload.name,
+        settings: payload.sourceValidationSettings?.settings ?? {},
+      },
+    });
+
+    if (payload.cloneFromId && payload.cloneOptions) {
+      await DeepDiveRepository.cloneReportRelatedData(
+        payload.cloneFromId,
+        report.id,
+        payload.cloneOptions
+      );
+    }
+
+    return { id: report.id, name: report.name };
+  }
+
   static async listDeepDives(params: DeepDiveListParams) {
     const [{ items, total }, useCases, industries] = await Promise.all([
       DeepDiveRepository.listReports(params),
@@ -992,8 +1073,22 @@ export class DeepDiveService {
     companyId: number,
     filters: SourceFilterParams
   ) {
-    const company = await DeepDiveRepository.getCompany(reportId, companyId);
+    const [company, report] = await Promise.all([
+      DeepDiveRepository.getCompany(reportId, companyId),
+      DeepDiveRepository.getReportById(reportId),
+    ]);
     if (!company) return null;
+
+    const reportSettings = report?.report_settings?.settings;
+    const typeLevel = (
+      typeof reportSettings === "object" &&
+      reportSettings !== null &&
+      !Array.isArray(reportSettings) &&
+      "type_level" in reportSettings &&
+      typeof (reportSettings as Record<string, unknown>).type_level === "string"
+    )
+      ? (reportSettings as Record<string, unknown>).type_level as string
+      : null;
 
     const steps = await DeepDiveRepository.getReportSteps(reportId);
 
@@ -1090,12 +1185,19 @@ export class DeepDiveService {
       success: true,
       data: {
         reportId,
+        reportType: report?.report_type ?? null,
+        typeLevel,
         company: {
           id: company.id,
           name: company.name,
           countryCode: company.country_code,
           url: company.url,
           industryId: company.industry_id,
+          slug: company.slug,
+          investPortal: company.invest_portal,
+          careerPortal: company.career_portal,
+          reportRole: company.report_role,
+          additionalData: company.additional_data,
         },
         kpiAverages: {
           reportAverage,
@@ -1204,6 +1306,279 @@ export class DeepDiveService {
         aggregations: result.aggregations,
         items: result.items,
       },
+    };
+  }
+
+  static async getSalesMinerCompanyData(reportId: number, companyId: number) {
+    const [company, report] = await Promise.all([
+      DeepDiveRepository.getCompany(reportId, companyId),
+      DeepDiveRepository.getReportById(reportId),
+    ]);
+
+    if (!company || !report) return null;
+    if (report.report_type !== "sales_miner") return null;
+
+    const settings = report.report_settings?.settings;
+    const isRecord = (v: unknown): v is Record<string, unknown> =>
+      typeof v === "object" && v !== null && !Array.isArray(v);
+
+    const typeLevel = (isRecord(settings) && typeof settings.type_level === "string")
+      ? settings.type_level
+      : null;
+
+    if (typeLevel === "account") {
+      const relatedReportId = isRecord(settings) && typeof settings.related_report_id === "number"
+        ? settings.related_report_id
+        : null;
+
+      const [stepResults, topOpportunities] = await Promise.all([
+        DeepDiveRepository.getSalesMinerStepResults(reportId, companyId),
+        relatedReportId
+          ? DeepDiveRepository.getAccountTopOpportunities(relatedReportId, company.name, 10)
+          : Promise.resolve([]),
+      ]);
+
+      const stepMap = new Map(stepResults.map((r) => [r.step_key, r.payload]));
+
+      return {
+        success: true,
+        data: {
+          level: "account" as const,
+          reportId,
+          company: { id: company.id, name: company.name, url: company.url },
+          accountSnapshot: stepMap.get("sclr.account-snapshot") ?? null,
+          accountAssessment: stepMap.get("sclr.account-assessment") ?? null,
+          sellerBrief: stepMap.get("sclr.seller-brief") ?? null,
+          validation: stepMap.get("sclr.validation") ?? null,
+          topOpportunities: topOpportunities.map((o) => ({
+            id: String(o.id),
+            entityName: o.entity_name,
+            title: o.title,
+            score: o.score ? parseFloat(o.score) : null,
+            portfolioPriorityScore: o.portfolio_priority_score ? parseFloat(o.portfolio_priority_score) : null,
+            portfolioPriorityReason: o.portfolio_priority_reason,
+            track: o.org_unit,
+            horizon: o.horizon,
+            dealSize: o.deal_size_general,
+            whyNow: o.why_now,
+            businessProblem: o.primary_business_problem,
+            valueProposition: o.primary_value_proposition,
+          })),
+        },
+      };
+    }
+
+    // entity level
+    const [signals, opportunities, stakeholders] = await Promise.all([
+      DeepDiveRepository.getEntitySignals(companyId, reportId),
+      DeepDiveRepository.getEntityOpportunities(companyId, reportId),
+      DeepDiveRepository.getEntityStakeholders(companyId, reportId),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        level: "entity" as const,
+        reportId,
+        company: { id: company.id, name: company.name, url: company.url },
+        signals: signals.map((s) => ({
+          id: String(s.id),
+          themeCode: s.theme_code,
+          strengthScore: s.strength_score ? parseFloat(s.strength_score) : null,
+          confidenceScore: s.confidence_score ? parseFloat(s.confidence_score) : null,
+          freshnessScore: s.freshness_score ? parseFloat(s.freshness_score) : null,
+          summaryText: s.summary_text,
+          signalName: s.signal_name,
+          signalDescription: s.signal_description,
+        })),
+        opportunities: opportunities.map((o) => ({
+          id: String(o.id),
+          title: o.title,
+          score: o.score ? parseFloat(o.score) : null,
+          portfolioPriorityScore: o.portfolio_priority_score ? parseFloat(o.portfolio_priority_score) : null,
+          rankPosition: o.rank_position,
+          isTop10: o.is_top_10,
+          track: o.org_unit,
+          horizon: o.horizon,
+          dealSize: o.deal_size_general,
+          whyNow: o.why_now,
+          businessProblem: o.primary_business_problem,
+          valueProposition: o.primary_value_proposition,
+          solutionCenter: o.solution_center,
+        })),
+        stakeholders: stakeholders.map((s) => ({
+          id: String(s.id),
+          fullName: s.full_name,
+          linkedinUrl: s.linkedin_url,
+          gateRole: s.gate_role,
+          gateRoleType: s.gate_role_type,
+          roleTitle: s.role_title,
+          entityName: s.entity_name,
+          entityLevel: s.entity_level,
+          rationale: s.rationale,
+          opportunityId: s.opportunity_id ? String(s.opportunity_id) : null,
+        })),
+      },
+    };
+  }
+
+  static async getSalesMinerReportOverview(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report || report.report_type !== "sales_miner") return null;
+
+    const settings = report.report_settings?.settings;
+    const isRecord = (v: unknown): v is Record<string, unknown> =>
+      typeof v === "object" && v !== null && !Array.isArray(v);
+
+    const typeLevel = (isRecord(settings) && typeof settings.type_level === "string")
+      ? settings.type_level
+      : null;
+
+    const relatedReportId = (isRecord(settings) && typeof settings.related_report_id === "number")
+      ? settings.related_report_id
+      : null;
+
+    const entityReportId = typeLevel === "account" ? (relatedReportId ?? reportId) : reportId;
+
+    if (typeLevel === "account") {
+      const [oppSummary, accountCompanies] = await Promise.all([
+        DeepDiveRepository.getSalesMinerReportOpportunitySummary(entityReportId),
+        relatedReportId
+          ? DeepDiveRepository.getSalesMinerAccountCompanies(reportId, relatedReportId)
+          : Promise.resolve([]),
+      ]);
+
+      return {
+        success: true,
+        data: {
+          level: "account" as const,
+          reportId,
+          relatedReportId,
+          oppSummary: oppSummary.map((r) => ({
+            motionFamily: r.motion_family,
+            horizon: r.horizon,
+            count: Number(r.count),
+            avgPriority: r.avg_priority ? Number(r.avg_priority) : null,
+            companiesCount: Number(r.companies_count),
+          })),
+          companies: accountCompanies.map((c) => ({
+            id: c.id,
+            name: c.name,
+            oppCount: Number(c.opp_count),
+            avgPriority: c.avg_priority ? Number(c.avg_priority) : null,
+            signalCount: Number(c.signal_count),
+            stepsDone: Number(c.steps_done),
+          })),
+        },
+      };
+    }
+
+    // entity level
+    const [signalSummary, oppSummary, topCompanies] = await Promise.all([
+      DeepDiveRepository.getSalesMinerReportSignalSummary(reportId),
+      DeepDiveRepository.getSalesMinerReportOpportunitySummary(reportId),
+      DeepDiveRepository.getSalesMinerEntityTopCompanies(reportId),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        level: "entity" as const,
+        reportId,
+        signalSummary: signalSummary.map((r) => ({
+          themeCode: r.theme_code,
+          signalCount: Number(r.signal_count),
+          avgStrength: r.avg_strength ? Number(r.avg_strength) : null,
+          companiesCount: Number(r.companies_count),
+        })),
+        oppSummary: oppSummary.map((r) => ({
+          motionFamily: r.motion_family,
+          horizon: r.horizon,
+          count: Number(r.count),
+          avgPriority: r.avg_priority ? Number(r.avg_priority) : null,
+          companiesCount: Number(r.companies_count),
+        })),
+        topCompanies: topCompanies.map((c) => ({
+          id: c.id,
+          name: c.name,
+          oppCount: Number(c.opp_count),
+          avgPriority: c.avg_priority ? Number(c.avg_priority) : null,
+          signalCount: Number(c.signal_count),
+          isAnalyzed: c.is_analyzed,
+        })),
+      },
+    };
+  }
+
+  static async addCompanyToReport(
+    reportId: number,
+    payload:
+      | { mode: "existing"; companyId: number }
+      | {
+          mode: "new";
+          name: string;
+          url?: string | null;
+          countryCode?: string | null;
+          industryId?: number | null;
+          investPortal?: string | null;
+          careerPortal?: string | null;
+          slug?: string | null;
+          reportRole?: string | null;
+          additionalData?: unknown;
+        }
+  ) {
+    if (payload.mode === "existing") {
+      await DeepDiveRepository.linkCompanyToReport(reportId, payload.companyId);
+      return { success: true };
+    }
+
+    const company = await DeepDiveRepository.createCompanyAndLink(reportId, {
+      name: payload.name,
+      url: payload.url,
+      countryCode: payload.countryCode,
+      industryId: payload.industryId,
+      investPortal: payload.investPortal,
+      careerPortal: payload.careerPortal,
+      slug: payload.slug,
+      reportRole: payload.reportRole,
+      additionalData: payload.additionalData,
+    });
+
+    return { success: true, data: { companyId: company.id } };
+  }
+
+  static async updateCompany(
+    reportId: number,
+    companyId: number,
+    data: {
+      name?: string;
+      url?: string | null;
+      countryCode?: string | null;
+      industryId?: number | null;
+      investPortal?: string | null;
+      careerPortal?: string | null;
+      slug?: string | null;
+      reportRole?: string | null;
+      additionalData?: unknown;
+    }
+  ) {
+    const company = await DeepDiveRepository.getCompany(reportId, companyId);
+    if (!company) return { success: false, error: "Company not found in this report" };
+
+    await DeepDiveRepository.updateCompany(companyId, data);
+    return { success: true };
+  }
+
+  static async searchCompanies(query: string) {
+    const companies = await DeepDiveRepository.searchCompaniesByName(query, 30);
+    return {
+      success: true,
+      data: companies.map((c) => ({
+        id: c.id,
+        name: c.name,
+        countryCode: c.country_code,
+        url: c.url,
+      })),
     };
   }
 }

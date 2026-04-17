@@ -102,7 +102,7 @@ function resolveInitialValidatorDraft(
   };
 }
 
-export default function DeepDiveSettings({ reportId }: { reportId: number }) {
+export default function DeepDiveSettings({ reportId, backHref }: { reportId: number; backHref?: string }) {
   const { message } = App.useApp();
   const { data, isLoading } = useGetDeepDiveSettings(reportId);
   const updateSettings = useUpdateDeepDiveSettings(reportId);
@@ -328,7 +328,7 @@ export default function DeepDiveSettings({ reportId }: { reportId: number }) {
                   { label: "Deep Dives", href: "/deep-dive" },
                   {
                     label: data.data.report.name || `Deep Dive #${reportId}`,
-                    href: `/deep-dive/${reportId}`,
+                    href: backHref ?? `/deep-dive/${reportId}`,
                   },
                   { label: "Settings" },
                 ]}
@@ -355,6 +355,7 @@ export default function DeepDiveSettings({ reportId }: { reportId: number }) {
             <Alert
               type="info"
               showIcon
+              style={{ width: "100%" }}
               message="How to use this page"
               description={
                 <div style={{ color: "#bfbfbf" }}>
@@ -406,6 +407,7 @@ export default function DeepDiveSettings({ reportId }: { reportId: number }) {
                     placeholder="Select report settings"
                     showSearch
                     optionFilterProp="label"
+                    style={{ width: 480 }}
                   />
                 ) : (
                   <Space direction="vertical" size={12} style={{ width: "100%" }}>
@@ -432,6 +434,7 @@ export default function DeepDiveSettings({ reportId }: { reportId: number }) {
                           placeholder="Select template"
                           showSearch
                           optionFilterProp="label"
+                          style={{ width: 480 }}
                         />
                         <Input
                           value={reportDraft.name}
@@ -523,6 +526,7 @@ export default function DeepDiveSettings({ reportId }: { reportId: number }) {
                     placeholder="Select validator settings"
                     showSearch
                     optionFilterProp="label"
+                    style={{ width: 480 }}
                   />
                 ) : (
                   <Space direction="vertical" size={12} style={{ width: "100%" }}>
@@ -549,6 +553,7 @@ export default function DeepDiveSettings({ reportId }: { reportId: number }) {
                           placeholder="Select template"
                           showSearch
                           optionFilterProp="label"
+                          style={{ width: 480 }}
                         />
                         <Input
                           value={validatorDraft.name}

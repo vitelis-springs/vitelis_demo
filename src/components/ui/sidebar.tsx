@@ -42,6 +42,11 @@ export default function Sidebar() {
     router.push('/login');
   };
 
+  function getActiveKey(path: string): string {
+    if (path.startsWith('/deep-dive')) return '/biz-miner';
+    return path;
+  }
+
   const menuItems = [
     // {
     //   key: '/analyze',
@@ -79,9 +84,17 @@ export default function Sidebar() {
       type: 'group' as const,
       label: 'ADMIN',
       children: [{
-        key: '/deep-dive',
+        key: '/biz-miner',
         icon: <AppstoreOutlined style={{ fontSize: '18px' }} />,
-        label: 'Deep Dive',
+        label: 'Biz Miner',
+      }, {
+        key: '/sales-miner',
+        icon: <AppstoreOutlined style={{ fontSize: '18px' }} />,
+        label: 'Sales Miner',
+      }, {
+        key: '/vitelis-sales',
+        icon: <AppstoreOutlined style={{ fontSize: '18px' }} />,
+        label: 'Vitelis Sales',
       }, {
         key: '/account',
         icon: <UserOutlined style={{ fontSize: '18px' }} />,
@@ -133,7 +146,7 @@ export default function Sidebar() {
         <div style={{ flex: 1 }}>
           <Menu
             mode="inline"
-            selectedKeys={[pathname]}
+            selectedKeys={[getActiveKey(pathname)]}
             items={menuItems}
             onClick={handleMenuClick}
             style={{

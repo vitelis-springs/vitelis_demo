@@ -4,7 +4,29 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Result, Spin } from "antd";
 import { useAuth } from "../../../../hooks/useAuth";
+import { useGetDeepDiveOverview } from "../../../../hooks/api/useDeepDiveService";
 import DeepDiveDetail from "../../../../components/deep-dive/deep-dive-detail";
+import SalesMinerDetail from "../../../../components/deep-dive/sales-miner-detail";
+
+function ReportDetailRouter({ reportId }: { reportId: number }) {
+  const { data, isLoading } = useGetDeepDiveOverview(reportId);
+
+  if (isLoading && !data) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  const reportType = data?.data.report.reportType;
+
+  if (reportType === "sales_miner") {
+    return <SalesMinerDetail reportId={reportId} />;
+  }
+
+  return <DeepDiveDetail reportId={reportId} />;
+}
 
 export default function DeepDiveDetailPage() {
   const { isLoggedIn, isAdmin } = useAuth();
@@ -30,44 +52,22 @@ export default function DeepDiveDetailPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#141414",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Spin size="large" />
       </div>
     );
   }
 
-  if (!isLoggedIn) {
-    return null;
-  }
+  if (!isLoggedIn) return null;
 
   if (!isAdmin()) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#141414",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Result
           status="403"
           title="Admin access required"
           subTitle="You do not have permission to view this Deep Dive."
-          extra={
-            <Button type="primary" onClick={() => router.push("/history")}>
-              Go to My Reports
-            </Button>
-          }
+          extra={<Button type="primary" onClick={() => router.push("/history")}>Go to My Reports</Button>}
         />
       </div>
     );
@@ -75,27 +75,15 @@ export default function DeepDiveDetailPage() {
 
   if (!Number.isFinite(reportId)) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#141414",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Result
           status="404"
           title="Deep Dive not found"
-          extra={
-            <Button type="primary" onClick={() => router.push("/deep-dive")}>
-              Back to list
-            </Button>
-          }
+          extra={<Button type="primary" onClick={() => router.push("/deep-dive")}>Back to list</Button>}
         />
       </div>
     );
   }
 
-  return <DeepDiveDetail reportId={reportId} />;
+  return <ReportDetailRouter reportId={reportId} />;
 }

@@ -98,6 +98,134 @@ export class DeepDiveRepository {
     return Prisma.sql`ORDER BY ${Prisma.raw(`"${col}"`)} ${dir}`;
   }
 
+  static async createReport(data: {
+    name: string;
+    description?: string;
+    useCaseId?: number;
+    reportType: string;
+    reportSettings: { name: string; masterFileId: string; prefix: number | null; settings: unknown };
+    sourceValidationSettings: { name: string; settings: unknown };
+  }) {
+    return prisma.$transaction(async (tx) => {
+      // Compute next IDs for all three tables before any insert
+      const [{ _max: rsMax }, { _max: svsMax }, { _max: rMax }] = await Promise.all([
+        tx.report_settings.aggregate({ _max: { id: true } }),
+        tx.source_validation_settings.aggregate({ _max: { id: true } }),
+        tx.reports.aggregate({ _max: { id: true } }),
+      ]);
+      const rsId = (rsMax.id ?? 0) + 1;
+      const svsId = (svsMax.id ?? 0) + 1;
+      const reportId = (rMax.id ?? 0) + 1;
+
+      const [rs, svs] = await Promise.all([
+        tx.report_settings.create({
+          data: {
+            id: rsId,
+            name: data.reportSettings.name,
+            master_file_id: data.reportSettings.masterFileId,
+            prefix: data.reportSettings.prefix,
+            settings: data.reportSettings.settings as Prisma.InputJsonValue,
+          },
+        }),
+        tx.source_validation_settings.create({
+          data: {
+            id: svsId,
+            name: data.sourceValidationSettings.name,
+            settings: data.sourceValidationSettings.settings as Prisma.InputJsonValue,
+          },
+        }),
+      ]);
+
+      const [report] = await Promise.all([
+        tx.reports.create({
+          data: {
+            id: reportId,
+            name: data.name,
+            description: data.description ?? null,
+            use_case_id: data.useCaseId ?? null,
+            report_type: data.reportType,
+            report_settings_id: rs.id,
+            source_validation_settings_id: svs.id,
+          },
+        }),
+        tx.report_orhestrator.create({
+          data: {
+            report_id: reportId,
+            status: report_status_enum.PENDING,
+            metadata: { parralel_limit: 1 },
+          },
+        }),
+      ]);
+
+      return report;
+    });
+  }
+
+  static async cloneReportRelatedData(
+    donorId: number,
+    newReportId: number,
+    options: { orchestrator: boolean; kpiModel: boolean; companies: boolean }
+  ) {
+    return prisma.$transaction(async (tx) => {
+      // Read all donor data first (reads are cheap inside tx)
+      const [donorOrchestrator, donorSteps, donorDataPoints, donorCompanies] = await Promise.all([
+        options.orchestrator ? tx.report_orhestrator.findUnique({ where: { report_id: donorId } }) : null,
+        options.orchestrator ? tx.report_steps.findMany({ where: { report_id: donorId } }) : [],
+        options.kpiModel ? tx.report_data_points.findMany({ where: { report_id: donorId } }) : [],
+        options.companies ? tx.report_companies.findMany({ where: { report_id: donorId } }) : [],
+      ]);
+
+      const writes: Promise<unknown>[] = [];
+
+      if (options.orchestrator) {
+        writes.push(
+          tx.report_orhestrator.update({
+            where: { report_id: newReportId },
+            data: { metadata: donorOrchestrator?.metadata ?? { parralel_limit: 1 } },
+          })
+        );
+        if (donorSteps.length > 0) {
+          writes.push(
+            tx.report_steps.createMany({
+              data: donorSteps.map((s) => ({
+                report_id: newReportId,
+                step_id: s.step_id,
+                step_order: s.step_order,
+              })),
+            })
+          );
+        }
+      }
+
+      if (options.kpiModel && donorDataPoints.length > 0) {
+        writes.push(
+          tx.report_data_points.createMany({
+            data: donorDataPoints.map((dp) => ({
+              report_id: newReportId,
+              data_point_id: dp.data_point_id,
+              include_to_report: dp.include_to_report,
+            })),
+            skipDuplicates: true,
+          })
+        );
+      }
+
+      if (options.companies && donorCompanies.length > 0) {
+        writes.push(
+          tx.report_companies.createMany({
+            data: donorCompanies.map((rc) => ({
+              report_id: newReportId,
+              company_id: rc.company_id,
+            })),
+            skipDuplicates: true,
+          })
+        );
+      }
+
+      if (writes.length > 0) await Promise.all(writes);
+    });
+  }
+
   static async listReports(params: DeepDiveListParams) {
     const where: Prisma.reportsWhereInput = {
       report_type: { not: null },
@@ -295,8 +423,12 @@ export class DeepDiveRepository {
     prefix: number | null;
     settings: unknown;
   }): Promise<ReportSettingsProfile> {
+    const { _max } = await prisma.report_settings.aggregate({ _max: { id: true } });
+    const nextId = (_max.id ?? 0) + 1;
+
     const created = await prisma.report_settings.create({
       data: {
+        id: nextId,
         name: data.name,
         master_file_id: data.masterFileId,
         prefix: data.prefix,
@@ -317,8 +449,12 @@ export class DeepDiveRepository {
     name: string;
     settings: unknown;
   }): Promise<ValidatorSettingsProfile> {
+    const { _max } = await prisma.source_validation_settings.aggregate({ _max: { id: true } });
+    const nextId = (_max.id ?? 0) + 1;
+
     const created = await prisma.source_validation_settings.create({
       data: {
+        id: nextId,
         name: data.name,
         settings: data.settings as Prisma.InputJsonValue,
       },
@@ -376,6 +512,98 @@ export class DeepDiveRepository {
       include: {
         companies: true,
       },
+    });
+  }
+
+  static async createCompanyAndLink(
+    reportId: number,
+    data: {
+      name: string;
+      url?: string | null;
+      countryCode?: string | null;
+      industryId?: number | null;
+      investPortal?: string | null;
+      careerPortal?: string | null;
+      slug?: string | null;
+      reportRole?: string | null;
+      additionalData?: unknown;
+    }
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const company = await tx.companies.create({
+        data: {
+          name: data.name,
+          url: data.url ?? null,
+          country_code: data.countryCode ?? null,
+          ...(data.industryId != null
+            ? { industries: { connect: { id: data.industryId } } }
+            : {}),
+          invest_portal: data.investPortal ?? null,
+          career_portal: data.careerPortal ?? null,
+          slug: data.slug ?? null,
+          report_role: data.reportRole ?? null,
+          ...(data.additionalData != null
+            ? { additional_data: data.additionalData as Parameters<typeof tx.companies.create>[0]["data"]["additional_data"] }
+            : {}),
+        },
+      });
+
+      await tx.report_companies.create({
+        data: { report_id: reportId, company_id: company.id },
+      });
+
+      return company;
+    });
+  }
+
+  static async linkCompanyToReport(reportId: number, companyId: number) {
+    return prisma.report_companies.create({
+      data: { report_id: reportId, company_id: companyId },
+    });
+  }
+
+  static async updateCompany(
+    companyId: number,
+    data: {
+      name?: string;
+      url?: string | null;
+      countryCode?: string | null;
+      industryId?: number | null;
+      investPortal?: string | null;
+      careerPortal?: string | null;
+      slug?: string | null;
+      reportRole?: string | null;
+      additionalData?: unknown;
+    }
+  ) {
+    return prisma.companies.update({
+      where: { id: companyId },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.url !== undefined ? { url: data.url } : {}),
+        ...(data.countryCode !== undefined ? { country_code: data.countryCode } : {}),
+        ...(data.industryId !== undefined
+          ? data.industryId != null
+            ? { industries: { connect: { id: data.industryId } } }
+            : { industries: { disconnect: true } }
+          : {}),
+        ...(data.investPortal !== undefined ? { invest_portal: data.investPortal } : {}),
+        ...(data.careerPortal !== undefined ? { career_portal: data.careerPortal } : {}),
+        ...(data.slug !== undefined ? { slug: data.slug } : {}),
+        ...(data.reportRole !== undefined ? { report_role: data.reportRole } : {}),
+        ...(data.additionalData !== undefined
+          ? { additional_data: data.additionalData as Parameters<typeof prisma.companies.update>[0]["data"]["additional_data"] }
+          : {}),
+      },
+    });
+  }
+
+  static async searchCompaniesByName(query: string, limit = 20) {
+    return prisma.companies.findMany({
+      where: { name: { contains: query, mode: "insensitive" } },
+      select: { id: true, name: true, country_code: true, url: true },
+      orderBy: { name: "asc" },
+      take: limit,
     });
   }
 
@@ -1965,5 +2193,285 @@ export class DeepDiveRepository {
       },
       items,
     };
+  }
+
+  // ─────────────── Sales Miner ───────────────
+
+  static async getSalesMinerStepResults(reportId: number, companyId: number) {
+    return prisma.$queryRaw<Array<{ step_key: string; payload: unknown }>>`
+      SELECT step_key, payload
+      FROM sales_report_step_intermediate_results
+      WHERE report_id = ${reportId} AND company_id = ${companyId}
+    `;
+  }
+
+  static async getAccountTopOpportunities(relatedReportId: number, accountName: string, limit = 10) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      company_id: number;
+      entity_name: string;
+      title: string | null;
+      score: string | null;
+      portfolio_priority_score: string | null;
+      portfolio_priority_reason: string | null;
+      org_unit: string | null;
+      horizon: string | null;
+      deal_size_general: string | null;
+      why_now: string | null;
+      primary_business_problem: string | null;
+      primary_value_proposition: string | null;
+    }>>`
+      SELECT
+        oc.id,
+        oc.company_id,
+        c.name AS entity_name,
+        oc.title,
+        oc.score::text,
+        oc.portfolio_priority_score::text,
+        oc.portfolio_priority_reason,
+        oc.org_unit,
+        oc.horizon,
+        oc.deal_size_general,
+        oc.why_now,
+        oc.primary_business_problem,
+        oc.primary_value_proposition
+      FROM opportunity_candidates oc
+      JOIN research_runs rr ON rr.id = oc.research_run_id
+      JOIN companies c ON c.id = oc.company_id
+      WHERE rr.report_id = ${relatedReportId}
+        AND (
+          c.additional_data->>'parent_company' = ${accountName}
+          OR c.name = ${accountName}
+        )
+      ORDER BY oc.portfolio_priority_score DESC NULLS LAST
+      LIMIT ${limit}
+    `;
+  }
+
+  static async getEntitySignals(companyId: number, reportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      theme_code: string | null;
+      strength_score: string | null;
+      confidence_score: string | null;
+      freshness_score: string | null;
+      summary_text: string | null;
+      signal_name: string | null;
+      signal_description: string | null;
+    }>>`
+      SELECT
+        cssi.id,
+        cssi.theme_code,
+        cssi.strength_score::text,
+        cssi.confidence_score::text,
+        cssi.freshness_score::text,
+        cssi.summary_text,
+        sd.name AS signal_name,
+        sd.description AS signal_description
+      FROM company_signal_summary_items cssi
+      JOIN company_signal_summaries css ON css.id = cssi.company_signal_summary_id
+      JOIN research_runs rr ON rr.id = css.research_run_id
+      JOIN signal_definitions sd ON sd.id::text = cssi.signal_definition_id::text
+      WHERE rr.company_id = ${companyId}
+        AND rr.report_id = ${reportId}
+      ORDER BY cssi.strength_score DESC NULLS LAST
+    `;
+  }
+
+  static async getEntityOpportunities(companyId: number, reportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      title: string | null;
+      score: string | null;
+      portfolio_priority_score: string | null;
+      rank_position: number | null;
+      is_top_10: boolean | null;
+      org_unit: string | null;
+      horizon: string | null;
+      deal_size_general: string | null;
+      why_now: string | null;
+      primary_business_problem: string | null;
+      primary_value_proposition: string | null;
+      solution_center: string | null;
+    }>>`
+      SELECT
+        oc.id,
+        oc.title,
+        oc.score::text,
+        oc.portfolio_priority_score::text,
+        oc.rank_position,
+        oc.is_top_10,
+        oc.org_unit,
+        oc.horizon,
+        oc.deal_size_general,
+        oc.why_now,
+        oc.primary_business_problem,
+        oc.primary_value_proposition,
+        oc.solution_center
+      FROM opportunity_candidates oc
+      JOIN research_runs rr ON rr.id = oc.research_run_id
+      WHERE rr.company_id = ${companyId}
+        AND rr.report_id = ${reportId}
+      ORDER BY oc.portfolio_priority_score DESC NULLS LAST, oc.score DESC NULLS LAST
+    `;
+  }
+
+  static async getEntityStakeholders(companyId: number, reportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: bigint;
+      gate_role: string | null;
+      gate_role_type: string | null;
+      role_title: string | null;
+      entity_name: string | null;
+      entity_level: string | null;
+      rationale: string | null;
+      full_name: string | null;
+      linkedin_url: string | null;
+      opportunity_id: bigint | null;
+    }>>`
+      SELECT
+        sv.id,
+        sv.gate_role,
+        sv.gate_role_type,
+        sv.role_title,
+        sv.entity_name,
+        sv.entity_level,
+        sv.rationale,
+        p.full_name,
+        p.linkedin_url,
+        sv.opportunity_id
+      FROM stakeholders_v2 sv
+      LEFT JOIN persons p ON p.id = sv.person_id
+      WHERE sv.company_id = ${companyId}
+        AND sv.opportunity_id IN (
+          SELECT oc.id
+          FROM opportunity_candidates oc
+          JOIN research_runs rr ON rr.id = oc.research_run_id
+          WHERE rr.company_id = ${companyId}
+            AND rr.report_id = ${reportId}
+        )
+      ORDER BY sv.id
+    `;
+  }
+
+  static async getSalesMinerReportSignalSummary(reportId: number) {
+    return prisma.$queryRaw<Array<{
+      theme_code: string;
+      signal_count: bigint;
+      avg_strength: number | null;
+      companies_count: bigint;
+    }>>`
+      SELECT
+        cssi.theme_code,
+        count(DISTINCT cssi.id) AS signal_count,
+        round(avg(cssi.strength_score)::numeric, 2) AS avg_strength,
+        count(DISTINCT css.company_id) AS companies_count
+      FROM company_signal_summary_items cssi
+      JOIN company_signal_summaries css ON css.id = cssi.company_signal_summary_id
+      JOIN research_runs rr ON rr.id = css.research_run_id
+      JOIN report_companies rc ON rc.company_id = rr.company_id AND rc.report_id = ${reportId}
+      WHERE rr.report_id = ${reportId}
+      GROUP BY cssi.theme_code
+      ORDER BY signal_count DESC
+    `;
+  }
+
+  static async getSalesMinerReportOpportunitySummary(reportId: number) {
+    return prisma.$queryRaw<Array<{
+      motion_family: string | null;
+      horizon: string | null;
+      count: bigint;
+      avg_priority: number | null;
+      companies_count: bigint;
+    }>>`
+      SELECT
+        oc.motion_family,
+        oc.horizon,
+        count(*) AS count,
+        round(avg(oc.portfolio_priority_score)::numeric, 2) AS avg_priority,
+        count(DISTINCT oc.company_id) AS companies_count
+      FROM opportunity_candidates oc
+      JOIN research_runs rr ON rr.id = oc.research_run_id
+      JOIN report_companies rc ON rc.company_id = rr.company_id AND rc.report_id = ${reportId}
+      WHERE rr.report_id = ${reportId}
+      GROUP BY oc.motion_family, oc.horizon
+      ORDER BY avg_priority DESC NULLS LAST
+    `;
+  }
+
+  static async getSalesMinerEntityTopCompanies(reportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: number;
+      name: string;
+      opp_count: bigint;
+      avg_priority: number | null;
+      signal_count: bigint;
+      is_analyzed: boolean;
+    }>>`
+      SELECT
+        c.id,
+        c.name,
+        count(DISTINCT oc.id) AS opp_count,
+        round(avg(oc.portfolio_priority_score)::numeric, 1) AS avg_priority,
+        count(DISTINCT cssi.id) AS signal_count,
+        (count(DISTINCT rr.id) > 0) AS is_analyzed
+      FROM report_companies rc
+      JOIN companies c ON c.id = rc.company_id
+      LEFT JOIN research_runs rr ON rr.company_id = c.id AND rr.report_id = ${reportId}
+      LEFT JOIN opportunity_candidates oc ON oc.research_run_id = rr.id
+      LEFT JOIN company_signal_summaries css ON css.research_run_id = rr.id
+      LEFT JOIN company_signal_summary_items cssi ON cssi.company_signal_summary_id = css.id
+      WHERE rc.report_id = ${reportId}
+      GROUP BY c.id, c.name
+      ORDER BY avg_priority DESC NULLS LAST
+    `;
+  }
+
+  static async getSalesMinerAccountCompanies(reportId: number, relatedReportId: number) {
+    return prisma.$queryRaw<Array<{
+      id: number;
+      name: string;
+      opp_count: bigint;
+      avg_priority: number | null;
+      signal_count: bigint;
+      steps_done: bigint;
+    }>>`
+      SELECT
+        c.id,
+        c.name,
+        (
+          SELECT count(DISTINCT oc.id)
+          FROM research_runs rr
+          JOIN companies child ON child.id = rr.company_id
+          JOIN opportunity_candidates oc ON oc.research_run_id = rr.id
+          WHERE rr.report_id = ${relatedReportId}
+            AND (child.additional_data->>'parent_company' = c.name OR child.id = c.id)
+        ) AS opp_count,
+        (
+          SELECT round(avg(oc.portfolio_priority_score)::numeric, 1)
+          FROM research_runs rr
+          JOIN companies child ON child.id = rr.company_id
+          JOIN opportunity_candidates oc ON oc.research_run_id = rr.id
+          WHERE rr.report_id = ${relatedReportId}
+            AND (child.additional_data->>'parent_company' = c.name OR child.id = c.id)
+        ) AS avg_priority,
+        (
+          SELECT count(DISTINCT cssi.id)
+          FROM research_runs rr
+          JOIN companies child ON child.id = rr.company_id
+          JOIN company_signal_summaries css ON css.research_run_id = rr.id
+          JOIN company_signal_summary_items cssi ON cssi.company_signal_summary_id = css.id
+          WHERE rr.report_id = ${relatedReportId}
+            AND (child.additional_data->>'parent_company' = c.name OR child.id = c.id)
+        ) AS signal_count,
+        (
+          SELECT count(*) FROM sales_report_step_intermediate_results srir2
+          WHERE srir2.report_id = ${reportId} AND srir2.company_id = c.id AND srir2.status = true
+        ) AS steps_done
+      FROM report_companies rc
+      JOIN companies c ON c.id = rc.company_id
+      WHERE rc.report_id = ${reportId}
+      ORDER BY opp_count DESC
+    `;
   }
 }
