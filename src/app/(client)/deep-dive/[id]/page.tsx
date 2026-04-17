@@ -6,10 +6,18 @@ import { Button, Result, Spin } from "antd";
 import { useAuth } from "../../../../hooks/useAuth";
 import { useGetDeepDiveOverview } from "../../../../hooks/api/useDeepDiveService";
 import DeepDiveDetail from "../../../../components/deep-dive/deep-dive-detail";
-import SalesMinerDetail from "../../../../components/deep-dive/sales-miner-detail";
 
 function ReportDetailRouter({ reportId }: { reportId: number }) {
+  const router = useRouter();
   const { data, isLoading } = useGetDeepDiveOverview(reportId);
+
+  useEffect(() => {
+    const reportType = data?.data.report.reportType;
+    if (!reportType) return;
+    if (reportType === "sales_miner") router.replace(`/sales-miner/${reportId}`);
+    if (reportType === "biz_miner") router.replace(`/biz-miner/${reportId}`);
+    if (reportType === "internal") router.replace(`/vitelis-sales/${reportId}`);
+  }, [data, reportId, router]);
 
   if (isLoading && !data) {
     return (
@@ -20,12 +28,16 @@ function ReportDetailRouter({ reportId }: { reportId: number }) {
   }
 
   const reportType = data?.data.report.reportType;
-
-  if (reportType === "sales_miner") {
-    return <SalesMinerDetail reportId={reportId} />;
+  if (reportType && reportType !== "sales_miner" && reportType !== "biz_miner" && reportType !== "internal") {
+    return <DeepDiveDetail reportId={reportId} />;
   }
 
-  return <DeepDiveDetail reportId={reportId} />;
+  // While redirect is in progress
+  return (
+    <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Spin size="large" />
+    </div>
+  );
 }
 
 export default function DeepDiveDetailPage() {

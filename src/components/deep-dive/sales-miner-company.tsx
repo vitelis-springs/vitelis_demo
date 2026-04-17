@@ -2,6 +2,7 @@
 
 import {
   Badge,
+  Button,
   Card,
   Col,
   Collapse,
@@ -15,7 +16,7 @@ import {
   Tabs,
   Typography,
 } from "antd";
-import { LinkOutlined } from "@ant-design/icons";
+import { EditOutlined, LinkOutlined } from "@ant-design/icons";
 import { useMemo } from "react";
 import {
   useGetSalesMinerCompany,
@@ -332,10 +333,14 @@ function AccountLevelView({
   reportId,
   companyId,
   companyName,
+  basePath = "/sales-miner",
+  onEdit,
 }: {
   reportId: number;
   companyId: number;
   companyName: string;
+  basePath?: string;
+  onEdit?: () => void;
 }) {
   const { data, isLoading } = useGetSalesMinerCompany(reportId, companyId);
   const payload = data?.data;
@@ -419,11 +424,18 @@ function AccountLevelView({
       <PageHeader
         breadcrumbs={[
           { label: "Sales Miner", href: "/sales-miner" },
-          { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+          { label: `Report #${reportId}`, href: `${basePath}/${reportId}` },
           { label: companyName },
         ]}
         title={companyName}
-        extra={<Tag color="blue">Account Level</Tag>}
+        extra={
+          <Space>
+            <Tag color="blue">Account Level</Tag>
+            {onEdit && (
+              <Button icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
+            )}
+          </Space>
+        }
       />
 
       {itThemes.length > 0 && (
@@ -667,10 +679,14 @@ function EntityLevelView({
   reportId,
   companyId,
   companyName,
+  basePath = "/sales-miner",
+  onEdit,
 }: {
   reportId: number;
   companyId: number;
   companyName: string;
+  basePath?: string;
+  onEdit?: () => void;
 }) {
   const { data, isLoading } = useGetSalesMinerCompany(reportId, companyId);
   const payload = data?.data;
@@ -692,11 +708,18 @@ function EntityLevelView({
       <PageHeader
         breadcrumbs={[
           { label: "Sales Miner", href: "/sales-miner" },
-          { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+          { label: `Report #${reportId}`, href: `${basePath}/${reportId}` },
           { label: companyName },
         ]}
         title={companyName}
-        extra={<Tag color="geekblue">Entity Level</Tag>}
+        extra={
+          <Space>
+            <Tag color="geekblue">Entity Level</Tag>
+            {onEdit && (
+              <Button icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
+            )}
+          </Space>
+        }
       />
 
       <Tabs
@@ -743,11 +766,15 @@ export default function SalesMinerCompany({
   companyId,
   typeLevel,
   companyName,
+  basePath = "/sales-miner",
+  onEdit,
 }: {
   reportId: number;
   companyId: number;
   typeLevel: string;
   companyName: string;
+  basePath?: string;
+  onEdit?: () => void;
 }) {
   if (typeLevel === "account") {
     return (
@@ -755,6 +782,8 @@ export default function SalesMinerCompany({
         reportId={reportId}
         companyId={companyId}
         companyName={companyName}
+        basePath={basePath}
+        onEdit={onEdit}
       />
     );
   }
@@ -764,6 +793,8 @@ export default function SalesMinerCompany({
       reportId={reportId}
       companyId={companyId}
       companyName={companyName}
+      basePath={basePath}
+      onEdit={onEdit}
     />
   );
 }
