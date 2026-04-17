@@ -10,6 +10,7 @@ import {
 import {
   DeepDiveService,
   type DeepDiveMetricKey,
+  type ReportModelImportRow,
   type UpdateCompanyDataPointPayload,
   type ReportSettingsAction,
   type ValidatorSettingsAction,
@@ -69,6 +70,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseReportModelRows(value: unknown): ReportModelImportRow[] | null {
+  if (!Array.isArray(value)) return null;
+
+  const rows: ReportModelImportRow[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry.dataPointId !== "string") {
+      return null;
+    }
+
+    if (
+      entry.includeToReport !== undefined &&
+      typeof entry.includeToReport !== "boolean"
+    ) {
+      return null;
+    }
+
+    rows.push({
+      dataPointId: entry.dataPointId,
+      includeToReport: entry.includeToReport,
+    });
+  }
+
+  return rows;
 }
 
 function serializeError(error: unknown): Record<string, unknown> {
@@ -625,6 +651,102 @@ export class DeepDiveController {
       return NextResponse.json(
         { success: false, error: "Failed to update deep dive settings" },
         { status: 500 }
+      );
+    }
+  }
+
+  static async getModel(
+    request: NextRequest,
+    reportIdParam: string,
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.getReportModel(reportId);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 },
+        );
+      }
+
+      if (!result.success) {
+        return NextResponse.json(
+          { success: false, error: result.error },
+          { status: 400 },
+        );
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getModel:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch report model" },
+        { status: 500 },
+      );
+    }
+  }
+
+  static async replaceModel(
+    request: NextRequest,
+    reportIdParam: string,
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 },
+        );
+      }
+
+      const body = (await request.json().catch(() => null)) as unknown;
+      if (!isRecord(body)) {
+        return NextResponse.json(
+          { success: false, error: "Body must be an object" },
+          { status: 400 },
+        );
+      }
+
+      const rows = parseReportModelRows(body.rows);
+      if (!rows) {
+        return NextResponse.json(
+          { success: false, error: "Invalid rows payload" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.replaceReportModel(reportId, rows);
+      if (!result.success) {
+        const status = result.error === "Deep dive not found" ? 404 : 400;
+        return NextResponse.json(
+          {
+            success: false,
+            error: result.error,
+            details: "details" in result ? result.details : undefined,
+          },
+          { status },
+        );
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.replaceModel:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to replace report model" },
+        { status: 500 },
       );
     }
   }

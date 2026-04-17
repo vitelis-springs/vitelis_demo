@@ -379,6 +379,48 @@ export interface DeepDiveSettingsResponse {
   };
 }
 
+export interface ReportModelItem {
+  id: number;
+  dataPointId: string;
+  includeToReport: boolean;
+  name: string | null;
+  type: string | null;
+  manualMethod: boolean | null;
+  settings: Record<string, unknown> | null;
+}
+
+export interface ReportModelResponse {
+  success: boolean;
+  data: {
+    report: {
+      id: number;
+      name: string | null;
+      reportType: string | null;
+      useCase: {
+        id: number;
+        name: string;
+      } | null;
+    };
+    items: ReportModelItem[];
+    summary: {
+      total: number;
+      included: number;
+      excluded: number;
+      byType: Array<{
+        type: string;
+        count: number;
+      }>;
+    };
+  };
+}
+
+export interface ReplaceReportModelPayload {
+  rows: Array<{
+    dataPointId: string;
+    includeToReport?: boolean;
+  }>;
+}
+
 export type ReportSettingsActionPayload =
   | { mode: "reuse"; id: number }
   | {
@@ -498,11 +540,24 @@ const deepDiveApi = {
     return response.data;
   },
 
+  async getReportModel(reportId: number): Promise<ReportModelResponse> {
+    const response = await api.get(`/deep-dive/${reportId}/model`);
+    return response.data;
+  },
+
   async updateSettings(
     reportId: number,
     payload: UpdateDeepDiveSettingsPayload
   ): Promise<DeepDiveSettingsResponse> {
     const response = await api.patch(`/deep-dive/${reportId}/settings`, payload);
+    return response.data;
+  },
+
+  async replaceReportModel(
+    reportId: number,
+    payload: ReplaceReportModelPayload,
+  ): Promise<ReportModelResponse> {
+    const response = await api.put(`/deep-dive/${reportId}/model`, payload);
     return response.data;
   },
 
@@ -724,6 +779,33 @@ export const useUpdateDeepDiveSettings = (reportId: number) => {
       });
       void queryClient.invalidateQueries({
         queryKey: ["deep-dive", "list"],
+      });
+    },
+  });
+};
+
+export const useGetReportModel = (
+  reportId: number | null,
+  options?: { enabled?: boolean },
+) => {
+  return useQuery({
+    queryKey: ["deep-dive", "model", reportId],
+    queryFn: () => deepDiveApi.getReportModel(reportId!),
+    enabled:
+      options?.enabled !== undefined ? options.enabled : reportId !== null,
+  });
+};
+
+export const useReplaceReportModel = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ReplaceReportModelPayload) =>
+      deepDiveApi.replaceReportModel(reportId, payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["deep-dive", "model", reportId], data);
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "model", reportId],
       });
     },
   });
@@ -1109,14 +1191,34 @@ const exportApi = {
   },
 };
 
-export const useExportReport = (reportId: number) => {
+function sanitizeFileNameSegment(value: string | null | undefined, fallback: string): string {
+  const normalized = (value ?? "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return normalized || fallback;
+}
+
+function formatExportDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export const useExportReport = (reportId: number, reportName?: string | null) => {
   return useMutation({
     mutationFn: () => exportApi.exportReport(reportId),
     onSuccess: (blob) => {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `report-${reportId}.xlsx`;
+      const safeReportName = sanitizeFileNameSegment(reportName, "report");
+      const exportDate = formatExportDate(new Date());
+      anchor.download = `${safeReportName}_${reportId}_${exportDate}.xlsx`;
       anchor.click();
       URL.revokeObjectURL(url);
     },

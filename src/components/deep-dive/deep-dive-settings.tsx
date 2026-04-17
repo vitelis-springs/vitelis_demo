@@ -11,6 +11,7 @@ import {
   type ValidatorSettingsActionPayload,
 } from "../../hooks/api/useDeepDiveService";
 import DeepDiveBreadcrumbs from "./breadcrumbs";
+import { buildReportHref, resolveReportSection } from "./shared/report-route";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -106,6 +107,7 @@ export default function DeepDiveSettings({ reportId, backHref }: { reportId: num
   const { message } = App.useApp();
   const { data, isLoading } = useGetDeepDiveSettings(reportId);
   const updateSettings = useUpdateDeepDiveSettings(reportId);
+  const reportSection = resolveReportSection(backHref);
 
   const reportOptions = useMemo(
     () => data?.data.options.reportSettings ?? [],
@@ -325,10 +327,10 @@ export default function DeepDiveSettings({ reportId, backHref }: { reportId: num
             <Space direction="vertical" size={4}>
               <DeepDiveBreadcrumbs
                 items={[
-                  { label: "Deep Dives", href: "/deep-dive" },
+                  reportSection,
                   {
                     label: data.data.report.name || `Deep Dive #${reportId}`,
-                    href: backHref ?? `/deep-dive/${reportId}`,
+                    href: backHref ?? buildReportHref(backHref, reportId),
                   },
                   { label: "Settings" },
                 ]}

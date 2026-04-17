@@ -1,7 +1,7 @@
 "use client";
 
 import { App, Button, Layout, Space, Typography } from "antd";
-import { FileExcelOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
+import { FileExcelOutlined, SettingOutlined, TableOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import {
@@ -33,7 +33,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
     if (report?.reportType === "internal") return { listLabel: "Vitelis Sales", listHref: "/vitelis-sales", basePath: "/vitelis-sales" };
     return { listLabel: "Biz Miner", listHref: "/biz-miner", basePath: "/biz-miner" };
   })();
-  const exportReport = useExportReport(reportId);
+  const exportReport = useExportReport(reportId, report?.name);
 
   const allCategories = useMemo(() => kpiData?.data.categories ?? [], [kpiData]);
   const kpiChart = useMemo(() => kpiData?.data.kpiChart ?? [], [kpiData]);
@@ -74,17 +74,19 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
                   Export xlsx report
                 </Button>
                 <Button
-                  icon={<SearchOutlined />}
-                  onClick={() => router.push(`${basePath}/${reportId}/try-query`)}
-                >
-                  Try Query
-                </Button>
-                <Button
                   icon={<SettingOutlined />}
                   onClick={() => router.push(`${basePath}/${reportId}/settings`)}
                 >
                   Settings
                 </Button>
+                {report?.reportType === "biz_miner" ? (
+                  <Button
+                    icon={<TableOutlined />}
+                    onClick={() => router.push(`/biz-miner/${reportId}/model`)}
+                  >
+                    Model
+                  </Button>
+                ) : null}
               </Space>
               <Text style={{ color: "#8c8c8c" }}>
                 {report?.description || "Report overview and execution progress."}

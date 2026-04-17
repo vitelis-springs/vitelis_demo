@@ -4,6 +4,7 @@ import { Button, Card, Layout, Space, Typography, message, Spin } from "antd";
 import { DownloadOutlined, LinkOutlined, ReloadOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "../ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../ui/sidebar-layout";
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -160,7 +161,7 @@ export default function SalesMinerYamlViewer({
 	return (
 		<Layout style={{ minHeight: "100vh", background: "#141414" }}>
 			<Sidebar />
-			<Layout style={{ marginLeft: 280, background: "#141414" }}>
+			<Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: "#141414" }}>
 				<Content
 					style={{
 						padding: "24px",

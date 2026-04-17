@@ -275,7 +275,7 @@ export default function CreateReportModal({ reportType, useCases, onCreated, clo
             padding: "16px 24px",
           },
         }}
-        destroyOnClose
+        destroyOnHidden
       >
         {cloneLoading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>

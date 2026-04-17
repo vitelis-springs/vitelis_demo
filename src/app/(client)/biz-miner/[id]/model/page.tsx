@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Result, Spin } from "antd";
 import { useAuth } from "../../../../../hooks/useAuth";
-import TryQueryPage from "../../../../../components/deep-dive/try-query-page";
+import ReportModelPage from "../../../../../components/deep-dive/report-model-page";
 
-export default function BizMinerTryQueryPage() {
+export default function BizMinerModelPage() {
   const { isLoggedIn, isAdmin } = useAuth();
   const router = useRouter();
   const params = useParams();
@@ -38,5 +38,5 @@ export default function BizMinerTryQueryPage() {
     </div>
   );
 
-  return <TryQueryPage reportId={reportId} basePath="/biz-miner" />;
+  return <ReportModelPage reportId={reportId} backHref={`/biz-miner/${reportId}`} />;
 }

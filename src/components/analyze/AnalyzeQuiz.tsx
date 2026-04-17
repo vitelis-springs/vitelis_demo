@@ -7,10 +7,11 @@ import { useGetUserCredits } from "@hooks/api/useUsersService";
 import { BizminerUseCaseEnum } from "@shared/constants/use-cases";
 import { App, Button, Card, Form, Input, Layout, Select, Space, Spin, Typography } from "antd";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CreditsService } from "../../lib/creditsService";
 import CreditsDisplay from "../ui/credits-display";
 import Sidebar from "../ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../ui/sidebar-layout";
 import AnalyzeResult from "./AnalyzeResult";
 import Animation from "./Animation";
 import ExtendedAnalyzeResult from "./ExtendedAnalyzeResult";
@@ -233,6 +234,19 @@ export default function AnalyzeQuiz({
 	}, [searchParams, form, isLoadingProgress]);
 
 	// Handle analyze data
+	const showNotification = useCallback((
+		type: "error" | "warning" | "info" | "success",
+		title: string,
+		message: string,
+	) => {
+		appNotification[type]({
+			message: title,
+			description: message,
+			duration: type === "error" ? 8 : 4,
+			placement: "topRight",
+		});
+	}, [appNotification]);
+
 	useEffect(() => {
 		if (analyzeData) {
 
@@ -292,20 +306,7 @@ export default function AnalyzeQuiz({
 			console.log("📝 Component: Loading quiz progress");
 			setShowResults(false);
 		}
-	}, [analyzeData]);
-
-	const showNotification = (
-		type: "error" | "warning" | "info" | "success",
-		title: string,
-		message: string,
-	) => {
-		appNotification[type]({
-			message: title,
-			description: message,
-			duration: type === "error" ? 8 : 4,
-			placement: "topRight",
-		});
-	};
+		}, [analyzeData, showNotification]);
 
 	const createNewAnalyzeRecord = async (
 		data: Partial<AnalyzeQuizData>,
@@ -557,7 +558,7 @@ export default function AnalyzeQuiz({
 	return (
 		<Layout style={{ minHeight: "100vh", background: "#141414" }}>
 			<Sidebar />
-			<Layout style={{ marginLeft: 280, background: "#141414" }}>
+			<Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: "#141414" }}>
 				<Content
 					style={{
 						padding: "24px",

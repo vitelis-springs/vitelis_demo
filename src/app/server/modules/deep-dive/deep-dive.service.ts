@@ -12,6 +12,7 @@ import {
   CompanyDataPointResultUpdateData,
   DeepDiveRepository,
   DeepDiveListParams,
+  type ReportModelUpdateRow,
   SourceFilterParams,
   SourceCountingContext,
   SourcesAnalyticsParams,
@@ -86,6 +87,19 @@ export type DeepDiveMetricKey =
   | "used-sources"
   | "total-scrape-candidates"
   | "total-queries";
+
+export interface ReportModelImportRow {
+  dataPointId: string;
+  includeToReport?: boolean;
+}
+
+function asSettingsRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
 
 type ReportWithRelations = NonNullable<
   Awaited<ReturnType<typeof DeepDiveRepository.getReportById>>
@@ -504,6 +518,120 @@ export class DeepDiveService {
     }
 
     return result;
+  }
+
+  static async getReportModel(reportId: number) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) return null;
+
+    if (report.report_type !== "biz_miner") {
+      return {
+        success: false as const,
+        error: "Model page is available only for biz_miner reports",
+      };
+    }
+
+    const rows = await DeepDiveRepository.getReportModel(reportId);
+    const items = rows
+      .map((row) => ({
+        id: row.id,
+        dataPointId: row.data_point_id ?? "",
+        includeToReport: row.include_to_report ?? true,
+        name: row.data_points?.name ?? null,
+        type: row.data_points?.type ?? null,
+        manualMethod: row.data_points?.manual_method ?? null,
+        settings: asSettingsRecord(row.data_points?.settings),
+      }))
+      .filter((row) => row.dataPointId)
+      .sort((a, b) => {
+        const typeCompare = (a.type ?? "").localeCompare(b.type ?? "");
+        if (typeCompare !== 0) return typeCompare;
+        return a.dataPointId.localeCompare(b.dataPointId);
+      });
+
+    const byTypeMap = new Map<string, number>();
+    items.forEach((item) => {
+      const type = item.type ?? "unknown";
+      byTypeMap.set(type, (byTypeMap.get(type) ?? 0) + 1);
+    });
+
+    return {
+      success: true as const,
+      data: {
+        report: {
+          id: report.id,
+          name: report.name ?? null,
+          reportType: report.report_type ?? null,
+          useCase: report.use_cases
+            ? {
+                id: report.use_cases.id,
+                name: report.use_cases.name,
+              }
+            : null,
+        },
+        items,
+        summary: {
+          total: items.length,
+          included: items.filter((item) => item.includeToReport).length,
+          excluded: items.filter((item) => !item.includeToReport).length,
+          byType: Array.from(byTypeMap.entries())
+            .map(([type, count]) => ({ type, count }))
+            .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type)),
+        },
+      },
+    };
+  }
+
+  static async replaceReportModel(reportId: number, rows: ReportModelImportRow[]) {
+    const report = await DeepDiveRepository.getReportById(reportId);
+    if (!report) {
+      return { success: false as const, error: "Deep dive not found" };
+    }
+
+    if (report.report_type !== "biz_miner") {
+      return {
+        success: false as const,
+        error: "Model page is available only for biz_miner reports",
+      };
+    }
+
+    const normalizedRows = new Map<string, boolean>();
+    rows.forEach((row) => {
+      const dataPointId = row.dataPointId.trim();
+      if (!dataPointId) return;
+      normalizedRows.set(dataPointId, row.includeToReport ?? true);
+    });
+
+    if (!normalizedRows.size) {
+      return {
+        success: false as const,
+        error: "At least one valid data_point_id is required",
+      };
+    }
+
+    const dataPointIds = Array.from(normalizedRows.keys());
+    const existingDataPoints = await DeepDiveRepository.getDataPointsByIds(dataPointIds);
+    const existingIdSet = new Set(existingDataPoints.map((row) => row.id));
+    const missingDataPointIds = dataPointIds.filter((id) => !existingIdSet.has(id));
+
+    if (missingDataPointIds.length) {
+      return {
+        success: false as const,
+        error: "Some data_point_id values were not found",
+        details: {
+          missingDataPointIds,
+        },
+      };
+    }
+
+    const payload: ReportModelUpdateRow[] = dataPointIds.map((dataPointId) => ({
+      dataPointId,
+      includeToReport: normalizedRows.get(dataPointId) ?? true,
+    }));
+
+    await DeepDiveRepository.replaceReportModel(reportId, payload);
+
+    return this.getReportModel(reportId);
   }
 
   private static mapOverviewReport(report: ReportWithRelations) {

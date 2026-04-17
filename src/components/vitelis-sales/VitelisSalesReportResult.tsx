@@ -7,6 +7,7 @@ import { App, Button, Card, Layout, Space, Spin, Typography } from "antd";
 import mammoth from "mammoth";
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../ui/sidebar-layout";
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -110,7 +111,7 @@ export default function VitelisSalesReportResult({
   return (
     <Layout style={{ minHeight: "100vh", background: "#141414" }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: "#141414" }}>
+      <Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: "#141414" }}>
         <Content style={{ padding: "24px", background: "#141414", minHeight: "100vh" }}>
           <Card
             style={{ background: "#1f1f1f", border: "1px solid #303030", borderRadius: "12px" }}

@@ -12,6 +12,7 @@ import { AnalysisContent, AnalysisData, exportAnalysisReportDocx } from '../../l
 import { extractKPIDataFromMarkdown, splitMarkdownAroundKPITable } from '../../lib/kpi-extractor.client';
 import KpiRadarChart from '../charts/KpiRadarChart';
 import Sidebar from '../ui/sidebar';
+import { SIDEBAR_MARGIN_LEFT } from '../ui/sidebar-layout';
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -221,7 +222,7 @@ export default function ExtendedAnalyzeResult({
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: '#141414' }}>
+      <Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: '#141414' }}>
         <Content style={{ 
           padding: '24px',
           background: '#141414',

@@ -25,6 +25,7 @@ import {
 } from "../../hooks/api/useDeepDiveService";
 import DeepDivePageLayout from "./shared/page-layout";
 import PageHeader from "./shared/page-header";
+import { buildReportHref, resolveReportSection } from "./shared/report-route";
 
 const { Text, Paragraph, Title } = Typography;
 
@@ -332,10 +333,12 @@ function AccountLevelView({
   reportId,
   companyId,
   companyName,
+  basePath,
 }: {
   reportId: number;
   companyId: number;
   companyName: string;
+  basePath: string;
 }) {
   const { data, isLoading } = useGetSalesMinerCompany(reportId, companyId);
   const payload = data?.data;
@@ -358,6 +361,7 @@ function AccountLevelView({
     if (!payload || payload.level !== "account") return null;
     return toRecord(toRecord(payload.sellerBrief).seller_brief);
   }, [payload]);
+  const reportSection = resolveReportSection(basePath);
 
   const topOpportunities = (payload?.level === "account" ? payload.topOpportunities : []) ?? [];
   const pains = toArray(assessment?.pains) as Array<Record<string, unknown>>;
@@ -418,8 +422,8 @@ function AccountLevelView({
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          { label: "Sales Miner", href: "/sales-miner" },
-          { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+          reportSection,
+          { label: `Report #${reportId}`, href: buildReportHref(basePath, reportId) },
           { label: companyName },
         ]}
         title={companyName}
@@ -667,10 +671,12 @@ function EntityLevelView({
   reportId,
   companyId,
   companyName,
+  basePath,
 }: {
   reportId: number;
   companyId: number;
   companyName: string;
+  basePath: string;
 }) {
   const { data, isLoading } = useGetSalesMinerCompany(reportId, companyId);
   const payload = data?.data;
@@ -678,6 +684,7 @@ function EntityLevelView({
   const signals = (payload?.level === "entity" ? payload.signals : []) ?? [];
   const opportunities = (payload?.level === "entity" ? payload.opportunities : []) ?? [];
   const stakeholders = (payload?.level === "entity" ? payload.stakeholders : []) ?? [];
+  const reportSection = resolveReportSection(basePath);
 
   if (isLoading) {
     return (
@@ -691,8 +698,8 @@ function EntityLevelView({
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          { label: "Sales Miner", href: "/sales-miner" },
-          { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
+          reportSection,
+          { label: `Report #${reportId}`, href: buildReportHref(basePath, reportId) },
           { label: companyName },
         ]}
         title={companyName}
@@ -743,11 +750,13 @@ export default function SalesMinerCompany({
   companyId,
   typeLevel,
   companyName,
+  basePath = "/sales-miner",
 }: {
   reportId: number;
   companyId: number;
   typeLevel: string;
   companyName: string;
+  basePath?: string;
 }) {
   if (typeLevel === "account") {
     return (
@@ -755,6 +764,7 @@ export default function SalesMinerCompany({
         reportId={reportId}
         companyId={companyId}
         companyName={companyName}
+        basePath={basePath}
       />
     );
   }
@@ -764,6 +774,7 @@ export default function SalesMinerCompany({
       reportId={reportId}
       companyId={companyId}
       companyName={companyName}
+      basePath={basePath}
     />
   );
 }

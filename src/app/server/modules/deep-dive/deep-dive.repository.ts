@@ -85,6 +85,11 @@ export interface CompanyDataPointResultUpdateData {
   status?: boolean;
 }
 
+export interface ReportModelUpdateRow {
+  dataPointId: string;
+  includeToReport: boolean;
+}
+
 export class DeepDiveRepository {
   private static buildOrderBy(
     sortBy: string | undefined,
@@ -363,6 +368,59 @@ export class DeepDiveRepository {
           }
         : null,
     };
+  }
+
+  static async getReportModel(reportId: number) {
+    return prisma.report_data_points.findMany({
+      where: { report_id: reportId },
+      include: {
+        data_points: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            settings: true,
+            manual_method: true,
+          },
+        },
+      },
+    });
+  }
+
+  static async getDataPointsByIds(ids: string[]) {
+    if (!ids.length) return [];
+
+    return prisma.data_points.findMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+      },
+    });
+  }
+
+  static async replaceReportModel(reportId: number, rows: ReportModelUpdateRow[]) {
+    return prisma.$transaction(async (tx) => {
+      await tx.report_data_points.deleteMany({
+        where: { report_id: reportId },
+      });
+
+      if (!rows.length) return;
+
+      await tx.report_data_points.createMany({
+        data: rows.map((row) => ({
+          report_id: reportId,
+          data_point_id: row.dataPointId,
+          include_to_report: row.includeToReport,
+        })),
+        skipDuplicates: true,
+      });
+    });
   }
 
   static async listReportSettings(): Promise<ReportSettingsProfile[]> {

@@ -456,6 +456,7 @@ export default function DeepDiveCompany({
         companyId={companyId}
         typeLevel={payload.typeLevel ?? "entity"}
         companyName={payload.company.name}
+        basePath={basePath}
       />
     );
   }

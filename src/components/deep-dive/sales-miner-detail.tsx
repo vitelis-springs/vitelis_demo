@@ -276,7 +276,7 @@ function CompaniesTable({
           onClick: (e) => {
             const target = e.target as HTMLElement;
             if (target.closest(".ant-checkbox-wrapper") || target.closest(".ant-checkbox")) return;
-            router.push(`/deep-dive/${reportId}/companies/${record.id}`);
+            router.push(`/sales-miner/${reportId}/companies/${record.id}`);
           },
           style: { cursor: "pointer" },
         })}
