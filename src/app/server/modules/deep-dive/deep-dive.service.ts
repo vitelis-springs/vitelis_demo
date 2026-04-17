@@ -17,6 +17,7 @@ import {
   SourcesAnalyticsParams,
   ScrapeCandidatesParams,
 } from "./deep-dive.repository";
+import { ReportStepsRepository } from "../report-steps/report-steps.repository";
 
 const DEFAULT_STATUS_COUNTS = {
   PENDING: 0,
@@ -654,6 +655,15 @@ export class DeepDiveService {
       DeepDiveRepository.getDistinctIndustriesForReports(),
     ]);
 
+    const reportIds = items.map((r) => r.id);
+    const costRows = await ReportStepsRepository.getReportCostSummaryBatch(reportIds);
+    const costByReport = new Map(
+      costRows.map((r) => [r.report_id, {
+        totalCost: Number(r.total_cost),
+        callsWithoutPricing: Number(r.calls_without_pricing),
+      }])
+    );
+
     return {
       success: true,
       data: {
@@ -688,6 +698,7 @@ export class DeepDiveService {
               companies: report._count.report_companies,
               steps: report._count.report_steps,
             },
+            cost: costByReport.get(report.id) ?? null,
           };
         }),
         filters: {
@@ -1334,7 +1345,7 @@ export class DeepDiveService {
       const [stepResults, topOpportunities] = await Promise.all([
         DeepDiveRepository.getSalesMinerStepResults(reportId, companyId),
         relatedReportId
-          ? DeepDiveRepository.getAccountTopOpportunities(relatedReportId, company.name, 10)
+          ? DeepDiveRepository.getAccountTopOpportunities(relatedReportId, companyId, 10)
           : Promise.resolve([]),
       ]);
 
@@ -1442,7 +1453,9 @@ export class DeepDiveService {
 
     if (typeLevel === "account") {
       const [oppSummary, accountCompanies] = await Promise.all([
-        DeepDiveRepository.getSalesMinerReportOpportunitySummary(entityReportId),
+        relatedReportId
+          ? DeepDiveRepository.getSalesMinerAccountOpportunitySummary(reportId, relatedReportId)
+          : DeepDiveRepository.getSalesMinerReportOpportunitySummary(entityReportId),
         relatedReportId
           ? DeepDiveRepository.getSalesMinerAccountCompanies(reportId, relatedReportId)
           : Promise.resolve([]),

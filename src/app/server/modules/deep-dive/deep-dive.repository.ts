@@ -2205,7 +2205,7 @@ export class DeepDiveRepository {
     `;
   }
 
-  static async getAccountTopOpportunities(relatedReportId: number, accountName: string, limit = 10) {
+  static async getAccountTopOpportunities(relatedReportId: number, accountId: number, limit = 10) {
     return prisma.$queryRaw<Array<{
       id: bigint;
       company_id: number;
@@ -2240,8 +2240,8 @@ export class DeepDiveRepository {
       JOIN companies c ON c.id = oc.company_id
       WHERE rr.report_id = ${relatedReportId}
         AND (
-          c.additional_data->>'parent_company' = ${accountName}
-          OR c.name = ${accountName}
+          c.parent_company = ${accountId}
+          OR c.id = ${accountId}
         )
       ORDER BY oc.portfolio_priority_score DESC NULLS LAST
       LIMIT ${limit}
@@ -2399,6 +2399,35 @@ export class DeepDiveRepository {
     `;
   }
 
+  static async getSalesMinerAccountOpportunitySummary(accountReportId: number, entityReportId: number) {
+    return prisma.$queryRaw<Array<{
+      motion_family: string | null;
+      horizon: string | null;
+      count: bigint;
+      avg_priority: number | null;
+      companies_count: bigint;
+    }>>`
+      SELECT
+        oc.motion_family,
+        oc.horizon,
+        count(*) AS count,
+        round(avg(oc.portfolio_priority_score)::numeric, 2) AS avg_priority,
+        count(DISTINCT oc.company_id) AS companies_count
+      FROM opportunity_candidates oc
+      JOIN research_runs rr ON rr.id = oc.research_run_id
+      JOIN companies child ON child.id = rr.company_id
+      WHERE rr.report_id = ${entityReportId}
+        AND EXISTS (
+          SELECT 1 FROM report_companies rc
+          JOIN companies account ON account.id = rc.company_id
+          WHERE rc.report_id = ${accountReportId}
+            AND (child.parent_company = account.id OR child.id = account.id)
+        )
+      GROUP BY oc.motion_family, oc.horizon
+      ORDER BY avg_priority DESC NULLS LAST
+    `;
+  }
+
   static async getSalesMinerEntityTopCompanies(reportId: number) {
     return prisma.$queryRaw<Array<{
       id: number;
@@ -2445,7 +2474,7 @@ export class DeepDiveRepository {
           JOIN companies child ON child.id = rr.company_id
           JOIN opportunity_candidates oc ON oc.research_run_id = rr.id
           WHERE rr.report_id = ${relatedReportId}
-            AND (child.additional_data->>'parent_company' = c.name OR child.id = c.id)
+            AND (child.parent_company = c.id OR child.id = c.id)
         ) AS opp_count,
         (
           SELECT round(avg(oc.portfolio_priority_score)::numeric, 1)
@@ -2453,7 +2482,7 @@ export class DeepDiveRepository {
           JOIN companies child ON child.id = rr.company_id
           JOIN opportunity_candidates oc ON oc.research_run_id = rr.id
           WHERE rr.report_id = ${relatedReportId}
-            AND (child.additional_data->>'parent_company' = c.name OR child.id = c.id)
+            AND (child.parent_company = c.id OR child.id = c.id)
         ) AS avg_priority,
         (
           SELECT count(DISTINCT cssi.id)
@@ -2462,7 +2491,7 @@ export class DeepDiveRepository {
           JOIN company_signal_summaries css ON css.research_run_id = rr.id
           JOIN company_signal_summary_items cssi ON cssi.company_signal_summary_id = css.id
           WHERE rr.report_id = ${relatedReportId}
-            AND (child.additional_data->>'parent_company' = c.name OR child.id = c.id)
+            AND (child.parent_company = c.id OR child.id = c.id)
         ) AS signal_count,
         (
           SELECT count(*) FROM sales_report_step_intermediate_results srir2
