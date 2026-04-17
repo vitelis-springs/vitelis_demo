@@ -1,1 +1,1 @@
-export { default } from "../../../../../../../deep-dive/[id]/companies/[companyId]/candidates/page";
+export { default } from "../../../../../deep-dive/[id]/companies/[companyId]/candidates/page";
