@@ -289,4 +289,154 @@ export class ReportStepsRepository {
       data: { status },
     });
   }
+
+  // ===== Cost stats =====
+
+  static async getReportCostSummary(reportId: number) {
+    const rows = await prisma.$queryRaw<Array<{
+      report_id: number;
+      total_calls: bigint;
+      calls_without_pricing: bigint;
+      input_tokens: bigint;
+      output_tokens: bigint;
+      total_tokens: bigint;
+      total_resource_units: bigint;
+      input_cost: string;
+      output_cost: string;
+      mcp_cost: string;
+      total_cost: string;
+      started_at: Date | null;
+      finished_at: Date | null;
+      duration_sec: string | null;
+    }>>`
+      SELECT
+        report_id,
+        SUM(calls_count)::bigint                          AS total_calls,
+        SUM(calls_without_pricing)::bigint                AS calls_without_pricing,
+        SUM(prompt_tokens)::bigint                        AS input_tokens,
+        SUM(completion_tokens)::bigint                    AS output_tokens,
+        SUM(prompt_tokens + completion_tokens)::bigint    AS total_tokens,
+        SUM(resource_units_count)::bigint                 AS total_resource_units,
+        ROUND(SUM(input_cost)::numeric, 6)                AS input_cost,
+        ROUND(SUM(output_cost)::numeric, 6)               AS output_cost,
+        ROUND(SUM(mcp_cost)::numeric, 6)                  AS mcp_cost,
+        ROUND(SUM(total_cost)::numeric, 6)                AS total_cost,
+        MIN(first_call_at)                                AS started_at,
+        MAX(last_call_at)                                 AS finished_at,
+        ROUND(
+          EXTRACT(EPOCH FROM (MAX(last_call_at) - MIN(first_call_at)))::numeric, 1
+        )::text                                           AS duration_sec
+      FROM v_external_resource_costs_by_report_company_step_task
+      WHERE report_id = ${reportId}
+      GROUP BY report_id
+    `;
+    return rows[0] ?? null;
+  }
+
+  static async getReportCostByStep(reportId: number) {
+    return prisma.$queryRaw<Array<{
+      report_id: number;
+      step_id: number;
+      step_order: number;
+      step_name: string | null;
+      step_status: string | null;
+      companies_count: bigint;
+      tasks_count: bigint;
+      total_calls: bigint;
+      calls_without_pricing: bigint;
+      input_tokens: bigint;
+      output_tokens: bigint;
+      total_tokens: bigint;
+      total_resource_units: bigint;
+      input_cost: string;
+      output_cost: string;
+      mcp_cost: string;
+      total_cost: string;
+      started_at: Date | null;
+      finished_at: Date | null;
+      duration_sec: string | null;
+    }>>`
+      SELECT
+        v.report_id,
+        v.step_id,
+        rs.step_order,
+        rgs.name                                                    AS step_name,
+        rss.status                                                  AS step_status,
+        COUNT(DISTINCT v.company_id)::bigint                        AS companies_count,
+        COUNT(DISTINCT v.task)::bigint                              AS tasks_count,
+        SUM(v.calls_count)::bigint                                  AS total_calls,
+        SUM(v.calls_without_pricing)::bigint                        AS calls_without_pricing,
+        SUM(v.prompt_tokens)::bigint                                AS input_tokens,
+        SUM(v.completion_tokens)::bigint                            AS output_tokens,
+        SUM(v.prompt_tokens + v.completion_tokens)::bigint          AS total_tokens,
+        SUM(v.resource_units_count)::bigint                         AS total_resource_units,
+        ROUND(SUM(v.input_cost)::numeric, 6)                        AS input_cost,
+        ROUND(SUM(v.output_cost)::numeric, 6)                       AS output_cost,
+        ROUND(SUM(v.mcp_cost)::numeric, 6)                          AS mcp_cost,
+        ROUND(SUM(v.total_cost)::numeric, 6)                        AS total_cost,
+        MIN(v.first_call_at)                                        AS started_at,
+        MAX(v.last_call_at)                                         AS finished_at,
+        ROUND(
+          EXTRACT(EPOCH FROM (MAX(v.last_call_at) - MIN(v.first_call_at)))::numeric, 1
+        )::text                                                     AS duration_sec
+      FROM v_external_resource_costs_by_report_company_step_task v
+      LEFT JOIN report_steps rs
+        ON rs.step_id = v.step_id AND rs.report_id = v.report_id
+      LEFT JOIN report_generation_steps rgs
+        ON rgs.id = v.step_id
+      LEFT JOIN report_step_statuses rss
+        ON rss.step_id = v.step_id AND rss.report_id = v.report_id AND rss.company_id IS NULL
+      WHERE v.report_id = ${reportId}
+      GROUP BY v.report_id, v.step_id, rs.step_order, rgs.name, rss.status
+      ORDER BY COALESCE(rs.step_order, 999999)
+    `;
+  }
+
+  static async getReportCostByStepTask(reportId: number, stepId: number) {
+    return prisma.$queryRaw<Array<{
+      report_id: number;
+      step_id: number;
+      task: string;
+      provider: string | null;
+      model: string | null;
+      total_calls: bigint;
+      error_count: bigint;
+      companies_count: bigint;
+      input_tokens: bigint;
+      output_tokens: bigint;
+      total_tokens: bigint;
+      total_resource_units: bigint;
+      avg_duration_ms: string | null;
+      input_cost: string;
+      output_cost: string;
+      mcp_cost: string;
+      total_cost: string;
+      calls_without_pricing: bigint;
+      first_call_at: Date | null;
+      last_call_at: Date | null;
+    }>>`
+      SELECT *
+      FROM v_report_cost_by_step_task
+      WHERE report_id = ${reportId}
+        AND step_id = ${stepId}
+      ORDER BY total_cost DESC
+    `;
+  }
+
+  static async getReportCostSummaryBatch(reportIds: number[]) {
+    if (reportIds.length === 0) return [];
+    return prisma.$queryRaw<Array<{
+      report_id: number;
+      total_cost: string;
+      calls_without_pricing: bigint;
+    }>>`
+      SELECT
+        report_id,
+        ROUND(SUM(total_cost)::numeric, 6)  AS total_cost,
+        SUM(calls_without_pricing)::bigint  AS calls_without_pricing
+      FROM v_external_resource_costs_by_report_company_step_task
+      WHERE report_id = ANY(${reportIds}::int[])
+      GROUP BY report_id
+    `;
+  }
 }

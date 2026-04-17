@@ -12,6 +12,7 @@ import DeepDivePageLayout from "./shared/page-layout";
 import PageHeader from "./shared/page-header";
 import DeepDiveStatusTag from "./status-tag";
 import CreateReportModal, { CloneReportButton } from "./create-report-modal";
+import { ReportCostModal } from "../report-steps/ReportCostModal";
 
 const { Text } = Typography;
 
@@ -187,6 +188,35 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
         ),
       },
       {
+        title: "Cost", key: "cost", width: 130,
+        render: (_: unknown, record: DeepDiveListItem) => {
+          const totalCost = record.cost?.totalCost ?? 0;
+          const hasNoPricing = (record.cost?.callsWithoutPricing ?? 0) > 0;
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+              {totalCost > 0 ? (
+                <>
+                  <Text
+                    strong
+                    style={{ fontSize: 13, color: hasNoPricing ? "#faad14" : "#52c41a" }}
+                    title={hasNoPricing ? "Some calls have no pricing data" : undefined}
+                  >
+                    {totalCost < 0.001
+                      ? `$${totalCost.toFixed(6)}`
+                      : totalCost < 0.01
+                      ? `$${totalCost.toFixed(4)}`
+                      : `$${totalCost.toFixed(3)}`}
+                  </Text>
+                  <ReportCostModal reportId={record.id} />
+                </>
+              ) : (
+                <Text style={{ color: "#595959", fontSize: 12 }}>—</Text>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         title: "Updated", dataIndex: "updatedAt", key: "updated_at", width: 140, sorter: true,
         render: (value: string | null) => (
           <Text style={{ color: "#8c8c8c", fontSize: 13 }}>{formatRelativeTime(value)}</Text>
@@ -280,7 +310,11 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
           }}
           style={{ background: "#1f1f1f" }}
           onRow={(record) => ({
-            onClick: () => router.push(getRecordHref(record)),
+            onClick: (e) => {
+              const target = e.target as HTMLElement;
+              if (target.closest('button, a, .ant-modal-root, [role="button"], .ant-select, .ant-dropdown')) return;
+              router.push(getRecordHref(record));
+            },
             style: { cursor: "pointer" },
           })}
           rowClassName={() => "deep-dive-row"}

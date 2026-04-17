@@ -29,6 +29,10 @@ export interface DeepDiveListItem {
     companies: number;
     steps: number;
   };
+  cost: {
+    totalCost: number;
+    callsWithoutPricing: number;
+  } | null;
 }
 
 export interface DeepDiveFilterOptions {
@@ -1277,6 +1281,106 @@ export const useAddCompanyToReport = (reportId: number) => {
       queryClient.invalidateQueries({ queryKey: ["deep-dive", "companies", reportId] });
       queryClient.invalidateQueries({ queryKey: ["deep-dive", "summary", reportId] });
     },
+  });
+};
+
+// ===== Cost stats =====
+
+export interface ReportCostSummary {
+  totalCalls: number;
+  callsWithoutPricing: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  totalResourceUnits: number;
+  inputCost: number;
+  outputCost: number;
+  mcpCost: number;
+  totalCost: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationSec: number | null;
+}
+
+export interface ReportCostStep {
+  stepId: number;
+  stepOrder: number;
+  stepName: string | null;
+  stepStatus: string | null;
+  companiesCount: number;
+  tasksCount: number;
+  totalCalls: number;
+  callsWithoutPricing: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  totalResourceUnits: number;
+  inputCost: number;
+  outputCost: number;
+  mcpCost: number;
+  totalCost: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationSec: number | null;
+}
+
+export interface ReportCostTask {
+  task: string;
+  provider: string | null;
+  model: string | null;
+  totalCalls: number;
+  errorCount: number;
+  companiesCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  totalResourceUnits: number;
+  avgDurationMs: number | null;
+  inputCost: number;
+  outputCost: number;
+  mcpCost: number;
+  totalCost: number;
+  callsWithoutPricing: number;
+  firstCallAt: string | null;
+  lastCallAt: string | null;
+}
+
+export interface ReportCostStatsResponse {
+  success: boolean;
+  data: {
+    summary: ReportCostSummary | null;
+    steps: ReportCostStep[];
+  };
+}
+
+export interface StepCostTasksResponse {
+  success: boolean;
+  data: ReportCostTask[];
+}
+
+export const useGetReportCostStats = (reportId: number, enabled = true) => {
+  return useQuery({
+    queryKey: ["deep-dive", "cost-stats", reportId],
+    queryFn: async () => {
+      const response = await api.get(`/deep-dive/${reportId}/cost-stats`);
+      return response.data as ReportCostStatsResponse;
+    },
+    enabled: enabled && Number.isFinite(reportId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useGetStepCostTasks = (reportId: number, stepId: number | null) => {
+  return useQuery({
+    queryKey: ["deep-dive", "cost-stats", reportId, "step", stepId],
+    queryFn: async () => {
+      const response = await api.get(`/deep-dive/${reportId}/cost-stats/${stepId}`);
+      return response.data as StepCostTasksResponse;
+    },
+    enabled: Number.isFinite(reportId) && stepId !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 };
 
