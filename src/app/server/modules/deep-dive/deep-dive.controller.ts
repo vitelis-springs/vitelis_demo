@@ -1088,13 +1088,19 @@ export class DeepDiveController {
         return NextResponse.json({ success: false, error: "BACKEND_URL is not configured" }, { status: 500 });
       }
 
-      const backendResponse = await fetch(
-        `${backendUrl}/export-opportunities-xlsx/${reportId}`,
-        { method: "GET" },
-      );
+      const targetUrl = `${backendUrl}/export-opportunities-xlsx/${reportId}`;
+      console.log(`📊 exportOpportunitiesXlsx → reportId=${reportId} url=${targetUrl}`);
+
+      const backendResponse = await fetch(targetUrl, { method: "GET" });
+
+      const contentType = backendResponse.headers.get("Content-Type") || "";
+      const contentLength = backendResponse.headers.get("Content-Length") || "unknown";
+      console.log(`📊 exportOpportunitiesXlsx ← status=${backendResponse.status} content-type=${contentType} content-length=${contentLength}`);
 
       if (!backendResponse.ok) {
         const status = backendResponse.status;
+        const body = await backendResponse.text();
+        console.error(`❌ exportOpportunitiesXlsx backend error: status=${status} body=${body}`);
         return NextResponse.json(
           { success: false, error: `Backend returned ${status}` },
           { status: status === 404 ? 404 : 500 },
@@ -1104,7 +1110,7 @@ export class DeepDiveController {
       return new NextResponse(backendResponse.body, {
         headers: {
           "Content-Type":
-            backendResponse.headers.get("Content-Type") ||
+            contentType ||
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "Content-Disposition":
             backendResponse.headers.get("Content-Disposition") ||
@@ -1114,6 +1120,24 @@ export class DeepDiveController {
     } catch (error) {
       console.error("❌ DeepDiveController.exportOpportunitiesXlsx:", error);
       return NextResponse.json({ success: false, error: "Failed to export opportunities" }, { status: 500 });
+    }
+  }
+
+  static async getSalesMinerSignalStats(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const result = await DeepDiveService.getSalesMinerSignalStats(reportId);
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.getSalesMinerSignalStats:", error);
+      return NextResponse.json({ success: false, error: "Failed to fetch signal stats" }, { status: 500 });
     }
   }
 
