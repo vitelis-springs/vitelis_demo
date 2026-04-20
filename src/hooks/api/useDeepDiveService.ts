@@ -367,14 +367,16 @@ export interface DeepDiveSettingsResponse {
     report: {
       id: number;
       name: string | null;
+      description: string | null;
+      useCaseId: number | null;
+      useCaseName: string | null;
     };
     current: {
       reportSettings: ReportSettingsOption | null;
       validatorSettings: ValidatorSettingsOption | null;
     };
     options: {
-      reportSettings: ReportSettingsOption[];
-      validatorSettings: ValidatorSettingsOption[];
+      useCases: Array<{ id: number; name: string }>;
     };
   };
 }
@@ -421,43 +423,22 @@ export interface ReplaceReportModelPayload {
   }>;
 }
 
-export type ReportSettingsActionPayload =
-  | { mode: "reuse"; id: number }
-  | {
-      mode: "create";
-      strategy: "clone";
-      baseId: number;
-      name?: string;
-      settings: Record<string, unknown>;
-    }
-  | {
-      mode: "create";
-      strategy: "blank";
-      name: string;
-      masterFileId: string;
-      prefix?: number | null;
-      settings: Record<string, unknown>;
-    };
-
-export type ValidatorSettingsActionPayload =
-  | { mode: "reuse"; id: number }
-  | {
-      mode: "create";
-      strategy: "clone";
-      baseId: number;
-      name?: string;
-      settings: Record<string, unknown>;
-    }
-  | {
-      mode: "create";
-      strategy: "blank";
-      name: string;
-      settings: Record<string, unknown>;
-    };
-
 export interface UpdateDeepDiveSettingsPayload {
-  reportSettingsAction?: ReportSettingsActionPayload;
-  validatorSettingsAction?: ValidatorSettingsActionPayload;
+  reportInfo: {
+    name: string;
+    description?: string | null;
+    useCaseId?: number | null;
+  };
+  reportSettings: {
+    name?: string;
+    masterFileId?: string;
+    prefix?: number | null;
+    settings: Record<string, unknown>;
+  };
+  validatorSettings: {
+    name?: string;
+    settings: Record<string, unknown>;
+  };
 }
 
 export interface CloneOptions {

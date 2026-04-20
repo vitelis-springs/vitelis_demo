@@ -1,45 +1,17 @@
 "use client";
 
-import { Alert, App, Button, Card, Input, Layout, Radio, Select, Space, Spin, Typography } from "antd";
+import { App, Button, Divider, Input, InputNumber, Layout, Select, Space, Spin, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import {
   useGetDeepDiveSettings,
   useUpdateDeepDiveSettings,
-  type ReportSettingsOption,
-  type ValidatorSettingsOption,
-  type ReportSettingsActionPayload,
-  type ValidatorSettingsActionPayload,
 } from "../../hooks/api/useDeepDiveService";
 import DeepDiveBreadcrumbs from "./breadcrumbs";
 import { buildReportHref, resolveReportSection } from "./shared/report-route";
+import JsonEditor from "./json-editor";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
-
-type EditMode = "reuse" | "create";
-type CreateStrategy = "clone" | "blank";
-
-interface ReportSettingsDraft {
-  mode: EditMode;
-  reuseId: number | null;
-  strategy: CreateStrategy;
-  baseId: number | null;
-  name: string;
-  masterFileId: string;
-  prefix: string;
-  jsonText: string;
-  parseError: string | null;
-}
-
-interface ValidatorSettingsDraft {
-  mode: EditMode;
-  reuseId: number | null;
-  strategy: CreateStrategy;
-  baseId: number | null;
-  name: string;
-  jsonText: string;
-  parseError: string | null;
-}
 
 function safeStringify(value: unknown): string {
   try {
@@ -66,41 +38,16 @@ function parseJsonObject(text: string):
   }
 }
 
-function resolveInitialReportDraft(
-  current: ReportSettingsOption | null,
-  options: ReportSettingsOption[]
-): ReportSettingsDraft {
-  const fallback = current ?? options[0] ?? null;
-  return {
-    mode: "reuse",
-    reuseId: current?.id ?? options[0]?.id ?? null,
-    strategy: "clone",
-    baseId: fallback?.id ?? null,
-    name: "",
-    masterFileId: fallback?.masterFileId ?? "",
-    prefix:
-      fallback?.prefix === null || fallback?.prefix === undefined
-        ? ""
-        : String(fallback.prefix),
-    jsonText: safeStringify(fallback?.settings ?? {}),
-    parseError: null,
-  };
-}
-
-function resolveInitialValidatorDraft(
-  current: ValidatorSettingsOption | null,
-  options: ValidatorSettingsOption[]
-): ValidatorSettingsDraft {
-  const fallback = current ?? options[0] ?? null;
-  return {
-    mode: "reuse",
-    reuseId: current?.id ?? options[0]?.id ?? null,
-    strategy: "clone",
-    baseId: fallback?.id ?? null,
-    name: "",
-    jsonText: safeStringify(fallback?.settings ?? {}),
-    parseError: null,
-  };
+interface Draft {
+  name: string;
+  description: string;
+  useCaseId: number | null;
+  rsName: string;
+  rsMasterFileId: string;
+  rsPrefix: number | null;
+  rsJson: string;
+  svsName: string;
+  svsJson: string;
 }
 
 export default function DeepDiveSettings({ reportId, backHref }: { reportId: number; backHref?: string }) {
@@ -109,210 +56,79 @@ export default function DeepDiveSettings({ reportId, backHref }: { reportId: num
   const updateSettings = useUpdateDeepDiveSettings(reportId);
   const reportSection = resolveReportSection(backHref);
 
-  const reportOptions = useMemo(
-    () => data?.data.options.reportSettings ?? [],
-    [data]
-  );
-  const validatorOptions = useMemo(
-    () => data?.data.options.validatorSettings ?? [],
-    [data]
-  );
+  const useCaseOptions = useMemo(() => data?.data.options.useCases ?? [], [data]);
 
-  const [reportDraft, setReportDraft] = useState<ReportSettingsDraft | null>(null);
-  const [validatorDraft, setValidatorDraft] = useState<ValidatorSettingsDraft | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   useEffect(() => {
     if (!data) return;
-    setReportDraft(
-      resolveInitialReportDraft(
-        data.data.current.reportSettings,
-        data.data.options.reportSettings
-      )
-    );
-    setValidatorDraft(
-      resolveInitialValidatorDraft(
-        data.data.current.validatorSettings,
-        data.data.options.validatorSettings
-      )
-    );
+    const rs = data.data.current.reportSettings;
+    const svs = data.data.current.validatorSettings;
+    setDraft({
+      name: data.data.report.name ?? "",
+      description: data.data.report.description ?? "",
+      useCaseId: data.data.report.useCaseId ?? null,
+      rsName: rs?.name ?? "",
+      rsMasterFileId: rs?.masterFileId ?? "",
+      rsPrefix: rs?.prefix ?? null,
+      rsJson: safeStringify(rs?.settings ?? {}),
+      svsName: svs?.name ?? "",
+      svsJson: safeStringify(svs?.settings ?? {}),
+    });
   }, [data]);
 
-  const handleReportJsonChange = (value: string) => {
-    if (!reportDraft) return;
-    const parsed = parseJsonObject(value);
-    setReportDraft({
-      ...reportDraft,
-      jsonText: value,
-      parseError: parsed.ok ? null : parsed.error,
-    });
-  };
-
-  const handleValidatorJsonChange = (value: string) => {
-    if (!validatorDraft) return;
-    const parsed = parseJsonObject(value);
-    setValidatorDraft({
-      ...validatorDraft,
-      jsonText: value,
-      parseError: parsed.ok ? null : parsed.error,
-    });
-  };
-
-  const onReportCloneBaseChange = (baseId: number) => {
-    if (!reportDraft) return;
-    const base = reportOptions.find((option) => option.id === baseId);
-    setReportDraft({
-      ...reportDraft,
-      baseId,
-      masterFileId: base?.masterFileId ?? "",
-      prefix:
-        base?.prefix === null || base?.prefix === undefined
-          ? ""
-          : String(base.prefix),
-      jsonText: safeStringify(base?.settings ?? {}),
-      parseError: null,
-    });
-  };
-
-  const onValidatorCloneBaseChange = (baseId: number) => {
-    if (!validatorDraft) return;
-    const base = validatorOptions.find((option) => option.id === baseId);
-    setValidatorDraft({
-      ...validatorDraft,
-      baseId,
-      jsonText: safeStringify(base?.settings ?? {}),
-      parseError: null,
-    });
-  };
-
-  const buildReportAction = (): { action?: ReportSettingsActionPayload; error?: string } => {
-    if (!reportDraft) return { error: "Report settings form is not initialized" };
-
-    if (reportDraft.mode === "reuse") {
-      if (!reportDraft.reuseId) return { error: "Select report settings to reuse" };
-      return { action: { mode: "reuse", id: reportDraft.reuseId } };
-    }
-
-    const parsed = parseJsonObject(reportDraft.jsonText);
-    if (!parsed.ok) return { error: `Report settings JSON: ${parsed.error}` };
-
-    if (reportDraft.strategy === "clone") {
-      if (!reportDraft.baseId) return { error: "Select report settings template to clone" };
-      return {
-        action: {
-          mode: "create",
-          strategy: "clone",
-          baseId: reportDraft.baseId,
-          name: reportDraft.name.trim() || undefined,
-          settings: parsed.value,
-        },
-      };
-    }
-
-    const name = reportDraft.name.trim();
-    if (!name) return { error: "Report settings name is required" };
-
-    const masterFileId = reportDraft.masterFileId.trim();
-    if (!masterFileId) return { error: "masterFileId is required for blank report settings" };
-
-    let parsedPrefix: number | null = null;
-    const rawPrefix = reportDraft.prefix.trim();
-    if (rawPrefix) {
-      const asNumber = Number(rawPrefix);
-      if (!Number.isInteger(asNumber)) {
-        return { error: "Prefix must be an integer" };
-      }
-      parsedPrefix = asNumber;
-    }
-
-    return {
-      action: {
-        mode: "create",
-        strategy: "blank",
-        name,
-        masterFileId,
-        prefix: parsedPrefix,
-        settings: parsed.value,
-      },
-    };
-  };
-
-  const buildValidatorAction = (): { action?: ValidatorSettingsActionPayload; error?: string } => {
-    if (!validatorDraft) return { error: "Validator settings form is not initialized" };
-
-    if (validatorDraft.mode === "reuse") {
-      if (!validatorDraft.reuseId) return { error: "Select validator settings to reuse" };
-      return { action: { mode: "reuse", id: validatorDraft.reuseId } };
-    }
-
-    const parsed = parseJsonObject(validatorDraft.jsonText);
-    if (!parsed.ok) return { error: `Validator settings JSON: ${parsed.error}` };
-
-    if (validatorDraft.strategy === "clone") {
-      if (!validatorDraft.baseId) return { error: "Select validator settings template to clone" };
-      return {
-        action: {
-          mode: "create",
-          strategy: "clone",
-          baseId: validatorDraft.baseId,
-          name: validatorDraft.name.trim() || undefined,
-          settings: parsed.value,
-        },
-      };
-    }
-
-    const name = validatorDraft.name.trim();
-    if (!name) return { error: "Validator settings name is required" };
-
-    return {
-      action: {
-        mode: "create",
-        strategy: "blank",
-        name,
-        settings: parsed.value,
-      },
-    };
-  };
+  const set = (patch: Partial<Draft>) => setDraft((prev) => prev ? { ...prev, ...patch } : prev);
 
   const handleSave = () => {
-    const report = buildReportAction();
-    if (!report.action) {
-      message.error(report.error ?? "Invalid report settings");
+    if (!draft) return;
+
+    const name = draft.name.trim();
+    if (!name) {
+      message.error("Report name is required");
       return;
     }
 
-    const validator = buildValidatorAction();
-    if (!validator.action) {
-      message.error(validator.error ?? "Invalid validator settings");
+    const rsJsonResult = parseJsonObject(draft.rsJson);
+    if (!rsJsonResult.ok) {
+      message.error(`Report Settings JSON: ${rsJsonResult.error}`);
+      return;
+    }
+
+    const svsJsonResult = parseJsonObject(draft.svsJson);
+    if (!svsJsonResult.ok) {
+      message.error(`Source Validation Settings JSON: ${svsJsonResult.error}`);
       return;
     }
 
     updateSettings.mutate(
       {
-        reportSettingsAction: report.action,
-        validatorSettingsAction: validator.action,
+        reportInfo: {
+          name,
+          description: draft.description.trim() || null,
+          useCaseId: draft.useCaseId,
+        },
+        reportSettings: {
+          name: draft.rsName.trim() || undefined,
+          masterFileId: draft.rsMasterFileId.trim() || undefined,
+          prefix: draft.rsPrefix,
+          settings: rsJsonResult.value,
+        },
+        validatorSettings: {
+          name: draft.svsName.trim() || undefined,
+          settings: svsJsonResult.value,
+        },
       },
       {
-        onSuccess: () => {
-          message.success("Settings saved");
-        },
-        onError: () => {
-          message.error("Failed to save settings");
-        },
+        onSuccess: () => message.success("Settings saved"),
+        onError: () => message.error("Failed to save settings"),
       }
     );
   };
 
-  if (isLoading || !data || !reportDraft || !validatorDraft) {
+  if (isLoading || !data || !draft) {
     return (
       <Layout style={{ minHeight: "100vh", background: "#141414" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100vh",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
           <Spin size="large" />
         </div>
       </Layout>
@@ -322,14 +138,14 @@ export default function DeepDiveSettings({ reportId, backHref }: { reportId: num
   return (
     <Layout style={{ minHeight: "100vh", background: "#141414" }}>
       <Content style={{ padding: 24, background: "#141414", minHeight: "100vh" }}>
-        <div style={{ maxWidth: 1200, width: "100%" }}>
+        <div style={{ maxWidth: 1400, width: "100%" }}>
           <div style={{ marginBottom: 24 }}>
             <Space direction="vertical" size={4}>
               <DeepDiveBreadcrumbs
                 items={[
                   reportSection,
                   {
-                    label: data.data.report.name || `Deep Dive #${reportId}`,
+                    label: data.data.report.name || `Report #${reportId}`,
                     href: backHref ?? buildReportHref(backHref, reportId),
                   },
                   { label: "Settings" },
@@ -337,7 +153,7 @@ export default function DeepDiveSettings({ reportId, backHref }: { reportId: num
               />
               <Space align="center" size="middle">
                 <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
-                  Report Settings
+                  Settings
                 </Title>
                 <Button
                   type="primary"
@@ -347,256 +163,135 @@ export default function DeepDiveSettings({ reportId, backHref }: { reportId: num
                   Save
                 </Button>
               </Space>
-              <Text style={{ color: "#8c8c8c" }}>
-                Configure report settings and validator settings using JSON.
-              </Text>
             </Space>
           </div>
 
-          <Space direction="vertical" size={16} style={{ width: "100%" }}>
-            <Alert
-              type="info"
-              showIcon
-              style={{ width: "100%" }}
-              message="How to use this page"
-              description={
-                <div style={{ color: "#bfbfbf" }}>
-                  <ol style={{ margin: 0, paddingLeft: 18 }}>
-                    <li>Pick mode for each section: <strong>Reuse existing</strong> or <strong>Create new</strong>.</li>
-                    <li>If you choose <strong>Create new</strong>, select <strong>Clone template</strong> or <strong>Blank JSON</strong>.</li>
-                    <li>JSON must be an object (example: <code>{"{ \"key\": \"value\" }"}</code>), not an array.</li>
-                    <li>
-                      For <strong>Report Settings</strong> + <strong>Blank JSON</strong>, fill <code>Name</code> and
-                      <code> masterFileId</code> (prefix is optional integer).
-                    </li>
-                    <li>Click <strong>Save</strong> at the top to apply both sections.</li>
-                  </ol>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 32px", alignItems: "start" }}>
+
+            {/* Left column */}
+            <div>
+              <Title level={5} style={{ color: "#d9d9d9", marginTop: 0, marginBottom: 16 }}>General</Title>
+
+              <div style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                  Report Name <span style={{ color: "#ff4d4f" }}>*</span>
+                </Text>
+                <Input
+                  value={draft.name}
+                  onChange={(e) => set({ name: e.target.value })}
+                  placeholder="e.g. Q2 2026 Analysis"
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                  Description
+                </Text>
+                <Input.TextArea
+                  value={draft.description}
+                  onChange={(e) => set({ description: e.target.value })}
+                  rows={3}
+                  placeholder="Optional description"
+                />
+              </div>
+
+              {useCaseOptions.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                    Use Case
+                  </Text>
+                  <Select
+                    value={draft.useCaseId ?? undefined}
+                    onChange={(v) => set({ useCaseId: v ?? null })}
+                    options={useCaseOptions.map((uc) => ({ value: uc.id, label: uc.name }))}
+                    placeholder="Select use case"
+                    allowClear
+                    showSearch
+                    optionFilterProp="label"
+                    style={{ width: "100%" }}
+                  />
                 </div>
-              }
-            />
+              )}
 
-            <Card
-              title="Report Settings"
-              styles={{ header: { color: "#d9d9d9", background: "#1f1f1f" }, body: { background: "#1f1f1f" } }}
-              style={{ border: "1px solid #303030" }}
-            >
-              <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                <Text style={{ color: "#8c8c8c" }}>
-                  Current: {data.data.current.reportSettings?.name ?? "Not selected"}
+              <Divider style={{ borderColor: "#303030", marginTop: 8 }} />
+
+              <Title level={5} style={{ color: "#d9d9d9", marginBottom: 16 }}>Report Settings</Title>
+
+              <div style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                  Settings Name
                 </Text>
-
-                <Radio.Group
-                  value={reportDraft.mode}
-                  onChange={(e) =>
-                    setReportDraft({ ...reportDraft, mode: e.target.value as EditMode })
-                  }
-                  options={[
-                    { label: "Reuse existing", value: "reuse" },
-                    { label: "Create new", value: "create" },
-                  ]}
+                <Input
+                  value={draft.rsName}
+                  onChange={(e) => set({ rsName: e.target.value })}
+                  placeholder="Defaults to report name"
                 />
+              </div>
 
-                {reportDraft.mode === "reuse" ? (
-                  <Select
-                    value={reportDraft.reuseId ?? undefined}
-                    onChange={(value) =>
-                      setReportDraft({ ...reportDraft, reuseId: value })
-                    }
-                    options={reportOptions.map((option) => ({
-                      value: option.id,
-                      label: `${option.name} (#${option.id})`,
-                    }))}
-                    placeholder="Select report settings"
-                    showSearch
-                    optionFilterProp="label"
-                    style={{ width: 480 }}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px", marginBottom: 16 }}>
+                <div>
+                  <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                    Master File ID
+                  </Text>
+                  <Input
+                    value={draft.rsMasterFileId}
+                    onChange={(e) => set({ rsMasterFileId: e.target.value })}
+                    placeholder="Google Sheets / Drive file ID"
                   />
-                ) : (
-                  <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                    <Select
-                      value={reportDraft.strategy}
-                      onChange={(value) =>
-                        setReportDraft({ ...reportDraft, strategy: value as CreateStrategy })
-                      }
-                      options={[
-                        { value: "clone", label: "Clone template" },
-                        { value: "blank", label: "Blank JSON" },
-                      ]}
-                    />
+                </div>
+                <div>
+                  <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                    Prefix
+                  </Text>
+                  <InputNumber
+                    value={draft.rsPrefix}
+                    onChange={(v) => set({ rsPrefix: v })}
+                    style={{ width: "100%" }}
+                    placeholder="Optional integer"
+                  />
+                </div>
+              </div>
 
-                    {reportDraft.strategy === "clone" ? (
-                      <>
-                        <Select
-                          value={reportDraft.baseId ?? undefined}
-                          onChange={onReportCloneBaseChange}
-                          options={reportOptions.map((option) => ({
-                            value: option.id,
-                            label: `${option.name} (#${option.id})`,
-                          }))}
-                          placeholder="Select template"
-                          showSearch
-                          optionFilterProp="label"
-                          style={{ width: 480 }}
-                        />
-                        <Input
-                          value={reportDraft.name}
-                          onChange={(e) =>
-                            setReportDraft({ ...reportDraft, name: e.target.value })
-                          }
-                          placeholder="Optional new name"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <Input
-                          value={reportDraft.name}
-                          onChange={(e) =>
-                            setReportDraft({ ...reportDraft, name: e.target.value })
-                          }
-                          placeholder="Name"
-                        />
-                        <Input
-                          value={reportDraft.masterFileId}
-                          onChange={(e) =>
-                            setReportDraft({ ...reportDraft, masterFileId: e.target.value })
-                          }
-                          placeholder="masterFileId"
-                        />
-                        <Input
-                          value={reportDraft.prefix}
-                          onChange={(e) =>
-                            setReportDraft({ ...reportDraft, prefix: e.target.value })
-                          }
-                          placeholder="Prefix (optional integer)"
-                        />
-                      </>
-                    )}
-
-                    <Input.TextArea
-                      value={reportDraft.jsonText}
-                      onChange={(e) => handleReportJsonChange(e.target.value)}
-                      autoSize={{ minRows: 10, maxRows: 24 }}
-                      status={reportDraft.parseError ? "error" : undefined}
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 13,
-                        backgroundColor: "#141414",
-                        color: "#d9d9d9",
-                      }}
-                    />
-                    {reportDraft.parseError && (
-                      <Text style={{ color: "#ff4d4f", fontSize: 12 }}>
-                        {reportDraft.parseError}
-                      </Text>
-                    )}
-                  </Space>
-                )}
-              </Space>
-            </Card>
-
-            <Card
-              title="Validator Settings"
-              styles={{ header: { color: "#d9d9d9", background: "#1f1f1f" }, body: { background: "#1f1f1f" } }}
-              style={{ border: "1px solid #303030" }}
-            >
-              <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                <Text style={{ color: "#8c8c8c" }}>
-                  Current: {data.data.current.validatorSettings?.name ?? "Not selected"}
+              <div>
+                <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                  Settings JSON
                 </Text>
-
-                <Radio.Group
-                  value={validatorDraft.mode}
-                  onChange={(e) =>
-                    setValidatorDraft({ ...validatorDraft, mode: e.target.value as EditMode })
-                  }
-                  options={[
-                    { label: "Reuse existing", value: "reuse" },
-                    { label: "Create new", value: "create" },
-                  ]}
+                <JsonEditor
+                  value={draft.rsJson}
+                  onChange={(v) => set({ rsJson: v })}
+                  height={420}
                 />
+              </div>
+            </div>
 
-                {validatorDraft.mode === "reuse" ? (
-                  <Select
-                    value={validatorDraft.reuseId ?? undefined}
-                    onChange={(value) =>
-                      setValidatorDraft({ ...validatorDraft, reuseId: value })
-                    }
-                    options={validatorOptions.map((option) => ({
-                      value: option.id,
-                      label: `${option.name} (#${option.id})`,
-                    }))}
-                    placeholder="Select validator settings"
-                    showSearch
-                    optionFilterProp="label"
-                    style={{ width: 480 }}
-                  />
-                ) : (
-                  <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                    <Select
-                      value={validatorDraft.strategy}
-                      onChange={(value) =>
-                        setValidatorDraft({ ...validatorDraft, strategy: value as CreateStrategy })
-                      }
-                      options={[
-                        { value: "clone", label: "Clone template" },
-                        { value: "blank", label: "Blank JSON" },
-                      ]}
-                    />
+            {/* Right column */}
+            <div>
+              <Title level={5} style={{ color: "#d9d9d9", marginTop: 0, marginBottom: 16 }}>Source Validation Settings</Title>
 
-                    {validatorDraft.strategy === "clone" ? (
-                      <>
-                        <Select
-                          value={validatorDraft.baseId ?? undefined}
-                          onChange={onValidatorCloneBaseChange}
-                          options={validatorOptions.map((option) => ({
-                            value: option.id,
-                            label: `${option.name} (#${option.id})`,
-                          }))}
-                          placeholder="Select template"
-                          showSearch
-                          optionFilterProp="label"
-                          style={{ width: 480 }}
-                        />
-                        <Input
-                          value={validatorDraft.name}
-                          onChange={(e) =>
-                            setValidatorDraft({ ...validatorDraft, name: e.target.value })
-                          }
-                          placeholder="Optional new name"
-                        />
-                      </>
-                    ) : (
-                      <Input
-                        value={validatorDraft.name}
-                        onChange={(e) =>
-                          setValidatorDraft({ ...validatorDraft, name: e.target.value })
-                        }
-                        placeholder="Name"
-                      />
-                    )}
+              <div style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                  Settings Name
+                </Text>
+                <Input
+                  value={draft.svsName}
+                  onChange={(e) => set({ svsName: e.target.value })}
+                  placeholder="Defaults to report name"
+                />
+              </div>
 
-                    <Input.TextArea
-                      value={validatorDraft.jsonText}
-                      onChange={(e) => handleValidatorJsonChange(e.target.value)}
-                      autoSize={{ minRows: 10, maxRows: 24 }}
-                      status={validatorDraft.parseError ? "error" : undefined}
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 13,
-                        backgroundColor: "#141414",
-                        color: "#d9d9d9",
-                      }}
-                    />
-                    {validatorDraft.parseError && (
-                      <Text style={{ color: "#ff4d4f", fontSize: 12 }}>
-                        {validatorDraft.parseError}
-                      </Text>
-                    )}
-                  </Space>
-                )}
-              </Space>
-            </Card>
-          </Space>
+              <div>
+                <Text style={{ color: "#8c8c8c", fontSize: 12, display: "block", marginBottom: 4 }}>
+                  Settings JSON
+                </Text>
+                <JsonEditor
+                  value={draft.svsJson}
+                  onChange={(v) => set({ svsJson: v })}
+                  height={600}
+                />
+              </div>
+            </div>
+
+          </div>
         </div>
       </Content>
     </Layout>

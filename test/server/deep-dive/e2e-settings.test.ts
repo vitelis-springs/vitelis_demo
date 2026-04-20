@@ -47,32 +47,37 @@ function callPatchSettings(id: string, body: unknown): Promise<Response> {
   );
 }
 
-const REPORT_OPTIONS = [
-  { id: 1, name: "Base Report", masterFileId: "master-1", prefix: 7, settings: { temp: 0.4 } },
-  { id: 2, name: "Fallback", masterFileId: "master-2", prefix: null, settings: { temp: 0.2 } },
-];
-
-const VALIDATOR_OPTIONS = [
-  { id: 10, name: "Provision v1", settings: { minScore: 0.7 } },
-  { id: 11, name: "Strict", settings: { minScore: 0.9 } },
+const USE_CASES = [
+  { id: 1, name: "Sales" },
+  { id: 2, name: "Research" },
 ];
 
 const SNAPSHOT_INITIAL = {
   reportId: 44,
   reportName: "Deep Dive 44",
+  reportDescription: null,
+  reportUseCaseId: null,
+  reportUseCaseName: null,
   reportSettingsId: 1,
   sourceValidationSettingsId: 10,
-  reportSettings: REPORT_OPTIONS[0]!,
-  validatorSettings: VALIDATOR_OPTIONS[0]!,
+  reportSettings: {
+    id: 1,
+    name: "Base Report",
+    masterFileId: "master-1",
+    prefix: 7,
+    settings: { temp: 0.4 },
+  },
+  validatorSettings: {
+    id: 10,
+    name: "Provision v1",
+    settings: { minScore: 0.7 },
+  },
 };
 
-const SNAPSHOT_UPDATED = {
-  reportId: 44,
-  reportName: "Deep Dive 44",
-  reportSettingsId: 2,
-  sourceValidationSettingsId: 11,
-  reportSettings: REPORT_OPTIONS[1]!,
-  validatorSettings: VALIDATOR_OPTIONS[1]!,
+const VALID_PATCH_BODY = {
+  reportInfo: { name: "Updated Name", description: null, useCaseId: null },
+  reportSettings: { name: "RS Name", masterFileId: "file-id", prefix: null, settings: { k: 1 } },
+  validatorSettings: { name: "VS Name", settings: { minScore: 0.8 } },
 };
 
 describe("E2E: GET /api/deep-dive/[id]/settings", () => {
@@ -101,8 +106,7 @@ describe("E2E: GET /api/deep-dive/[id]/settings", () => {
 
   it("returns 404 when report does not exist", async () => {
     jest.spyOn(DeepDiveRepository, "getReportSettingsSnapshot").mockResolvedValueOnce(null);
-    jest.spyOn(DeepDiveRepository, "listReportSettings").mockResolvedValueOnce(REPORT_OPTIONS);
-    jest.spyOn(DeepDiveRepository, "listValidatorSettings").mockResolvedValueOnce(VALIDATOR_OPTIONS);
+    jest.spyOn(DeepDiveRepository, "listAllUseCases").mockResolvedValueOnce(USE_CASES);
 
     const res = await callGetSettings("44");
     const body = await res.json();
@@ -115,19 +119,18 @@ describe("E2E: GET /api/deep-dive/[id]/settings", () => {
     jest
       .spyOn(DeepDiveRepository, "getReportSettingsSnapshot")
       .mockResolvedValueOnce(SNAPSHOT_INITIAL);
-    jest.spyOn(DeepDiveRepository, "listReportSettings").mockResolvedValueOnce(REPORT_OPTIONS);
-    jest.spyOn(DeepDiveRepository, "listValidatorSettings").mockResolvedValueOnce(VALIDATOR_OPTIONS);
+    jest.spyOn(DeepDiveRepository, "listAllUseCases").mockResolvedValueOnce(USE_CASES);
 
     const res = await callGetSettings("44");
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.data.report).toEqual({ id: 44, name: "Deep Dive 44" });
+    expect(body.data.report.id).toBe(44);
+    expect(body.data.report.name).toBe("Deep Dive 44");
     expect(body.data.current.reportSettings.id).toBe(1);
     expect(body.data.current.validatorSettings.id).toBe(10);
-    expect(body.data.options.reportSettings).toHaveLength(2);
-    expect(body.data.options.validatorSettings).toHaveLength(2);
+    expect(body.data.options.useCases).toHaveLength(2);
   });
 });
 
@@ -145,83 +148,30 @@ describe("E2E: PATCH /api/deep-dive/[id]/settings", () => {
     expect(body.error).toMatch(/Body must be an object/);
   });
 
-  it("returns 400 when action format is invalid", async () => {
-    const res = await callPatchSettings("44", {
-      reportSettingsAction: { mode: "create", strategy: "clone" },
-    });
+  it("returns 400 when payload is missing required fields", async () => {
+    const res = await callPatchSettings("44", { reportInfo: { name: "X" } });
     const body = await res.json();
 
     expect(res.status).toBe(400);
-    expect(body.error).toMatch(/Invalid reportSettingsAction format/);
+    expect(body.error).toMatch(/Invalid payload/);
   });
 
   it("returns 404 when report does not exist", async () => {
     jest.spyOn(DeepDiveRepository, "getReportSettingsSnapshot").mockResolvedValueOnce(null);
 
-    const res = await callPatchSettings("44", {
-      reportSettingsAction: { mode: "reuse", id: 1 },
-    });
+    const res = await callPatchSettings("44", VALID_PATCH_BODY);
     const body = await res.json();
 
     expect(res.status).toBe(404);
     expect(body.error).toMatch(/Deep dive not found/);
   });
 
-  it("updates settings in reuse mode", async () => {
-    const snapshotSpy = jest
-      .spyOn(DeepDiveRepository, "getReportSettingsSnapshot")
-      .mockResolvedValueOnce(SNAPSHOT_INITIAL)
-      .mockResolvedValueOnce(SNAPSHOT_UPDATED);
-
-    const reportByIdSpy = jest
-      .spyOn(DeepDiveRepository, "getReportSettingsById")
-      .mockResolvedValueOnce(REPORT_OPTIONS[1]!);
-
-    const validatorByIdSpy = jest
-      .spyOn(DeepDiveRepository, "getValidatorSettingsById")
-      .mockResolvedValueOnce(VALIDATOR_OPTIONS[1]!);
-
-    const updateRefsSpy = jest
-      .spyOn(DeepDiveRepository, "updateReportSettingsReferences")
-      .mockResolvedValueOnce(true);
-
-    jest.spyOn(DeepDiveRepository, "listReportSettings").mockResolvedValueOnce(REPORT_OPTIONS);
-    jest.spyOn(DeepDiveRepository, "listValidatorSettings").mockResolvedValueOnce(VALIDATOR_OPTIONS);
-
-    const res = await callPatchSettings("44", {
-      reportSettingsAction: { mode: "reuse", id: 2 },
-      validatorSettingsAction: { mode: "reuse", id: 11 },
-    });
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.current.reportSettings.id).toBe(2);
-    expect(body.data.current.validatorSettings.id).toBe(11);
-
-    expect(reportByIdSpy).toHaveBeenCalledWith(2);
-    expect(validatorByIdSpy).toHaveBeenCalledWith(11);
-    expect(updateRefsSpy).toHaveBeenCalledWith(44, 2, 11);
-    expect(snapshotSpy).toHaveBeenCalledTimes(2);
-  });
-
-  it("creates new settings using clone + blank flows", async () => {
+  it("updates existing settings in place", async () => {
     const snapshotAfter = {
       ...SNAPSHOT_INITIAL,
-      reportSettingsId: 77,
-      sourceValidationSettingsId: 88,
-      reportSettings: {
-        id: 77,
-        name: "Base Report (Report #44 copy)",
-        masterFileId: "master-1",
-        prefix: 7,
-        settings: { temp: 0.55 },
-      },
-      validatorSettings: {
-        id: 88,
-        name: "New Validator",
-        settings: { minScore: 0.75 },
-      },
+      reportName: "Updated Name",
+      reportSettings: { ...SNAPSHOT_INITIAL.reportSettings, settings: { k: 1 } },
+      validatorSettings: { ...SNAPSHOT_INITIAL.validatorSettings, settings: { minScore: 0.8 } },
     };
 
     jest
@@ -229,58 +179,83 @@ describe("E2E: PATCH /api/deep-dive/[id]/settings", () => {
       .mockResolvedValueOnce(SNAPSHOT_INITIAL)
       .mockResolvedValueOnce(snapshotAfter);
 
+    const updateBasicSpy = jest
+      .spyOn(DeepDiveRepository, "updateReportBasicInfo")
+      .mockResolvedValueOnce({ id: 44, name: "Updated Name", description: null, use_case_id: null });
+
+    const updateRsSpy = jest
+      .spyOn(DeepDiveRepository, "updateReportSettingsData")
+      .mockResolvedValueOnce({} as never);
+
+    const updateVsSpy = jest
+      .spyOn(DeepDiveRepository, "updateValidatorSettingsData")
+      .mockResolvedValueOnce({} as never);
+
+    jest.spyOn(DeepDiveRepository, "listAllUseCases").mockResolvedValueOnce(USE_CASES);
+
+    const res = await callPatchSettings("44", VALID_PATCH_BODY);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.current.reportSettings.id).toBe(1);
+    expect(body.data.current.validatorSettings.id).toBe(10);
+
+    expect(updateBasicSpy).toHaveBeenCalledWith(44, expect.objectContaining({ name: "Updated Name" }));
+    expect(updateRsSpy).toHaveBeenCalledWith(1, expect.objectContaining({ settings: { k: 1 } }));
+    expect(updateVsSpy).toHaveBeenCalledWith(10, expect.objectContaining({ settings: { minScore: 0.8 } }));
+  });
+
+  it("creates new settings records when report has none", async () => {
+    const snapshotNoSettings = {
+      ...SNAPSHOT_INITIAL,
+      reportSettingsId: null,
+      sourceValidationSettingsId: null,
+      reportSettings: null,
+      validatorSettings: null,
+    };
+
+    const snapshotAfter = {
+      ...SNAPSHOT_INITIAL,
+      reportSettingsId: 99,
+      sourceValidationSettingsId: 88,
+      reportSettings: { id: 99, name: "RS Name", masterFileId: "file-id", prefix: null, settings: { k: 1 } },
+      validatorSettings: { id: 88, name: "VS Name", settings: { minScore: 0.8 } },
+    };
+
     jest
-      .spyOn(DeepDiveRepository, "getReportSettingsById")
-      .mockResolvedValueOnce(REPORT_OPTIONS[0]!);
+      .spyOn(DeepDiveRepository, "getReportSettingsSnapshot")
+      .mockResolvedValueOnce(snapshotNoSettings)
+      .mockResolvedValueOnce(snapshotAfter);
 
-    const createReportSpy = jest
+    jest
+      .spyOn(DeepDiveRepository, "updateReportBasicInfo")
+      .mockResolvedValueOnce({ id: 44, name: "Updated Name", description: null, use_case_id: null });
+
+    const createRsSpy = jest
       .spyOn(DeepDiveRepository, "createReportSettings")
-      .mockResolvedValueOnce({
-        id: 77,
-        name: "Base Report (Report #44 copy)",
-        masterFileId: "master-1",
-        prefix: 7,
-        settings: { temp: 0.55 },
-      });
+      .mockResolvedValueOnce({ id: 99, name: "RS Name", masterFileId: "file-id", prefix: null, settings: { k: 1 } });
 
-    const createValidatorSpy = jest
+    const createVsSpy = jest
       .spyOn(DeepDiveRepository, "createValidatorSettings")
-      .mockResolvedValueOnce({
-        id: 88,
-        name: "New Validator",
-        settings: { minScore: 0.75 },
-      });
+      .mockResolvedValueOnce({ id: 88, name: "VS Name", settings: { minScore: 0.8 } });
 
     const updateRefsSpy = jest
       .spyOn(DeepDiveRepository, "updateReportSettingsReferences")
       .mockResolvedValueOnce(true);
 
-    jest.spyOn(DeepDiveRepository, "listReportSettings").mockResolvedValueOnce(REPORT_OPTIONS);
-    jest.spyOn(DeepDiveRepository, "listValidatorSettings").mockResolvedValueOnce(VALIDATOR_OPTIONS);
+    jest.spyOn(DeepDiveRepository, "listAllUseCases").mockResolvedValueOnce(USE_CASES);
 
-    const res = await callPatchSettings("44", {
-      reportSettingsAction: {
-        mode: "create",
-        strategy: "clone",
-        baseId: 1,
-        settings: { temp: 0.55 },
-      },
-      validatorSettingsAction: {
-        mode: "create",
-        strategy: "blank",
-        name: "New Validator",
-        settings: { minScore: 0.75 },
-      },
-    });
+    const res = await callPatchSettings("44", VALID_PATCH_BODY);
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.data.current.reportSettings.id).toBe(77);
+    expect(body.data.current.reportSettings.id).toBe(99);
     expect(body.data.current.validatorSettings.id).toBe(88);
 
-    expect(createReportSpy).toHaveBeenCalledTimes(1);
-    expect(createValidatorSpy).toHaveBeenCalledTimes(1);
-    expect(updateRefsSpy).toHaveBeenCalledWith(44, 77, 88);
+    expect(createRsSpy).toHaveBeenCalledTimes(1);
+    expect(createVsSpy).toHaveBeenCalledTimes(1);
+    expect(updateRefsSpy).toHaveBeenCalledWith(44, 99, 88);
   });
 });

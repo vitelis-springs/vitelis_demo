@@ -12,8 +12,6 @@ import {
   type DeepDiveMetricKey,
   type ReportModelImportRow,
   type UpdateCompanyDataPointPayload,
-  type ReportSettingsAction,
-  type ValidatorSettingsAction,
 } from "./deep-dive.service";
 import { N8NService } from "../n8n/n8n.service";
 import type { SortOrder } from "../../../../types/sorting";
@@ -115,101 +113,6 @@ function serializeError(error: unknown): Record<string, unknown> {
   return details;
 }
 
-function parseReportSettingsAction(value: unknown): ReportSettingsAction | null {
-  if (!isRecord(value)) return null;
-
-  if (value.mode === "reuse") {
-    if (typeof value.id !== "number" || !Number.isInteger(value.id)) return null;
-    return { mode: "reuse", id: value.id };
-  }
-
-  if (value.mode !== "create") return null;
-  if (value.strategy === "clone") {
-    if (
-      typeof value.baseId !== "number" ||
-      !Number.isInteger(value.baseId) ||
-      !isJsonObject(value.settings)
-    ) {
-      return null;
-    }
-    return {
-      mode: "create",
-      strategy: "clone",
-      baseId: value.baseId,
-      name: typeof value.name === "string" ? value.name : undefined,
-      settings: value.settings,
-    };
-  }
-
-  if (value.strategy === "blank") {
-    if (
-      typeof value.name !== "string" ||
-      typeof value.masterFileId !== "string" ||
-      !isJsonObject(value.settings)
-    ) {
-      return null;
-    }
-    const prefix =
-      value.prefix === undefined || value.prefix === null
-        ? null
-        : typeof value.prefix === "number" && Number.isInteger(value.prefix)
-          ? value.prefix
-          : undefined;
-    if (prefix === undefined) return null;
-
-    return {
-      mode: "create",
-      strategy: "blank",
-      name: value.name,
-      masterFileId: value.masterFileId,
-      prefix,
-      settings: value.settings,
-    };
-  }
-
-  return null;
-}
-
-function parseValidatorSettingsAction(value: unknown): ValidatorSettingsAction | null {
-  if (!isRecord(value)) return null;
-
-  if (value.mode === "reuse") {
-    if (typeof value.id !== "number" || !Number.isInteger(value.id)) return null;
-    return { mode: "reuse", id: value.id };
-  }
-
-  if (value.mode !== "create") return null;
-  if (value.strategy === "clone") {
-    if (
-      typeof value.baseId !== "number" ||
-      !Number.isInteger(value.baseId) ||
-      !isJsonObject(value.settings)
-    ) {
-      return null;
-    }
-    return {
-      mode: "create",
-      strategy: "clone",
-      baseId: value.baseId,
-      name: typeof value.name === "string" ? value.name : undefined,
-      settings: value.settings,
-    };
-  }
-
-  if (value.strategy === "blank") {
-    if (typeof value.name !== "string" || !isJsonObject(value.settings)) {
-      return null;
-    }
-    return {
-      mode: "create",
-      strategy: "blank",
-      name: value.name,
-      settings: value.settings,
-    };
-  }
-
-  return null;
-}
 
 export class DeepDiveController {
   static async getReportCloneData(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
@@ -606,34 +509,61 @@ export class DeepDiveController {
         );
       }
 
-      const parsedReportAction =
-        body.reportSettingsAction === undefined
-          ? undefined
-          : parseReportSettingsAction(body.reportSettingsAction);
-      if (body.reportSettingsAction !== undefined && !parsedReportAction) {
+      const { reportInfo, reportSettings, validatorSettings } = body;
+
+      if (
+        !isRecord(reportInfo) ||
+        typeof reportInfo.name !== "string" ||
+        !isRecord(reportSettings) ||
+        !isJsonObject(reportSettings.settings) ||
+        !isRecord(validatorSettings) ||
+        !isJsonObject(validatorSettings.settings)
+      ) {
         return NextResponse.json(
-          { success: false, error: "Invalid reportSettingsAction format" },
+          { success: false, error: "Invalid payload" },
           { status: 400 }
         );
       }
 
-      const parsedValidatorAction =
-        body.validatorSettingsAction === undefined
-          ? undefined
-          : parseValidatorSettingsAction(body.validatorSettingsAction);
-      if (body.validatorSettingsAction !== undefined && !parsedValidatorAction) {
+      const prefix =
+        reportSettings.prefix === undefined || reportSettings.prefix === null
+          ? null
+          : typeof reportSettings.prefix === "number" && Number.isInteger(reportSettings.prefix)
+            ? reportSettings.prefix
+            : undefined;
+
+      if (prefix === undefined) {
         return NextResponse.json(
-          { success: false, error: "Invalid validatorSettingsAction format" },
+          { success: false, error: "prefix must be an integer or null" },
           { status: 400 }
         );
       }
-
-      const reportSettingsAction = parsedReportAction ?? undefined;
-      const validatorSettingsAction = parsedValidatorAction ?? undefined;
 
       const result = await DeepDiveService.updateSettings(reportId, {
-        reportSettingsAction,
-        validatorSettingsAction,
+        reportInfo: {
+          name: reportInfo.name,
+          description: typeof reportInfo.description === "string" ? reportInfo.description : null,
+          useCaseId:
+            reportInfo.useCaseId === null || reportInfo.useCaseId === undefined
+              ? null
+              : typeof reportInfo.useCaseId === "number"
+                ? reportInfo.useCaseId
+                : null,
+        },
+        reportSettings: {
+          name: typeof reportSettings.name === "string" ? reportSettings.name : undefined,
+          masterFileId:
+            typeof reportSettings.masterFileId === "string"
+              ? reportSettings.masterFileId
+              : undefined,
+          prefix,
+          settings: reportSettings.settings as Record<string, unknown>,
+        },
+        validatorSettings: {
+          name:
+            typeof validatorSettings.name === "string" ? validatorSettings.name : undefined,
+          settings: validatorSettings.settings as Record<string, unknown>,
+        },
       });
 
       if (!result.success) {

@@ -72,6 +72,9 @@ export interface ValidatorSettingsProfile {
 export interface DeepDiveSettingsSnapshot {
   reportId: number;
   reportName: string | null;
+  reportDescription: string | null;
+  reportUseCaseId: number | null;
+  reportUseCaseName: string | null;
   reportSettingsId: number | null;
   sourceValidationSettingsId: number | null;
   reportSettings: ReportSettingsProfile | null;
@@ -338,6 +341,9 @@ export class DeepDiveRepository {
       select: {
         id: true,
         name: true,
+        description: true,
+        use_case_id: true,
+        use_cases: { select: { id: true, name: true } },
         report_settings_id: true,
         source_validation_settings_id: true,
         report_settings: true,
@@ -349,6 +355,9 @@ export class DeepDiveRepository {
     return {
       reportId: row.id,
       reportName: row.name,
+      reportDescription: row.description ?? null,
+      reportUseCaseId: row.use_case_id ?? null,
+      reportUseCaseName: row.use_cases?.name ?? null,
       reportSettingsId: row.report_settings_id,
       sourceValidationSettingsId: row.source_validation_settings_id,
       reportSettings: row.report_settings
@@ -368,6 +377,28 @@ export class DeepDiveRepository {
           }
         : null,
     };
+  }
+
+  static async listAllUseCases() {
+    return prisma.use_cases.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
+  static async updateReportBasicInfo(
+    reportId: number,
+    data: { name?: string; description?: string | null; useCaseId?: number | null }
+  ) {
+    return prisma.reports.update({
+      where: { id: reportId },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.useCaseId !== undefined ? { use_case_id: data.useCaseId } : {}),
+      },
+      select: { id: true, name: true, description: true, use_case_id: true },
+    });
   }
 
   static async getReportModel(reportId: number) {
@@ -537,6 +568,42 @@ export class DeepDiveRepository {
       },
     });
     return result.count > 0;
+  }
+
+  static async updateReportSettingsData(
+    id: number,
+    data: {
+      name?: string;
+      masterFileId?: string;
+      prefix?: number | null;
+      settings?: Record<string, unknown>;
+    }
+  ) {
+    return prisma.report_settings.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.masterFileId !== undefined ? { master_file_id: data.masterFileId } : {}),
+        ...(data.prefix !== undefined ? { prefix: data.prefix } : {}),
+        ...(data.settings !== undefined ? { settings: data.settings as Prisma.InputJsonValue } : {}),
+      },
+    });
+  }
+
+  static async updateValidatorSettingsData(
+    id: number,
+    data: {
+      name?: string;
+      settings?: Record<string, unknown>;
+    }
+  ) {
+    return prisma.source_validation_settings.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.settings !== undefined ? { settings: data.settings as Prisma.InputJsonValue } : {}),
+      },
+    });
   }
 
   static async getReportSteps(reportId: number) {
