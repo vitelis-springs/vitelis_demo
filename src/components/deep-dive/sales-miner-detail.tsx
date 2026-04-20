@@ -1,13 +1,14 @@
 "use client";
 
 import { App, Badge, Button, Card, Col, Input, Layout, Row, Space, Spin, Table, Tag, Tooltip, Typography } from "antd";
-import { DownloadOutlined, PlusOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
+import { DownloadOutlined, PlusOutlined, QuestionCircleOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableRowSelection } from "antd/lib/table/interface";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   useGetDeepDiveOverview,
   useGetSalesMinerReportOverview,
+  useExportOpportunitiesXlsx,
   type SalesMinerReportCompanyRow,
   type SalesMinerSignalSummaryRow,
 } from "../../hooks/api/useDeepDiveService";
@@ -83,6 +84,7 @@ function CompaniesTable({
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [pageSize, setPageSize] = useState(20);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -136,10 +138,19 @@ function CompaniesTable({
     }
   };
 
+  const colTitle = (label: string, hint: string) => (
+    <Space size={4}>
+      <span>{label}</span>
+      <Tooltip title={hint} placement="top">
+        <QuestionCircleOutlined style={{ color: "#595959", fontSize: 12, cursor: "help" }} />
+      </Tooltip>
+    </Space>
+  );
+
   const columns = useMemo(() => {
     const cols = [
       {
-        title: "ID",
+        title: colTitle("ID", "Internal company ID in the system."),
         dataIndex: "id",
         key: "id",
         width: 70,
@@ -149,7 +160,7 @@ function CompaniesTable({
         ),
       },
       {
-        title: "Company",
+        title: colTitle("Company", "Company name as stored in the system."),
         dataIndex: "name",
         key: "name",
         sorter: (a: SalesMinerReportCompanyRow, b: SalesMinerReportCompanyRow) =>
@@ -157,7 +168,10 @@ function CompaniesTable({
         render: (v: string) => <Text style={{ color: "#e0e0e0", fontWeight: 600 }}>{v}</Text>,
       },
       {
-        title: "Opportunities",
+        title: colTitle(
+          "Opportunities",
+          "Total number of opportunity candidates identified for this company during the analysis run.",
+        ),
         dataIndex: "oppCount",
         key: "oppCount",
         width: 130,
@@ -169,10 +183,15 @@ function CompaniesTable({
         ),
       },
       {
-        title: "Avg Priority",
+        title: colTitle(
+          "Avg Priority",
+          "Average portfolio priority score across all opportunity candidates for this company. " +
+          "Green ≥ 65 (high), yellow ≥ 55 (medium), grey < 55 (low). " +
+          "Dash (—) means no opportunities were found.",
+        ),
         dataIndex: "avgPriority",
         key: "avgPriority",
-        width: 120,
+        width: 150,
         sorter: (a: SalesMinerReportCompanyRow, b: SalesMinerReportCompanyRow) =>
           (a.avgPriority ?? 0) - (b.avgPriority ?? 0),
         render: (v: number | null) =>
@@ -188,7 +207,11 @@ function CompaniesTable({
 
     if (showSignals) {
       cols.push({
-        title: "Signals",
+        title: colTitle(
+          "Signals",
+          "Number of individual signal items detected for this company " +
+          "(micro and macro signals combined across all signal summary entries).",
+        ),
         dataIndex: "signalCount",
         key: "signalCount",
         width: 100,
@@ -198,6 +221,7 @@ function CompaniesTable({
     }
 
     return cols;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSignals]);
 
   return (
@@ -279,7 +303,12 @@ function CompaniesTable({
         rowKey="id"
         columns={columns}
         rowSelection={rowSelection}
-        pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ["20", "50", "100"] }}
+        pagination={{
+          pageSize,
+          showSizeChanger: true,
+          pageSizeOptions: ["20", "50", "100"],
+          onShowSizeChange: (_, size) => setPageSize(size),
+        }}
         size="small"
         style={{ background: BG }}
         onRow={(record) => ({
@@ -304,7 +333,9 @@ function CompaniesTable({
 /* ─── Entity level view ─── */
 
 function EntityLevelView({ reportId }: { reportId: number }) {
+  const { message } = App.useApp();
   const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
+  const exportXlsx = useExportOpportunitiesXlsx();
 
   if (isLoading || !data) {
     return (
@@ -324,35 +355,38 @@ function EntityLevelView({ reportId }: { reportId: number }) {
   return (
     <>
       {/* Stat cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center" }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} align="stretch">
+        <Col xs={24} sm={8} style={{ display: "flex" }}>
+          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Analyzed</Text>
             <Title level={3} style={{ margin: 0, color: "#58bfce" }}>{totalCompanies}</Title>
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center" }}>
+        <Col xs={24} sm={8} style={{ display: "flex" }}>
+          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Total Opportunities</Text>
+            <Title level={3} style={{ margin: 0, color: "#1677ff" }}>{totalOpps.toLocaleString()}</Title>
+            <Button
+              icon={<DownloadOutlined />}
+              size="small"
+              type="primary"
+              loading={exportXlsx.isPending}
+              style={{ marginTop: 8 }}
+              onClick={() => exportXlsx.mutate(reportId, {
+                onError: () => void message.error("Failed to export opportunities"),
+              })}
+            >
+              Export XLSX
+            </Button>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8} style={{ display: "flex" }}>
+          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Total Signals</Text>
             <Title level={3} style={{ margin: 0, color: "#13c2c2" }}>{totalSignals.toLocaleString()}</Title>
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center" }}>
-            <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Total Opportunities</Text>
-            <Title level={3} style={{ margin: 0, color: "#1677ff" }}>{totalOpps.toLocaleString()}</Title>
-          </Card>
-        </Col>
       </Row>
-
-      {/* Signal summary */}
-      <Card
-        title="Signal Summary"
-        style={{ ...DARK_CARD_STYLE, marginBottom: 24 }}
-        styles={{ header: DARK_CARD_HEADER_STYLE }}
-      >
-        <SignalSummaryCards rows={signalSummary} />
-      </Card>
 
       {/* Companies */}
       <CompaniesTable
@@ -373,7 +407,9 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 /* ─── Account level view ─── */
 
 function AccountLevelView({ reportId }: { reportId: number }) {
+  const { message } = App.useApp();
   const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
+  const exportXlsx = useExportOpportunitiesXlsx();
 
   if (isLoading || !data) {
     return (
@@ -384,29 +420,53 @@ function AccountLevelView({ reportId }: { reportId: number }) {
   }
 
   if (data.data.level !== "account") return null;
-  const { oppSummary, companies, relatedReportId } = data.data;
+  const { oppSummary, companies, relatedReportId, accountVersion } = data.data;
+  const isV2 = accountVersion === "2";
 
   const totalOpps = oppSummary.reduce((s, r) => s + r.count, 0);
+  const totalSignals = isV2
+    ? data.data.signalSummary.reduce((s, r) => s + r.signalCount, 0)
+    : 0;
 
   return (
     <>
       {/* Stat cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center" }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} align="stretch">
+        <Col xs={24} sm={8} style={{ display: "flex" }}>
+          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Account Companies</Text>
             <Title level={3} style={{ margin: 0, color: "#58bfce" }}>{companies.length}</Title>
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center" }}>
+        <Col xs={24} sm={8} style={{ display: "flex" }}>
+          <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Total Opportunities</Text>
             <Title level={3} style={{ margin: 0, color: "#1677ff" }}>{totalOpps.toLocaleString()}</Title>
+            <Button
+              icon={<DownloadOutlined />}
+              size="small"
+              type="primary"
+              loading={exportXlsx.isPending}
+              style={{ marginTop: 8 }}
+              onClick={() => exportXlsx.mutate(relatedReportId ?? reportId, {
+                onError: () => void message.error("Failed to export opportunities"),
+              })}
+            >
+              Export XLSX
+            </Button>
           </Card>
         </Col>
-        {relatedReportId && (
-          <Col xs={24} sm={8}>
-            <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center" }}>
+        {isV2 && (
+          <Col xs={24} sm={8} style={{ display: "flex" }}>
+            <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Total Signals</Text>
+              <Title level={3} style={{ margin: 0, color: "#13c2c2" }}>{totalSignals.toLocaleString()}</Title>
+            </Card>
+          </Col>
+        )}
+        {!isV2 && relatedReportId && (
+          <Col xs={24} sm={8} style={{ display: "flex" }}>
+            <Card size="small" style={{ ...DARK_CARD_STYLE, textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
               <Text style={{ color: "#8c8c8c", display: "block", fontSize: 12 }}>Entity Report</Text>
               <Title level={3} style={{ margin: 0, color: "#722ed1" }}>#{relatedReportId}</Title>
             </Card>
@@ -418,7 +478,7 @@ function AccountLevelView({ reportId }: { reportId: number }) {
       <CompaniesTable
         companies={companies}
         reportId={reportId}
-        showSignals={false}
+        showSignals={isV2}
         title={`Account Companies (${companies.length})`}
       />
 
