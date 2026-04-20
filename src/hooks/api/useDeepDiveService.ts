@@ -1127,6 +1127,26 @@ export const useExportReport = (reportId: number) => {
   });
 };
 
+export const useExportOpportunitiesXlsx = () => {
+  return useMutation({
+    mutationFn: async (reportId: number) => {
+      const response = await api.get(`/deep-dive/${reportId}/export-opportunities-xlsx`, {
+        responseType: "blob",
+        timeout: 120_000,
+      });
+      return { blob: response.data as Blob, reportId };
+    },
+    onSuccess: ({ blob, reportId }) => {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `opportunities_report_${reportId}.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+};
+
 export const useTryQuery = (reportId: number) => {
   return useMutation({
     mutationFn: ({
@@ -1183,8 +1203,22 @@ export type SalesMinerReportOverviewResponse =
       success: boolean;
       data: {
         level: "account";
+        accountVersion: "1";
         reportId: number;
         relatedReportId: number | null;
+        signalSummary: SalesMinerSignalSummaryRow[];
+        oppSummary: SalesMinerOppSummaryRow[];
+        companies: SalesMinerReportCompanyRow[];
+      };
+    }
+  | {
+      success: boolean;
+      data: {
+        level: "account";
+        accountVersion: "2";
+        reportId: number;
+        relatedReportId: null;
+        signalSummary: SalesMinerSignalSummaryRow[];
         oppSummary: SalesMinerOppSummaryRow[];
         companies: SalesMinerReportCompanyRow[];
       };

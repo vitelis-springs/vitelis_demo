@@ -1445,28 +1445,76 @@ export class DeepDiveService {
       ? settings.type_level
       : null;
 
+    const accountVersion = (isRecord(settings) && typeof settings.version === "string")
+      ? settings.version
+      : "1";
+
     const relatedReportId = (isRecord(settings) && typeof settings.related_report_id === "number")
       ? settings.related_report_id
       : null;
 
+    // account v2: analysis runs directly on the account report, no related entity report
+    const isAccountV2 = typeLevel === "account" && accountVersion === "2";
+
     const entityReportId = typeLevel === "account" ? (relatedReportId ?? reportId) : reportId;
 
     if (typeLevel === "account") {
+      if (isAccountV2) {
+        const [signalSummary, oppSummary, companies] = await Promise.all([
+          DeepDiveRepository.getSalesMinerReportSignalSummary(reportId),
+          DeepDiveRepository.getSalesMinerReportOpportunitySummary(reportId),
+          DeepDiveRepository.getSalesMinerEntityTopCompanies(reportId),
+        ]);
+
+        return {
+          success: true,
+          data: {
+            level: "account" as const,
+            accountVersion: "2" as const,
+            reportId,
+            relatedReportId: null,
+            signalSummary: signalSummary.map((r) => ({
+              themeCode: r.theme_code,
+              signalCount: Number(r.signal_count),
+              avgStrength: r.avg_strength ? Number(r.avg_strength) : null,
+              companiesCount: Number(r.companies_count),
+            })),
+            oppSummary: oppSummary.map((r) => ({
+              motionFamily: r.motion_family,
+              horizon: r.horizon,
+              count: Number(r.count),
+              avgPriority: r.avg_priority ? Number(r.avg_priority) : null,
+              companiesCount: Number(r.companies_count),
+            })),
+            companies: companies.map((c) => ({
+              id: c.id,
+              name: c.name,
+              oppCount: Number(c.opp_count),
+              avgPriority: c.avg_priority ? Number(c.avg_priority) : null,
+              signalCount: Number(c.signal_count),
+              isAnalyzed: c.is_analyzed,
+            })),
+          },
+        };
+      }
+
       const [oppSummary, accountCompanies] = await Promise.all([
         relatedReportId
           ? DeepDiveRepository.getSalesMinerAccountOpportunitySummary(reportId, relatedReportId)
           : DeepDiveRepository.getSalesMinerReportOpportunitySummary(entityReportId),
         relatedReportId
           ? DeepDiveRepository.getSalesMinerAccountCompanies(reportId, relatedReportId)
-          : Promise.resolve([]),
+          : Promise.resolve([] as Awaited<ReturnType<typeof DeepDiveRepository.getSalesMinerAccountCompanies>>),
       ]);
 
       return {
         success: true,
         data: {
           level: "account" as const,
+          accountVersion: "1" as const,
           reportId,
           relatedReportId,
+          signalSummary: [],
           oppSummary: oppSummary.map((r) => ({
             motionFamily: r.motion_family,
             horizon: r.horizon,

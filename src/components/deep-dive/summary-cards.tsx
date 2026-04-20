@@ -48,9 +48,9 @@ export default function SummaryCards({
 
   return (
     <>
-      <Row gutter={[16, 16]} style={{ marginBottom: compact ? 24 : 16 }}>
-        <Col xs={24} sm={12} md={8}>
-          <Card style={DARK_CARD_STYLE}>
+      <Row gutter={[16, 16]} style={{ marginBottom: compact ? 24 : 16 }} align="stretch">
+        <Col xs={24} sm={12} md={8} style={{ display: "flex" }}>
+          <Card style={{ ...DARK_CARD_STYLE, flex: 1 }}>
             <Statistic
               title={
                 <Text style={{ color: "#8c8c8c" }}>Total Companies</Text>
@@ -65,10 +65,11 @@ export default function SummaryCards({
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={8} style={{ display: "flex" }}>
           <Card
             style={{
               ...DARK_CARD_STYLE,
+              flex: 1,
               cursor: "pointer",
               transition: "border-color 0.2s",
             }}
@@ -95,10 +96,11 @@ export default function SummaryCards({
             </Space>
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={8} style={{ display: "flex" }}>
           <Card
             style={{
               ...DARK_CARD_STYLE,
+              flex: 1,
               cursor: "pointer",
               transition: "border-color 0.2s",
             }}

@@ -1073,6 +1073,50 @@ export class DeepDiveController {
     }
   }
 
+  static async exportOpportunitiesXlsx(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json({ success: false, error: "Invalid report id" }, { status: 400 });
+      }
+
+      const backendUrl = process.env.BACKEND_URL;
+      if (!backendUrl) {
+        return NextResponse.json({ success: false, error: "BACKEND_URL is not configured" }, { status: 500 });
+      }
+
+      const backendResponse = await fetch(
+        `${backendUrl}/export-opportunities-xlsx/${reportId}`,
+        { method: "GET" },
+      );
+
+      if (!backendResponse.ok) {
+        const status = backendResponse.status;
+        return NextResponse.json(
+          { success: false, error: `Backend returned ${status}` },
+          { status: status === 404 ? 404 : 500 },
+        );
+      }
+
+      return new NextResponse(backendResponse.body, {
+        headers: {
+          "Content-Type":
+            backendResponse.headers.get("Content-Type") ||
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition":
+            backendResponse.headers.get("Content-Disposition") ||
+            `attachment; filename="opportunities_report_${reportId}.xlsx"`,
+        },
+      });
+    } catch (error) {
+      console.error("❌ DeepDiveController.exportOpportunitiesXlsx:", error);
+      return NextResponse.json({ success: false, error: "Failed to export opportunities" }, { status: 500 });
+    }
+  }
+
   static async tryQuery(request: NextRequest, reportIdParam: string): Promise<NextResponse> {
     try {
       const auth = extractAdminFromRequest(request);
