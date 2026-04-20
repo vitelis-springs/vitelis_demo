@@ -2274,6 +2274,7 @@ export class DeepDiveRepository {
       JOIN signal_definitions sd ON sd.id::text = cssi.signal_definition_id::text
       WHERE rr.company_id = ${companyId}
         AND rr.report_id = ${reportId}
+        and css.summary_version in ('v1', 'account_rollup_v1')
       ORDER BY cssi.strength_score DESC NULLS LAST
     `;
   }
@@ -2373,6 +2374,358 @@ export class DeepDiveRepository {
       WHERE rr.report_id = ${reportId}
       GROUP BY cssi.theme_code
       ORDER BY signal_count DESC
+    `;
+  }
+
+  static async getSalesMinerSignalStats(reportId: number) {
+    return prisma.$queryRaw<Array<{
+      signal_definition_id: bigint;
+      signal_type_name: string;
+      signal_definition_name: string;
+      researched_context_count: bigint;
+      decision_context_count: bigint;
+      researched_but_not_selected_context_count: bigint;
+      used_seed_count: bigint;
+      final_opportunity_count: bigint;
+      top10_opportunity_count: bigint;
+      deep_dive_opportunity_count: bigint;
+      used_effective_signal_score: number;
+      top10_effective_signal_score: number;
+      avg_effective_signal_score: number;
+      total_confirmation_count: number | null;
+      avg_evidence_strength_score: number;
+      avg_evidence_confidence_score: number;
+      avg_evidence_freshness_score: number;
+      latest_effective_date: Date | null;
+      selected_opportunity_spaces: string[] | null;
+      signal_effectiveness_class: string;
+    }>>`
+      WITH run_scope AS (
+        SELECT rr.id AS research_run_id, rr.company_id
+        FROM public.research_runs rr
+        WHERE rr.report_id = ${reportId}
+      ),
+      researched_signals AS (
+        SELECT DISTINCT
+          sst.research_run_id,
+          COALESCE(sst.company_id, rs.company_id) AS company_id,
+          sst.signal_definition_id,
+          sst.status,
+          sst.requires_company_binding,
+          sst.attempt_count,
+          sst.started_at,
+          sst.finished_at,
+          sst.created_at,
+          sst.updated_at
+        FROM public.signal_search_tasks sst
+        INNER JOIN run_scope rs ON rs.research_run_id = sst.research_run_id
+      ),
+      universe_metrics AS (
+        SELECT
+          rs.signal_definition_id,
+          COUNT(DISTINCT (rs.research_run_id::text || ':' || rs.company_id::text)) AS researched_context_count,
+          COUNT(DISTINCT rs.research_run_id) AS researched_run_count,
+          COUNT(DISTINCT rs.company_id) AS researched_company_count,
+          COUNT(DISTINCT (rs.research_run_id::text || ':' || rs.company_id::text))
+            FILTER (WHERE rs.started_at IS NOT NULL) AS started_context_count,
+          COUNT(DISTINCT (rs.research_run_id::text || ':' || rs.company_id::text))
+            FILTER (WHERE rs.finished_at IS NOT NULL) AS finished_context_count,
+          COUNT(DISTINCT (rs.research_run_id::text || ':' || rs.company_id::text))
+            FILTER (WHERE rs.requires_company_binding = true) AS company_bound_context_count,
+          ROUND(AVG(rs.attempt_count)::numeric, 4) AS avg_attempt_count,
+          MAX(rs.attempt_count) AS max_attempt_count
+        FROM researched_signals rs
+        GROUP BY rs.signal_definition_id
+      ),
+      latest_seed_logs AS (
+        SELECT DISTINCT ON (l.research_run_id, l.company_id, l.seed_id)
+          l.*
+        FROM public.opportunity_seed_validation_logs l
+        INNER JOIN run_scope rs ON rs.research_run_id = l.research_run_id
+        ORDER BY l.research_run_id, l.company_id, l.seed_id, l.id DESC
+      ),
+      signal_rows AS (
+        SELECT
+          l.id AS seed_log_id, l.research_run_id, l.company_id, l.seed_id, l.seed_type,
+          l.include_in_bundle_assembly, l.viability_label, l.priority_hint, l.seed_confidence,
+          l.scope_type, l.selected_opportunity_space, l.candidate_lead_product_id,
+          l.candidate_lead_product_scoring_result_id,
+          COALESCE(l.analysis_warnings, '[]'::jsonb) AS analysis_warnings,
+          j.value AS signal_json
+        FROM latest_seed_logs l
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(l.signal_decisions, '[]'::jsonb)) AS j(value)
+      ),
+      normalized_signals AS (
+        SELECT
+          sr.*,
+          NULLIF(sr.signal_json->>'signal_definition_id', '')::bigint AS signal_definition_id,
+          NULLIF(sr.signal_json->>'decision_role', '') AS decision_role,
+          NULLIF(sr.signal_json->>'decision_status', '') AS decision_status,
+          NULLIF(sr.signal_json->>'product_specificity', '') AS product_specificity,
+          COALESCE(NULLIF(sr.signal_json->>'influence_score', '')::numeric, 0) AS influence_score,
+          COALESCE(NULLIF(sr.signal_json->>'reason', ''), '') AS decision_reason,
+          COALESCE(sr.signal_json->'source_layers', '[]'::jsonb) AS source_layers
+        FROM signal_rows sr
+        WHERE NULLIF(sr.signal_json->>'signal_definition_id', '') IS NOT NULL
+      ),
+      signal_scored AS (
+        SELECT
+          ns.*,
+          CASE ns.decision_role
+            WHEN 'primary_driver'    THEN 1.00
+            WHEN 'supporting_driver' THEN 0.75
+            WHEN 'scope_driver'      THEN 0.60
+            WHEN 'modifier'          THEN 0.35
+            WHEN 'context_only'      THEN 0.10
+            WHEN 'ignored'           THEN 0.00
+            ELSE 0.10
+          END AS role_weight,
+          CASE ns.decision_status
+            WHEN 'used'       THEN 1.00
+            WHEN 'downgraded' THEN 0.55
+            WHEN 'ignored'    THEN 0.00
+            ELSE 0.50
+          END AS status_weight,
+          CASE ns.product_specificity
+            WHEN 'high'   THEN 1.15
+            WHEN 'medium' THEN 1.00
+            WHEN 'low'    THEN 0.80
+            ELSE 1.00
+          END AS specificity_weight
+        FROM normalized_signals ns
+      ),
+      scored_signals AS (
+        SELECT
+          ss.*,
+          ROUND(ss.influence_score * ss.role_weight * ss.status_weight * ss.specificity_weight, 4) AS effective_signal_score,
+          (ss.source_layers @> '["product_score"]'::jsonb)             AS has_product_score_layer,
+          (ss.source_layers @> '["summary_signal"]'::jsonb)            AS has_summary_signal_layer,
+          (ss.source_layers @> '["opportunity_space_summary"]'::jsonb) AS has_space_layer,
+          (ss.source_layers @> '["repeated_local_pattern"]'::jsonb)    AS has_repeated_pattern_layer,
+          (ss.source_layers @> '["material_entity_signal"]'::jsonb)    AS has_material_entity_layer
+        FROM signal_scored ss
+      ),
+      final_opportunities AS (
+        SELECT
+          oc.id AS opportunity_id, oc.research_run_id, oc.company_id,
+          COALESCE(oc.meta->>'seed_id', oc.meta->>'seedId') AS seed_id,
+          oc.title AS opportunity_title, oc.rank_position,
+          COALESCE(oc.is_top_10, false) AS is_top_10,
+          COALESCE(oc.is_selected_for_deep_dive, false) AS is_selected_for_deep_dive,
+          oc.portfolio_priority_score, oc.score AS opportunity_score,
+          oc.confidence_score AS opportunity_confidence_score,
+          oc.scope_type AS final_scope_type
+        FROM public.opportunity_candidates oc
+        INNER JOIN run_scope rs ON rs.research_run_id = oc.research_run_id
+        WHERE COALESCE(oc.meta->>'seed_id', oc.meta->>'seedId') IS NOT NULL
+      ),
+      decision_joined AS (
+        SELECT
+          s.research_run_id, s.company_id, s.seed_id, s.seed_type,
+          s.include_in_bundle_assembly, s.viability_label, s.priority_hint, s.seed_confidence,
+          s.scope_type, s.selected_opportunity_space, s.signal_definition_id,
+          s.decision_role, s.decision_status, s.product_specificity,
+          s.influence_score, s.effective_signal_score, s.decision_reason, s.source_layers,
+          s.has_product_score_layer, s.has_summary_signal_layer, s.has_space_layer,
+          s.has_repeated_pattern_layer, s.has_material_entity_layer,
+          fo.opportunity_id, fo.opportunity_title, fo.rank_position,
+          fo.is_top_10, fo.is_selected_for_deep_dive, fo.portfolio_priority_score,
+          fo.opportunity_score, fo.opportunity_confidence_score, fo.final_scope_type,
+          jsonb_array_length(COALESCE(s.analysis_warnings, '[]'::jsonb)) AS analysis_warning_count
+        FROM scored_signals s
+        LEFT JOIN final_opportunities fo
+          ON fo.research_run_id = s.research_run_id
+         AND fo.company_id = s.company_id
+         AND fo.seed_id = s.seed_id
+      ),
+      decision_metrics AS (
+        SELECT
+          j.signal_definition_id,
+          COUNT(DISTINCT (j.research_run_id::text || ':' || j.company_id::text)) AS decision_context_count,
+          COUNT(DISTINCT j.seed_id) AS seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.decision_status = 'used') AS used_seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.decision_status = 'downgraded') AS downgraded_seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.decision_status = 'ignored') AS ignored_seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.include_in_bundle_assembly) AS bundle_included_seed_count,
+          COUNT(DISTINCT j.opportunity_id) AS final_opportunity_count,
+          COUNT(DISTINCT j.opportunity_id) FILTER (WHERE j.is_top_10) AS top10_opportunity_count,
+          COUNT(DISTINCT j.opportunity_id) FILTER (WHERE j.is_selected_for_deep_dive) AS deep_dive_opportunity_count,
+          ROUND(AVG(j.influence_score)::numeric, 4) AS avg_llm_influence_score,
+          ROUND(AVG(j.effective_signal_score)::numeric, 4) AS avg_effective_signal_score,
+          ROUND(SUM(j.effective_signal_score)::numeric, 4) AS total_effective_signal_score,
+          ROUND(SUM(j.effective_signal_score) FILTER (WHERE j.decision_status = 'used')::numeric, 4) AS used_effective_signal_score,
+          ROUND(SUM(j.effective_signal_score) FILTER (WHERE j.is_top_10)::numeric, 4) AS top10_effective_signal_score,
+          ROUND(SUM(j.effective_signal_score) FILTER (WHERE j.is_selected_for_deep_dive)::numeric, 4) AS deep_dive_effective_signal_score,
+          ROUND(AVG(j.seed_confidence)::numeric, 4) AS avg_seed_confidence,
+          ROUND(AVG(j.portfolio_priority_score)::numeric, 4) AS avg_portfolio_priority_score,
+          ROUND(AVG(j.rank_position)::numeric, 4) AS avg_rank_position_when_converted,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.has_product_score_layer) AS product_score_backed_seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.has_summary_signal_layer) AS summary_backed_seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.has_space_layer) AS opportunity_space_backed_seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.has_repeated_pattern_layer) AS repeated_pattern_backed_seed_count,
+          COUNT(DISTINCT j.seed_id) FILTER (WHERE j.has_material_entity_layer) AS material_entity_backed_seed_count,
+          ARRAY_AGG(DISTINCT j.selected_opportunity_space)
+            FILTER (WHERE j.selected_opportunity_space IS NOT NULL) AS selected_opportunity_spaces
+        FROM decision_joined j
+        GROUP BY j.signal_definition_id
+      ),
+      base_signals AS (
+        SELECT
+          css.research_run_id, css.company_id,
+          (sig->>'signal_definition_id')::bigint AS signal_definition_id,
+          NULLIF(sig->>'confirmation_count', '')::int AS confirmation_count,
+          NULLIF(sig->>'unique_sources_count', '')::int AS unique_sources_count,
+          NULLIF(sig->>'latest_effective_date', '')::timestamptz AS latest_effective_date,
+          NULLIF(sig->>'average_confidence', '')::numeric AS base_average_confidence,
+          NULLIF(sig->>'strength_score', '')::numeric AS base_strength_score
+        FROM public.company_signal_summaries css
+        INNER JOIN run_scope rs ON rs.research_run_id = css.research_run_id
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(css.summary_json::jsonb->'signals', '[]'::jsonb)) AS sig
+        WHERE css.summary_version = 'account_base_v1'
+      ),
+      base_metrics AS (
+        SELECT
+          u.signal_definition_id,
+          COUNT(DISTINCT (u.research_run_id::text || ':' || u.company_id::text))
+            FILTER (WHERE bs.signal_definition_id IS NOT NULL) AS base_summary_context_count,
+          MAX(bs.confirmation_count) AS max_confirmation_count,
+          ROUND(AVG(bs.confirmation_count)::numeric, 4) AS avg_confirmation_count,
+          SUM(bs.confirmation_count) AS total_confirmation_count,
+          MAX(bs.unique_sources_count) AS max_unique_sources_count,
+          ROUND(AVG(bs.unique_sources_count)::numeric, 4) AS avg_unique_sources_count,
+          MAX(bs.latest_effective_date) AS latest_effective_date,
+          ROUND(MAX(bs.base_strength_score)::numeric, 4) AS max_base_strength_score,
+          ROUND(AVG(bs.base_strength_score)::numeric, 4) AS avg_base_strength_score,
+          ROUND(MAX(bs.base_average_confidence)::numeric, 4) AS max_base_average_confidence,
+          ROUND(AVG(bs.base_average_confidence)::numeric, 4) AS avg_base_average_confidence
+        FROM researched_signals u
+        LEFT JOIN base_signals bs
+          ON bs.research_run_id = u.research_run_id
+         AND bs.company_id = u.company_id
+         AND bs.signal_definition_id = u.signal_definition_id
+        GROUP BY u.signal_definition_id
+      ),
+      rollup_signals AS (
+        SELECT
+          css.research_run_id, css.company_id,
+          (sig->>'signal_definition_id')::bigint AS signal_definition_id,
+          NULLIF(sig->>'strength_score', '')::numeric AS rollup_strength_score,
+          NULLIF(sig->>'confidence_score', '')::numeric AS rollup_confidence_score,
+          NULLIF(sig->>'freshness_score', '')::numeric AS rollup_freshness_score,
+          NULLIF(sig->>'scope_classification', '') AS rollup_scope_classification,
+          COALESCE((sig->>'account_support')::boolean, false) AS account_support,
+          COALESCE((sig->>'repeated_entity_support')::boolean, false) AS repeated_entity_support,
+          NULLIF(sig->>'material_entity_support_count', '')::int AS material_entity_support_count
+        FROM public.company_signal_summaries css
+        INNER JOIN run_scope rs ON rs.research_run_id = css.research_run_id
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(css.summary_json::jsonb->'signals', '[]'::jsonb)) AS sig
+        WHERE css.summary_version = 'account_rollup_v1'
+      ),
+      rollup_priorities AS (
+        SELECT
+          css.research_run_id, css.company_id,
+          (sp->>'signal_definition_id')::bigint AS signal_definition_id,
+          NULLIF(sp->>'priority', '') AS priority_label,
+          NULLIF(sp->>'reason', '') AS priority_reason
+        FROM public.company_signal_summaries css
+        INNER JOIN run_scope rs ON rs.research_run_id = css.research_run_id
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(css.summary_json::jsonb->'signal_priorities', '[]'::jsonb)) AS sp
+        WHERE css.summary_version = 'account_rollup_v1'
+      ),
+      rollup_metrics AS (
+        SELECT
+          u.signal_definition_id,
+          COUNT(DISTINCT (u.research_run_id::text || ':' || u.company_id::text))
+            FILTER (WHERE rs.signal_definition_id IS NOT NULL) AS rollup_summary_context_count,
+          ROUND(MAX(rs.rollup_strength_score)::numeric, 4) AS max_rollup_strength_score,
+          ROUND(AVG(rs.rollup_strength_score)::numeric, 4) AS avg_rollup_strength_score,
+          ROUND(MAX(rs.rollup_confidence_score)::numeric, 4) AS max_rollup_confidence_score,
+          ROUND(AVG(rs.rollup_confidence_score)::numeric, 4) AS avg_rollup_confidence_score,
+          ROUND(MAX(rs.rollup_freshness_score)::numeric, 4) AS max_rollup_freshness_score,
+          ROUND(AVG(rs.rollup_freshness_score)::numeric, 4) AS avg_rollup_freshness_score,
+          BOOL_OR(COALESCE(rs.account_support, false)) AS has_account_support,
+          BOOL_OR(COALESCE(rs.repeated_entity_support, false)) AS has_repeated_entity_support,
+          MAX(rs.material_entity_support_count) AS max_material_entity_support_count,
+          ARRAY_AGG(DISTINCT rs.rollup_scope_classification)
+            FILTER (WHERE rs.rollup_scope_classification IS NOT NULL) AS rollup_scope_classifications,
+          ARRAY_AGG(DISTINCT rp.priority_label)
+            FILTER (WHERE rp.priority_label IS NOT NULL) AS rollup_priority_labels
+        FROM researched_signals u
+        LEFT JOIN rollup_signals rs
+          ON rs.research_run_id = u.research_run_id
+         AND rs.company_id = u.company_id
+         AND rs.signal_definition_id = u.signal_definition_id
+        LEFT JOIN rollup_priorities rp
+          ON rp.research_run_id = u.research_run_id
+         AND rp.company_id = u.company_id
+         AND rp.signal_definition_id = u.signal_definition_id
+        GROUP BY u.signal_definition_id
+      ),
+      frontend_report AS (
+        SELECT
+          um.signal_definition_id,
+          st.name AS signal_type_name,
+          sd.code AS signal_definition_code,
+          sd.name AS signal_definition_name,
+          um.researched_context_count,
+          COALESCE(dm.decision_context_count, 0) AS decision_context_count,
+          um.researched_context_count - COALESCE(dm.decision_context_count, 0) AS researched_but_not_selected_context_count,
+          COALESCE(dm.used_seed_count, 0) AS used_seed_count,
+          COALESCE(dm.final_opportunity_count, 0) AS final_opportunity_count,
+          COALESCE(dm.top10_opportunity_count, 0) AS top10_opportunity_count,
+          COALESCE(dm.deep_dive_opportunity_count, 0) AS deep_dive_opportunity_count,
+          COALESCE(dm.used_effective_signal_score, 0) AS used_effective_signal_score,
+          COALESCE(dm.top10_effective_signal_score, 0) AS top10_effective_signal_score,
+          COALESCE(dm.avg_effective_signal_score, 0) AS avg_effective_signal_score,
+          COALESCE(bm.total_confirmation_count, 0) AS total_confirmation_count,
+          COALESCE(rm.avg_rollup_strength_score, bm.avg_base_strength_score, 0) AS avg_evidence_strength_score,
+          COALESCE(rm.avg_rollup_confidence_score, bm.avg_base_average_confidence, 0) AS avg_evidence_confidence_score,
+          COALESCE(rm.avg_rollup_freshness_score, 0) AS avg_evidence_freshness_score,
+          bm.latest_effective_date,
+          COALESCE(dm.selected_opportunity_spaces, ARRAY[]::text[]) AS selected_opportunity_spaces,
+          CASE
+            WHEN COALESCE(dm.seed_count, 0) = 0 THEN 'researched_but_never_selected'
+            WHEN COALESCE(dm.final_opportunity_count, 0) = 0 THEN 'selected_but_never_converted'
+            WHEN COALESCE(dm.deep_dive_opportunity_count, 0) > 0 THEN 'deep_dive_signal'
+            WHEN COALESCE(dm.top10_opportunity_count, 0) > 0 THEN 'top10_signal'
+            ELSE 'converted_signal'
+          END AS signal_effectiveness_class
+        FROM universe_metrics um
+        INNER JOIN public.signal_definitions sd ON sd.id = um.signal_definition_id
+        INNER JOIN public.signal_types st ON st.id = sd.signal_type_id
+        LEFT JOIN decision_metrics dm ON dm.signal_definition_id = um.signal_definition_id
+        LEFT JOIN base_metrics bm ON bm.signal_definition_id = um.signal_definition_id
+        LEFT JOIN rollup_metrics rm ON rm.signal_definition_id = um.signal_definition_id
+      )
+      SELECT
+        signal_definition_id,
+        signal_type_name,
+        signal_definition_name,
+        researched_context_count,
+        decision_context_count,
+        researched_but_not_selected_context_count,
+        used_seed_count,
+        final_opportunity_count,
+        top10_opportunity_count,
+        deep_dive_opportunity_count,
+        used_effective_signal_score,
+        top10_effective_signal_score,
+        avg_effective_signal_score,
+        total_confirmation_count,
+        avg_evidence_strength_score,
+        avg_evidence_confidence_score,
+        avg_evidence_freshness_score,
+        latest_effective_date,
+        selected_opportunity_spaces,
+        signal_effectiveness_class
+      FROM frontend_report
+      ORDER BY
+        used_effective_signal_score DESC NULLS LAST,
+        deep_dive_opportunity_count DESC,
+        top10_opportunity_count DESC,
+        final_opportunity_count DESC,
+        researched_context_count DESC,
+        signal_definition_name
     `;
   }
 

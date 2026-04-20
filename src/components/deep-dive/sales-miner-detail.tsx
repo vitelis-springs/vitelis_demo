@@ -1,6 +1,6 @@
 "use client";
 
-import { App, Badge, Button, Card, Col, Input, Layout, Row, Space, Spin, Table, Tag, Tooltip, Typography } from "antd";
+import { App, Badge, Button, Card, Col, Input, Layout, Row, Space, Spin, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import { DownloadOutlined, PlusOutlined, QuestionCircleOutlined, SearchOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableRowSelection } from "antd/lib/table/interface";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import {
   useGetDeepDiveOverview,
   useGetSalesMinerReportOverview,
+  useGetSalesMinerSignalStats,
   useExportOpportunitiesXlsx,
   type SalesMinerReportCompanyRow,
   type SalesMinerSignalSummaryRow,
@@ -16,6 +17,7 @@ import DeepDiveBreadcrumbs from "./breadcrumbs";
 import DeepDiveStatusTag from "./status-tag";
 import SummaryCards from "./summary-cards";
 import AddCompanyModal from "./add-company-modal";
+import SignalStatsTable from "./signal-stats-table";
 import { DARK_CARD_STYLE, DARK_CARD_HEADER_STYLE } from "../../config/chart-theme";
 
 const { Content } = Layout;
@@ -335,7 +337,9 @@ function CompaniesTable({
 function EntityLevelView({ reportId }: { reportId: number }) {
   const { message } = App.useApp();
   const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
+  const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
   const exportXlsx = useExportOpportunitiesXlsx();
+  const signalCount = signalStatsData?.data.length ?? null;
 
   if (isLoading || !data) {
     return (
@@ -388,12 +392,28 @@ function EntityLevelView({ reportId }: { reportId: number }) {
         </Col>
       </Row>
 
-      {/* Companies */}
-      <CompaniesTable
-        companies={topCompanies}
-        reportId={reportId}
-        showSignals
-        title={`Companies by Priority (${topCompanies.length})`}
+      <Tabs
+        defaultActiveKey="companies"
+        style={{ marginTop: 4 }}
+        items={[
+          {
+            key: "companies",
+            label: `Companies (${topCompanies.length})`,
+            children: (
+              <CompaniesTable
+                companies={topCompanies}
+                reportId={reportId}
+                showSignals
+                title={`Companies by Priority (${topCompanies.length})`}
+              />
+            ),
+          },
+          {
+            key: "signals",
+            label: signalCount !== null ? `Signal Statistics (${signalCount})` : "Signal Statistics",
+            children: <SignalStatsTable reportId={reportId} />,
+          },
+        ]}
       />
 
       <style jsx global>{`
@@ -409,7 +429,9 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 function AccountLevelView({ reportId }: { reportId: number }) {
   const { message } = App.useApp();
   const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
+  const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
   const exportXlsx = useExportOpportunitiesXlsx();
+  const signalCount = signalStatsData?.data.length ?? null;
 
   if (isLoading || !data) {
     return (
@@ -474,12 +496,28 @@ function AccountLevelView({ reportId }: { reportId: number }) {
         )}
       </Row>
 
-      {/* Account companies */}
-      <CompaniesTable
-        companies={companies}
-        reportId={reportId}
-        showSignals={isV2}
-        title={`Account Companies (${companies.length})`}
+      <Tabs
+        defaultActiveKey="companies"
+        style={{ marginTop: 4 }}
+        items={[
+          {
+            key: "companies",
+            label: `Companies (${companies.length})`,
+            children: (
+              <CompaniesTable
+                companies={companies}
+                reportId={reportId}
+                showSignals={isV2}
+                title={`Account Companies (${companies.length})`}
+              />
+            ),
+          },
+          ...(isV2 ? [{
+            key: "signals",
+            label: signalCount !== null ? `Signal Statistics (${signalCount})` : "Signal Statistics",
+            children: <SignalStatsTable reportId={reportId} />,
+          }] : []),
+        ]}
       />
 
       <style jsx global>{`
@@ -499,6 +537,9 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 
   const report = overviewData?.data.report;
   const typeLevel = smData?.data.level ?? null;
+  const accountVersion = typeLevel === "account" ? (smData?.data as { accountVersion?: string })?.accountVersion ?? "1" : null;
+  const isAccountV2 = typeLevel === "account" && accountVersion === "2";
+  const showLevelTag = typeLevel !== null && !isAccountV2;
 
   const backHref = "/sales-miner";
   const backLabel = "Sales Miner";
@@ -521,7 +562,7 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
                   {report?.name || `Report #${reportId}`}
                 </Title>
                 {report?.status && <DeepDiveStatusTag status={report.status} />}
-                {typeLevel && (
+                {showLevelTag && (
                   <Tag color={typeLevel === "account" ? "purple" : "cyan"} style={{ textTransform: "capitalize" }}>
                     {typeLevel} level
                   </Tag>

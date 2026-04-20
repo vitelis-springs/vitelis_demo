@@ -1431,4 +1431,45 @@ export const useSearchCompanies = (query: string) => {
   });
 };
 
+export interface SignalStatRow {
+  signalDefinitionId: number;
+  signalTypeName: string;
+  signalDefinitionName: string;
+  researchedContextCount: number;
+  decisionContextCount: number;
+  researchedButNotSelectedContextCount: number;
+  usedSeedCount: number;
+  finalOpportunityCount: number;
+  top10OpportunityCount: number;
+  deepDiveOpportunityCount: number;
+  usedEffectiveSignalScore: number;
+  top10EffectiveSignalScore: number;
+  avgEffectiveSignalScore: number;
+  totalConfirmationCount: number | null;
+  avgEvidenceStrengthScore: number;
+  avgEvidenceConfidenceScore: number;
+  avgEvidenceFreshnessScore: number;
+  latestEffectiveDate: string | null;
+  selectedOpportunitySpaces: string[];
+  signalEffectivenessClass: string;
+}
+
+export interface SignalStatsResponse {
+  success: boolean;
+  data: SignalStatRow[];
+}
+
+export const useGetSalesMinerSignalStats = (reportId: number, enabled = true) => {
+  return useQuery({
+    queryKey: ["deep-dive", "signal-stats", reportId],
+    queryFn: async () => {
+      const response = await api.get(`/deep-dive/${reportId}/signal-stats`);
+      return response.data as SignalStatsResponse;
+    },
+    enabled: enabled && Number.isFinite(reportId),
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+};
+
 export default deepDiveApi;
