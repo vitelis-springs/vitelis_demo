@@ -93,6 +93,18 @@ export interface ReportModelUpdateRow {
   includeToReport: boolean;
 }
 
+export interface ReportModelItemUpdateData {
+  name?: string | null;
+  settings?: Prisma.InputJsonValue;
+}
+
+export interface CreateReportModelItemData {
+  dataPointId: string;
+  type: string;
+  name: string | null;
+  settings: Prisma.InputJsonValue;
+}
+
 export class DeepDiveRepository {
   private static buildOrderBy(
     sortBy: string | undefined,
@@ -452,6 +464,163 @@ export class DeepDiveRepository {
         skipDuplicates: true,
       });
     });
+  }
+
+  static async getReportModelItem(reportId: number, dataPointId: string) {
+    return prisma.report_data_points.findFirst({
+      where: {
+        report_id: reportId,
+        data_point_id: dataPointId,
+      },
+      include: {
+        data_points: true,
+      },
+    });
+  }
+
+  static async updateReportModelItem(
+    dataPointId: string,
+    data: ReportModelItemUpdateData,
+  ) {
+    return prisma.data_points.update({
+      where: { id: dataPointId },
+      data,
+    });
+  }
+
+  static async deleteReportModelItem(reportId: number, dataPointId: string) {
+    return prisma.$transaction(async (tx) => {
+      await tx.report_data_point_results.deleteMany({
+        where: {
+          report_id: reportId,
+          data_point_id: dataPointId,
+        },
+      });
+
+      await tx.report_data_points.deleteMany({
+        where: {
+          report_id: reportId,
+          data_point_id: dataPointId,
+        },
+      });
+    });
+  }
+
+  static async createReportModelItem(reportId: number, data: CreateReportModelItemData) {
+    return prisma.$transaction(async (tx) => {
+      await tx.data_points.create({
+        data: {
+          id: data.dataPointId,
+          type: data.type,
+          name: data.name,
+          settings: data.settings,
+          manual_method: false,
+          include_to_report: true,
+        },
+      });
+
+      await tx.report_data_points.create({
+        data: {
+          report_id: reportId,
+          data_point_id: data.dataPointId,
+          include_to_report: true,
+        },
+      });
+    });
+  }
+
+  static async upsertDataPointsAndReplaceModel(
+    reportId: number,
+    dataPoints: Array<{
+      id: string;
+      type: string;
+      name: string | null;
+      settings: Record<string, unknown>;
+    }>,
+  ) {
+    return prisma.$transaction(
+      async (tx) => {
+        for (const dp of dataPoints) {
+          await tx.data_points.upsert({
+            where: { id: dp.id },
+            create: {
+              id: dp.id,
+              type: dp.type,
+              name: dp.name,
+              settings: dp.settings as Prisma.InputJsonValue,
+              manual_method: false,
+              include_to_report: true,
+            },
+            update: {
+              type: dp.type,
+              name: dp.name,
+              settings: dp.settings as Prisma.InputJsonValue,
+            },
+          });
+        }
+
+        await tx.report_data_points.deleteMany({
+          where: { report_id: reportId },
+        });
+
+        if (dataPoints.length) {
+          await tx.report_data_points.createMany({
+            data: dataPoints.map((dp) => ({
+              report_id: reportId,
+              data_point_id: dp.id,
+              include_to_report: true,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      },
+      { timeout: 30000 },
+    );
+  }
+
+  static async upsertDataPointsAndAppendToModel(
+    reportId: number,
+    dataPoints: Array<{
+      id: string;
+      type: string;
+      name: string | null;
+      settings: Record<string, unknown>;
+    }>,
+  ) {
+    return prisma.$transaction(
+      async (tx) => {
+        for (const dp of dataPoints) {
+          await tx.data_points.upsert({
+            where: { id: dp.id },
+            create: {
+              id: dp.id,
+              type: dp.type,
+              name: dp.name,
+              settings: dp.settings as Prisma.InputJsonValue,
+              manual_method: false,
+              include_to_report: true,
+            },
+            update: {
+              type: dp.type,
+              name: dp.name,
+              settings: dp.settings as Prisma.InputJsonValue,
+            },
+          });
+        }
+
+        if (!dataPoints.length) return;
+
+        await tx.report_data_points.createMany({
+          data: dataPoints.map((dp) => ({
+            report_id: reportId,
+            data_point_id: dp.id,
+            include_to_report: true,
+          })),
+          skipDuplicates: true,
+        });
+      },
+      { timeout: 30000 },
+    );
   }
 
   static async listReportSettings(): Promise<ReportSettingsProfile[]> {

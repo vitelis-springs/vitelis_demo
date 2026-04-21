@@ -398,6 +398,7 @@ export interface ReportModelResponse {
       id: number;
       name: string | null;
       reportType: string | null;
+      prefix: number;
       useCase: {
         id: number;
         name: string;
@@ -420,6 +421,28 @@ export interface ReplaceReportModelPayload {
   rows: Array<{
     dataPointId: string;
     includeToReport?: boolean;
+  }>;
+}
+
+export interface UpdateReportModelItemPayload {
+  dataPointId: string;
+  name?: string | null;
+  settings?: Record<string, unknown>;
+}
+
+export interface CreateReportModelItemPayload {
+  dataPointId: string;
+  type: "kpi_driver" | "raw_data_point";
+  name?: string | null;
+  settings: Record<string, unknown>;
+}
+
+export interface ImportKpiModelPayload {
+  dataPoints: Array<{
+    id: string;
+    type: string;
+    name: string | null;
+    settings: Record<string, unknown>;
   }>;
 }
 
@@ -539,6 +562,40 @@ const deepDiveApi = {
     payload: ReplaceReportModelPayload,
   ): Promise<ReportModelResponse> {
     const response = await api.put(`/deep-dive/${reportId}/model`, payload);
+    return response.data;
+  },
+
+  async importKpiModel(
+    reportId: number,
+    payload: ImportKpiModelPayload,
+  ): Promise<ReportModelResponse> {
+    const response = await api.post(`/deep-dive/${reportId}/model/import`, payload);
+    return response.data;
+  },
+
+  async createReportModelItem(
+    reportId: number,
+    payload: CreateReportModelItemPayload,
+  ): Promise<ReportModelResponse> {
+    const response = await api.post(`/deep-dive/${reportId}/model`, payload);
+    return response.data;
+  },
+
+  async updateReportModelItem(
+    reportId: number,
+    payload: UpdateReportModelItemPayload,
+  ): Promise<ReportModelResponse> {
+    const response = await api.patch(`/deep-dive/${reportId}/model`, payload);
+    return response.data;
+  },
+
+  async deleteReportModelItem(
+    reportId: number,
+    dataPointId: string,
+  ): Promise<ReportModelResponse> {
+    const response = await api.delete(`/deep-dive/${reportId}/model`, {
+      data: { dataPointId },
+    });
     return response.data;
   },
 
@@ -783,6 +840,66 @@ export const useReplaceReportModel = (reportId: number) => {
   return useMutation({
     mutationFn: (payload: ReplaceReportModelPayload) =>
       deepDiveApi.replaceReportModel(reportId, payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["deep-dive", "model", reportId], data);
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "model", reportId],
+      });
+    },
+  });
+};
+
+export const useImportKpiModel = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ImportKpiModelPayload) =>
+      deepDiveApi.importKpiModel(reportId, payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["deep-dive", "model", reportId], data);
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "model", reportId],
+      });
+    },
+  });
+};
+
+export const useCreateReportModelItem = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateReportModelItemPayload) =>
+      deepDiveApi.createReportModelItem(reportId, payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["deep-dive", "model", reportId], data);
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "model", reportId],
+      });
+    },
+  });
+};
+
+export const useUpdateReportModelItem = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: UpdateReportModelItemPayload) =>
+      deepDiveApi.updateReportModelItem(reportId, payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["deep-dive", "model", reportId], data);
+      void queryClient.invalidateQueries({
+        queryKey: ["deep-dive", "model", reportId],
+      });
+    },
+  });
+};
+
+export const useDeleteReportModelItem = (reportId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dataPointId: string) =>
+      deepDiveApi.deleteReportModelItem(reportId, dataPointId),
     onSuccess: (data) => {
       queryClient.setQueryData(["deep-dive", "model", reportId], data);
       void queryClient.invalidateQueries({

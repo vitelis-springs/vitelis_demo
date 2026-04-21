@@ -8,9 +8,11 @@ import {
   type KpiScoreValue,
 } from "../../../../shared/kpi-score";
 import {
+  type CreateReportModelItemPayload,
   DeepDiveService,
   type DeepDiveMetricKey,
   type ReportModelImportRow,
+  type UpdateReportModelItemPayload,
   type UpdateCompanyDataPointPayload,
 } from "./deep-dive.service";
 import { N8NService } from "../n8n/n8n.service";
@@ -93,6 +95,48 @@ function parseReportModelRows(value: unknown): ReportModelImportRow[] | null {
   }
 
   return rows;
+}
+
+function parseUpdateReportModelItemPayload(value: unknown): UpdateReportModelItemPayload | null {
+  if (!isRecord(value) || typeof value.dataPointId !== "string") {
+    return null;
+  }
+
+  if (value.name !== undefined && value.name !== null && typeof value.name !== "string") {
+    return null;
+  }
+
+  if (value.settings !== undefined && !isJsonObject(value.settings)) {
+    return null;
+  }
+
+  return {
+    dataPointId: value.dataPointId,
+    name: value.name === undefined ? undefined : (value.name as string | null),
+    settings: value.settings as Record<string, unknown> | undefined,
+  };
+}
+
+function parseCreateReportModelItemPayload(value: unknown): CreateReportModelItemPayload | null {
+  if (
+    !isRecord(value) ||
+    typeof value.dataPointId !== "string" ||
+    typeof value.type !== "string" ||
+    !isJsonObject(value.settings)
+  ) {
+    return null;
+  }
+
+  if (value.name !== undefined && value.name !== null && typeof value.name !== "string") {
+    return null;
+  }
+
+  return {
+    dataPointId: value.dataPointId,
+    type: value.type,
+    name: value.name === undefined ? undefined : (value.name as string | null),
+    settings: value.settings as Record<string, unknown>,
+  };
 }
 
 function serializeError(error: unknown): Record<string, unknown> {
@@ -659,6 +703,13 @@ export class DeepDiveController {
       }
 
       const result = await DeepDiveService.replaceReportModel(reportId, rows);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 },
+        );
+      }
+
       if (!result.success) {
         const status = result.error === "Deep dive not found" ? 404 : 400;
         return NextResponse.json(
@@ -676,6 +727,216 @@ export class DeepDiveController {
       console.error("❌ DeepDiveController.replaceModel:", error);
       return NextResponse.json(
         { success: false, error: "Failed to replace report model" },
+        { status: 500 },
+      );
+    }
+  }
+
+  static async importModel(
+    request: NextRequest,
+    reportIdParam: string,
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 },
+        );
+      }
+
+      const body = (await request.json().catch(() => null)) as unknown;
+      if (!isRecord(body) || !Array.isArray(body.dataPoints)) {
+        return NextResponse.json(
+          { success: false, error: "Body must be { dataPoints: [...] }" },
+          { status: 400 },
+        );
+      }
+
+      const dataPoints = (body.dataPoints as unknown[]).filter(
+        (item): item is { id: string; type: string; name: string | null; settings: Record<string, unknown> } =>
+          isRecord(item) &&
+          typeof item.id === "string" &&
+          typeof item.type === "string" &&
+          (item.name === null || typeof item.name === "string") &&
+          isRecord(item.settings),
+      );
+
+      if (!dataPoints.length) {
+        return NextResponse.json(
+          { success: false, error: "dataPoints array is empty or invalid" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.importKpiModel(reportId, dataPoints);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 },
+        );
+      }
+
+      if (!result.success) {
+        const status = result.error === "Deep dive not found" ? 404 : 400;
+        return NextResponse.json({ success: false, error: result.error }, { status });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.importModel:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to import KPI model" },
+        { status: 500 },
+      );
+    }
+  }
+
+  static async updateModelItem(
+    request: NextRequest,
+    reportIdParam: string,
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 },
+        );
+      }
+
+      const body = (await request.json().catch(() => null)) as unknown;
+      const payload = parseUpdateReportModelItemPayload(body);
+      if (!payload) {
+        return NextResponse.json(
+          { success: false, error: "Invalid payload" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.updateReportModelItem(reportId, payload);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 },
+        );
+      }
+
+      if (!result.success) {
+        const status = result.error === "Deep dive not found" || result.error === "Model item not found"
+          ? 404
+          : 400;
+        return NextResponse.json({ success: false, error: result.error }, { status });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.updateModelItem:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to update report model item" },
+        { status: 500 },
+      );
+    }
+  }
+
+  static async createModelItem(
+    request: NextRequest,
+    reportIdParam: string,
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 },
+        );
+      }
+
+      const body = (await request.json().catch(() => null)) as unknown;
+      const payload = parseCreateReportModelItemPayload(body);
+      if (!payload) {
+        return NextResponse.json(
+          { success: false, error: "Invalid payload" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.createReportModelItem(reportId, payload);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 },
+        );
+      }
+
+      if (!result.success) {
+        const status = result.error === "Deep dive not found" ? 404 : 400;
+        return NextResponse.json({ success: false, error: result.error }, { status });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.createModelItem:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to create report model item" },
+        { status: 500 },
+      );
+    }
+  }
+
+  static async deleteModelItem(
+    request: NextRequest,
+    reportIdParam: string,
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 },
+        );
+      }
+
+      const body = (await request.json().catch(() => null)) as unknown;
+      if (!isRecord(body) || typeof body.dataPointId !== "string") {
+        return NextResponse.json(
+          { success: false, error: "dataPointId is required" },
+          { status: 400 },
+        );
+      }
+
+      const result = await DeepDiveService.deleteReportModelItem(reportId, body.dataPointId);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: "Deep dive not found" },
+          { status: 404 },
+        );
+      }
+
+      if (!result.success) {
+        const status = result.error === "Deep dive not found" || result.error === "Model item not found"
+          ? 404
+          : 400;
+        return NextResponse.json({ success: false, error: result.error }, { status });
+      }
+
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ DeepDiveController.deleteModelItem:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to delete report model item" },
         { status: 500 },
       );
     }
