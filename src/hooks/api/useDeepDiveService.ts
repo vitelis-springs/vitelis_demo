@@ -570,6 +570,50 @@ const deepDiveApi = {
 		const response = await api.put(`/deep-dive/${reportId}/model`, payload);
 		return response.data;
 	},
+	async replaceReportModel(
+		reportId: number,
+		payload: ReplaceReportModelPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.put(`/deep-dive/${reportId}/model`, payload);
+		return response.data;
+	},
+
+	async importKpiModel(
+		reportId: number,
+		payload: ImportKpiModelPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.post(
+			`/deep-dive/${reportId}/model/import`,
+			payload,
+		);
+		return response.data;
+	},
+
+	async createReportModelItem(
+		reportId: number,
+		payload: CreateReportModelItemPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.post(`/deep-dive/${reportId}/model`, payload);
+		return response.data;
+	},
+
+	async updateReportModelItem(
+		reportId: number,
+		payload: UpdateReportModelItemPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.patch(`/deep-dive/${reportId}/model`, payload);
+		return response.data;
+	},
+
+	async deleteReportModelItem(
+		reportId: number,
+		dataPointId: string,
+	): Promise<ReportModelResponse> {
+		const response = await api.delete(`/deep-dive/${reportId}/model`, {
+			data: { dataPointId },
+		});
+		return response.data;
+	},
 
 	async getCompany(
 		reportId: number,
