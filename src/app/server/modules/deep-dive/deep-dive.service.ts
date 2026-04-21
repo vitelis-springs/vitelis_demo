@@ -1839,4 +1839,67 @@ export class DeepDiveService {
 			})),
 		};
 	}
+
+	static async getValidationSummary(reportId: number) {
+		const [byCompany, byRule] = await Promise.all([
+			DeepDiveRepository.getValidationSummary(reportId),
+			DeepDiveRepository.getValidationByRule(reportId),
+		]);
+
+		const toNum = (v: bigint) => Number(v);
+
+		return {
+			byCompany: byCompany.map((r) => ({
+				companyId: r.company_id,
+				companyName: r.company_name,
+				total: toNum(r.total),
+				pass: toNum(r.pass),
+				warn: toNum(r.warn),
+				failed: toNum(r.failed),
+			})),
+			byRule: byRule.map((r) => ({
+				ruleName: r.rule_name,
+				ruleLabel: r.rule_label,
+				ruleLevel: r.rule_level,
+				total: toNum(r.total),
+				pass: toNum(r.pass),
+				warn: toNum(r.warn),
+				failed: toNum(r.failed),
+			})),
+		};
+	}
+
+	static async getReportValidationRules(reportId: number) {
+		const [configured, available] = await Promise.all([
+			DeepDiveRepository.getConfiguredValidationRules(reportId),
+			DeepDiveRepository.getAvailableValidationRules(reportId),
+		]);
+		return {
+			configured: configured.map((r) => ({
+				id: r.id,
+				ruleId: r.validation_rule_id,
+				order: r.execution_order,
+				enabled: r.enabled,
+				name: r.rule_name,
+				label: r.rule_label,
+				level: r.rule_level,
+				description: r.rule_description,
+			})),
+			available: available.map((r) => ({
+				id: r.id,
+				name: r.name,
+				label: r.label,
+				level: r.level,
+				description: r.description,
+			})),
+		};
+	}
+
+	static async addReportValidationRule(reportId: number, ruleId: number) {
+		await DeepDiveRepository.addReportValidationRule(reportId, ruleId);
+	}
+
+	static async removeReportValidationRule(reportId: number, ruleId: number) {
+		await DeepDiveRepository.removeReportValidationRule(reportId, ruleId);
+	}
 }

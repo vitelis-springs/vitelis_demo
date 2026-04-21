@@ -1913,4 +1913,123 @@ export class DeepDiveController {
 			);
 		}
 	}
+
+	static async getValidationSummary(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await DeepDiveService.getValidationSummary(reportId);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ DeepDiveController.getValidationSummary:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch validation summary" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async getReportValidationRules(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await DeepDiveService.getReportValidationRules(reportId);
+			return NextResponse.json({ success: true, data: result });
+		} catch (error) {
+			console.error("❌ DeepDiveController.getReportValidationRules:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch validation rules" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async addReportValidationRule(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json()) as { ruleId?: unknown };
+			const ruleId = Number(body.ruleId);
+			if (!Number.isFinite(ruleId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid rule id" },
+					{ status: 400 },
+				);
+			}
+
+			await DeepDiveService.addReportValidationRule(reportId, ruleId);
+			return NextResponse.json({ success: true });
+		} catch (error) {
+			console.error("❌ DeepDiveController.addReportValidationRule:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to add validation rule" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async removeReportValidationRule(
+		request: NextRequest,
+		reportIdParam: string,
+		ruleIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			const ruleId = Number(ruleIdParam);
+			if (!Number.isFinite(reportId) || !Number.isFinite(ruleId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid id" },
+					{ status: 400 },
+				);
+			}
+
+			await DeepDiveService.removeReportValidationRule(reportId, ruleId);
+			return NextResponse.json({ success: true });
+		} catch (error) {
+			console.error("❌ DeepDiveController.removeReportValidationRule:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to remove validation rule" },
+				{ status: 500 },
+			);
+		}
+	}
 }
