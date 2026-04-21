@@ -99,6 +99,18 @@ export interface ReportDataPointSourcesRow {
 	data: unknown;
 }
 
+export interface ReportModelItemUpdateData {
+	name?: string | null;
+	settings?: Prisma.InputJsonValue;
+}
+
+export interface CreateReportModelItemData {
+	dataPointId: string;
+	type: string;
+	name: string | null;
+	settings: Prisma.InputJsonValue;
+}
+
 export class DeepDiveRepository {
 	private static buildOrderBy(
 		sortBy: string | undefined,

@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanasadtion> */
-import { report_status_enum } from "../../../../generated/prisma";
+import { type Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
 import {
 	buildKpiScoreValue,
@@ -68,12 +68,38 @@ export interface ReportModelImportRow {
 	includeToReport?: boolean;
 }
 
+export interface UpdateReportModelItemPayload {
+	dataPointId: string;
+	name?: string | null;
+	settings?: Record<string, unknown>;
+}
+
+export interface CreateReportModelItemPayload {
+	dataPointId: string;
+	type: string;
+	name?: string | null;
+	settings: Record<string, unknown>;
+}
+
+interface ImportedModelDataPoint {
+	id: string;
+	type: string;
+	name: string | null;
+	settings: Record<string, unknown>;
+}
+
 function asSettingsRecord(value: unknown): Record<string, unknown> | null {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
 		return null;
 	}
 
 	return value as Record<string, unknown>;
+}
+
+function asInputJsonObject(
+	value: Record<string, unknown>,
+): Prisma.InputJsonValue {
+	return value as Prisma.InputJsonValue;
 }
 
 type ReportWithRelations = NonNullable<
