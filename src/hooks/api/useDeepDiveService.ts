@@ -570,13 +570,6 @@ const deepDiveApi = {
 		const response = await api.put(`/deep-dive/${reportId}/model`, payload);
 		return response.data;
 	},
-	async replaceReportModel(
-		reportId: number,
-		payload: ReplaceReportModelPayload,
-	): Promise<ReportModelResponse> {
-		const response = await api.put(`/deep-dive/${reportId}/model`, payload);
-		return response.data;
-	},
 
 	async importKpiModel(
 		reportId: number,
