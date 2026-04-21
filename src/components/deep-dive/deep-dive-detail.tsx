@@ -2,8 +2,10 @@
 
 import {
 	FileExcelOutlined,
+	FundOutlined,
 	SearchOutlined,
 	SettingOutlined,
+	TableOutlined,
 } from "@ant-design/icons";
 import { App, Button, Layout, Space, Typography } from "antd";
 import { useRouter } from "next/navigation";
@@ -26,7 +28,6 @@ const { Title, Text } = Typography;
 export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 	const { message } = App.useApp();
 	const { data: overviewData } = useGetDeepDiveOverview(reportId);
-
 	const { data: kpiData, isLoading: isKpiLoading } =
 		useGetDeepDiveKpiChart(reportId);
 	const { data: companiesData, isLoading: isCompaniesLoading } =
@@ -48,7 +49,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 			basePath: "/biz-miner",
 		};
 	})();
-	const exportReport = useExportReport(reportId, overviewData);
+	const exportReport = useExportReport(reportId, report?.name);
 
 	const allCategories = useMemo(
 		() => kpiData?.data.categories ?? [],
@@ -108,6 +109,28 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 								>
 									Settings
 								</Button>
+								{report?.reportType === "biz_miner" ? (
+									<>
+										<Button
+											icon={<TableOutlined />}
+											onClick={() =>
+												router.push(`/biz-miner/${reportId}/model`)
+											}
+										>
+											Model
+										</Button>
+										<Button
+											icon={<FundOutlined />}
+											onClick={() =>
+												router.push(
+													`/biz-miner/${reportId}/company-level-reports`,
+												)
+											}
+										>
+											Company Reports
+										</Button>
+									</>
+								) : null}
 							</Space>
 							<Text style={{ color: "#8c8c8c" }}>
 								{report?.description ||

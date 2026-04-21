@@ -371,55 +371,101 @@ export interface DeepDiveSettingsResponse {
 		report: {
 			id: number;
 			name: string | null;
+			description: string | null;
+			useCaseId: number | null;
+			useCaseName: string | null;
 		};
 		current: {
 			reportSettings: ReportSettingsOption | null;
 			validatorSettings: ValidatorSettingsOption | null;
 		};
 		options: {
-			reportSettings: ReportSettingsOption[];
-			validatorSettings: ValidatorSettingsOption[];
+			useCases: Array<{ id: number; name: string }>;
 		};
 	};
 }
 
-export type ReportSettingsActionPayload =
-	| { mode: "reuse"; id: number }
-	| {
-			mode: "create";
-			strategy: "clone";
-			baseId: number;
-			name?: string;
-			settings: Record<string, unknown>;
-	  }
-	| {
-			mode: "create";
-			strategy: "blank";
-			name: string;
-			masterFileId: string;
-			prefix?: number | null;
-			settings: Record<string, unknown>;
-	  };
+export interface ReportModelItem {
+	id: number;
+	dataPointId: string;
+	includeToReport: boolean;
+	name: string | null;
+	type: string | null;
+	manualMethod: boolean | null;
+	settings: Record<string, unknown> | null;
+}
 
-export type ValidatorSettingsActionPayload =
-	| { mode: "reuse"; id: number }
-	| {
-			mode: "create";
-			strategy: "clone";
-			baseId: number;
-			name?: string;
-			settings: Record<string, unknown>;
-	  }
-	| {
-			mode: "create";
-			strategy: "blank";
-			name: string;
-			settings: Record<string, unknown>;
-	  };
+export interface ReportModelResponse {
+	success: boolean;
+	data: {
+		report: {
+			id: number;
+			name: string | null;
+			reportType: string | null;
+			prefix: number;
+			useCase: {
+				id: number;
+				name: string;
+			} | null;
+		};
+		items: ReportModelItem[];
+		summary: {
+			total: number;
+			included: number;
+			excluded: number;
+			byType: Array<{
+				type: string;
+				count: number;
+			}>;
+		};
+	};
+}
+
+export interface ReplaceReportModelPayload {
+	rows: Array<{
+		dataPointId: string;
+		includeToReport?: boolean;
+	}>;
+}
+
+export interface UpdateReportModelItemPayload {
+	dataPointId: string;
+	name?: string | null;
+	settings?: Record<string, unknown>;
+}
+
+export interface CreateReportModelItemPayload {
+	dataPointId: string;
+	type: "kpi_driver" | "raw_data_point";
+	name?: string | null;
+	settings: Record<string, unknown>;
+}
+
+export interface ImportKpiModelPayload {
+	dataPoints: Array<{
+		id: string;
+		type: string;
+		name: string | null;
+		settings: Record<string, unknown>;
+	}>;
+}
 
 export interface UpdateDeepDiveSettingsPayload {
-	reportSettingsAction?: ReportSettingsActionPayload;
-	validatorSettingsAction?: ValidatorSettingsActionPayload;
+	reportInfo: {
+		name: string;
+		description?: string | null;
+		useCaseId?: number | null;
+	};
+	reportSettings: {
+		name?: string;
+		masterFileId?: string;
+		prefix?: number | null;
+		settings: Record<string, unknown>;
+	};
+	validatorSettings: {
+		name?: string;
+		settings: Record<string, unknown>;
+	};
 }
 
 export interface CloneOptions {
@@ -508,6 +554,11 @@ const deepDiveApi = {
 		return response.data;
 	},
 
+	async getReportModel(reportId: number): Promise<ReportModelResponse> {
+		const response = await api.get(`/deep-dive/${reportId}/model`);
+		return response.data;
+	},
+
 	async updateSettings(
 		reportId: number,
 		payload: UpdateDeepDiveSettingsPayload,
@@ -516,6 +567,51 @@ const deepDiveApi = {
 			`/deep-dive/${reportId}/settings`,
 			payload,
 		);
+		return response.data;
+	},
+
+	async replaceReportModel(
+		reportId: number,
+		payload: ReplaceReportModelPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.put(`/deep-dive/${reportId}/model`, payload);
+		return response.data;
+	},
+
+	async importKpiModel(
+		reportId: number,
+		payload: ImportKpiModelPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.post(
+			`/deep-dive/${reportId}/model/import`,
+			payload,
+		);
+		return response.data;
+	},
+
+	async createReportModelItem(
+		reportId: number,
+		payload: CreateReportModelItemPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.post(`/deep-dive/${reportId}/model`, payload);
+		return response.data;
+	},
+
+	async updateReportModelItem(
+		reportId: number,
+		payload: UpdateReportModelItemPayload,
+	): Promise<ReportModelResponse> {
+		const response = await api.patch(`/deep-dive/${reportId}/model`, payload);
+		return response.data;
+	},
+
+	async deleteReportModelItem(
+		reportId: number,
+		dataPointId: string,
+	): Promise<ReportModelResponse> {
+		const response = await api.delete(`/deep-dive/${reportId}/model`, {
+			data: { dataPointId },
+		});
 		return response.data;
 	},
 
@@ -749,6 +845,93 @@ export const useUpdateDeepDiveSettings = (reportId: number) => {
 			});
 			void queryClient.invalidateQueries({
 				queryKey: ["deep-dive", "list"],
+			});
+		},
+	});
+};
+
+export const useGetReportModel = (
+	reportId: number | null,
+	options?: { enabled?: boolean },
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "model", reportId],
+		queryFn: () => deepDiveApi.getReportModel(reportId!),
+		enabled:
+			options?.enabled !== undefined ? options.enabled : reportId !== null,
+	});
+};
+
+export const useReplaceReportModel = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: ReplaceReportModelPayload) =>
+			deepDiveApi.replaceReportModel(reportId, payload),
+		onSuccess: (data) => {
+			queryClient.setQueryData(["deep-dive", "model", reportId], data);
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "model", reportId],
+			});
+		},
+	});
+};
+
+export const useImportKpiModel = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: ImportKpiModelPayload) =>
+			deepDiveApi.importKpiModel(reportId, payload),
+		onSuccess: (data) => {
+			queryClient.setQueryData(["deep-dive", "model", reportId], data);
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "model", reportId],
+			});
+		},
+	});
+};
+
+export const useCreateReportModelItem = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: CreateReportModelItemPayload) =>
+			deepDiveApi.createReportModelItem(reportId, payload),
+		onSuccess: (data) => {
+			queryClient.setQueryData(["deep-dive", "model", reportId], data);
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "model", reportId],
+			});
+		},
+	});
+};
+
+export const useUpdateReportModelItem = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: UpdateReportModelItemPayload) =>
+			deepDiveApi.updateReportModelItem(reportId, payload),
+		onSuccess: (data) => {
+			queryClient.setQueryData(["deep-dive", "model", reportId], data);
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "model", reportId],
+			});
+		},
+	});
+};
+
+export const useDeleteReportModelItem = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (dataPointId: string) =>
+			deepDiveApi.deleteReportModelItem(reportId, dataPointId),
+		onSuccess: (data) => {
+			queryClient.setQueryData(["deep-dive", "model", reportId], data);
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "model", reportId],
 			});
 		},
 	});
@@ -1140,45 +1323,40 @@ const exportApi = {
 	},
 };
 
+function sanitizeFileNameSegment(
+	value: string | null | undefined,
+	fallback: string,
+): string {
+	const normalized = (value ?? "")
+		.trim()
+		.replace(/\s+/g, "_")
+		.replace(/[^a-zA-Z0-9_-]+/g, "_")
+		.replace(/_+/g, "_")
+		.replace(/^_+|_+$/g, "");
+
+	return normalized || fallback;
+}
+
+function formatExportDate(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
 export const useExportReport = (
 	reportId: number,
-	overviewData: DeepDiveOverviewResponse | null | undefined,
+	reportName?: string | null,
 ) => {
-	const reportName =
-		overviewData?.data?.report?.name?.slice(0, 20) || `report-${reportId}`;
-	const report_type = overviewData?.data?.report?.reportType || "";
-	const fileName = `${reportName}_${report_type ? `${report_type}_` : ""}${new Date().toISOString().slice(0, 10)}.xlsx`;
-
 	return useMutation({
 		mutationFn: () => exportApi.exportReport(reportId),
 		onSuccess: (blob) => {
 			const url = URL.createObjectURL(blob);
 			const anchor = document.createElement("a");
 			anchor.href = url;
-			anchor.download = `${fileName}.xlsx`;
-			anchor.click();
-			URL.revokeObjectURL(url);
-		},
-	});
-};
-
-export const useExportOpportunitiesXlsx = () => {
-	return useMutation({
-		mutationFn: async (reportId: number) => {
-			const response = await api.get(
-				`/deep-dive/${reportId}/export-opportunities-xlsx`,
-				{
-					responseType: "blob",
-					timeout: 120_000,
-				},
-			);
-			return { blob: response.data as Blob, reportId };
-		},
-		onSuccess: ({ blob, reportId }) => {
-			const url = URL.createObjectURL(blob);
-			const anchor = document.createElement("a");
-			anchor.href = url;
-			anchor.download = `opportunities_report_${reportId}.xlsx`;
+			const safeReportName = sanitizeFileNameSegment(reportName, "report");
+			const exportDate = formatExportDate(new Date());
+			anchor.download = `${safeReportName}_${reportId}_${exportDate}.xlsx`;
 			anchor.click();
 			URL.revokeObjectURL(url);
 		},
@@ -1241,22 +1419,8 @@ export type SalesMinerReportOverviewResponse =
 			success: boolean;
 			data: {
 				level: "account";
-				accountVersion: "1";
 				reportId: number;
 				relatedReportId: number | null;
-				signalSummary: SalesMinerSignalSummaryRow[];
-				oppSummary: SalesMinerOppSummaryRow[];
-				companies: SalesMinerReportCompanyRow[];
-			};
-	  }
-	| {
-			success: boolean;
-			data: {
-				level: "account";
-				accountVersion: "2";
-				reportId: number;
-				relatedReportId: null;
-				signalSummary: SalesMinerSignalSummaryRow[];
 				oppSummary: SalesMinerOppSummaryRow[];
 				companies: SalesMinerReportCompanyRow[];
 			};
@@ -1374,58 +1538,57 @@ export const useAddCompanyToReport = (reportId: number) => {
 	});
 };
 
-// ===== Cost stats =====
+export const useSearchCompanies = (query: string) => {
+	return useQuery({
+		queryKey: ["companies", "search", query],
+		queryFn: async () => {
+			const response = await api.get(
+				`/companies/search?q=${encodeURIComponent(query)}`,
+			);
+			return response.data as { success: boolean; data: CompanySearchResult[] };
+		},
+		enabled: query.trim().length >= 2,
+		staleTime: 30_000,
+		refetchOnWindowFocus: false,
+	});
+};
 
-export interface ReportCostSummary {
-	totalCalls: number;
-	callsWithoutPricing: number;
+export interface ReportCostTask {
+	id: string;
+	taskName: string;
+	model: string | null;
 	inputTokens: number;
 	outputTokens: number;
-	totalTokens: number;
-	totalResourceUnits: number;
+	cachedInputTokens: number;
 	inputCost: number;
 	outputCost: number;
 	mcpCost: number;
 	totalCost: number;
 	startedAt: string | null;
 	finishedAt: string | null;
-	durationSec: number | null;
 }
 
 export interface ReportCostStep {
 	stepId: number;
-	stepOrder: number;
-	stepName: string | null;
-	stepStatus: string | null;
-	companiesCount: number;
-	tasksCount: number;
-	totalCalls: number;
-	callsWithoutPricing: number;
+	stepName: string;
+	taskCount: number;
 	inputTokens: number;
 	outputTokens: number;
-	totalTokens: number;
-	totalResourceUnits: number;
+	cachedInputTokens: number;
 	inputCost: number;
 	outputCost: number;
 	mcpCost: number;
 	totalCost: number;
-	startedAt: string | null;
-	finishedAt: string | null;
-	durationSec: number | null;
+	callsWithoutPricing: number;
+	firstCallAt: string | null;
+	lastCallAt: string | null;
 }
 
-export interface ReportCostTask {
-	task: string;
-	provider: string | null;
-	model: string | null;
-	totalCalls: number;
-	errorCount: number;
-	companiesCount: number;
+export interface ReportCostSummary {
+	taskCount: number;
 	inputTokens: number;
 	outputTokens: number;
-	totalTokens: number;
-	totalResourceUnits: number;
-	avgDurationMs: number | null;
+	cachedInputTokens: number;
 	inputCost: number;
 	outputCost: number;
 	mcpCost: number;
@@ -1475,21 +1638,6 @@ export const useGetStepCostTasks = (
 		},
 		enabled: Number.isFinite(reportId) && stepId !== null,
 		staleTime: 60_000,
-		refetchOnWindowFocus: false,
-	});
-};
-
-export const useSearchCompanies = (query: string) => {
-	return useQuery({
-		queryKey: ["companies", "search", query],
-		queryFn: async () => {
-			const response = await api.get(
-				`/companies/search?q=${encodeURIComponent(query)}`,
-			);
-			return response.data as { success: boolean; data: CompanySearchResult[] };
-		},
-		enabled: query.trim().length >= 2,
-		staleTime: 30_000,
 		refetchOnWindowFocus: false,
 	});
 };

@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkToc from "remark-toc";
 import Sidebar from "../ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../ui/sidebar-layout";
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -75,7 +76,7 @@ export default function SalesMinerAnalyzeResult({
 	return (
 		<Layout style={{ minHeight: "100vh", background: "#141414" }}>
 			<Sidebar />
-			<Layout style={{ marginLeft: 280, background: "#141414" }}>
+			<Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: "#141414" }}>
 				<Content
 					style={{
 						padding: "24px",

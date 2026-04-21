@@ -38,5 +38,5 @@ export default function BizMinerTryQueryPage() {
     </div>
   );
 
-  return <TryQueryPage reportId={reportId} />;
+  return <TryQueryPage reportId={reportId} basePath="/biz-miner" />;
 }

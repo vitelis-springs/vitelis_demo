@@ -28,9 +28,11 @@
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [
+      "biome format --write",
       "eslint --max-warnings=0"
     ],
     "test/**/*.{js,jsx,ts,tsx}": [
+      "biome format --write",
       "eslint --max-warnings=0"
     ]
   },
@@ -78,6 +80,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
     "@testing-library/jest-dom": "^6.4.2",
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.10",

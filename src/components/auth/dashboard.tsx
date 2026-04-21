@@ -2,6 +2,7 @@
 
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from '../ui/sidebar';
+import { SIDEBAR_MARGIN_LEFT } from '../ui/sidebar-layout';
 import {
   Layout,
   Card,
@@ -55,7 +56,7 @@ export default function Dashboard() {
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: '#141414' }}>
+      <Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: '#141414' }}>
         <Content style={{ 
           padding: '24px',
           background: '#141414',
@@ -68,7 +69,7 @@ export default function Dashboard() {
                 Welcome back, {user?.email || 'User'}!
               </Title>
               <Paragraph style={{ margin: '8px 0 0 0', color: '#8c8c8c' }}>
-                Here's what's happening with your account today.
+                Here&apos;s what&apos;s happening with your account today.
               </Paragraph>
             </div>
 

@@ -1,6 +1,7 @@
 'use client';
 import { Card, Typography, Select, Layout } from 'antd';
 import Sidebar from '../../../components/ui/sidebar';
+import { SIDEBAR_MARGIN_LEFT } from '../../../components/ui/sidebar-layout';
 import { useThemeStore } from '../../../stores/theme-store';
 
 const { Title, Text } = Typography;
@@ -13,7 +14,7 @@ export default function SettingsPage() {
   return (
     <Layout style={{ minHeight: '100vh', background: 'var(--app-bg-layout)' }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: 'var(--app-bg-layout)' }}>
+      <Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: 'var(--app-bg-layout)' }}>
         <div style={{ padding: '24px' }}>
           <Card style={{ background: 'var(--chart-card-bg)', border: '1px solid var(--chart-border)', borderRadius: '12px' }}>
             <Title level={2} style={{ color: 'var(--chart-primary)', marginBottom: '24px' }}>

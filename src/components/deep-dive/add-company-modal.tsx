@@ -400,7 +400,7 @@ export default function AddCompanyModal({ reportId, open, onClose }: Props) {
       footer={null}
       width="90vw"
       style={{ maxWidth: 1400, top: 40 }}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: "16px 24px" } }}
     >
       <Tabs

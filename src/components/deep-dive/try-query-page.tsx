@@ -21,6 +21,7 @@ import {
 } from "../../hooks/api/useDeepDiveService";
 import DeepDiveBreadcrumbs from "./breadcrumbs";
 import MetadataFilterBuilder from "./metadata-filter-builder";
+import { buildReportHref, resolveReportSection } from "./shared/report-route";
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -132,10 +133,17 @@ function ChunkCard({ chunk, index }: { chunk: ChunkResult; index: number }) {
   );
 }
 
-export default function TryQueryPage({ reportId }: { reportId: number }) {
+export default function TryQueryPage({
+  reportId,
+  basePath = "/deep-dive",
+}: {
+  reportId: number;
+  basePath?: string;
+}) {
   const { data } = useGetDeepDiveDetail(reportId);
   const companies = data?.data?.companies ?? [];
   const reportName = data?.data?.report.name;
+  const reportSection = resolveReportSection(basePath);
 
   const [query, setQuery] = useState("");
   const [companyId, setCompanyId] = useState<number | null>(null);
@@ -167,8 +175,11 @@ export default function TryQueryPage({ reportId }: { reportId: number }) {
           <div style={{ marginBottom: 24 }}>
             <DeepDiveBreadcrumbs
               items={[
-                { label: "Deep Dives", href: "/deep-dive" },
-                { label: reportName || `Deep Dive #${reportId}`, href: `/deep-dive/${reportId}` },
+                reportSection,
+                {
+                  label: reportName || `Deep Dive #${reportId}`,
+                  href: buildReportHref(basePath, reportId),
+                },
                 { label: "Try Query" },
               ]}
             />

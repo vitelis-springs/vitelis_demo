@@ -39,6 +39,12 @@ import ChartCard from "./shared/chart-card";
 import FilterBar from "./shared/filter-bar";
 import StatCard from "./shared/stat-card";
 import QueryIdTags from "./shared/query-id-tags";
+import {
+  buildCompanyHref,
+  buildQueryHref,
+  buildReportHref,
+  resolveReportSection,
+} from "./shared/report-route";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "default",
@@ -53,9 +59,11 @@ type CandidateRow = ScrapeCandidateItem & { key: number };
 export default function ScrapeCandidatesAnalytics({
   reportId,
   companyId,
+  basePath = "/deep-dive",
 }: {
   reportId: number;
   companyId: number;
+  basePath?: string;
 }) {
   const { page, pageSize, offset, sortBy, sortOrder, handleTableChange, resetPage } =
     useServerSortedTable({ defaultSortBy: "created_at" });
@@ -71,11 +79,12 @@ export default function ScrapeCandidatesAnalytics({
 
   const { data, isLoading } = useGetScrapeCandidates(reportId, companyId, queryParams);
   const payload = data?.data;
+  const reportSection = resolveReportSection(basePath);
 
   const total = payload?.total ?? 0;
   const totalFiltered = payload?.totalFiltered ?? 0;
   const agg = payload?.aggregations;
-  const items = payload?.items ?? [];
+  const items = useMemo(() => payload?.items ?? [], [payload?.items]);
 
   const showingLabel = useShowingLabel(totalFiltered, total);
 
@@ -116,7 +125,7 @@ export default function ScrapeCandidatesAnalytics({
       render: (_: unknown, row: CandidateRow) => {
         const meta = row.metadata as Record<string, unknown> | null;
         const ids = Array.isArray(meta?.query_ids) ? (meta.query_ids as string[]) : [];
-        return <QueryIdTags ids={ids} reportId={reportId} />;
+        return <QueryIdTags ids={ids} reportId={reportId} basePath={basePath} />;
       },
     },
     {
@@ -133,7 +142,7 @@ export default function ScrapeCandidatesAnalytics({
       title: "Created", dataIndex: "created_at", key: "created_at", width: 140, sorter: true,
       render: (v: string | null) => (v ? dayjs(v).format("YYYY-MM-DD HH:mm") : "—"),
     },
-  ], [reportId]);
+  ], [reportId, basePath]);
 
   const columns = useResizableColumns(colsDef);
 
@@ -141,9 +150,9 @@ export default function ScrapeCandidatesAnalytics({
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          { label: "Deep Dives", href: "/deep-dive" },
-          { label: `Report #${reportId}`, href: `/deep-dive/${reportId}` },
-          { label: payload?.company.name ?? `Company #${companyId}`, href: `/deep-dive/${reportId}/companies/${companyId}` },
+          reportSection,
+          { label: `Report #${reportId}`, href: buildReportHref(basePath, reportId) },
+          { label: payload?.company.name ?? `Company #${companyId}`, href: buildCompanyHref(basePath, reportId, companyId) },
           { label: "Candidates" },
         ]}
         title={`Scrape Candidates — ${payload?.company.name ?? `Company #${companyId}`}`}
@@ -173,7 +182,7 @@ export default function ScrapeCandidatesAnalytics({
                 <Bar dataKey="count" fill={BAR_PRIMARY_COLOR} name="Candidates" activeBar={CHART_ACTIVE_BAR_STYLE}>
                   {queryBarData.map((entry) => (
                     <Cell key={entry.queryId} fill={BAR_PRIMARY_COLOR} cursor="pointer"
-                      onClick={() => window.open(`/deep-dive/${reportId}/query?queryId=${entry.queryId}`, "_self")} />
+                      onClick={() => window.open(buildQueryHref(basePath, reportId, entry.queryId), "_self")} />
                   ))}
                 </Bar>
               </BarChart>

@@ -14,6 +14,7 @@ import { useGetExecutionDetails } from '@hooks/api/useN8NService';
 import { Button, Card, Layout, Progress, Steps, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../ui/sidebar';
+import { SIDEBAR_MARGIN_LEFT } from '../ui/sidebar-layout';
 
 const { Title, Text } = Typography;
 const { Content } = Layout;
@@ -95,7 +96,7 @@ export default function Animation({
         }
       }
     }
-  }, [executionDetails, analyzeId]);
+  }, [executionDetails, analyzeId, updateAnalyze]);
   const steps = [
     {
       title: 'Initialising',
@@ -149,7 +150,7 @@ export default function Animation({
         <Card style={{ marginTop: 16, background: '#1f1f1f', border: '1px solid #303030' }}>
           <Title level={4} style={{ color: '#d9d9d9' }}>Step 4: Scoring</Title>
           <Text style={{ color: '#8c8c8c' }}>
-            Applying scoring algorithms and metrics to evaluate the company's performance
+            Applying scoring algorithms and metrics to evaluate the company&apos;s performance
             across various dimensions and criteria.
         
           </Text>
@@ -206,7 +207,7 @@ export default function Animation({
   return (
     <Layout style={{ minHeight: '100vh', background: '#141414' }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: '#141414' }}>
+      <Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: '#141414' }}>
         <Content style={{ 
           padding: '24px',
           background: '#141414',

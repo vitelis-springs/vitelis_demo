@@ -12,6 +12,7 @@ import {
 import DeepDivePageLayout from "./shared/page-layout";
 import PageHeader from "./shared/page-header";
 import StatCard from "./shared/stat-card";
+import { buildReportHref, resolveReportSection } from "./shared/report-route";
 
 const { Text } = Typography;
 
@@ -32,6 +33,7 @@ export default function ReportQueries({ reportId, highlightQueryId, backHref }: 
 
   const queries = useMemo(() => data?.data?.queries ?? [], [data]);
   const reportName = data?.data?.reportName ?? `Report #${reportId}`;
+  const reportSection = resolveReportSection(backHref);
 
   /* ── edit state ── */
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -210,8 +212,8 @@ export default function ReportQueries({ reportId, highlightQueryId, backHref }: 
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          { label: "Deep Dives", href: "/deep-dive" },
-          { label: reportName, href: backHref ?? `/deep-dive/${reportId}` },
+          reportSection,
+          { label: reportName, href: backHref ?? buildReportHref(backHref, reportId) },
           { label: "Queries" },
         ]}
         title={`Report Queries — ${reportName}`}

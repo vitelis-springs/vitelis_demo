@@ -62,6 +62,12 @@ import ChartCard from "./shared/chart-card";
 import FilterBar from "./shared/filter-bar";
 import StatCard from "./shared/stat-card";
 import QueryIdTags from "./shared/query-id-tags";
+import {
+      buildCompanyHref,
+      buildQueryHref,
+      buildReportHref,
+      resolveReportSection,
+} from "./shared/report-route";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -87,9 +93,11 @@ function extractStringArray(item: SourceItem, field: string): string[] {
 export default function SourcesAnalytics({
       reportId,
       companyId,
+      basePath = "/deep-dive",
 }: {
       reportId: number;
       companyId: number;
+      basePath?: string;
 }) {
       /* ── filter state ── */
       const [tier, setTier] = useState<number | undefined>();
@@ -155,7 +163,7 @@ export default function SourcesAnalytics({
       const totalUnfiltered = payload?.totalUnfiltered ?? 0;
       const totalFiltered = payload?.totalFiltered ?? 0;
       const agg = payload?.aggregations;
-      const items = payload?.items ?? [];
+      const items = useMemo(() => payload?.items ?? [], [payload?.items]);
 
       const validCount = useMemo(() => {
             if (!agg?.isValid) return 0;
@@ -183,6 +191,7 @@ export default function SourcesAnalytics({
                   ? Math.round((vectorizedCount / totalFiltered) * 100)
                   : 0;
       const showingLabel = useShowingLabel(totalFiltered, totalUnfiltered);
+      const reportSection = resolveReportSection(basePath);
 
       /* ── chart data ── */
       const radarData = useMemo(() => {
@@ -351,6 +360,7 @@ export default function SourcesAnalytics({
                               <QueryIdTags
                                     ids={extractStringArray(row, "query_ids")}
                                     reportId={reportId}
+                                    basePath={basePath}
                               />
                         ),
                   },
@@ -432,7 +442,7 @@ export default function SourcesAnalytics({
                               v ? dayjs(v).format("YYYY-MM-DD") : "—",
                   },
             ],
-            [reportId],
+            [reportId, basePath],
       );
 
       const columns = useResizableColumns(colsDef);
@@ -442,16 +452,16 @@ export default function SourcesAnalytics({
             <DeepDivePageLayout>
                   <PageHeader
                         breadcrumbs={[
-                              { label: "Deep Dives", href: "/deep-dive" },
+                              reportSection,
                               {
                                     label: `Report #${reportId}`,
-                                    href: `/deep-dive/${reportId}`,
+                                    href: buildReportHref(basePath, reportId),
                               },
                               {
                                     label:
                                           payload?.company.name ??
                                           `Company #${companyId}`,
-                                    href: `/deep-dive/${reportId}/companies/${companyId}`,
+                                    href: buildCompanyHref(basePath, reportId, companyId),
                               },
                               { label: "Sources" },
                         ]}
@@ -649,7 +659,7 @@ export default function SourcesAnalytics({
                                                                         cursor="pointer"
                                                                         onClick={() =>
                                                                               window.open(
-                                                                                    `/deep-dive/${reportId}/query?queryId=${entry.queryId}`,
+                                                                                    buildQueryHref(basePath, reportId, entry.queryId),
                                                                                     "_self",
                                                                               )
                                                                         }

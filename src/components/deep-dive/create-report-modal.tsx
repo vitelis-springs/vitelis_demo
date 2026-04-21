@@ -10,8 +10,9 @@ import {
   type CloneOptions,
   type CreateReportPayload,
 } from "../../hooks/api/useDeepDiveService";
+import JsonEditor from "./json-editor";
 
-const { Text, Title } = Typography;
+const { Title } = Typography;
 
 interface UseCase {
   id: number;
@@ -45,48 +46,6 @@ const DEFAULT_CLONE_OPTIONS: CloneOptions = {
   companies: false,
 };
 
-function JsonTextArea({
-  value,
-  onChange,
-  placeholder,
-  rows = 16,
-}: {
-  value?: string;
-  onChange?: (v: string) => void;
-  placeholder?: string;
-  rows?: number;
-}) {
-  const isValid = !value || (() => { try { JSON.parse(value); return true; } catch { return false; } })();
-
-  function handleFormat() {
-    if (!value?.trim()) return;
-    try {
-      onChange?.(JSON.stringify(JSON.parse(value), null, 2));
-    } catch { /* invalid JSON — ignore */ }
-  }
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-        <Button size="small" type="text" disabled={!value || !isValid} onClick={handleFormat}
-          style={{ fontSize: 11, color: "#595959" }}>
-          Format JSON
-        </Button>
-      </div>
-      <Input.TextArea
-        value={value}
-        onChange={(e) => onChange?.(e.target.value)}
-        placeholder={placeholder ?? "{}"}
-        rows={rows}
-        status={value && !isValid ? "error" : undefined}
-        style={{ fontFamily: "monospace", fontSize: 12, resize: "vertical" }}
-      />
-      {value && !isValid && (
-        <Text type="danger" style={{ fontSize: 11 }}>Invalid JSON</Text>
-      )}
-    </div>
-  );
-}
 
 export default function CreateReportModal({ reportType, useCases, onCreated, cloneFromId, onCloneClose }: Props) {
   const [open, setOpen] = useState(false);
@@ -275,7 +234,7 @@ export default function CreateReportModal({ reportType, useCases, onCreated, clo
             padding: "16px 24px",
           },
         }}
-        destroyOnClose
+        destroyOnHidden
       >
         {cloneLoading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
@@ -328,7 +287,7 @@ export default function CreateReportModal({ reportType, useCases, onCreated, clo
                 </div>
 
                 <Form.Item name="rsJson" label="Settings JSON" style={{ marginBottom: 0 }}>
-                  <JsonTextArea placeholder='{"key": "value"}' rows={14} />
+                  <JsonEditor height={360} />
                 </Form.Item>
               </div>
 
@@ -341,7 +300,7 @@ export default function CreateReportModal({ reportType, useCases, onCreated, clo
                 </Form.Item>
 
                 <Form.Item name="svsJson" label="Settings JSON" style={{ marginBottom: 0 }}>
-                  <JsonTextArea placeholder='{"filters": {}}' rows={28} />
+                  <JsonEditor height={560} />
                 </Form.Item>
               </div>
             </div>

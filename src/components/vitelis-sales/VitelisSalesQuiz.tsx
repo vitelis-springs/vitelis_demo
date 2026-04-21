@@ -9,6 +9,7 @@ import { App, Button, Card, Form, Input, Layout, Modal, Select, Spin, Typography
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../ui/sidebar-layout";
 import VitelisSalesAnimation from "./VitelisSalesAnimation";
 import VitelisSalesReportResult from "./VitelisSalesReportResult";
 
@@ -238,7 +239,7 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
     return (
       <Layout style={{ minHeight: "100vh", background: "#141414" }}>
         <Sidebar />
-        <Layout style={{ marginLeft: 280, background: "#141414" }}>
+        <Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: "#141414" }}>
           <Content style={{ padding: "24px", background: "#141414", minHeight: "100vh" }}>
             <Card style={{ background: "#1f1f1f", border: "1px solid #303030" }}>
               <Title level={3} style={{ color: "#d9d9d9" }}>
@@ -255,7 +256,7 @@ export default function VitelisSalesQuiz({ onComplete }: VitelisSalesQuizProps) 
   return (
     <Layout style={{ minHeight: "100vh", background: "#141414" }}>
       <Sidebar />
-      <Layout style={{ marginLeft: 280, background: "#141414" }}>
+      <Layout style={{ marginLeft: SIDEBAR_MARGIN_LEFT, background: "#141414" }}>
         <Content
           style={{
             padding: "24px",
