@@ -28,9 +28,11 @@
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [
+      "biome format --write",
       "eslint --max-warnings=0"
     ],
     "test/**/*.{js,jsx,ts,tsx}": [
+      "biome format --write",
       "eslint --max-warnings=0"
     ]
   },
