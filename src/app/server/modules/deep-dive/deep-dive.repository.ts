@@ -1,864 +1,956 @@
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: <sd> */
 import { Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
 import type { SortOrder } from "../../../../types/sorting";
 
 export interface DeepDiveListParams {
-  limit: number;
-  offset: number;
-  query?: string;
-  status?: report_status_enum;
-  useCaseId?: number;
-  industryId?: number;
-  reportType?: string;
-  sortBy?: string;
-  sortOrder?: SortOrder;
+	limit: number;
+	offset: number;
+	query?: string;
+	status?: report_status_enum;
+	useCaseId?: number;
+	industryId?: number;
+	reportType?: string;
+	sortBy?: string;
+	sortOrder?: SortOrder;
 }
 
 export interface SourceFilterParams {
-  limit: number;
-  offset: number;
-  tier?: number;
-  isVectorized?: boolean;
-  dateFrom?: Date;
-  dateTo?: Date;
-  metaKey?: string;
-  metaValue?: string;
-  metaGroupBy?: string;
+	limit: number;
+	offset: number;
+	tier?: number;
+	isVectorized?: boolean;
+	dateFrom?: Date;
+	dateTo?: Date;
+	metaKey?: string;
+	metaValue?: string;
+	metaGroupBy?: string;
 }
 
 export interface SourcesAnalyticsParams {
-  limit: number;
-  offset: number;
-  tier?: number;
-  qualityClass?: string;
-  isValid?: boolean;
-  agent?: string;
-  category?: string;
-  tag?: string;
-  dateFrom?: Date;
-  dateTo?: Date;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: SortOrder;
+	limit: number;
+	offset: number;
+	tier?: number;
+	qualityClass?: string;
+	isValid?: boolean;
+	agent?: string;
+	category?: string;
+	tag?: string;
+	dateFrom?: Date;
+	dateTo?: Date;
+	search?: string;
+	sortBy?: string;
+	sortOrder?: SortOrder;
 }
 
 export interface ScrapeCandidatesParams {
-  limit: number;
-  offset: number;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: SortOrder;
+	limit: number;
+	offset: number;
+	search?: string;
+	sortBy?: string;
+	sortOrder?: SortOrder;
 }
 
 export interface SourceCountingContext {
-  useNewModel: boolean;
-  sourceValidationSettingsId: number | null;
+	useNewModel: boolean;
+	sourceValidationSettingsId: number | null;
 }
 
 export interface ReportSettingsProfile {
-  id: number;
-  name: string;
-  masterFileId: string;
-  prefix: number | null;
-  settings: unknown;
+	id: number;
+	name: string;
+	masterFileId: string;
+	prefix: number | null;
+	settings: unknown;
 }
 
 export interface ValidatorSettingsProfile {
-  id: number;
-  name: string;
-  settings: unknown;
+	id: number;
+	name: string;
+	settings: unknown;
 }
 
 export interface DeepDiveSettingsSnapshot {
-  reportId: number;
-  reportName: string | null;
-  reportDescription: string | null;
-  reportUseCaseId: number | null;
-  reportUseCaseName: string | null;
-  reportSettingsId: number | null;
-  sourceValidationSettingsId: number | null;
-  reportSettings: ReportSettingsProfile | null;
-  validatorSettings: ValidatorSettingsProfile | null;
+	reportId: number;
+	reportName: string | null;
+	reportDescription: string | null;
+	reportUseCaseId: number | null;
+	reportUseCaseName: string | null;
+	reportSettingsId: number | null;
+	sourceValidationSettingsId: number | null;
+	reportSettings: ReportSettingsProfile | null;
+	validatorSettings: ValidatorSettingsProfile | null;
 }
 
 export interface CompanyDataPointResultUpdateData {
-  value?: string | null;
-  manualValue?: string | null;
-  data?: Prisma.InputJsonValue;
-  status?: boolean;
+	value?: string | null;
+	manualValue?: string | null;
+	data?: Prisma.InputJsonValue;
+	status?: boolean;
 }
 
 export interface ReportModelUpdateRow {
-  dataPointId: string;
-  includeToReport: boolean;
+	dataPointId: string;
+	includeToReport: boolean;
+}
+
+export interface ReportDataPointSourcesRow {
+	company_id: number | null;
+	data: unknown;
 }
 
 export class DeepDiveRepository {
-  private static buildOrderBy(
-    sortBy: string | undefined,
-    sortOrder: SortOrder | undefined,
-    allowed: readonly string[],
-    fallbackColumn: string,
-    fallbackOrder: SortOrder = "desc",
-  ): Prisma.Sql {
-    const col = sortBy && allowed.includes(sortBy) ? sortBy : fallbackColumn;
-    const dir = sortOrder === "asc" ? Prisma.sql`ASC` : sortOrder === "desc" ? Prisma.sql`DESC` : (fallbackOrder === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`);
-    return Prisma.sql`ORDER BY ${Prisma.raw(`"${col}"`)} ${dir}`;
-  }
+	private static buildOrderBy(
+		sortBy: string | undefined,
+		sortOrder: SortOrder | undefined,
+		allowed: readonly string[],
+		fallbackColumn: string,
+		fallbackOrder: SortOrder = "desc",
+	): Prisma.Sql {
+		const col = sortBy && allowed.includes(sortBy) ? sortBy : fallbackColumn;
+		const dir =
+			sortOrder === "asc"
+				? Prisma.sql`ASC`
+				: sortOrder === "desc"
+					? Prisma.sql`DESC`
+					: fallbackOrder === "asc"
+						? Prisma.sql`ASC`
+						: Prisma.sql`DESC`;
+		return Prisma.sql`ORDER BY ${Prisma.raw(`"${col}"`)} ${dir}`;
+	}
 
-  static async createReport(data: {
-    name: string;
-    description?: string;
-    useCaseId?: number;
-    reportType: string;
-    reportSettings: { name: string; masterFileId: string; prefix: number | null; settings: unknown };
-    sourceValidationSettings: { name: string; settings: unknown };
-  }) {
-    return prisma.$transaction(async (tx) => {
-      // Compute next IDs for all three tables before any insert
-      const [{ _max: rsMax }, { _max: svsMax }, { _max: rMax }] = await Promise.all([
-        tx.report_settings.aggregate({ _max: { id: true } }),
-        tx.source_validation_settings.aggregate({ _max: { id: true } }),
-        tx.reports.aggregate({ _max: { id: true } }),
-      ]);
-      const rsId = (rsMax.id ?? 0) + 1;
-      const svsId = (svsMax.id ?? 0) + 1;
-      const reportId = (rMax.id ?? 0) + 1;
+	static async createReport(data: {
+		name: string;
+		description?: string;
+		useCaseId?: number;
+		reportType: string;
+		reportSettings: {
+			name: string;
+			masterFileId: string;
+			prefix: number | null;
+			settings: unknown;
+		};
+		sourceValidationSettings: { name: string; settings: unknown };
+	}) {
+		return prisma.$transaction(async (tx) => {
+			// Compute next IDs for all three tables before any insert
+			const [{ _max: rsMax }, { _max: svsMax }, { _max: rMax }] =
+				await Promise.all([
+					tx.report_settings.aggregate({ _max: { id: true } }),
+					tx.source_validation_settings.aggregate({ _max: { id: true } }),
+					tx.reports.aggregate({ _max: { id: true } }),
+				]);
+			const rsId = (rsMax.id ?? 0) + 1;
+			const svsId = (svsMax.id ?? 0) + 1;
+			const reportId = (rMax.id ?? 0) + 1;
 
-      const [rs, svs] = await Promise.all([
-        tx.report_settings.create({
-          data: {
-            id: rsId,
-            name: data.reportSettings.name,
-            master_file_id: data.reportSettings.masterFileId,
-            prefix: data.reportSettings.prefix,
-            settings: data.reportSettings.settings as Prisma.InputJsonValue,
-          },
-        }),
-        tx.source_validation_settings.create({
-          data: {
-            id: svsId,
-            name: data.sourceValidationSettings.name,
-            settings: data.sourceValidationSettings.settings as Prisma.InputJsonValue,
-          },
-        }),
-      ]);
+			const [rs, svs] = await Promise.all([
+				tx.report_settings.create({
+					data: {
+						id: rsId,
+						name: data.reportSettings.name,
+						master_file_id: data.reportSettings.masterFileId,
+						prefix: data.reportSettings.prefix,
+						settings: data.reportSettings.settings as Prisma.InputJsonValue,
+					},
+				}),
+				tx.source_validation_settings.create({
+					data: {
+						id: svsId,
+						name: data.sourceValidationSettings.name,
+						settings: data.sourceValidationSettings
+							.settings as Prisma.InputJsonValue,
+					},
+				}),
+			]);
 
-      const [report] = await Promise.all([
-        tx.reports.create({
-          data: {
-            id: reportId,
-            name: data.name,
-            description: data.description ?? null,
-            use_case_id: data.useCaseId ?? null,
-            report_type: data.reportType,
-            report_settings_id: rs.id,
-            source_validation_settings_id: svs.id,
-          },
-        }),
-        tx.report_orhestrator.create({
-          data: {
-            report_id: reportId,
-            status: report_status_enum.PENDING,
-            metadata: { parralel_limit: 1 },
-          },
-        }),
-      ]);
+			const [report] = await Promise.all([
+				tx.reports.create({
+					data: {
+						id: reportId,
+						name: data.name,
+						description: data.description ?? null,
+						use_case_id: data.useCaseId ?? null,
+						report_type: data.reportType,
+						report_settings_id: rs.id,
+						source_validation_settings_id: svs.id,
+					},
+				}),
+				tx.report_orhestrator.create({
+					data: {
+						report_id: reportId,
+						status: report_status_enum.PENDING,
+						metadata: { parralel_limit: 1 },
+					},
+				}),
+			]);
 
-      return report;
-    });
-  }
+			return report;
+		});
+	}
 
-  static async cloneReportRelatedData(
-    donorId: number,
-    newReportId: number,
-    options: { orchestrator: boolean; kpiModel: boolean; companies: boolean }
-  ) {
-    return prisma.$transaction(async (tx) => {
-      // Read all donor data first (reads are cheap inside tx)
-      const [donorOrchestrator, donorSteps, donorDataPoints, donorCompanies] = await Promise.all([
-        options.orchestrator ? tx.report_orhestrator.findUnique({ where: { report_id: donorId } }) : null,
-        options.orchestrator ? tx.report_steps.findMany({ where: { report_id: donorId } }) : [],
-        options.kpiModel ? tx.report_data_points.findMany({ where: { report_id: donorId } }) : [],
-        options.companies ? tx.report_companies.findMany({ where: { report_id: donorId } }) : [],
-      ]);
+	static async cloneReportRelatedData(
+		donorId: number,
+		newReportId: number,
+		options: { orchestrator: boolean; kpiModel: boolean; companies: boolean },
+	) {
+		return prisma.$transaction(async (tx) => {
+			// Read all donor data first (reads are cheap inside tx)
+			const [donorOrchestrator, donorSteps, donorDataPoints, donorCompanies] =
+				await Promise.all([
+					options.orchestrator
+						? tx.report_orhestrator.findUnique({
+								where: { report_id: donorId },
+							})
+						: null,
+					options.orchestrator
+						? tx.report_steps.findMany({ where: { report_id: donorId } })
+						: [],
+					options.kpiModel
+						? tx.report_data_points.findMany({ where: { report_id: donorId } })
+						: [],
+					options.companies
+						? tx.report_companies.findMany({ where: { report_id: donorId } })
+						: [],
+				]);
 
-      const writes: Promise<unknown>[] = [];
+			const writes: Promise<unknown>[] = [];
 
-      if (options.orchestrator) {
-        writes.push(
-          tx.report_orhestrator.update({
-            where: { report_id: newReportId },
-            data: { metadata: donorOrchestrator?.metadata ?? { parralel_limit: 1 } },
-          })
-        );
-        if (donorSteps.length > 0) {
-          writes.push(
-            tx.report_steps.createMany({
-              data: donorSteps.map((s) => ({
-                report_id: newReportId,
-                step_id: s.step_id,
-                step_order: s.step_order,
-              })),
-            })
-          );
-        }
-      }
+			if (options.orchestrator) {
+				writes.push(
+					tx.report_orhestrator.update({
+						where: { report_id: newReportId },
+						data: {
+							metadata: donorOrchestrator?.metadata ?? { parralel_limit: 1 },
+						},
+					}),
+				);
+				if (donorSteps.length > 0) {
+					writes.push(
+						tx.report_steps.createMany({
+							data: donorSteps.map((s) => ({
+								report_id: newReportId,
+								step_id: s.step_id,
+								step_order: s.step_order,
+							})),
+						}),
+					);
+				}
+			}
 
-      if (options.kpiModel && donorDataPoints.length > 0) {
-        writes.push(
-          tx.report_data_points.createMany({
-            data: donorDataPoints.map((dp) => ({
-              report_id: newReportId,
-              data_point_id: dp.data_point_id,
-              include_to_report: dp.include_to_report,
-            })),
-            skipDuplicates: true,
-          })
-        );
-      }
+			if (options.kpiModel && donorDataPoints.length > 0) {
+				writes.push(
+					tx.report_data_points.createMany({
+						data: donorDataPoints.map((dp) => ({
+							report_id: newReportId,
+							data_point_id: dp.data_point_id,
+							include_to_report: dp.include_to_report,
+						})),
+						skipDuplicates: true,
+					}),
+				);
+			}
 
-      if (options.companies && donorCompanies.length > 0) {
-        writes.push(
-          tx.report_companies.createMany({
-            data: donorCompanies.map((rc) => ({
-              report_id: newReportId,
-              company_id: rc.company_id,
-            })),
-            skipDuplicates: true,
-          })
-        );
-      }
+			if (options.companies && donorCompanies.length > 0) {
+				writes.push(
+					tx.report_companies.createMany({
+						data: donorCompanies.map((rc) => ({
+							report_id: newReportId,
+							company_id: rc.company_id,
+						})),
+						skipDuplicates: true,
+					}),
+				);
+			}
 
-      if (writes.length > 0) await Promise.all(writes);
-    });
-  }
+			if (writes.length > 0) await Promise.all(writes);
+		});
+	}
 
-  static async listReports(params: DeepDiveListParams) {
-    const where: Prisma.reportsWhereInput = {
-      report_type: { not: null },
-    };
+	static async listReports(params: DeepDiveListParams) {
+		const where: Prisma.reportsWhereInput = {
+			report_type: { not: null },
+		};
 
-    if (params.query) {
-      where.OR = [
-        { name: { contains: params.query, mode: "insensitive" } },
-        { description: { contains: params.query, mode: "insensitive" } },
-      ];
-    }
+		if (params.query) {
+			where.OR = [
+				{ name: { contains: params.query, mode: "insensitive" } },
+				{ description: { contains: params.query, mode: "insensitive" } },
+			];
+		}
 
-    if (params.status) {
-      where.report_orhestrator = { status: params.status };
-    }
+		if (params.status) {
+			where.report_orhestrator = { status: params.status };
+		}
 
-    if (params.useCaseId) {
-      where.use_case_id = params.useCaseId;
-    }
+		if (params.useCaseId) {
+			where.use_case_id = params.useCaseId;
+		}
 
-    if (params.industryId) {
-      where.report_companies = {
-        some: { companies: { industry_id: params.industryId } },
-      };
-    }
+		if (params.industryId) {
+			where.report_companies = {
+				some: { companies: { industry_id: params.industryId } },
+			};
+		}
 
-    if (params.reportType) {
-      where.report_type = params.reportType;
-    }
+		if (params.reportType) {
+			where.report_type = params.reportType;
+		}
 
-    const ALLOWED_SORT: Record<string, string> = {
-      id: "id",
-      name: "name",
-      created_at: "created_at",
-      updated_at: "updates_at",
-    };
-    const sortField: string = params.sortBy && ALLOWED_SORT[params.sortBy]
-      ? ALLOWED_SORT[params.sortBy]!
-      : "id";
-    const sortDir: Prisma.SortOrder = params.sortOrder === "asc" ? "asc" : "desc";
+		const ALLOWED_SORT: Record<string, string> = {
+			id: "id",
+			name: "name",
+			created_at: "created_at",
+			updated_at: "updates_at",
+		};
+		const sortField: string =
+			params.sortBy && ALLOWED_SORT[params.sortBy]
+				? ALLOWED_SORT[params.sortBy]!
+				: "id";
+		const sortDir: Prisma.SortOrder =
+			params.sortOrder === "asc" ? "asc" : "desc";
 
-    const [items, total] = await prisma.$transaction([
-      prisma.reports.findMany({
-        where,
-        orderBy: { [sortField]: sortDir },
-        skip: params.offset,
-        take: params.limit,
-        include: {
-          report_settings: true,
-          report_orhestrator: true,
-          use_cases: true,
-          report_companies: {
-            take: 1,
-            include: { companies: { include: { industries: true } } },
-          },
-          _count: {
-            select: {
-              report_companies: true,
-              report_steps: true,
-            },
-          },
-        },
-      }),
-      prisma.reports.count({ where }),
-    ]);
+		const [items, total] = await prisma.$transaction([
+			prisma.reports.findMany({
+				where,
+				orderBy: { [sortField]: sortDir },
+				skip: params.offset,
+				take: params.limit,
+				include: {
+					report_settings: true,
+					report_orhestrator: true,
+					use_cases: true,
+					report_companies: {
+						take: 1,
+						include: { companies: { include: { industries: true } } },
+					},
+					_count: {
+						select: {
+							report_companies: true,
+							report_steps: true,
+						},
+					},
+				},
+			}),
+			prisma.reports.count({ where }),
+		]);
 
-    return { items, total };
-  }
+		return { items, total };
+	}
 
-  static async getDistinctUseCasesForReports() {
-    return prisma.$queryRaw<Array<{ id: number; name: string }>>`
+	static async getDistinctUseCasesForReports() {
+		return prisma.$queryRaw<Array<{ id: number; name: string }>>`
       SELECT DISTINCT uc.id, uc.name
       FROM use_cases uc
       JOIN reports r ON r.use_case_id = uc.id
       ORDER BY uc.name
     `;
-  }
+	}
 
-  static async getDistinctIndustriesForReports() {
-    return prisma.$queryRaw<Array<{ id: number; name: string }>>`
+	static async getDistinctIndustriesForReports() {
+		return prisma.$queryRaw<Array<{ id: number; name: string }>>`
       SELECT DISTINCT i.id, i.name
       FROM industries i
       JOIN companies c ON c.industry_id = i.id
       JOIN report_companies rc ON rc.company_id = c.id
       ORDER BY i.name
     `;
-  }
+	}
 
-  static async getReportById(reportId: number) {
-    return prisma.reports.findUnique({
-      where: { id: reportId },
-      include: {
-        report_settings: true,
-        report_orhestrator: true,
-        use_cases: true,
-      },
-    });
-  }
+	static async getReportById(reportId: number) {
+		return prisma.reports.findUnique({
+			where: { id: reportId },
+			include: {
+				report_settings: true,
+				report_orhestrator: true,
+				use_cases: true,
+			},
+		});
+	}
 
-  static async getReportSettingsSnapshot(
-    reportId: number
-  ): Promise<DeepDiveSettingsSnapshot | null> {
-    const row = await prisma.reports.findUnique({
-      where: { id: reportId },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        use_case_id: true,
-        use_cases: { select: { id: true, name: true } },
-        report_settings_id: true,
-        source_validation_settings_id: true,
-        report_settings: true,
-        source_validation_settings: true,
-      },
-    });
-    if (!row) return null;
+	static async getReportSettingsSnapshot(
+		reportId: number,
+	): Promise<DeepDiveSettingsSnapshot | null> {
+		const row = await prisma.reports.findUnique({
+			where: { id: reportId },
+			select: {
+				id: true,
+				name: true,
+				description: true,
+				use_case_id: true,
+				use_cases: { select: { id: true, name: true } },
+				report_settings_id: true,
+				source_validation_settings_id: true,
+				report_settings: true,
+				source_validation_settings: true,
+			},
+		});
+		if (!row) return null;
 
-    return {
-      reportId: row.id,
-      reportName: row.name,
-      reportDescription: row.description ?? null,
-      reportUseCaseId: row.use_case_id ?? null,
-      reportUseCaseName: row.use_cases?.name ?? null,
-      reportSettingsId: row.report_settings_id,
-      sourceValidationSettingsId: row.source_validation_settings_id,
-      reportSettings: row.report_settings
-        ? {
-            id: row.report_settings.id,
-            name: row.report_settings.name,
-            masterFileId: row.report_settings.master_file_id,
-            prefix: row.report_settings.prefix,
-            settings: row.report_settings.settings,
-          }
-        : null,
-      validatorSettings: row.source_validation_settings
-        ? {
-            id: row.source_validation_settings.id,
-            name: row.source_validation_settings.name,
-            settings: row.source_validation_settings.settings,
-          }
-        : null,
-    };
-  }
+		return {
+			reportId: row.id,
+			reportName: row.name,
+			reportDescription: row.description ?? null,
+			reportUseCaseId: row.use_case_id ?? null,
+			reportUseCaseName: row.use_cases?.name ?? null,
+			reportSettingsId: row.report_settings_id,
+			sourceValidationSettingsId: row.source_validation_settings_id,
+			reportSettings: row.report_settings
+				? {
+						id: row.report_settings.id,
+						name: row.report_settings.name,
+						masterFileId: row.report_settings.master_file_id,
+						prefix: row.report_settings.prefix,
+						settings: row.report_settings.settings,
+					}
+				: null,
+			validatorSettings: row.source_validation_settings
+				? {
+						id: row.source_validation_settings.id,
+						name: row.source_validation_settings.name,
+						settings: row.source_validation_settings.settings,
+					}
+				: null,
+		};
+	}
 
-  static async listAllUseCases() {
-    return prisma.use_cases.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    });
-  }
+	static async listAllUseCases() {
+		return prisma.use_cases.findMany({
+			select: { id: true, name: true },
+			orderBy: { name: "asc" },
+		});
+	}
 
-  static async updateReportBasicInfo(
-    reportId: number,
-    data: { name?: string; description?: string | null; useCaseId?: number | null }
-  ) {
-    return prisma.reports.update({
-      where: { id: reportId },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.description !== undefined ? { description: data.description } : {}),
-        ...(data.useCaseId !== undefined ? { use_case_id: data.useCaseId } : {}),
-      },
-      select: { id: true, name: true, description: true, use_case_id: true },
-    });
-  }
+	static async updateReportBasicInfo(
+		reportId: number,
+		data: {
+			name?: string;
+			description?: string | null;
+			useCaseId?: number | null;
+		},
+	) {
+		return prisma.reports.update({
+			where: { id: reportId },
+			data: {
+				...(data.name !== undefined ? { name: data.name } : {}),
+				...(data.description !== undefined
+					? { description: data.description }
+					: {}),
+				...(data.useCaseId !== undefined
+					? { use_case_id: data.useCaseId }
+					: {}),
+			},
+			select: { id: true, name: true, description: true, use_case_id: true },
+		});
+	}
 
-  static async getReportModel(reportId: number) {
-    return prisma.report_data_points.findMany({
-      where: { report_id: reportId },
-      include: {
-        data_points: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            settings: true,
-            manual_method: true,
-          },
-        },
-      },
-    });
-  }
+	static async getReportModel(reportId: number) {
+		return prisma.report_data_points.findMany({
+			where: { report_id: reportId },
+			include: {
+				data_points: {
+					select: {
+						id: true,
+						name: true,
+						type: true,
+						settings: true,
+						manual_method: true,
+					},
+				},
+			},
+		});
+	}
 
-  static async getDataPointsByIds(ids: string[]) {
-    if (!ids.length) return [];
+	static async getDataPointsByIds(ids: string[]) {
+		if (!ids.length) return [];
 
-    return prisma.data_points.findMany({
-      where: {
-        id: {
-          in: ids,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-      },
-    });
-  }
+		return prisma.data_points.findMany({
+			where: {
+				id: {
+					in: ids,
+				},
+			},
+			select: {
+				id: true,
+				name: true,
+				type: true,
+			},
+		});
+	}
 
-  static async replaceReportModel(reportId: number, rows: ReportModelUpdateRow[]) {
-    return prisma.$transaction(async (tx) => {
-      await tx.report_data_points.deleteMany({
-        where: { report_id: reportId },
-      });
+	static async replaceReportModel(
+		reportId: number,
+		rows: ReportModelUpdateRow[],
+	) {
+		return prisma.$transaction(async (tx) => {
+			await tx.report_data_points.deleteMany({
+				where: { report_id: reportId },
+			});
 
-      if (!rows.length) return;
+			if (!rows.length) return;
 
-      await tx.report_data_points.createMany({
-        data: rows.map((row) => ({
-          report_id: reportId,
-          data_point_id: row.dataPointId,
-          include_to_report: row.includeToReport,
-        })),
-        skipDuplicates: true,
-      });
-    });
-  }
+			await tx.report_data_points.createMany({
+				data: rows.map((row) => ({
+					report_id: reportId,
+					data_point_id: row.dataPointId,
+					include_to_report: row.includeToReport,
+				})),
+				skipDuplicates: true,
+			});
+		});
+	}
 
-  static async listReportSettings(): Promise<ReportSettingsProfile[]> {
-    const rows = await prisma.report_settings.findMany({
-      orderBy: [{ name: "asc" }, { id: "asc" }],
-    });
+	static async listReportSettings(): Promise<ReportSettingsProfile[]> {
+		const rows = await prisma.report_settings.findMany({
+			orderBy: [{ name: "asc" }, { id: "asc" }],
+		});
 
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      masterFileId: row.master_file_id,
-      prefix: row.prefix,
-      settings: row.settings,
-    }));
-  }
+		return rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			masterFileId: row.master_file_id,
+			prefix: row.prefix,
+			settings: row.settings,
+		}));
+	}
 
-  static async listValidatorSettings(): Promise<ValidatorSettingsProfile[]> {
-    const rows = await prisma.source_validation_settings.findMany({
-      orderBy: [{ name: "asc" }, { id: "asc" }],
-    });
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      settings: row.settings,
-    }));
-  }
+	static async listValidatorSettings(): Promise<ValidatorSettingsProfile[]> {
+		const rows = await prisma.source_validation_settings.findMany({
+			orderBy: [{ name: "asc" }, { id: "asc" }],
+		});
+		return rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			settings: row.settings,
+		}));
+	}
 
-  static async getReportSettingsById(
-    id: number
-  ): Promise<ReportSettingsProfile | null> {
-    const row = await prisma.report_settings.findUnique({ where: { id } });
-    if (!row) return null;
+	static async getReportSettingsById(
+		id: number,
+	): Promise<ReportSettingsProfile | null> {
+		const row = await prisma.report_settings.findUnique({ where: { id } });
+		if (!row) return null;
 
-    return {
-      id: row.id,
-      name: row.name,
-      masterFileId: row.master_file_id,
-      prefix: row.prefix,
-      settings: row.settings,
-    };
-  }
+		return {
+			id: row.id,
+			name: row.name,
+			masterFileId: row.master_file_id,
+			prefix: row.prefix,
+			settings: row.settings,
+		};
+	}
 
-  static async getValidatorSettingsById(
-    id: number
-  ): Promise<ValidatorSettingsProfile | null> {
-    const row = await prisma.source_validation_settings.findUnique({ where: { id } });
-    if (!row) return null;
-    return {
-      id: row.id,
-      name: row.name,
-      settings: row.settings,
-    };
-  }
+	static async getValidatorSettingsById(
+		id: number,
+	): Promise<ValidatorSettingsProfile | null> {
+		const row = await prisma.source_validation_settings.findUnique({
+			where: { id },
+		});
+		if (!row) return null;
+		return {
+			id: row.id,
+			name: row.name,
+			settings: row.settings,
+		};
+	}
 
-  static async createReportSettings(data: {
-    name: string;
-    masterFileId: string;
-    prefix: number | null;
-    settings: unknown;
-  }): Promise<ReportSettingsProfile> {
-    const { _max } = await prisma.report_settings.aggregate({ _max: { id: true } });
-    const nextId = (_max.id ?? 0) + 1;
+	static async createReportSettings(data: {
+		name: string;
+		masterFileId: string;
+		prefix: number | null;
+		settings: unknown;
+	}): Promise<ReportSettingsProfile> {
+		const { _max } = await prisma.report_settings.aggregate({
+			_max: { id: true },
+		});
+		const nextId = (_max.id ?? 0) + 1;
 
-    const created = await prisma.report_settings.create({
-      data: {
-        id: nextId,
-        name: data.name,
-        master_file_id: data.masterFileId,
-        prefix: data.prefix,
-        settings: data.settings as Prisma.InputJsonValue,
-      },
-    });
+		const created = await prisma.report_settings.create({
+			data: {
+				id: nextId,
+				name: data.name,
+				master_file_id: data.masterFileId,
+				prefix: data.prefix,
+				settings: data.settings as Prisma.InputJsonValue,
+			},
+		});
 
-    return {
-      id: created.id,
-      name: created.name,
-      masterFileId: created.master_file_id,
-      prefix: created.prefix,
-      settings: created.settings,
-    };
-  }
+		return {
+			id: created.id,
+			name: created.name,
+			masterFileId: created.master_file_id,
+			prefix: created.prefix,
+			settings: created.settings,
+		};
+	}
 
-  static async createValidatorSettings(data: {
-    name: string;
-    settings: unknown;
-  }): Promise<ValidatorSettingsProfile> {
-    const { _max } = await prisma.source_validation_settings.aggregate({ _max: { id: true } });
-    const nextId = (_max.id ?? 0) + 1;
+	static async createValidatorSettings(data: {
+		name: string;
+		settings: unknown;
+	}): Promise<ValidatorSettingsProfile> {
+		const { _max } = await prisma.source_validation_settings.aggregate({
+			_max: { id: true },
+		});
+		const nextId = (_max.id ?? 0) + 1;
 
-    const created = await prisma.source_validation_settings.create({
-      data: {
-        id: nextId,
-        name: data.name,
-        settings: data.settings as Prisma.InputJsonValue,
-      },
-    });
-    return {
-      id: created.id,
-      name: created.name,
-      settings: created.settings,
-    };
-  }
+		const created = await prisma.source_validation_settings.create({
+			data: {
+				id: nextId,
+				name: data.name,
+				settings: data.settings as Prisma.InputJsonValue,
+			},
+		});
+		return {
+			id: created.id,
+			name: created.name,
+			settings: created.settings,
+		};
+	}
 
-  static async updateReportSettingsReferences(
-    reportId: number,
-    reportSettingsId: number | null,
-    sourceValidationSettingsId: number | null
-  ): Promise<boolean> {
-    const result = await prisma.reports.updateMany({
-      where: { id: reportId },
-      data: {
-        report_settings_id: reportSettingsId,
-        source_validation_settings_id: sourceValidationSettingsId,
-      },
-    });
-    return result.count > 0;
-  }
+	static async updateReportSettingsReferences(
+		reportId: number,
+		reportSettingsId: number | null,
+		sourceValidationSettingsId: number | null,
+	): Promise<boolean> {
+		const result = await prisma.reports.updateMany({
+			where: { id: reportId },
+			data: {
+				report_settings_id: reportSettingsId,
+				source_validation_settings_id: sourceValidationSettingsId,
+			},
+		});
+		return result.count > 0;
+	}
 
-  static async updateReportSettingsData(
-    id: number,
-    data: {
-      name?: string;
-      masterFileId?: string;
-      prefix?: number | null;
-      settings?: Record<string, unknown>;
-    }
-  ) {
-    return prisma.report_settings.update({
-      where: { id },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.masterFileId !== undefined ? { master_file_id: data.masterFileId } : {}),
-        ...(data.prefix !== undefined ? { prefix: data.prefix } : {}),
-        ...(data.settings !== undefined ? { settings: data.settings as Prisma.InputJsonValue } : {}),
-      },
-    });
-  }
+	static async updateReportSettingsData(
+		id: number,
+		data: {
+			name?: string;
+			masterFileId?: string;
+			prefix?: number | null;
+			settings?: Record<string, unknown>;
+		},
+	) {
+		return prisma.report_settings.update({
+			where: { id },
+			data: {
+				...(data.name !== undefined ? { name: data.name } : {}),
+				...(data.masterFileId !== undefined
+					? { master_file_id: data.masterFileId }
+					: {}),
+				...(data.prefix !== undefined ? { prefix: data.prefix } : {}),
+				...(data.settings !== undefined
+					? { settings: data.settings as Prisma.InputJsonValue }
+					: {}),
+			},
+		});
+	}
 
-  static async updateValidatorSettingsData(
-    id: number,
-    data: {
-      name?: string;
-      settings?: Record<string, unknown>;
-    }
-  ) {
-    return prisma.source_validation_settings.update({
-      where: { id },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.settings !== undefined ? { settings: data.settings as Prisma.InputJsonValue } : {}),
-      },
-    });
-  }
+	static async updateValidatorSettingsData(
+		id: number,
+		data: {
+			name?: string;
+			settings?: Record<string, unknown>;
+		},
+	) {
+		return prisma.source_validation_settings.update({
+			where: { id },
+			data: {
+				...(data.name !== undefined ? { name: data.name } : {}),
+				...(data.settings !== undefined
+					? { settings: data.settings as Prisma.InputJsonValue }
+					: {}),
+			},
+		});
+	}
 
-  static async getReportSteps(reportId: number) {
-    return prisma.report_steps.findMany({
-      where: { report_id: reportId },
-      orderBy: { step_order: "asc" },
-      include: {
-        report_generation_steps: true,
-      },
-    });
-  }
+	static async getReportSteps(reportId: number) {
+		return prisma.report_steps.findMany({
+			where: { report_id: reportId },
+			orderBy: { step_order: "asc" },
+			include: {
+				report_generation_steps: true,
+			},
+		});
+	}
 
-  static async getReportStepsCount(reportId: number) {
-    return prisma.report_steps.count({
-      where: { report_id: reportId },
-    });
-  }
+	static async getReportStepsCount(reportId: number) {
+		return prisma.report_steps.count({
+			where: { report_id: reportId },
+		});
+	}
 
-  static async getReportQueries(reportId: number) {
-    return prisma.report_data_collection_queries.findMany({
-      where: { report_id: reportId },
-      include: {
-        data_collection_queries: true,
-      },
-    });
-  }
+	static async getReportQueries(reportId: number) {
+		return prisma.report_data_collection_queries.findMany({
+			where: { report_id: reportId },
+			include: {
+				data_collection_queries: true,
+			},
+		});
+	}
 
-  static async getReportCompanies(reportId: number) {
-    return prisma.report_companies.findMany({
-      where: { report_id: reportId },
-      include: {
-        companies: true,
-      },
-    });
-  }
+	static async getReportCompanies(reportId: number) {
+		return prisma.report_companies.findMany({
+			where: { report_id: reportId },
+			include: {
+				companies: true,
+			},
+		});
+	}
 
-  static async createCompanyAndLink(
-    reportId: number,
-    data: {
-      name: string;
-      url?: string | null;
-      countryCode?: string | null;
-      industryId?: number | null;
-      investPortal?: string | null;
-      careerPortal?: string | null;
-      slug?: string | null;
-      reportRole?: string | null;
-      additionalData?: unknown;
-    }
-  ) {
-    return prisma.$transaction(async (tx) => {
-      const company = await tx.companies.create({
-        data: {
-          name: data.name,
-          url: data.url ?? null,
-          country_code: data.countryCode ?? null,
-          ...(data.industryId != null
-            ? { industries: { connect: { id: data.industryId } } }
-            : {}),
-          invest_portal: data.investPortal ?? null,
-          career_portal: data.careerPortal ?? null,
-          slug: data.slug ?? null,
-          report_role: data.reportRole ?? null,
-          ...(data.additionalData != null
-            ? { additional_data: data.additionalData as Parameters<typeof tx.companies.create>[0]["data"]["additional_data"] }
-            : {}),
-        },
-      });
+	static async createCompanyAndLink(
+		reportId: number,
+		data: {
+			name: string;
+			url?: string | null;
+			countryCode?: string | null;
+			industryId?: number | null;
+			investPortal?: string | null;
+			careerPortal?: string | null;
+			slug?: string | null;
+			reportRole?: string | null;
+			additionalData?: unknown;
+		},
+	) {
+		return prisma.$transaction(async (tx) => {
+			const company = await tx.companies.create({
+				data: {
+					name: data.name,
+					url: data.url ?? null,
+					country_code: data.countryCode ?? null,
+					...(data.industryId != null
+						? { industries: { connect: { id: data.industryId } } }
+						: {}),
+					invest_portal: data.investPortal ?? null,
+					career_portal: data.careerPortal ?? null,
+					slug: data.slug ?? null,
+					report_role: data.reportRole ?? null,
+					...(data.additionalData != null
+						? {
+								additional_data: data.additionalData as Parameters<
+									typeof tx.companies.create
+								>[0]["data"]["additional_data"],
+							}
+						: {}),
+				},
+			});
 
-      await tx.report_companies.create({
-        data: { report_id: reportId, company_id: company.id },
-      });
+			await tx.report_companies.create({
+				data: { report_id: reportId, company_id: company.id },
+			});
 
-      return company;
-    });
-  }
+			return company;
+		});
+	}
 
-  static async linkCompanyToReport(reportId: number, companyId: number) {
-    return prisma.report_companies.create({
-      data: { report_id: reportId, company_id: companyId },
-    });
-  }
+	static async linkCompanyToReport(reportId: number, companyId: number) {
+		return prisma.report_companies.create({
+			data: { report_id: reportId, company_id: companyId },
+		});
+	}
 
-  static async updateCompany(
-    companyId: number,
-    data: {
-      name?: string;
-      url?: string | null;
-      countryCode?: string | null;
-      industryId?: number | null;
-      investPortal?: string | null;
-      careerPortal?: string | null;
-      slug?: string | null;
-      reportRole?: string | null;
-      additionalData?: unknown;
-    }
-  ) {
-    return prisma.companies.update({
-      where: { id: companyId },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.url !== undefined ? { url: data.url } : {}),
-        ...(data.countryCode !== undefined ? { country_code: data.countryCode } : {}),
-        ...(data.industryId !== undefined
-          ? data.industryId != null
-            ? { industries: { connect: { id: data.industryId } } }
-            : { industries: { disconnect: true } }
-          : {}),
-        ...(data.investPortal !== undefined ? { invest_portal: data.investPortal } : {}),
-        ...(data.careerPortal !== undefined ? { career_portal: data.careerPortal } : {}),
-        ...(data.slug !== undefined ? { slug: data.slug } : {}),
-        ...(data.reportRole !== undefined ? { report_role: data.reportRole } : {}),
-        ...(data.additionalData !== undefined
-          ? { additional_data: data.additionalData as Parameters<typeof prisma.companies.update>[0]["data"]["additional_data"] }
-          : {}),
-      },
-    });
-  }
+	static async updateCompany(
+		companyId: number,
+		data: {
+			name?: string;
+			url?: string | null;
+			countryCode?: string | null;
+			industryId?: number | null;
+			investPortal?: string | null;
+			careerPortal?: string | null;
+			slug?: string | null;
+			reportRole?: string | null;
+			additionalData?: unknown;
+		},
+	) {
+		return prisma.companies.update({
+			where: { id: companyId },
+			data: {
+				...(data.name !== undefined ? { name: data.name } : {}),
+				...(data.url !== undefined ? { url: data.url } : {}),
+				...(data.countryCode !== undefined
+					? { country_code: data.countryCode }
+					: {}),
+				...(data.industryId !== undefined
+					? data.industryId != null
+						? { industries: { connect: { id: data.industryId } } }
+						: { industries: { disconnect: true } }
+					: {}),
+				...(data.investPortal !== undefined
+					? { invest_portal: data.investPortal }
+					: {}),
+				...(data.careerPortal !== undefined
+					? { career_portal: data.careerPortal }
+					: {}),
+				...(data.slug !== undefined ? { slug: data.slug } : {}),
+				...(data.reportRole !== undefined
+					? { report_role: data.reportRole }
+					: {}),
+				...(data.additionalData !== undefined
+					? {
+							additional_data: data.additionalData as Parameters<
+								typeof prisma.companies.update
+							>[0]["data"]["additional_data"],
+						}
+					: {}),
+			},
+		});
+	}
 
-  static async searchCompaniesByName(query: string, limit = 20) {
-    return prisma.companies.findMany({
-      where: { name: { contains: query, mode: "insensitive" } },
-      select: { id: true, name: true, country_code: true, url: true },
-      orderBy: { name: "asc" },
-      take: limit,
-    });
-  }
+	static async searchCompaniesByName(query: string, limit = 20) {
+		return prisma.companies.findMany({
+			where: { name: { contains: query, mode: "insensitive" } },
+			select: { id: true, name: true, country_code: true, url: true },
+			orderBy: { name: "asc" },
+			take: limit,
+		});
+	}
 
-  static async getReportCompaniesCount(reportId: number) {
-    return prisma.report_companies.count({
-      where: { report_id: reportId },
-    });
-  }
+	static async getReportCompaniesCount(reportId: number) {
+		return prisma.report_companies.count({
+			where: { report_id: reportId },
+		});
+	}
 
-  static async getReportStepStatusSummary(reportId: number) {
-    return prisma.report_step_statuses.groupBy({
-      by: ["status"],
-      where: { report_id: reportId },
-      _count: { _all: true },
-    });
-  }
+	static async getReportStepStatusSummary(reportId: number) {
+		return prisma.report_step_statuses.groupBy({
+			by: ["status"],
+			where: { report_id: reportId },
+			_count: { _all: true },
+		});
+	}
 
-  static async getCompanyStepStatusSummary(
-    reportId: number,
-    companyIds: number[],
-  ) {
-    if (companyIds.length === 0) return [];
+	static async getCompanyStepStatusSummary(
+		reportId: number,
+		companyIds: number[],
+	) {
+		if (companyIds.length === 0) return [];
 
-    return prisma.report_step_statuses.groupBy({
-      by: ["company_id", "status"],
-      where: {
-        report_id: reportId,
-        company_id: { in: companyIds },
-      },
-      _count: { _all: true },
-    });
-  }
+		return prisma.report_step_statuses.groupBy({
+			by: ["company_id", "status"],
+			where: {
+				report_id: reportId,
+				company_id: { in: companyIds },
+			},
+			_count: { _all: true },
+		});
+	}
 
-  static async getCompanyStepStatusLatest(
-    reportId: number,
-    companyIds: number[],
-  ) {
-    if (companyIds.length === 0) return [];
+	static async getCompanyStepStatusLatest(
+		reportId: number,
+		companyIds: number[],
+	) {
+		if (companyIds.length === 0) return [];
 
-    return prisma.report_step_statuses.groupBy({
-      by: ["company_id"],
-      where: {
-        report_id: reportId,
-        company_id: { in: companyIds },
-      },
-      _max: { updated_at: true },
-    });
-  }
+		return prisma.report_step_statuses.groupBy({
+			by: ["company_id"],
+			where: {
+				report_id: reportId,
+				company_id: { in: companyIds },
+			},
+			_max: { updated_at: true },
+		});
+	}
 
-  static async getReportResults(reportId: number) {
-    return prisma.report_results.findMany({
-      where: { report_id: reportId },
-    });
-  }
+	static async getReportResults(reportId: number) {
+		return prisma.report_results.findMany({
+			where: { report_id: reportId },
+		});
+	}
 
-  static async getCompany(reportId: number, companyId: number) {
-    const reportCompany = await prisma.report_companies.findUnique({
-      where: {
-        report_id_company_id: {
-          report_id: reportId,
-          company_id: companyId,
-        },
-      },
-      include: { companies: true },
-    });
+	static async getCompany(reportId: number, companyId: number) {
+		const reportCompany = await prisma.report_companies.findUnique({
+			where: {
+				report_id_company_id: {
+					report_id: reportId,
+					company_id: companyId,
+				},
+			},
+			include: { companies: true },
+		});
 
-    return reportCompany?.companies ?? null;
-  }
+		return reportCompany?.companies ?? null;
+	}
 
-  static async getCompanyStepStatuses(reportId: number, companyId: number) {
-    return prisma.report_step_statuses.findMany({
-      where: { report_id: reportId, company_id: companyId },
-      include: { report_generation_steps: true },
-    });
-  }
+	static async getCompanyStepStatuses(reportId: number, companyId: number) {
+		return prisma.report_step_statuses.findMany({
+			where: { report_id: reportId, company_id: companyId },
+			include: { report_generation_steps: true },
+		});
+	}
 
-  static async getCompanyKpiResults(reportId: number, companyId: number) {
-    return prisma.report_data_point_results.findMany({
-      where: { report_id: reportId, company_id: companyId },
-      include: { data_points: true },
-      orderBy: { updates_at: "desc" },
-    });
-  }
+	static async getCompanyKpiResults(reportId: number, companyId: number) {
+		return prisma.report_data_point_results.findMany({
+			where: { report_id: reportId, company_id: companyId },
+			include: { data_points: true },
+			orderBy: { updates_at: "desc" },
+		});
+	}
 
-  static async getCompanyDataPointResultById(
-    reportId: number,
-    companyId: number,
-    resultId: number,
-  ) {
-    return prisma.report_data_point_results.findFirst({
-      where: {
-        id: resultId,
-        report_id: reportId,
-        company_id: companyId,
-      },
-      include: { data_points: true },
-    });
-  }
+	static async getCompanyDataPointResultById(
+		reportId: number,
+		companyId: number,
+		resultId: number,
+	) {
+		return prisma.report_data_point_results.findFirst({
+			where: {
+				id: resultId,
+				report_id: reportId,
+				company_id: companyId,
+			},
+			include: { data_points: true },
+		});
+	}
 
-  static async updateCompanyDataPointResult(
-    resultId: number,
-    data: CompanyDataPointResultUpdateData,
-  ) {
-    return prisma.report_data_point_results.update({
-      where: { id: resultId },
-      data,
-      include: { data_points: true },
-    });
-  }
+	static async updateCompanyDataPointResult(
+		resultId: number,
+		data: CompanyDataPointResultUpdateData,
+	) {
+		return prisma.report_data_point_results.update({
+			where: { id: resultId },
+			data,
+			include: { data_points: true },
+		});
+	}
 
-  static async getCompanyScrapCandidates(
-    reportId: number,
-    companyId: number,
-    limit: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getReportDataPointSources(
+		reportId: number,
+	): Promise<ReportDataPointSourcesRow[]> {
+		return prisma.report_data_point_results.findMany({
+			where: { report_id: reportId },
+			select: {
+				company_id: true,
+				data: true,
+			},
+		});
+	}
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      return prisma.$queryRaw<Array<{
-        id: number;
-        title: string | null;
-        description: string | null;
-        url: string;
-        status: string;
-        metadata: unknown;
-        created_at: Date | null;
-        updated_at: Date | null;
-      }>>(
-        Prisma.sql`
+	static async getCompanyScrapCandidates(
+		reportId: number,
+		companyId: number,
+		limit: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
+
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			return prisma.$queryRaw<
+				Array<{
+					id: number;
+					title: string | null;
+					description: string | null;
+					url: string;
+					status: string;
+					metadata: unknown;
+					created_at: Date | null;
+					updated_at: Date | null;
+				}>
+			>(
+				Prisma.sql`
           WITH dedup AS (
             SELECT
               MIN(ruc.id)::int AS id,
@@ -889,27 +981,31 @@ export class DeepDiveRepository {
           FROM dedup
           ORDER BY sort_id DESC
           LIMIT ${limit}
-        `
-      );
-    }
+        `,
+			);
+		}
 
-    return prisma.scape_url_candidates.findMany({
-      where: { company_id: companyId },
-      orderBy: { created_at: "desc" },
-      take: limit,
-    });
-  }
+		return prisma.scape_url_candidates.findMany({
+			where: { company_id: companyId },
+			orderBy: { created_at: "desc" },
+			take: limit,
+		});
+	}
 
-  static async getCompanyScrapCandidatesCount(
-    reportId: number,
-    companyId: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getCompanyScrapCandidatesCount(
+		reportId: number,
+		companyId: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const result = await prisma.$queryRaw<[{ count: number }]>(
-        Prisma.sql`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const result = await prisma.$queryRaw<[{ count: number }]>(
+				Prisma.sql`
           SELECT COUNT(*)::int AS count
           FROM (
             SELECT regexp_replace(lower(trim(ruc.url)), '/+$', '') AS normalized_url
@@ -918,31 +1014,31 @@ export class DeepDiveRepository {
               AND ruc.company_id = ${companyId}
             GROUP BY normalized_url
           ) dedup
-        `
-      );
-      return result[0]?.count ?? 0;
-    }
+        `,
+			);
+			return result[0]?.count ?? 0;
+		}
 
-    return prisma.scape_url_candidates.count({
-      where: { company_id: companyId },
-    });
-  }
+		return prisma.scape_url_candidates.count({
+			where: { company_id: companyId },
+		});
+	}
 
-  static async getReportQueriesCount(reportId: number) {
-    return prisma.report_data_collection_queries.count({
-      where: { report_id: reportId },
-    });
-  }
+	static async getReportQueriesCount(reportId: number) {
+		return prisma.report_data_collection_queries.count({
+			where: { report_id: reportId },
+		});
+	}
 
-  static async getKpiCategoryScoresByCompany(reportId: number) {
-    return prisma.$queryRaw<
-      Array<{
-        company_id: number;
-        company_name: string;
-        category: string;
-        avg_score: number;
-      }>
-    >`
+	static async getKpiCategoryScoresByCompany(reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				company_id: number;
+				company_name: string;
+				category: string;
+				avg_score: number;
+			}>
+		>`
       SELECT
         rdpr.company_id,
         c.name AS company_name,
@@ -958,13 +1054,17 @@ export class DeepDiveRepository {
       GROUP BY rdpr.company_id, c.name, dp.name
       ORDER BY rdpr.company_id, dp.name
     `;
-  }
+	}
 
-  static async getSourceCountingContext(reportId: number): Promise<SourceCountingContext> {
-    const result = await prisma.$queryRaw<Array<{
-      source_validation_settings_id: number | null;
-      use_new_model: boolean;
-    }>>`
+	static async getSourceCountingContext(
+		reportId: number,
+	): Promise<SourceCountingContext> {
+		const result = await prisma.$queryRaw<
+			Array<{
+				source_validation_settings_id: number | null;
+				use_new_model: boolean;
+			}>
+		>`
       SELECT
         r.source_validation_settings_id,
         CASE
@@ -983,51 +1083,59 @@ export class DeepDiveRepository {
       LIMIT 1
     `;
 
-    const row = Array.isArray(result) ? result[0] : undefined;
-    if (!row) {
-      return { useNewModel: false, sourceValidationSettingsId: null };
-    }
+		const row = Array.isArray(result) ? result[0] : undefined;
+		if (!row) {
+			return { useNewModel: false, sourceValidationSettingsId: null };
+		}
 
-    return {
-      useNewModel: row.use_new_model,
-      sourceValidationSettingsId: row.source_validation_settings_id,
-    };
-  }
+		return {
+			useNewModel: row.use_new_model,
+			sourceValidationSettingsId: row.source_validation_settings_id,
+		};
+	}
 
-  static async getReportSourcesCount(
-    reportId: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getReportSourcesCount(
+		reportId: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const result = await prisma.$queryRaw<[{ total: number }]>`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const result = await prisma.$queryRaw<[{ total: number }]>`
         SELECT COUNT(DISTINCT sm.source_id)::int AS total
         FROM report_companies rc
         JOIN source_metadata sm ON sm.company_id = rc.company_id
         WHERE rc.report_id = ${reportId}
           AND sm.source_validation_settings_id = ${sourceContext.sourceValidationSettingsId}
       `;
-      return result?.[0]?.total ?? 0;
-    }
+			return result?.[0]?.total ?? 0;
+		}
 
-    const legacy = await prisma.$queryRaw<[{ total: number }]>`
+		const legacy = await prisma.$queryRaw<[{ total: number }]>`
       SELECT COUNT(*)::int AS total
       FROM report_companies rc
       JOIN sources s ON s.company_id = rc.company_id
       WHERE rc.report_id = ${reportId}
     `;
-    return legacy?.[0]?.total ?? 0;
-  }
+		return legacy?.[0]?.total ?? 0;
+	}
 
-  static async getReportUsedSourcesCount(
-    reportId: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getReportUsedSourcesCount(
+		reportId: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const result = await prisma.$queryRaw<[{ total: number }]>`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const result = await prisma.$queryRaw<[{ total: number }]>`
         WITH extracted AS (
           SELECT
             rdpr.company_id,
@@ -1050,10 +1158,10 @@ export class DeepDiveRepository {
         WHERE sm.source_validation_settings_id = ${sourceContext.sourceValidationSettingsId}
           AND COALESCE((sm.metadata ->> 'isValid')::boolean, false) = true
       `;
-      return result?.[0]?.total ?? 0;
-    }
+			return result?.[0]?.total ?? 0;
+		}
 
-    const legacy = await prisma.$queryRaw<[{ total: number }]>`
+		const legacy = await prisma.$queryRaw<[{ total: number }]>`
       WITH extracted AS (
         SELECT
           rdpr.company_id,
@@ -1072,17 +1180,21 @@ export class DeepDiveRepository {
         ON s.company_id = e.company_id
        AND regexp_replace(lower(trim(s.url)), '/+$', '') = e.normalized_url
     `;
-    return legacy?.[0]?.total ?? 0;
-  }
+		return legacy?.[0]?.total ?? 0;
+	}
 
-  static async getReportScrapeCandidatesCount(
-    reportId: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getReportScrapeCandidatesCount(
+		reportId: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const result = await prisma.$queryRaw<[{ total: number }]>`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const result = await prisma.$queryRaw<[{ total: number }]>`
         SELECT COUNT(*)::int AS total
         FROM (
           SELECT
@@ -1093,27 +1205,33 @@ export class DeepDiveRepository {
           GROUP BY company_id, normalized_url
         ) dedup
       `;
-      return result?.[0]?.total ?? 0;
-    }
+			return result?.[0]?.total ?? 0;
+		}
 
-    const legacy = await prisma.$queryRaw<[{ total: number }]>`
+		const legacy = await prisma.$queryRaw<[{ total: number }]>`
       SELECT COUNT(*)::int AS total
       FROM scape_url_candidates suc
       WHERE suc.company_id IN (
         SELECT rc.company_id FROM report_companies rc WHERE rc.report_id = ${reportId}
       )
     `;
-    return legacy?.[0]?.total ?? 0;
-  }
+		return legacy?.[0]?.total ?? 0;
+	}
 
-  static async getPerCompanySourcesCount(
-    reportId: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getPerCompanySourcesCount(
+		reportId: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const rows = await prisma.$queryRaw<Array<{ company_id: number; total: number; valid_count: number }>>`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const rows = await prisma.$queryRaw<
+				Array<{ company_id: number; total: number; valid_count: number }>
+			>`
         SELECT
           rc.company_id,
           COUNT(DISTINCT sm.source_id)::int AS total,
@@ -1126,10 +1244,12 @@ export class DeepDiveRepository {
         WHERE rc.report_id = ${reportId}
         GROUP BY rc.company_id
       `;
-      return rows ?? [];
-    }
+			return rows ?? [];
+		}
 
-    const legacyRows = await prisma.$queryRaw<Array<{ company_id: number; total: number; valid_count: number }>>`
+		const legacyRows = await prisma.$queryRaw<
+			Array<{ company_id: number; total: number; valid_count: number }>
+		>`
       SELECT rc.company_id,
         COUNT(s.id)::int AS total,
         COUNT(CASE WHEN (s.metadata ->> 'isValid')::boolean = true THEN 1 END)::int AS valid_count
@@ -1138,17 +1258,23 @@ export class DeepDiveRepository {
       WHERE rc.report_id = ${reportId}
       GROUP BY rc.company_id
     `;
-    return legacyRows ?? [];
-  }
+		return legacyRows ?? [];
+	}
 
-  static async getPerCompanyUsedSourcesCount(
-    reportId: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getPerCompanyUsedSourcesCount(
+		reportId: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const rows = await prisma.$queryRaw<Array<{ company_id: number; total: number }>>`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const rows = await prisma.$queryRaw<
+				Array<{ company_id: number; total: number }>
+			>`
         WITH extracted AS (
           SELECT
             rdpr.company_id,
@@ -1182,10 +1308,12 @@ export class DeepDiveRepository {
         WHERE rc.report_id = ${reportId}
         GROUP BY rc.company_id
       `;
-      return rows ?? [];
-    }
+			return rows ?? [];
+		}
 
-    const legacyRows = await prisma.$queryRaw<Array<{ company_id: number; total: number }>>`
+		const legacyRows = await prisma.$queryRaw<
+			Array<{ company_id: number; total: number }>
+		>`
       WITH extracted AS (
         SELECT
           rdpr.company_id,
@@ -1215,17 +1343,23 @@ export class DeepDiveRepository {
       WHERE rc.report_id = ${reportId}
       GROUP BY rc.company_id
     `;
-    return legacyRows ?? [];
-  }
+		return legacyRows ?? [];
+	}
 
-  static async getPerCompanyCandidatesCount(
-    reportId: number,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getPerCompanyCandidatesCount(
+		reportId: number,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const rows = await prisma.$queryRaw<Array<{ company_id: number; total: number }>>`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const rows = await prisma.$queryRaw<
+				Array<{ company_id: number; total: number }>
+			>`
         WITH dedup AS (
           SELECT
             company_id,
@@ -1243,67 +1377,84 @@ export class DeepDiveRepository {
         WHERE rc.report_id = ${reportId}
         GROUP BY rc.company_id
       `;
-      return rows ?? [];
-    }
+			return rows ?? [];
+		}
 
-    const legacyRows = await prisma.$queryRaw<Array<{ company_id: number; total: number }>>`
+		const legacyRows = await prisma.$queryRaw<
+			Array<{ company_id: number; total: number }>
+		>`
       SELECT rc.company_id, COUNT(suc.id)::int AS total
       FROM report_companies rc
       LEFT JOIN scape_url_candidates suc ON suc.company_id = rc.company_id
       WHERE rc.report_id = ${reportId}
       GROUP BY rc.company_id
     `;
-    return legacyRows ?? [];
-  }
+		return legacyRows ?? [];
+	}
 
-  static async getCompanySources(
-    reportId: number,
-    companyId: number,
-    filters: SourceFilterParams,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getCompanySources(
+		reportId: number,
+		companyId: number,
+		filters: SourceFilterParams,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const w = () => {
-        const conditions: Prisma.Sql[] = [
-          Prisma.sql`sm.company_id = ${companyId}`,
-          Prisma.sql`sm.source_validation_settings_id = ${sourceContext.sourceValidationSettingsId}`,
-        ];
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const w = () => {
+				const conditions: Prisma.Sql[] = [
+					Prisma.sql`sm.company_id = ${companyId}`,
+					Prisma.sql`sm.source_validation_settings_id = ${sourceContext.sourceValidationSettingsId}`,
+				];
 
-        if (filters.tier !== undefined) {
-          conditions.push(Prisma.sql`sm.tier = ${filters.tier}`);
-        }
-        if (filters.isVectorized !== undefined) {
-          conditions.push(Prisma.sql`sn."isVectorized" = ${filters.isVectorized}`);
-        }
-        if (filters.dateFrom) {
-          conditions.push(Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) >= ${filters.dateFrom}`);
-        }
-        if (filters.dateTo) {
-          conditions.push(Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) <= ${filters.dateTo}`);
-        }
-        if (filters.metaKey && filters.metaValue !== undefined) {
-          conditions.push(Prisma.sql`sm.metadata ->> ${filters.metaKey} = ${filters.metaValue}`);
-        }
+				if (filters.tier !== undefined) {
+					conditions.push(Prisma.sql`sm.tier = ${filters.tier}`);
+				}
+				if (filters.isVectorized !== undefined) {
+					conditions.push(
+						Prisma.sql`sn."isVectorized" = ${filters.isVectorized}`,
+					);
+				}
+				if (filters.dateFrom) {
+					conditions.push(
+						Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) >= ${filters.dateFrom}`,
+					);
+				}
+				if (filters.dateTo) {
+					conditions.push(
+						Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) <= ${filters.dateTo}`,
+					);
+				}
+				if (filters.metaKey && filters.metaValue !== undefined) {
+					conditions.push(
+						Prisma.sql`sm.metadata ->> ${filters.metaKey} = ${filters.metaValue}`,
+					);
+				}
 
-        return Prisma.join(conditions, " AND ");
-      };
+				return Prisma.join(conditions, " AND ");
+			};
 
-      const [items, totalResult, byTierRows, byVectorizedRows, metadataGroups] = await Promise.all([
-        prisma.$queryRaw<Array<{
-          id: number;
-          url: string;
-          title: string | null;
-          summary: string | null;
-          tier: number | null;
-          date: Date | null;
-          metadata: unknown;
-          isVectorized: boolean | null;
-          created_at: Date | null;
-          updated_at: Date | null;
-        }>>(
-          Prisma.sql`
+			const [items, totalResult, byTierRows, byVectorizedRows, metadataGroups] =
+				await Promise.all([
+					prisma.$queryRaw<
+						Array<{
+							id: number;
+							url: string;
+							title: string | null;
+							summary: string | null;
+							tier: number | null;
+							date: Date | null;
+							metadata: unknown;
+							isVectorized: boolean | null;
+							created_at: Date | null;
+							updated_at: Date | null;
+						}>
+					>(
+						Prisma.sql`
             SELECT
               sm.source_id::int AS id,
               sn.url,
@@ -1333,39 +1484,41 @@ export class DeepDiveRepository {
             WHERE ${w()}
             ORDER BY sn.created_at DESC NULLS LAST, sm.source_id DESC
             LIMIT ${filters.limit} OFFSET ${filters.offset}
-          `
-        ),
-        prisma.$queryRaw<[{ count: number }]>(
-          Prisma.sql`
+          `,
+					),
+					prisma.$queryRaw<[{ count: number }]>(
+						Prisma.sql`
             SELECT COUNT(DISTINCT sm.source_id)::int AS count
             FROM source_metadata sm
             JOIN sources_new sn ON sn.id = sm.source_id
             WHERE ${w()}
-          `
-        ),
-        prisma.$queryRaw<Array<{ tier: number | null; count: number }>>(
-          Prisma.sql`
+          `,
+					),
+					prisma.$queryRaw<Array<{ tier: number | null; count: number }>>(
+						Prisma.sql`
             SELECT sm.tier, COUNT(DISTINCT sm.source_id)::int AS count
             FROM source_metadata sm
             JOIN sources_new sn ON sn.id = sm.source_id
             WHERE ${w()}
             GROUP BY sm.tier
             ORDER BY sm.tier ASC
-          `
-        ),
-        prisma.$queryRaw<Array<{ isVectorized: boolean | null; count: number }>>(
-          Prisma.sql`
+          `,
+					),
+					prisma.$queryRaw<
+						Array<{ isVectorized: boolean | null; count: number }>
+					>(
+						Prisma.sql`
             SELECT sn."isVectorized" AS "isVectorized", COUNT(DISTINCT sm.source_id)::int AS count
             FROM source_metadata sm
             JOIN sources_new sn ON sn.id = sm.source_id
             WHERE ${w()}
             GROUP BY sn."isVectorized"
             ORDER BY sn."isVectorized" ASC
-          `
-        ),
-        filters.metaGroupBy
-          ? prisma.$queryRaw<Array<{ value: string | null; count: number }>>(
-              Prisma.sql`
+          `,
+					),
+					filters.metaGroupBy
+						? prisma.$queryRaw<Array<{ value: string | null; count: number }>>(
+								Prisma.sql`
                 SELECT sm.metadata ->> ${filters.metaGroupBy} AS value,
                        COUNT(DISTINCT sm.source_id)::int AS count
                 FROM source_metadata sm
@@ -1373,111 +1526,111 @@ export class DeepDiveRepository {
                 WHERE ${w()}
                 GROUP BY value
                 ORDER BY count DESC
-              `
-            )
-          : Promise.resolve(null),
-      ]);
+              `,
+							)
+						: Promise.resolve(null),
+				]);
 
-      return {
-        items,
-        total: totalResult[0]?.count ?? 0,
-        byTier: byTierRows.map((row) => ({
-          tier: row.tier,
-          _count: { _all: row.count },
-        })),
-        byVectorized: byVectorizedRows.map((row) => ({
-          isVectorized: row.isVectorized,
-          _count: { _all: row.count },
-        })),
-        metadataGroups,
-      };
-    }
+			return {
+				items,
+				total: totalResult[0]?.count ?? 0,
+				byTier: byTierRows.map((row) => ({
+					tier: row.tier,
+					_count: { _all: row.count },
+				})),
+				byVectorized: byVectorizedRows.map((row) => ({
+					isVectorized: row.isVectorized,
+					_count: { _all: row.count },
+				})),
+				metadataGroups,
+			};
+		}
 
-    const where: Prisma.sourcesWhereInput = {
-      company_id: companyId,
-    };
+		const where: Prisma.sourcesWhereInput = {
+			company_id: companyId,
+		};
 
-    if (filters.tier !== undefined) {
-      where.tier = filters.tier;
-    }
+		if (filters.tier !== undefined) {
+			where.tier = filters.tier;
+		}
 
-    if (filters.isVectorized !== undefined) {
-      where.isVectorized = filters.isVectorized;
-    }
+		if (filters.isVectorized !== undefined) {
+			where.isVectorized = filters.isVectorized;
+		}
 
-    if (filters.dateFrom || filters.dateTo) {
-      where.date = {
-        ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
-        ...(filters.dateTo ? { lte: filters.dateTo } : {}),
-      };
-    }
+		if (filters.dateFrom || filters.dateTo) {
+			where.date = {
+				...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
+				...(filters.dateTo ? { lte: filters.dateTo } : {}),
+			};
+		}
 
-    if (filters.metaKey && filters.metaValue !== undefined) {
-      where.metadata = {
-        path: [filters.metaKey],
-        equals: filters.metaValue,
-      };
-    }
+		if (filters.metaKey && filters.metaValue !== undefined) {
+			where.metadata = {
+				path: [filters.metaKey],
+				equals: filters.metaValue,
+			};
+		}
 
-    const [items, total, byTier, byVectorized] = await prisma.$transaction([
-      prisma.sources.findMany({
-        where,
-        orderBy: { created_at: "desc" },
-        skip: filters.offset,
-        take: filters.limit,
-        select: {
-          id: true,
-          url: true,
-          title: true,
-          summary: true,
-          tier: true,
-          date: true,
-          metadata: true,
-          isVectorized: true,
-          created_at: true,
-          updated_at: true,
-        },
-      }),
-      prisma.sources.count({ where }),
-      prisma.sources.groupBy({
-        by: ["tier"],
-        where,
-        orderBy: { tier: "asc" },
-        _count: { _all: true },
-      }),
-      prisma.sources.groupBy({
-        by: ["isVectorized"],
-        where,
-        orderBy: { isVectorized: "asc" },
-        _count: { _all: true },
-      }),
-    ]);
+		const [items, total, byTier, byVectorized] = await prisma.$transaction([
+			prisma.sources.findMany({
+				where,
+				orderBy: { created_at: "desc" },
+				skip: filters.offset,
+				take: filters.limit,
+				select: {
+					id: true,
+					url: true,
+					title: true,
+					summary: true,
+					tier: true,
+					date: true,
+					metadata: true,
+					isVectorized: true,
+					created_at: true,
+					updated_at: true,
+				},
+			}),
+			prisma.sources.count({ where }),
+			prisma.sources.groupBy({
+				by: ["tier"],
+				where,
+				orderBy: { tier: "asc" },
+				_count: { _all: true },
+			}),
+			prisma.sources.groupBy({
+				by: ["isVectorized"],
+				where,
+				orderBy: { isVectorized: "asc" },
+				_count: { _all: true },
+			}),
+		]);
 
-    let metadataGroups: Array<{ value: string | null; count: number }> | null =
-      null;
-    if (filters.metaGroupBy) {
-      const conditions: Prisma.Sql[] = [
-        Prisma.sql`company_id = ${companyId}`,
-      ];
-      if (filters.tier !== undefined) {
-        conditions.push(Prisma.sql`tier = ${filters.tier}`);
-      }
-      if (filters.isVectorized !== undefined) {
-        conditions.push(Prisma.sql`"isVectorized" = ${filters.isVectorized}`);
-      }
-      if (filters.dateFrom) {
-        conditions.push(Prisma.sql`date >= ${filters.dateFrom}`);
-      }
-      if (filters.dateTo) {
-        conditions.push(Prisma.sql`date <= ${filters.dateTo}`);
-      }
-      if (filters.metaKey && filters.metaValue !== undefined) {
-        conditions.push(Prisma.sql`metadata ->> ${filters.metaKey} = ${filters.metaValue}`);
-      }
+		let metadataGroups: Array<{ value: string | null; count: number }> | null =
+			null;
+		if (filters.metaGroupBy) {
+			const conditions: Prisma.Sql[] = [Prisma.sql`company_id = ${companyId}`];
+			if (filters.tier !== undefined) {
+				conditions.push(Prisma.sql`tier = ${filters.tier}`);
+			}
+			if (filters.isVectorized !== undefined) {
+				conditions.push(Prisma.sql`"isVectorized" = ${filters.isVectorized}`);
+			}
+			if (filters.dateFrom) {
+				conditions.push(Prisma.sql`date >= ${filters.dateFrom}`);
+			}
+			if (filters.dateTo) {
+				conditions.push(Prisma.sql`date <= ${filters.dateTo}`);
+			}
+			if (filters.metaKey && filters.metaValue !== undefined) {
+				conditions.push(
+					Prisma.sql`metadata ->> ${filters.metaKey} = ${filters.metaValue}`,
+				);
+			}
 
-      metadataGroups = await prisma.$queryRaw<
-        Array<{ value: string | null; count: number }>
-      >`
+			metadataGroups = await prisma.$queryRaw<
+				Array<{ value: string | null; count: number }>
+			>`
         SELECT metadata ->> ${filters.metaGroupBy} AS value,
                COUNT(*)::int AS count
         FROM sources
@@ -1485,80 +1638,90 @@ export class DeepDiveRepository {
         GROUP BY value
         ORDER BY count DESC
       `;
-    }
+		}
 
-    return {
-      items,
-      total,
-      byTier,
-      byVectorized,
-      metadataGroups,
-    };
-  }
+		return {
+			items,
+			total,
+			byTier,
+			byVectorized,
+			metadataGroups,
+		};
+	}
 
-  private static buildLegacySourcesWhere(
-    companyId: number,
-    filters: SourcesAnalyticsParams,
-  ): Prisma.Sql {
-    const conditions: Prisma.Sql[] = [
-      Prisma.sql`company_id = ${companyId}`,
-    ];
+	private static buildLegacySourcesWhere(
+		companyId: number,
+		filters: SourcesAnalyticsParams,
+	): Prisma.Sql {
+		const conditions: Prisma.Sql[] = [Prisma.sql`company_id = ${companyId}`];
 
-    if (filters.tier !== undefined) {
-      conditions.push(Prisma.sql`tier = ${filters.tier}`);
-    }
-    if (filters.qualityClass) {
-      conditions.push(Prisma.sql`metadata ->> 'quality_class' = ${filters.qualityClass}`);
-    }
-    if (filters.isValid !== undefined) {
-      conditions.push(Prisma.sql`(metadata ->> 'isValid')::boolean = ${filters.isValid}`);
-    }
-    if (filters.agent) {
-      conditions.push(Prisma.sql`metadata -> 'agents' ? ${filters.agent}`);
-    }
-    if (filters.category) {
-      conditions.push(Prisma.sql`metadata -> 'categories' ? ${filters.category}`);
-    }
-    if (filters.tag) {
-      conditions.push(Prisma.sql`metadata -> 'tags' ? ${filters.tag}`);
-    }
-    if (filters.dateFrom) {
-      conditions.push(Prisma.sql`date >= ${filters.dateFrom}`);
-    }
-    if (filters.dateTo) {
-      conditions.push(Prisma.sql`date <= ${filters.dateTo}`);
-    }
-    if (filters.search) {
-      const pattern = `%${filters.search}%`;
-      conditions.push(Prisma.sql`(title ILIKE ${pattern} OR url ILIKE ${pattern})`);
-    }
+		if (filters.tier !== undefined) {
+			conditions.push(Prisma.sql`tier = ${filters.tier}`);
+		}
+		if (filters.qualityClass) {
+			conditions.push(
+				Prisma.sql`metadata ->> 'quality_class' = ${filters.qualityClass}`,
+			);
+		}
+		if (filters.isValid !== undefined) {
+			conditions.push(
+				Prisma.sql`(metadata ->> 'isValid')::boolean = ${filters.isValid}`,
+			);
+		}
+		if (filters.agent) {
+			conditions.push(Prisma.sql`metadata -> 'agents' ? ${filters.agent}`);
+		}
+		if (filters.category) {
+			conditions.push(
+				Prisma.sql`metadata -> 'categories' ? ${filters.category}`,
+			);
+		}
+		if (filters.tag) {
+			conditions.push(Prisma.sql`metadata -> 'tags' ? ${filters.tag}`);
+		}
+		if (filters.dateFrom) {
+			conditions.push(Prisma.sql`date >= ${filters.dateFrom}`);
+		}
+		if (filters.dateTo) {
+			conditions.push(Prisma.sql`date <= ${filters.dateTo}`);
+		}
+		if (filters.search) {
+			const pattern = `%${filters.search}%`;
+			conditions.push(
+				Prisma.sql`(title ILIKE ${pattern} OR url ILIKE ${pattern})`,
+			);
+		}
 
-    return Prisma.join(conditions, " AND ");
-  }
+		return Prisma.join(conditions, " AND ");
+	}
 
-  private static buildNewSourcesWhere(
-    reportId: number,
-    companyId: number,
-    sourceValidationSettingsId: number,
-    filters: SourcesAnalyticsParams,
-  ): Prisma.Sql {
-    const conditions: Prisma.Sql[] = [
-      Prisma.sql`sm.company_id = ${companyId}`,
-      Prisma.sql`sm.source_validation_settings_id = ${sourceValidationSettingsId}`,
-    ];
+	private static buildNewSourcesWhere(
+		reportId: number,
+		companyId: number,
+		sourceValidationSettingsId: number,
+		filters: SourcesAnalyticsParams,
+	): Prisma.Sql {
+		const conditions: Prisma.Sql[] = [
+			Prisma.sql`sm.company_id = ${companyId}`,
+			Prisma.sql`sm.source_validation_settings_id = ${sourceValidationSettingsId}`,
+		];
 
-    if (filters.tier !== undefined) {
-      conditions.push(Prisma.sql`sm.tier = ${filters.tier}`);
-    }
-    if (filters.qualityClass) {
-      conditions.push(Prisma.sql`sm.metadata ->> 'quality_class' = ${filters.qualityClass}`);
-    }
-    if (filters.isValid !== undefined) {
-      conditions.push(Prisma.sql`(sm.metadata ->> 'isValid')::boolean = ${filters.isValid}`);
-    }
-    if (filters.agent) {
-      conditions.push(
-        Prisma.sql`EXISTS (
+		if (filters.tier !== undefined) {
+			conditions.push(Prisma.sql`sm.tier = ${filters.tier}`);
+		}
+		if (filters.qualityClass) {
+			conditions.push(
+				Prisma.sql`sm.metadata ->> 'quality_class' = ${filters.qualityClass}`,
+			);
+		}
+		if (filters.isValid !== undefined) {
+			conditions.push(
+				Prisma.sql`(sm.metadata ->> 'isValid')::boolean = ${filters.isValid}`,
+			);
+		}
+		if (filters.agent) {
+			conditions.push(
+				Prisma.sql`EXISTS (
           SELECT 1
           FROM report_url_candidates ruc
           WHERE ruc.report_id = ${reportId}
@@ -1567,92 +1730,112 @@ export class DeepDiveRepository {
                 regexp_replace(lower(trim(sn.url)), '/+$', '')
             AND ruc.agent = ${filters.agent}
         )`,
-      );
-    }
-    if (filters.category) {
-      conditions.push(Prisma.sql`sm.metadata -> 'categories' ? ${filters.category}`);
-    }
-    if (filters.tag) {
-      conditions.push(Prisma.sql`sm.metadata -> 'tags' ? ${filters.tag}`);
-    }
-    if (filters.dateFrom) {
-      conditions.push(Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) >= ${filters.dateFrom}`);
-    }
-    if (filters.dateTo) {
-      conditions.push(Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) <= ${filters.dateTo}`);
-    }
-    if (filters.search) {
-      const pattern = `%${filters.search}%`;
-      conditions.push(Prisma.sql`(sn.title ILIKE ${pattern} OR sn.url ILIKE ${pattern})`);
-    }
+			);
+		}
+		if (filters.category) {
+			conditions.push(
+				Prisma.sql`sm.metadata -> 'categories' ? ${filters.category}`,
+			);
+		}
+		if (filters.tag) {
+			conditions.push(Prisma.sql`sm.metadata -> 'tags' ? ${filters.tag}`);
+		}
+		if (filters.dateFrom) {
+			conditions.push(
+				Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) >= ${filters.dateFrom}`,
+			);
+		}
+		if (filters.dateTo) {
+			conditions.push(
+				Prisma.sql`COALESCE(sn.scrapped_at, sn.created_at) <= ${filters.dateTo}`,
+			);
+		}
+		if (filters.search) {
+			const pattern = `%${filters.search}%`;
+			conditions.push(
+				Prisma.sql`(sn.title ILIKE ${pattern} OR sn.url ILIKE ${pattern})`,
+			);
+		}
 
-    return Prisma.join(conditions, " AND ");
-  }
+		return Prisma.join(conditions, " AND ");
+	}
 
-  static async getSourcesAnalytics(
-    reportId: number,
-    companyId: number,
-    filters: SourcesAnalyticsParams,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getSourcesAnalytics(
+		reportId: number,
+		companyId: number,
+		filters: SourcesAnalyticsParams,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const sourceValidationSettingsId = sourceContext.sourceValidationSettingsId;
-      const baseFilters: SourcesAnalyticsParams = { limit: filters.limit, offset: filters.offset };
-      const w = () => this.buildNewSourcesWhere(
-        reportId,
-        companyId,
-        sourceValidationSettingsId,
-        filters,
-      );
-      const wb = () => this.buildNewSourcesWhere(
-        reportId,
-        companyId,
-        sourceValidationSettingsId,
-        baseFilters,
-      );
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const sourceValidationSettingsId =
+				sourceContext.sourceValidationSettingsId;
+			const baseFilters: SourcesAnalyticsParams = {
+				limit: filters.limit,
+				offset: filters.offset,
+			};
+			const w = () =>
+				DeepDiveRepository.buildNewSourcesWhere(
+					reportId,
+					companyId,
+					sourceValidationSettingsId,
+					filters,
+				);
+			const wb = () =>
+				DeepDiveRepository.buildNewSourcesWhere(
+					reportId,
+					companyId,
+					sourceValidationSettingsId,
+					baseFilters,
+				);
 
-      const [
-        totalUnfilteredResult,
-        totalFilteredResult,
-        qualityClassAgg,
-        vectorizedCountResult,
-        queryIdsAgg,
-        agentsAgg,
-        categoriesAgg,
-        tagsAgg,
-        isValidAgg,
-        scoresAgg,
-        items,
-      ] = await Promise.all([
-        prisma.$queryRaw<[{ count: number }]>(
-          Prisma.sql`SELECT COUNT(DISTINCT sm.source_id)::int AS count
+			const [
+				totalUnfilteredResult,
+				totalFilteredResult,
+				qualityClassAgg,
+				vectorizedCountResult,
+				queryIdsAgg,
+				agentsAgg,
+				categoriesAgg,
+				tagsAgg,
+				isValidAgg,
+				scoresAgg,
+				items,
+			] = await Promise.all([
+				prisma.$queryRaw<[{ count: number }]>(
+					Prisma.sql`SELECT COUNT(DISTINCT sm.source_id)::int AS count
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
-          WHERE ${wb()}`
-        ),
-        prisma.$queryRaw<[{ count: number }]>(
-          Prisma.sql`SELECT COUNT(DISTINCT sm.source_id)::int AS count
+          WHERE ${wb()}`,
+				),
+				prisma.$queryRaw<[{ count: number }]>(
+					Prisma.sql`SELECT COUNT(DISTINCT sm.source_id)::int AS count
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
-          WHERE ${w()}`
-        ),
-        prisma.$queryRaw<Array<{ value: string | null; count: number }>>(
-          Prisma.sql`SELECT sm.metadata ->> 'quality_class' AS value, COUNT(DISTINCT sm.source_id)::int AS count
+          WHERE ${w()}`,
+				),
+				prisma.$queryRaw<Array<{ value: string | null; count: number }>>(
+					Prisma.sql`SELECT sm.metadata ->> 'quality_class' AS value, COUNT(DISTINCT sm.source_id)::int AS count
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
           WHERE ${w()}
-          GROUP BY value ORDER BY count DESC`
-        ),
-        prisma.$queryRaw<[{ count: number }]>(
-          Prisma.sql`SELECT COUNT(DISTINCT sm.source_id)::int AS count
+          GROUP BY value ORDER BY count DESC`,
+				),
+				prisma.$queryRaw<[{ count: number }]>(
+					Prisma.sql`SELECT COUNT(DISTINCT sm.source_id)::int AS count
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
-          WHERE ${w()} AND sn."isVectorized" = true`
-        ),
-        prisma.$queryRaw<Array<{ query_id: string; goal: string | null; count: number }>>(
-          Prisma.sql`
+          WHERE ${w()} AND sn."isVectorized" = true`,
+				),
+				prisma.$queryRaw<
+					Array<{ query_id: string; goal: string | null; count: number }>
+				>(
+					Prisma.sql`
             WITH filtered_sources AS (
               SELECT DISTINCT
                 sm.source_id,
@@ -1681,10 +1864,10 @@ export class DeepDiveRepository {
             LEFT JOIN data_collection_queries dcq ON dcq.id = qm.query_id::bigint
             GROUP BY qm.query_id, dcq.query ->> 'goal'
             ORDER BY count DESC
-          `
-        ),
-        prisma.$queryRaw<Array<{ value: string; count: number }>>(
-          Prisma.sql`
+          `,
+				),
+				prisma.$queryRaw<Array<{ value: string; count: number }>>(
+					Prisma.sql`
             WITH filtered_sources AS (
               SELECT DISTINCT
                 sm.source_id,
@@ -1709,36 +1892,44 @@ export class DeepDiveRepository {
             FROM agent_map
             GROUP BY agent
             ORDER BY count DESC
-          `
-        ),
-        prisma.$queryRaw<Array<{ value: string; count: number }>>(
-          Prisma.sql`SELECT cat AS value, COUNT(DISTINCT sm.source_id)::int AS count
+          `,
+				),
+				prisma.$queryRaw<Array<{ value: string; count: number }>>(
+					Prisma.sql`SELECT cat AS value, COUNT(DISTINCT sm.source_id)::int AS count
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
           CROSS JOIN LATERAL jsonb_array_elements_text(sm.metadata -> 'categories') AS cat
           WHERE ${w()}
-          GROUP BY cat ORDER BY count DESC`
-        ),
-        prisma.$queryRaw<Array<{ value: string; count: number }>>(
-          Prisma.sql`SELECT tag AS value, COUNT(DISTINCT sm.source_id)::int AS count
+          GROUP BY cat ORDER BY count DESC`,
+				),
+				prisma.$queryRaw<Array<{ value: string; count: number }>>(
+					Prisma.sql`SELECT tag AS value, COUNT(DISTINCT sm.source_id)::int AS count
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
           CROSS JOIN LATERAL jsonb_array_elements_text(sm.metadata -> 'tags') AS tag
           WHERE ${w()}
-          GROUP BY tag ORDER BY count DESC`
-        ),
-        prisma.$queryRaw<Array<{ value: boolean; count: number }>>(
-          Prisma.sql`SELECT (sm.metadata ->> 'isValid')::boolean AS value, COUNT(DISTINCT sm.source_id)::int AS count
+          GROUP BY tag ORDER BY count DESC`,
+				),
+				prisma.$queryRaw<Array<{ value: boolean; count: number }>>(
+					Prisma.sql`SELECT (sm.metadata ->> 'isValid')::boolean AS value, COUNT(DISTINCT sm.source_id)::int AS count
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
           WHERE ${w()}
-          GROUP BY value ORDER BY value DESC`
-        ),
-        prisma.$queryRaw<[{
-          relevance: number; authority: number; freshness: number;
-          originality: number; security: number; extractability: number;
-        }]>(
-          Prisma.sql`SELECT
+          GROUP BY value ORDER BY value DESC`,
+				),
+				prisma.$queryRaw<
+					[
+						{
+							relevance: number;
+							authority: number;
+							freshness: number;
+							originality: number;
+							security: number;
+							extractability: number;
+						},
+					]
+				>(
+					Prisma.sql`SELECT
             COALESCE(AVG((sm.metadata -> 'scores' ->> 'relevance')::numeric), 0)::float AS relevance,
             COALESCE(AVG((sm.metadata -> 'scores' ->> 'authority')::numeric), 0)::float AS authority,
             COALESCE(AVG((sm.metadata -> 'scores' ->> 'freshness')::numeric), 0)::float AS freshness,
@@ -1747,14 +1938,21 @@ export class DeepDiveRepository {
             COALESCE(AVG((sm.metadata -> 'scores' ->> 'extractability')::numeric), 0)::float AS extractability
           FROM source_metadata sm
           JOIN sources_new sn ON sn.id = sm.source_id
-          WHERE ${w()} AND sm.metadata -> 'scores' IS NOT NULL`
-        ),
-        prisma.$queryRaw<Array<{
-          id: number; url: string; title: string | null; tier: number | null;
-          date: Date | null; is_vectorized: boolean | null; metadata: unknown;
-          created_at: Date | null;
-        }>>(
-          Prisma.sql`SELECT
+          WHERE ${w()} AND sm.metadata -> 'scores' IS NOT NULL`,
+				),
+				prisma.$queryRaw<
+					Array<{
+						id: number;
+						url: string;
+						title: string | null;
+						tier: number | null;
+						date: Date | null;
+						is_vectorized: boolean | null;
+						metadata: unknown;
+						created_at: Date | null;
+					}>
+				>(
+					Prisma.sql`SELECT
             sm.source_id::int AS id,
             sn.url,
             sn.title,
@@ -1779,198 +1977,230 @@ export class DeepDiveRepository {
                   regexp_replace(lower(trim(sn.url)), '/+$', '')
           ) ruc_meta ON true
           WHERE ${w()}
-          ${this.buildOrderBy(filters.sortBy, filters.sortOrder, ["title", "tier", "created_at"], "created_at")}
-          LIMIT ${filters.limit} OFFSET ${filters.offset}`
-        ),
-      ]);
+          ${DeepDiveRepository.buildOrderBy(filters.sortBy, filters.sortOrder, ["title", "tier", "created_at"], "created_at")}
+          LIMIT ${filters.limit} OFFSET ${filters.offset}`,
+				),
+			]);
 
-      return {
-        totalUnfiltered: totalUnfilteredResult[0]?.count ?? 0,
-        totalFiltered: totalFilteredResult[0]?.count ?? 0,
-        vectorizedCount: vectorizedCountResult[0]?.count ?? 0,
-        aggregations: {
-          qualityClass: qualityClassAgg,
-          queryIds: queryIdsAgg,
-          agents: agentsAgg,
-          categories: categoriesAgg,
-          tags: tagsAgg,
-          isValid: isValidAgg,
-          scores: scoresAgg[0] ?? {
-            relevance: 0, authority: 0, freshness: 0,
-            originality: 0, security: 0, extractability: 0,
-          },
-        },
-        items,
-      };
-    }
+			return {
+				totalUnfiltered: totalUnfilteredResult[0]?.count ?? 0,
+				totalFiltered: totalFilteredResult[0]?.count ?? 0,
+				vectorizedCount: vectorizedCountResult[0]?.count ?? 0,
+				aggregations: {
+					qualityClass: qualityClassAgg,
+					queryIds: queryIdsAgg,
+					agents: agentsAgg,
+					categories: categoriesAgg,
+					tags: tagsAgg,
+					isValid: isValidAgg,
+					scores: scoresAgg[0] ?? {
+						relevance: 0,
+						authority: 0,
+						freshness: 0,
+						originality: 0,
+						security: 0,
+						extractability: 0,
+					},
+				},
+				items,
+			};
+		}
 
-    // Use $queryRaw(Prisma.sql`...`) function-call syntax instead of tagged template.
-    // Tagged template $queryRaw`...` treats Prisma.Sql objects as plain parameters
-    // and serializes them as JSON strings. Function-call syntax lets Prisma.sql
-    // properly compose nested Prisma.Sql fragments before sending to $queryRaw.
-    const w = () => this.buildLegacySourcesWhere(companyId, filters);
+		// Use $queryRaw(Prisma.sql`...`) function-call syntax instead of tagged template.
+		// Tagged template $queryRaw`...` treats Prisma.Sql objects as plain parameters
+		// and serializes them as JSON strings. Function-call syntax lets Prisma.sql
+		// properly compose nested Prisma.Sql fragments before sending to $queryRaw.
+		const w = () =>
+			DeepDiveRepository.buildLegacySourcesWhere(companyId, filters);
 
-    const [
-      totalUnfilteredResult,
-      totalFilteredResult,
-      qualityClassAgg,
-      vectorizedCountResult,
-      queryIdsAgg,
-      agentsAgg,
-      categoriesAgg,
-      tagsAgg,
-      isValidAgg,
-      scoresAgg,
-      items,
-    ] = await Promise.all([
-      prisma.$queryRaw<[{ count: number }]>(
-        Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE company_id = ${companyId}`
-      ),
-      prisma.$queryRaw<[{ count: number }]>(
-        Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE ${w()}`
-      ),
-      prisma.$queryRaw<Array<{ value: string | null; count: number }>>(
-        Prisma.sql`SELECT metadata ->> 'quality_class' AS value, COUNT(*)::int AS count
+		const [
+			totalUnfilteredResult,
+			totalFilteredResult,
+			qualityClassAgg,
+			vectorizedCountResult,
+			queryIdsAgg,
+			agentsAgg,
+			categoriesAgg,
+			tagsAgg,
+			isValidAgg,
+			scoresAgg,
+			items,
+		] = await Promise.all([
+			prisma.$queryRaw<[{ count: number }]>(
+				Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE company_id = ${companyId}`,
+			),
+			prisma.$queryRaw<[{ count: number }]>(
+				Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE ${w()}`,
+			),
+			prisma.$queryRaw<Array<{ value: string | null; count: number }>>(
+				Prisma.sql`SELECT metadata ->> 'quality_class' AS value, COUNT(*)::int AS count
         FROM sources WHERE ${w()}
-        GROUP BY value ORDER BY count DESC`
-      ),
-      prisma.$queryRaw<[{ count: number }]>(
-        Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE ${w()} AND "isVectorized" = true`
-      ),
-      prisma.$queryRaw<Array<{ query_id: string; goal: string | null; count: number }>>(
-        Prisma.sql`SELECT qid AS query_id, dcq.query ->> 'goal' AS goal, COUNT(*)::int AS count
+        GROUP BY value ORDER BY count DESC`,
+			),
+			prisma.$queryRaw<[{ count: number }]>(
+				Prisma.sql`SELECT COUNT(*)::int AS count FROM sources WHERE ${w()} AND "isVectorized" = true`,
+			),
+			prisma.$queryRaw<
+				Array<{ query_id: string; goal: string | null; count: number }>
+			>(
+				Prisma.sql`SELECT qid AS query_id, dcq.query ->> 'goal' AS goal, COUNT(*)::int AS count
         FROM sources, jsonb_array_elements_text(metadata -> 'query_ids') AS qid
         LEFT JOIN data_collection_queries dcq ON dcq.id = qid::bigint
         WHERE ${w()}
-        GROUP BY qid, dcq.query ->> 'goal' ORDER BY count DESC`
-      ),
-      prisma.$queryRaw<Array<{ value: string; count: number }>>(
-        Prisma.sql`SELECT agent AS value, COUNT(*)::int AS count
+        GROUP BY qid, dcq.query ->> 'goal' ORDER BY count DESC`,
+			),
+			prisma.$queryRaw<Array<{ value: string; count: number }>>(
+				Prisma.sql`SELECT agent AS value, COUNT(*)::int AS count
         FROM sources, jsonb_array_elements_text(metadata -> 'agents') AS agent
         WHERE ${w()}
-        GROUP BY agent ORDER BY count DESC`
-      ),
-      prisma.$queryRaw<Array<{ value: string; count: number }>>(
-        Prisma.sql`SELECT cat AS value, COUNT(*)::int AS count
+        GROUP BY agent ORDER BY count DESC`,
+			),
+			prisma.$queryRaw<Array<{ value: string; count: number }>>(
+				Prisma.sql`SELECT cat AS value, COUNT(*)::int AS count
         FROM sources, jsonb_array_elements_text(metadata -> 'categories') AS cat
         WHERE ${w()}
-        GROUP BY cat ORDER BY count DESC`
-      ),
-      prisma.$queryRaw<Array<{ value: string; count: number }>>(
-        Prisma.sql`SELECT tag AS value, COUNT(*)::int AS count
+        GROUP BY cat ORDER BY count DESC`,
+			),
+			prisma.$queryRaw<Array<{ value: string; count: number }>>(
+				Prisma.sql`SELECT tag AS value, COUNT(*)::int AS count
         FROM sources, jsonb_array_elements_text(metadata -> 'tags') AS tag
         WHERE ${w()}
-        GROUP BY tag ORDER BY count DESC`
-      ),
-      prisma.$queryRaw<Array<{ value: boolean; count: number }>>(
-        Prisma.sql`SELECT (metadata ->> 'isValid')::boolean AS value, COUNT(*)::int AS count
+        GROUP BY tag ORDER BY count DESC`,
+			),
+			prisma.$queryRaw<Array<{ value: boolean; count: number }>>(
+				Prisma.sql`SELECT (metadata ->> 'isValid')::boolean AS value, COUNT(*)::int AS count
         FROM sources WHERE ${w()}
-        GROUP BY value ORDER BY value DESC`
-      ),
-      prisma.$queryRaw<[{
-        relevance: number; authority: number; freshness: number;
-        originality: number; security: number; extractability: number;
-      }]>(
-        Prisma.sql`SELECT
+        GROUP BY value ORDER BY value DESC`,
+			),
+			prisma.$queryRaw<
+				[
+					{
+						relevance: number;
+						authority: number;
+						freshness: number;
+						originality: number;
+						security: number;
+						extractability: number;
+					},
+				]
+			>(
+				Prisma.sql`SELECT
           COALESCE(AVG((metadata -> 'scores' ->> 'relevance')::numeric), 0)::float AS relevance,
           COALESCE(AVG((metadata -> 'scores' ->> 'authority')::numeric), 0)::float AS authority,
           COALESCE(AVG((metadata -> 'scores' ->> 'freshness')::numeric), 0)::float AS freshness,
           COALESCE(AVG((metadata -> 'scores' ->> 'originality')::numeric), 0)::float AS originality,
           COALESCE(AVG((metadata -> 'scores' ->> 'security')::numeric), 0)::float AS security,
           COALESCE(AVG((metadata -> 'scores' ->> 'extractability')::numeric), 0)::float AS extractability
-        FROM sources WHERE ${w()} AND metadata -> 'scores' IS NOT NULL`
-      ),
-      prisma.$queryRaw<Array<{
-        id: number; url: string; title: string | null; tier: number | null;
-        date: Date | null; is_vectorized: boolean | null; metadata: unknown;
-        created_at: Date | null;
-      }>>(
-        Prisma.sql`SELECT id, url, title, tier, date, "isVectorized" AS is_vectorized, metadata, created_at
+        FROM sources WHERE ${w()} AND metadata -> 'scores' IS NOT NULL`,
+			),
+			prisma.$queryRaw<
+				Array<{
+					id: number;
+					url: string;
+					title: string | null;
+					tier: number | null;
+					date: Date | null;
+					is_vectorized: boolean | null;
+					metadata: unknown;
+					created_at: Date | null;
+				}>
+			>(
+				Prisma.sql`SELECT id, url, title, tier, date, "isVectorized" AS is_vectorized, metadata, created_at
         FROM sources WHERE ${w()}
-        ${this.buildOrderBy(filters.sortBy, filters.sortOrder, ["title", "tier", "created_at"], "created_at")}
-        LIMIT ${filters.limit} OFFSET ${filters.offset}`
-      ),
-    ]);
+        ${DeepDiveRepository.buildOrderBy(filters.sortBy, filters.sortOrder, ["title", "tier", "created_at"], "created_at")}
+        LIMIT ${filters.limit} OFFSET ${filters.offset}`,
+			),
+		]);
 
-    return {
-      totalUnfiltered: totalUnfilteredResult[0]?.count ?? 0,
-      totalFiltered: totalFilteredResult[0]?.count ?? 0,
-      vectorizedCount: vectorizedCountResult[0]?.count ?? 0,
-      aggregations: {
-        qualityClass: qualityClassAgg,
-        queryIds: queryIdsAgg,
-        agents: agentsAgg,
-        categories: categoriesAgg,
-        tags: tagsAgg,
-        isValid: isValidAgg,
-        scores: scoresAgg[0] ?? {
-          relevance: 0, authority: 0, freshness: 0,
-          originality: 0, security: 0, extractability: 0,
-        },
-      },
-      items,
-    };
-  }
+		return {
+			totalUnfiltered: totalUnfilteredResult[0]?.count ?? 0,
+			totalFiltered: totalFilteredResult[0]?.count ?? 0,
+			vectorizedCount: vectorizedCountResult[0]?.count ?? 0,
+			aggregations: {
+				qualityClass: qualityClassAgg,
+				queryIds: queryIdsAgg,
+				agents: agentsAgg,
+				categories: categoriesAgg,
+				tags: tagsAgg,
+				isValid: isValidAgg,
+				scores: scoresAgg[0] ?? {
+					relevance: 0,
+					authority: 0,
+					freshness: 0,
+					originality: 0,
+					security: 0,
+					extractability: 0,
+				},
+			},
+			items,
+		};
+	}
 
-  private static buildLegacyCandidatesWhere(
-    companyId: number,
-    filters: ScrapeCandidatesParams,
-  ): Prisma.Sql {
-    const conditions: Prisma.Sql[] = [
-      Prisma.sql`company_id = ${companyId}`,
-    ];
+	private static buildLegacyCandidatesWhere(
+		companyId: number,
+		filters: ScrapeCandidatesParams,
+	): Prisma.Sql {
+		const conditions: Prisma.Sql[] = [Prisma.sql`company_id = ${companyId}`];
 
-    if (filters.search) {
-      const pattern = `%${filters.search}%`;
-      conditions.push(
-        Prisma.sql`(url ILIKE ${pattern} OR title ILIKE ${pattern} OR description ILIKE ${pattern})`,
-      );
-    }
+		if (filters.search) {
+			const pattern = `%${filters.search}%`;
+			conditions.push(
+				Prisma.sql`(url ILIKE ${pattern} OR title ILIKE ${pattern} OR description ILIKE ${pattern})`,
+			);
+		}
 
-    return Prisma.join(conditions, " AND ");
-  }
+		return Prisma.join(conditions, " AND ");
+	}
 
-  private static buildNewCandidatesWhere(
-    reportId: number,
-    companyId: number,
-    filters: ScrapeCandidatesParams,
-    includeSearch: boolean,
-  ): Prisma.Sql {
-    const conditions: Prisma.Sql[] = [
-      Prisma.sql`ruc.report_id = ${reportId}`,
-      Prisma.sql`ruc.company_id = ${companyId}`,
-    ];
+	private static buildNewCandidatesWhere(
+		reportId: number,
+		companyId: number,
+		filters: ScrapeCandidatesParams,
+		includeSearch: boolean,
+	): Prisma.Sql {
+		const conditions: Prisma.Sql[] = [
+			Prisma.sql`ruc.report_id = ${reportId}`,
+			Prisma.sql`ruc.company_id = ${companyId}`,
+		];
 
-    if (includeSearch && filters.search) {
-      const pattern = `%${filters.search}%`;
-      conditions.push(Prisma.sql`ruc.url ILIKE ${pattern}`);
-    }
+		if (includeSearch && filters.search) {
+			const pattern = `%${filters.search}%`;
+			conditions.push(Prisma.sql`ruc.url ILIKE ${pattern}`);
+		}
 
-    return Prisma.join(conditions, " AND ");
-  }
+		return Prisma.join(conditions, " AND ");
+	}
 
-  static async getReportQueriesWithStats(
-    reportId: number,
-    sortBy?: string,
-    sortOrder?: SortOrder,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getReportQueriesWithStats(
+		reportId: number,
+		sortBy?: string,
+		sortOrder?: SortOrder,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const rows = await prisma.$queryRaw<
-        Array<{
-          id: bigint;
-          goal: string | null;
-          search_queries: string[] | null;
-          sources_count: number;
-          candidates_count: number;
-          completed_companies: number;
-          total_companies: number;
-          data_points: Array<{ id: string; name: string | null; type: string | null }> | null;
-        }>
-      >(
-        Prisma.sql`
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const rows = await prisma.$queryRaw<
+				Array<{
+					id: bigint;
+					goal: string | null;
+					search_queries: string[] | null;
+					sources_count: number;
+					candidates_count: number;
+					completed_companies: number;
+					total_companies: number;
+					data_points: Array<{
+						id: string;
+						name: string | null;
+						type: string | null;
+					}> | null;
+				}>
+			>(
+				Prisma.sql`
           WITH rc AS (
             SELECT company_id
             FROM report_companies
@@ -2049,25 +2279,29 @@ export class DeepDiveRepository {
           CROSS JOIN tc
           LEFT JOIN dp_agg ON dp_agg.query_id = dcq.id
           WHERE rdcq.report_id = ${reportId}
-          ${this.buildOrderBy(sortBy, sortOrder, ["goal", "sources_count", "candidates_count"], "id", "asc")}
-        `
-      );
-      return rows ?? [];
-    }
+          ${DeepDiveRepository.buildOrderBy(sortBy, sortOrder, ["goal", "sources_count", "candidates_count"], "id", "asc")}
+        `,
+			);
+			return rows ?? [];
+		}
 
-    const legacyRows = await prisma.$queryRaw<
-      Array<{
-        id: bigint;
-        goal: string | null;
-        search_queries: string[] | null;
-        sources_count: number;
-        candidates_count: number;
-        completed_companies: number;
-        total_companies: number;
-        data_points: Array<{ id: string; name: string | null; type: string | null }> | null;
-      }>
-    >(
-      Prisma.sql`
+		const legacyRows = await prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				goal: string | null;
+				search_queries: string[] | null;
+				sources_count: number;
+				candidates_count: number;
+				completed_companies: number;
+				total_companies: number;
+				data_points: Array<{
+					id: string;
+					name: string | null;
+					type: string | null;
+				}> | null;
+			}>
+		>(
+			Prisma.sql`
         WITH rc AS (
           SELECT company_id
           FROM report_companies
@@ -2132,49 +2366,67 @@ export class DeepDiveRepository {
         CROSS JOIN tc
         LEFT JOIN dp_agg ON dp_agg.query_id = dcq.id
         WHERE rdcq.report_id = ${reportId}
-        ${this.buildOrderBy(sortBy, sortOrder, ["goal", "sources_count", "candidates_count"], "id", "asc")}
-      `
-    );
-    return legacyRows ?? [];
-  }
+        ${DeepDiveRepository.buildOrderBy(sortBy, sortOrder, ["goal", "sources_count", "candidates_count"], "id", "asc")}
+      `,
+		);
+		return legacyRows ?? [];
+	}
 
-  static async updateQueryContent(
-    queryId: bigint,
-    payload: { goal: string; search_queries: string[] },
-  ) {
-    return prisma.data_collection_queries.update({
-      where: { id: queryId },
-      data: {
-        query: payload,
-      },
-    });
-  }
+	static async updateQueryContent(
+		queryId: bigint,
+		payload: { goal: string; search_queries: string[] },
+	) {
+		return prisma.data_collection_queries.update({
+			where: { id: queryId },
+			data: {
+				query: payload,
+			},
+		});
+	}
 
-  static async verifyQueryBelongsToReport(reportId: number, queryId: bigint) {
-    return prisma.report_data_collection_queries.findFirst({
-      where: {
-        report_id: reportId,
-        data_collection_query_id: queryId,
-      },
-    });
-  }
+	static async verifyQueryBelongsToReport(reportId: number, queryId: bigint) {
+		return prisma.report_data_collection_queries.findFirst({
+			where: {
+				report_id: reportId,
+				data_collection_query_id: queryId,
+			},
+		});
+	}
 
-  static async getScrapeCandidatesList(
-    reportId: number,
-    companyId: number,
-    filters: ScrapeCandidatesParams,
-    context?: SourceCountingContext,
-  ) {
-    const sourceContext = context ?? await this.getSourceCountingContext(reportId);
+	static async getScrapeCandidatesList(
+		reportId: number,
+		companyId: number,
+		filters: ScrapeCandidatesParams,
+		context?: SourceCountingContext,
+	) {
+		const sourceContext =
+			context ?? (await DeepDiveRepository.getSourceCountingContext(reportId));
 
-    if (sourceContext.useNewModel && sourceContext.sourceValidationSettingsId !== null) {
-      const wBase = () => this.buildNewCandidatesWhere(reportId, companyId, filters, false);
-      const wFiltered = () => this.buildNewCandidatesWhere(reportId, companyId, filters, true);
-      const mappedSortBy = filters.sortBy === "created_at" ? "id" : filters.sortBy;
+		if (
+			sourceContext.useNewModel &&
+			sourceContext.sourceValidationSettingsId !== null
+		) {
+			const wBase = () =>
+				DeepDiveRepository.buildNewCandidatesWhere(
+					reportId,
+					companyId,
+					filters,
+					false,
+				);
+			const wFiltered = () =>
+				DeepDiveRepository.buildNewCandidatesWhere(
+					reportId,
+					companyId,
+					filters,
+					true,
+				);
+			const mappedSortBy =
+				filters.sortBy === "created_at" ? "id" : filters.sortBy;
 
-      const [totalResult, totalFilteredResult, agentsAgg, queryIdsAgg, items] = await Promise.all([
-        prisma.$queryRaw<[{ count: number }]>(
-          Prisma.sql`
+			const [totalResult, totalFilteredResult, agentsAgg, queryIdsAgg, items] =
+				await Promise.all([
+					prisma.$queryRaw<[{ count: number }]>(
+						Prisma.sql`
             SELECT COUNT(*)::int AS count
             FROM (
               SELECT regexp_replace(lower(trim(ruc.url)), '/+$', '') AS normalized_url
@@ -2182,10 +2434,10 @@ export class DeepDiveRepository {
               WHERE ${wBase()}
               GROUP BY normalized_url
             ) dedup
-          `
-        ),
-        prisma.$queryRaw<[{ count: number }]>(
-          Prisma.sql`
+          `,
+					),
+					prisma.$queryRaw<[{ count: number }]>(
+						Prisma.sql`
             SELECT COUNT(*)::int AS count
             FROM (
               SELECT regexp_replace(lower(trim(ruc.url)), '/+$', '') AS normalized_url
@@ -2193,10 +2445,10 @@ export class DeepDiveRepository {
               WHERE ${wFiltered()}
               GROUP BY normalized_url
             ) dedup
-          `
-        ),
-        prisma.$queryRaw<Array<{ value: string; count: number }>>(
-          Prisma.sql`
+          `,
+					),
+					prisma.$queryRaw<Array<{ value: string; count: number }>>(
+						Prisma.sql`
             WITH dedup AS (
               SELECT
                 ARRAY_REMOVE(ARRAY_AGG(DISTINCT ruc.agent), NULL) AS agents
@@ -2208,10 +2460,12 @@ export class DeepDiveRepository {
             FROM dedup, UNNEST(agents) AS agent
             GROUP BY agent
             ORDER BY count DESC
-          `
-        ),
-        prisma.$queryRaw<Array<{ query_id: string; goal: string | null; count: number }>>(
-          Prisma.sql`
+          `,
+					),
+					prisma.$queryRaw<
+						Array<{ query_id: string; goal: string | null; count: number }>
+					>(
+						Prisma.sql`
             WITH dedup AS (
               SELECT
                 ARRAY_REMOVE(ARRAY_AGG(DISTINCT ruc.query_id::text), NULL) AS query_ids
@@ -2227,13 +2481,20 @@ export class DeepDiveRepository {
             LEFT JOIN data_collection_queries dcq ON dcq.id = qid::bigint
             GROUP BY qid, dcq.query ->> 'goal'
             ORDER BY count DESC
-          `
-        ),
-        prisma.$queryRaw<Array<{
-          id: number; url: string; title: string | null; description: string | null;
-          status: string; metadata: unknown; created_at: Date | null;
-        }>>(
-          Prisma.sql`
+          `,
+					),
+					prisma.$queryRaw<
+						Array<{
+							id: number;
+							url: string;
+							title: string | null;
+							description: string | null;
+							status: string;
+							metadata: unknown;
+							created_at: Date | null;
+						}>
+					>(
+						Prisma.sql`
             WITH dedup AS (
               SELECT
                 MIN(ruc.id)::int AS id,
@@ -2259,93 +2520,110 @@ export class DeepDiveRepository {
               ) AS metadata,
               NULL::timestamp AS created_at
             FROM dedup
-            ${this.buildOrderBy(mappedSortBy, filters.sortOrder, ["url", "status", "id"], "id")}
+            ${DeepDiveRepository.buildOrderBy(mappedSortBy, filters.sortOrder, ["url", "status", "id"], "id")}
             LIMIT ${filters.limit} OFFSET ${filters.offset}
-          `
-        ),
-      ]);
+          `,
+					),
+				]);
 
-      return {
-        total: totalResult[0]?.count ?? 0,
-        totalFiltered: totalFilteredResult[0]?.count ?? 0,
-        aggregations: {
-          agents: agentsAgg,
-          queryIds: queryIdsAgg,
-        },
-        items,
-      };
-    }
+			return {
+				total: totalResult[0]?.count ?? 0,
+				totalFiltered: totalFilteredResult[0]?.count ?? 0,
+				aggregations: {
+					agents: agentsAgg,
+					queryIds: queryIdsAgg,
+				},
+				items,
+			};
+		}
 
-    const w = () => this.buildLegacyCandidatesWhere(companyId, filters);
+		const w = () =>
+			DeepDiveRepository.buildLegacyCandidatesWhere(companyId, filters);
 
-    const [totalResult, totalFilteredResult, agentsAgg, queryIdsAgg, items] = await Promise.all([
-      prisma.$queryRaw<[{ count: number }]>(
-        Prisma.sql`SELECT COUNT(*)::int AS count FROM scape_url_candidates WHERE company_id = ${companyId}`
-      ),
-      prisma.$queryRaw<[{ count: number }]>(
-        Prisma.sql`SELECT COUNT(*)::int AS count FROM scape_url_candidates WHERE ${w()}`
-      ),
-      prisma.$queryRaw<Array<{ value: string; count: number }>>(
-        Prisma.sql`SELECT agent AS value, COUNT(*)::int AS count
+		const [totalResult, totalFilteredResult, agentsAgg, queryIdsAgg, items] =
+			await Promise.all([
+				prisma.$queryRaw<[{ count: number }]>(
+					Prisma.sql`SELECT COUNT(*)::int AS count FROM scape_url_candidates WHERE company_id = ${companyId}`,
+				),
+				prisma.$queryRaw<[{ count: number }]>(
+					Prisma.sql`SELECT COUNT(*)::int AS count FROM scape_url_candidates WHERE ${w()}`,
+				),
+				prisma.$queryRaw<Array<{ value: string; count: number }>>(
+					Prisma.sql`SELECT agent AS value, COUNT(*)::int AS count
         FROM scape_url_candidates, jsonb_array_elements_text(metadata -> 'agents') AS agent
         WHERE ${w()}
-        GROUP BY agent ORDER BY count DESC`
-      ),
-      prisma.$queryRaw<Array<{ query_id: string; goal: string | null; count: number }>>(
-        Prisma.sql`SELECT qid AS query_id, dcq.query ->> 'goal' AS goal, COUNT(*)::int AS count
+        GROUP BY agent ORDER BY count DESC`,
+				),
+				prisma.$queryRaw<
+					Array<{ query_id: string; goal: string | null; count: number }>
+				>(
+					Prisma.sql`SELECT qid AS query_id, dcq.query ->> 'goal' AS goal, COUNT(*)::int AS count
         FROM scape_url_candidates, jsonb_array_elements_text(metadata -> 'query_ids') AS qid
         LEFT JOIN data_collection_queries dcq ON dcq.id = qid::bigint
         WHERE ${w()}
-        GROUP BY qid, dcq.query ->> 'goal' ORDER BY count DESC`
-      ),
-      prisma.$queryRaw<Array<{
-        id: number; url: string; title: string | null; description: string | null;
-        status: string; metadata: unknown; created_at: Date;
-      }>>(
-        Prisma.sql`SELECT id, url, title, description, status, metadata, created_at
+        GROUP BY qid, dcq.query ->> 'goal' ORDER BY count DESC`,
+				),
+				prisma.$queryRaw<
+					Array<{
+						id: number;
+						url: string;
+						title: string | null;
+						description: string | null;
+						status: string;
+						metadata: unknown;
+						created_at: Date;
+					}>
+				>(
+					Prisma.sql`SELECT id, url, title, description, status, metadata, created_at
         FROM scape_url_candidates WHERE ${w()}
-        ${this.buildOrderBy(filters.sortBy, filters.sortOrder, ["url", "status", "created_at"], "created_at")}
-        LIMIT ${filters.limit} OFFSET ${filters.offset}`
-      ),
-    ]);
+        ${DeepDiveRepository.buildOrderBy(filters.sortBy, filters.sortOrder, ["url", "status", "created_at"], "created_at")}
+        LIMIT ${filters.limit} OFFSET ${filters.offset}`,
+				),
+			]);
 
-    return {
-      total: totalResult[0]?.count ?? 0,
-      totalFiltered: totalFilteredResult[0]?.count ?? 0,
-      aggregations: {
-        agents: agentsAgg,
-        queryIds: queryIdsAgg,
-      },
-      items,
-    };
-  }
+		return {
+			total: totalResult[0]?.count ?? 0,
+			totalFiltered: totalFilteredResult[0]?.count ?? 0,
+			aggregations: {
+				agents: agentsAgg,
+				queryIds: queryIdsAgg,
+			},
+			items,
+		};
+	}
 
-  // ─────────────── Sales Miner ───────────────
+	// ─────────────── Sales Miner ───────────────
 
-  static async getSalesMinerStepResults(reportId: number, companyId: number) {
-    return prisma.$queryRaw<Array<{ step_key: string; payload: unknown }>>`
+	static async getSalesMinerStepResults(reportId: number, companyId: number) {
+		return prisma.$queryRaw<Array<{ step_key: string; payload: unknown }>>`
       SELECT step_key, payload
       FROM sales_report_step_intermediate_results
       WHERE report_id = ${reportId} AND company_id = ${companyId}
     `;
-  }
+	}
 
-  static async getAccountTopOpportunities(relatedReportId: number, accountName: string, limit = 10) {
-    return prisma.$queryRaw<Array<{
-      id: bigint;
-      company_id: number;
-      entity_name: string;
-      title: string | null;
-      score: string | null;
-      portfolio_priority_score: string | null;
-      portfolio_priority_reason: string | null;
-      org_unit: string | null;
-      horizon: string | null;
-      deal_size_general: string | null;
-      why_now: string | null;
-      primary_business_problem: string | null;
-      primary_value_proposition: string | null;
-    }>>`
+	static async getAccountTopOpportunities(
+		relatedReportId: number,
+		accountName: string,
+		limit = 10,
+	) {
+		return prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				company_id: number;
+				entity_name: string;
+				title: string | null;
+				score: string | null;
+				portfolio_priority_score: string | null;
+				portfolio_priority_reason: string | null;
+				org_unit: string | null;
+				horizon: string | null;
+				deal_size_general: string | null;
+				why_now: string | null;
+				primary_business_problem: string | null;
+				primary_value_proposition: string | null;
+			}>
+		>`
       SELECT
         oc.id,
         oc.company_id,
@@ -2371,19 +2649,21 @@ export class DeepDiveRepository {
       ORDER BY oc.portfolio_priority_score DESC NULLS LAST
       LIMIT ${limit}
     `;
-  }
+	}
 
-  static async getEntitySignals(companyId: number, reportId: number) {
-    return prisma.$queryRaw<Array<{
-      id: bigint;
-      theme_code: string | null;
-      strength_score: string | null;
-      confidence_score: string | null;
-      freshness_score: string | null;
-      summary_text: string | null;
-      signal_name: string | null;
-      signal_description: string | null;
-    }>>`
+	static async getEntitySignals(companyId: number, reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				theme_code: string | null;
+				strength_score: string | null;
+				confidence_score: string | null;
+				freshness_score: string | null;
+				summary_text: string | null;
+				signal_name: string | null;
+				signal_description: string | null;
+			}>
+		>`
       SELECT
         cssi.id,
         cssi.theme_code,
@@ -2401,24 +2681,26 @@ export class DeepDiveRepository {
         AND rr.report_id = ${reportId}
       ORDER BY cssi.strength_score DESC NULLS LAST
     `;
-  }
+	}
 
-  static async getEntityOpportunities(companyId: number, reportId: number) {
-    return prisma.$queryRaw<Array<{
-      id: bigint;
-      title: string | null;
-      score: string | null;
-      portfolio_priority_score: string | null;
-      rank_position: number | null;
-      is_top_10: boolean | null;
-      org_unit: string | null;
-      horizon: string | null;
-      deal_size_general: string | null;
-      why_now: string | null;
-      primary_business_problem: string | null;
-      primary_value_proposition: string | null;
-      solution_center: string | null;
-    }>>`
+	static async getEntityOpportunities(companyId: number, reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				title: string | null;
+				score: string | null;
+				portfolio_priority_score: string | null;
+				rank_position: number | null;
+				is_top_10: boolean | null;
+				org_unit: string | null;
+				horizon: string | null;
+				deal_size_general: string | null;
+				why_now: string | null;
+				primary_business_problem: string | null;
+				primary_value_proposition: string | null;
+				solution_center: string | null;
+			}>
+		>`
       SELECT
         oc.id,
         oc.title,
@@ -2439,21 +2721,23 @@ export class DeepDiveRepository {
         AND rr.report_id = ${reportId}
       ORDER BY oc.portfolio_priority_score DESC NULLS LAST, oc.score DESC NULLS LAST
     `;
-  }
+	}
 
-  static async getEntityStakeholders(companyId: number, reportId: number) {
-    return prisma.$queryRaw<Array<{
-      id: bigint;
-      gate_role: string | null;
-      gate_role_type: string | null;
-      role_title: string | null;
-      entity_name: string | null;
-      entity_level: string | null;
-      rationale: string | null;
-      full_name: string | null;
-      linkedin_url: string | null;
-      opportunity_id: bigint | null;
-    }>>`
+	static async getEntityStakeholders(companyId: number, reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				gate_role: string | null;
+				gate_role_type: string | null;
+				role_title: string | null;
+				entity_name: string | null;
+				entity_level: string | null;
+				rationale: string | null;
+				full_name: string | null;
+				linkedin_url: string | null;
+				opportunity_id: bigint | null;
+			}>
+		>`
       SELECT
         sv.id,
         sv.gate_role,
@@ -2477,15 +2761,17 @@ export class DeepDiveRepository {
         )
       ORDER BY sv.id
     `;
-  }
+	}
 
-  static async getSalesMinerReportSignalSummary(reportId: number) {
-    return prisma.$queryRaw<Array<{
-      theme_code: string;
-      signal_count: bigint;
-      avg_strength: number | null;
-      companies_count: bigint;
-    }>>`
+	static async getSalesMinerReportSignalSummary(reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				theme_code: string;
+				signal_count: bigint;
+				avg_strength: number | null;
+				companies_count: bigint;
+			}>
+		>`
       SELECT
         cssi.theme_code,
         count(DISTINCT cssi.id) AS signal_count,
@@ -2499,16 +2785,18 @@ export class DeepDiveRepository {
       GROUP BY cssi.theme_code
       ORDER BY signal_count DESC
     `;
-  }
+	}
 
-  static async getSalesMinerReportOpportunitySummary(reportId: number) {
-    return prisma.$queryRaw<Array<{
-      motion_family: string | null;
-      horizon: string | null;
-      count: bigint;
-      avg_priority: number | null;
-      companies_count: bigint;
-    }>>`
+	static async getSalesMinerReportOpportunitySummary(reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				motion_family: string | null;
+				horizon: string | null;
+				count: bigint;
+				avg_priority: number | null;
+				companies_count: bigint;
+			}>
+		>`
       SELECT
         oc.motion_family,
         oc.horizon,
@@ -2522,17 +2810,19 @@ export class DeepDiveRepository {
       GROUP BY oc.motion_family, oc.horizon
       ORDER BY avg_priority DESC NULLS LAST
     `;
-  }
+	}
 
-  static async getSalesMinerEntityTopCompanies(reportId: number) {
-    return prisma.$queryRaw<Array<{
-      id: number;
-      name: string;
-      opp_count: bigint;
-      avg_priority: number | null;
-      signal_count: bigint;
-      is_analyzed: boolean;
-    }>>`
+	static async getSalesMinerEntityTopCompanies(reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				id: number;
+				name: string;
+				opp_count: bigint;
+				avg_priority: number | null;
+				signal_count: bigint;
+				is_analyzed: boolean;
+			}>
+		>`
       SELECT
         c.id,
         c.name,
@@ -2550,17 +2840,22 @@ export class DeepDiveRepository {
       GROUP BY c.id, c.name
       ORDER BY avg_priority DESC NULLS LAST
     `;
-  }
+	}
 
-  static async getSalesMinerAccountCompanies(reportId: number, relatedReportId: number) {
-    return prisma.$queryRaw<Array<{
-      id: number;
-      name: string;
-      opp_count: bigint;
-      avg_priority: number | null;
-      signal_count: bigint;
-      steps_done: bigint;
-    }>>`
+	static async getSalesMinerAccountCompanies(
+		reportId: number,
+		relatedReportId: number,
+	) {
+		return prisma.$queryRaw<
+			Array<{
+				id: number;
+				name: string;
+				opp_count: bigint;
+				avg_priority: number | null;
+				signal_count: bigint;
+				steps_done: bigint;
+			}>
+		>`
       SELECT
         c.id,
         c.name,
@@ -2598,5 +2893,5 @@ export class DeepDiveRepository {
       WHERE rc.report_id = ${reportId}
       ORDER BY opp_count DESC
     `;
-  }
+	}
 }

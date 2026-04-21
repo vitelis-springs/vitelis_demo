@@ -88,42 +88,59 @@ model checkpoints {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model companies {
-  id                                       Int                                        @id @default(autoincrement())
-  name                                     String                                     @db.VarChar(255)
-  industry_id                              Int?
-  created_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
-  updated_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
-  country_code                             String?                                    @db.VarChar(50)
-  url                                      String?
-  additional_data                          Json?                                      @db.Json
-  invest_portal                            String?                                    @db.VarChar(255)
-  career_portal                            String?                                    @db.VarChar(255)
-  parent_company                           Int?
-  slug                                     String?                                    @unique @db.VarChar(255)
-  report_role                              String?
-  companies                                companies?                                 @relation("companies_parent_company_fk", fields: [parent_company], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  other_companies                          companies[]                                @relation("companies_parent_company_fk")
-  alixpartner_reports                      alixpartner_reports[]
-  bizminer_reports                         bizminer_reports[]
-  industries                               industries?                                @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  company_data_points                      company_data_points[]
-  company_public_reports                   company_public_reports[]
-  generated_company_reports                generated_company_reports[]
-  job_analys_companies                     job_analys_companies[]
-  job_scraper_settings                     job_scraper_settings[]
-  report_companies                         report_companies[]
-  report_data_collection_query_completions report_data_collection_query_completions[]
-  report_data_point_results                report_data_point_results[]
-  report_results                           report_results[]
-  report_step_statuses                     report_step_statuses[]
-  report_url_candidates                    report_url_candidates[]
-  scape_url_candidates                     scape_url_candidates[]
-  source_metadata                          source_metadata[]
-  sources                                  sources[]
-  sources_indexed                          sources_indexed[]
-  temp_resolved_data_points_result         temp_resolved_data_points_result[]
-  white_list_sources                       white_list_sources[]
-  ompany_data_collection_state             ompany_data_collection_state[]
+  id                                                                                                          Int                                        @id @default(autoincrement())
+  name                                                                                                        String                                     @db.VarChar(255)
+  industry_id                                                                                                 Int?
+  created_at                                                                                                  DateTime?                                  @default(now()) @db.Timestamp(6)
+  updated_at                                                                                                  DateTime?                                  @default(now()) @db.Timestamp(6)
+  country_code                                                                                                String?                                    @db.VarChar(50)
+  url                                                                                                         String?
+  additional_data                                                                                             Json?                                      @db.Json
+  invest_portal                                                                                               String?                                    @db.VarChar(255)
+  career_portal                                                                                               String?                                    @db.VarChar(255)
+  parent_company                                                                                              Int?
+  slug                                                                                                        String?                                    @unique(map: "companies_slug_unique") @db.VarChar(255)
+  report_role                                                                                                 String?                                    @db.VarChar
+  alixpartner_reports                                                                                         alixpartner_reports[]
+  bizminer_reports                                                                                            bizminer_reports[]
+  companies                                                                                                   companies?                                 @relation("companies_parent_company_fk", fields: [parent_company], references: [id], onUpdate: NoAction, map: "companies__parent_company_fk")
+  other_companies                                                                                             companies[]                                @relation("companies_parent_company_fk")
+  industries                                                                                                  industries?                                @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company_data_points                                                                                         company_data_points[]
+  company_info_items                                                                                          company_info_items[]
+  company_level_report_state                                                                                  company_level_report_state[]
+  company_public_reports                                                                                      company_public_reports[]
+  company_signal_summaries                                                                                    company_signal_summaries[]
+  customer_account_subsidiaries                                                                               customer_account_subsidiaries[]
+  customer_accounts                                                                                           customer_accounts[]
+  customers                                                                                                   customers?
+  generated_company_reports                                                                                   generated_company_reports[]
+  job_analys_companies                                                                                        job_analys_companies[]
+  job_scraper_settings                                                                                        job_scraper_settings[]
+  opportunities_sales                                                                                         opportunities_sales[]
+  opportunity_bundle_analytics                                                                                opportunity_bundle_analytics[]
+  opportunity_candidates                                                                                      opportunity_candidates[]
+  product_rankings                                                                                            product_rankings[]
+  product_scoring_results                                                                                     product_scoring_results[]
+  product_shortlists                                                                                          product_shortlists[]
+  report_companies                                                                                            report_companies[]
+  report_data_collection_query_completions                                                                    report_data_collection_query_completions[]
+  report_data_point_results                                                                                   report_data_point_results[]
+  report_results                                                                                              report_results[]
+  report_step_statuses                                                                                        report_step_statuses[]
+  report_url_candidates                                                                                       report_url_candidates[]
+  research_runs                                                                                               research_runs[]
+  sales_report_step_intermediate_results_sales_report_step_intermediate_results_account_company_idTocompanies sales_report_step_intermediate_results[]   @relation("sales_report_step_intermediate_results_account_company_idTocompanies")
+  sales_report_step_intermediate_results_sales_report_step_intermediate_results_company_idTocompanies         sales_report_step_intermediate_results[]   @relation("sales_report_step_intermediate_results_company_idTocompanies")
+  scape_url_candidates                                                                                        scape_url_candidates[]
+  signal_confirmations                                                                                        signal_confirmations[]
+  signal_search_tasks                                                                                         signal_search_tasks[]
+  source_metadata                                                                                             source_metadata[]
+  sources                                                                                                     sources[]
+  sources_indexed                                                                                             sources_indexed[]
+  temp_resolved_data_points_result                                                                            temp_resolved_data_points_result[]
+  white_list_sources                                                                                          white_list_sources[]
+  ompany_data_collection_state                                                                                ompany_data_collection_state[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -222,18 +239,23 @@ model execution_state {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model generated_company_reports {
-  id          Int        @id @default(autoincrement())
-  company_id  Int?
-  report_id   Int?
-  data        Json?
-  created_at  DateTime?  @default(now()) @db.Timestamp(6)
-  updated_at  DateTime?  @default(now()) @db.Timestamp(6)
-  files       Json?
-  report_type String?
-  companies   companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  reports     reports?   @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id            Int        @id @default(autoincrement())
+  company_id    Int?
+  report_id     Int?
+  data          Json?
+  created_at    DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?  @default(now()) @db.Timestamp(6)
+  files         Json?
+  report_type   String?
+  report_domain String?
+  file          Json?
+  companies     companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports       reports?   @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([report_type])
+  @@index([company_id, report_domain], map: "idx_gcr_company_report_domain")
+  @@index([company_id, report_type], map: "idx_gcr_company_report_type")
+  @@index([report_id, report_type], map: "idx_gcr_report_id_report_type")
 }
 
 model industries {
@@ -442,6 +464,7 @@ model report_data_point_results {
   report_data_point_validations report_data_point_validations[]
 
   @@unique([company_id, report_id, data_point_id], map: "report_data_point_results_unique_combination")
+  @@index([report_id, company_id], map: "idx_rdpr_report_company")
 }
 
 model report_data_points {
@@ -534,7 +557,10 @@ model reports {
   report_settings_id                       Int?
   source_validation_settings_id            Int?
   report_type                              String?                                    @db.VarChar(100)
+  company_level_report_state               company_level_report_state[]
   generated_company_reports                generated_company_reports[]
+  n8n_tasks                                n8n_tasks[]
+  opportunities_sales                      opportunities_sales[]
   report_companies                         report_companies[]
   report_data_collection_queries           report_data_collection_queries[]
   report_data_collection_query_completions report_data_collection_query_completions[]
@@ -548,6 +574,8 @@ model reports {
   report_settings                          report_settings?                           @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   source_validation_settings               source_validation_settings?                @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   use_cases                                use_cases?                                 @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  research_runs                            research_runs[]
+  sales_report_step_intermediate_results   sales_report_step_intermediate_results[]
   temp_resolved_data_points_result         temp_resolved_data_points_result[]
 
   @@index([source_validation_settings_id], map: "idx_reports_source_validation_settings_id")
@@ -796,6 +824,7 @@ model report_url_candidates {
   @@index([report_id, company_id], map: "ix_report_url_candidates_report_company")
 }
 
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model source_metadata {
   id                            Int                        @id @default(autoincrement())
   source_id                     BigInt
@@ -811,6 +840,7 @@ model source_metadata {
   @@index([company_id], map: "idx_source_metadata_company_id")
   @@index([source_id], map: "idx_source_metadata_source_id")
   @@index([source_validation_settings_id], map: "idx_source_metadata_sv_settings_id")
+  @@index([metadata(ops: JsonbPathOps)], map: "idx_sm_metadata_gin_pathops", type: Gin)
 }
 
 model source_validation_settings {
@@ -831,6 +861,8 @@ model sources_new {
   scrapped_at     DateTime?         @db.Timestamp(6)
   isVectorized    Boolean           @default(false)
   source_metadata source_metadata[]
+
+  @@index([url(ops: raw("gin_trgm_ops"))], map: "idx_sources_new_url_trgm", type: Gin)
 }
 
 model validation_rules {
@@ -844,6 +876,1459 @@ model validation_rules {
   updated_at                    DateTime                        @default(now()) @db.Timestamp(6)
   label                         String?                         @db.VarChar(255)
   report_data_point_validations report_data_point_validations[]
+}
+
+model company_info_categories {
+  id                            BigInt                        @id @default(autoincrement())
+  parent_id                     BigInt?
+  code                          String                        @unique
+  name                          String
+  description                   String?
+  created_at                    DateTime                      @default(now()) @db.Timestamptz(6)
+  company_info_categories       company_info_categories?      @relation("company_info_categoriesTocompany_info_categories", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_company_info_categories company_info_categories[]     @relation("company_info_categoriesTocompany_info_categories")
+  company_info_definitions      company_info_definitions[]
+  company_info_items            company_info_items[]
+  customer_account_info_items   customer_account_info_items[]
+
+  @@index([parent_id], map: "idx_company_info_categories_parent")
+}
+
+model company_info_definitions {
+  id                          BigInt                        @id @default(autoincrement())
+  company_category_id         BigInt
+  key                         String
+  label                       String
+  description                 String?
+  expected_shape              Json                          @default("{}")
+  suggested_source            String?
+  created_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  company_info_categories     company_info_categories       @relation(fields: [company_category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company_info_items          company_info_items[]
+  customer_account_info_items customer_account_info_items[]
+
+  @@unique([company_category_id, key], map: "uq_company_info_definitions_cat_key")
+  @@index([company_category_id], map: "idx_company_info_definitions_category")
+}
+
+model company_info_items {
+  id                       BigInt                    @id @default(autoincrement())
+  company_id               Int
+  company_category_id      BigInt
+  company_definition_id    BigInt?
+  data                     Json                      @default("{}")
+  is_active                Boolean                   @default(true)
+  as_of_date               DateTime?                 @db.Date
+  source_system            String?
+  source_ref               Json                      @default("{}")
+  confidence               Decimal?                  @db.Decimal
+  collected_at             DateTime                  @default(now()) @db.Timestamptz(6)
+  created_at               DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                  @default(now()) @db.Timestamptz(6)
+  company_info_categories  company_info_categories   @relation(fields: [company_category_id], references: [id], onUpdate: NoAction)
+  company_info_definitions company_info_definitions? @relation(fields: [company_definition_id], references: [id], onUpdate: NoAction)
+  companies                companies                 @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([as_of_date], map: "idx_company_info_items_as_of_date")
+  @@index([company_id, company_category_id, is_active], map: "idx_company_info_items_company_cat_active")
+  @@index([company_id, company_definition_id, is_active], map: "idx_company_info_items_company_def_active")
+}
+
+model company_level_report_state {
+  id         Int       @id @default(autoincrement())
+  report_id  Int
+  company_id Int
+  data       Json?
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @default(now()) @db.Timestamp(6)
+  companies  companies @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reports    reports   @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([report_id, company_id], map: "uq_company_level_report_state")
+}
+
+model company_names_aliases {
+  id            Int    @id(map: "company_names_aliases_pk") @default(autoincrement())
+  company_id    Int
+  company_alias String
+
+  @@unique([company_id, company_alias], map: "company_names_aliases_company_id_idx")
+}
+
+model company_signal_summaries {
+  id                           BigInt                         @id @default(autoincrement())
+  research_run_id              BigInt
+  company_id                   Int
+  summary_version              String                         @default("v1") @db.VarChar(50)
+  summary_text                 String
+  summary_json                 Json                           @default("{}")
+  overall_confidence           Decimal                        @default(0) @db.Decimal(10, 4)
+  meta                         Json                           @default("{}")
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  companies                    companies                      @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_runs                research_runs                  @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company_signal_summary_items company_signal_summary_items[]
+  product_scoring_results      product_scoring_results[]
+
+  @@unique([research_run_id, company_id, summary_version], map: "company_signal_summaries_unique")
+  @@index([company_id], map: "idx_company_signal_summaries_company_id")
+  @@index([research_run_id], map: "idx_company_signal_summaries_research_run_id")
+}
+
+model company_signal_summary_item_confirmations {
+  id                           BigInt                       @id @default(autoincrement())
+  summary_item_id              BigInt
+  confirmation_id              BigInt
+  created_at                   DateTime                     @default(now()) @db.Timestamptz(6)
+  signal_confirmations         signal_confirmations         @relation(fields: [confirmation_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_signal_summary_item_confirmations_confirmation_fkey")
+  company_signal_summary_items company_signal_summary_items @relation(fields: [summary_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_signal_summary_item_confirmations_summary_item_fkey")
+
+  @@unique([summary_item_id, confirmation_id], map: "company_signal_summary_item_confirmations_unique")
+  @@index([confirmation_id], map: "idx_company_signal_summary_item_confirmations_confirmation_id")
+  @@index([summary_item_id], map: "idx_company_signal_summary_item_confirmations_summary_item_id")
+}
+
+model company_signal_summary_items {
+  id                                        BigInt                                      @id @default(autoincrement())
+  company_signal_summary_id                 BigInt
+  signal_definition_id                      BigInt?
+  theme_code                                String?                                     @db.VarChar(100)
+  signal_type_id                            BigInt?
+  strength_score                            Decimal                                     @default(0) @db.Decimal(10, 4)
+  confidence_score                          Decimal                                     @default(0) @db.Decimal(10, 4)
+  freshness_score                           Decimal                                     @default(0) @db.Decimal(10, 4)
+  summary_text                              String
+  meta                                      Json                                        @default("{}")
+  created_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  company_signal_summary_item_confirmations company_signal_summary_item_confirmations[]
+  signal_definitions                        signal_definitions?                         @relation(fields: [signal_definition_id], references: [id], onUpdate: NoAction)
+  signal_types                              signal_types?                               @relation(fields: [signal_type_id], references: [id], onUpdate: NoAction)
+  company_signal_summaries                  company_signal_summaries                    @relation(fields: [company_signal_summary_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_signal_summary_items_summary_fkey")
+
+  @@index([signal_definition_id], map: "idx_company_signal_summary_items_signal_definition_id")
+  @@index([company_signal_summary_id], map: "idx_company_signal_summary_items_summary_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model company_use_cases {
+  id                  BigInt   @id @default(autoincrement())
+  report_id           Int
+  company_id          Int
+  name                String
+  category            String?
+  description         String?
+  quantitative_impact String?
+  business_impact     String?
+  domain              String
+  sources             Json     @default("[]")
+  evidence_type       String   @db.VarChar(32)
+  status              String   @db.VarChar(32)
+  scope_type          String   @db.VarChar(32)
+  beneficiary         String?
+  solution_origin     String?  @db.VarChar(32)
+  launched_year       Int?
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+  verified            Boolean  @default(true)
+
+  @@unique([report_id, company_id, name])
+  @@index([evidence_type], map: "idx_company_use_cases_evidence_type")
+  @@index([report_id], map: "idx_company_use_cases_report_id")
+  @@index([scope_type], map: "idx_company_use_cases_scope_type")
+  @@index([sources], map: "idx_company_use_cases_sources_gin", type: Gin)
+  @@index([status], map: "idx_company_use_cases_status")
+  @@index([company_id], map: "idx_company_use_company_id")
+}
+
+model customer_account_info_items {
+  id                       BigInt                    @id @default(autoincrement())
+  customer_account_id      BigInt
+  company_category_id      BigInt
+  company_definition_id    BigInt?
+  data                     Json                      @default("{}")
+  is_active                Boolean                   @default(true)
+  as_of_date               DateTime?                 @db.Date
+  source_system            String?
+  source_ref               Json                      @default("{}")
+  confidence               Decimal?                  @db.Decimal
+  collected_at             DateTime                  @default(now()) @db.Timestamptz(6)
+  created_at               DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                  @default(now()) @db.Timestamptz(6)
+  company_info_categories  company_info_categories   @relation(fields: [company_category_id], references: [id], onUpdate: NoAction)
+  company_info_definitions company_info_definitions? @relation(fields: [company_definition_id], references: [id], onUpdate: NoAction)
+  customer_accounts        customer_accounts         @relation(fields: [customer_account_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([customer_account_id, company_category_id, is_active], map: "idx_cai_items_account_cat_active")
+  @@index([customer_account_id, company_definition_id, is_active], map: "idx_cai_items_account_def_active")
+  @@index([as_of_date], map: "idx_cai_items_as_of_date")
+}
+
+model customer_account_subsidiaries {
+  id                    BigInt            @id @default(autoincrement())
+  customer_account_id   BigInt
+  subsidiary_company_id Int
+  relation_type         String            @default("subsidiary") @db.VarChar(50)
+  is_active             Boolean           @default(true)
+  created_at            DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime          @default(now()) @db.Timestamptz(6)
+  meta                  Json              @default("{}")
+  customer_accounts     customer_accounts @relation(fields: [customer_account_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  companies             companies         @relation(fields: [subsidiary_company_id], references: [id], onUpdate: NoAction)
+
+  @@unique([customer_account_id, subsidiary_company_id], map: "uq_customer_account_subsidiaries_account_company")
+  @@index([customer_account_id], map: "idx_customer_account_subsidiaries_customer_account_id")
+  @@index([subsidiary_company_id], map: "idx_customer_account_subsidiaries_subsidiary_company_id")
+}
+
+model customer_accounts {
+  id                            BigInt                          @id @default(autoincrement())
+  customer_id                   BigInt
+  company_id                    Int
+  is_active                     Boolean                         @default(true)
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                        @default(now()) @db.Timestamptz(6)
+  customer_account_info_items   customer_account_info_items[]
+  customer_account_subsidiaries customer_account_subsidiaries[]
+  companies                     companies                       @relation(fields: [company_id], references: [id], onUpdate: NoAction)
+  customers                     customers                       @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([customer_id, company_id], map: "uq_customer_accounts_customer_company")
+  @@index([customer_id, is_active], map: "idx_customer_accounts_active")
+  @@index([company_id], map: "idx_customer_accounts_company_id")
+}
+
+model customer_info_categories {
+  id                             BigInt                     @id @default(autoincrement())
+  parent_id                      BigInt?
+  code                           String                     @unique
+  name                           String
+  description                    String?
+  created_at                     DateTime                   @default(now()) @db.Timestamptz(6)
+  customer_info_categories       customer_info_categories?  @relation("customer_info_categoriesTocustomer_info_categories", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_customer_info_categories customer_info_categories[] @relation("customer_info_categoriesTocustomer_info_categories")
+  customer_info_items            customer_info_items[]
+}
+
+model customer_info_items {
+  id                       BigInt                   @id @default(autoincrement())
+  customer_id              BigInt
+  customer_category_id     BigInt
+  data                     Json                     @default("{}")
+  is_active                Boolean                  @default(true)
+  as_of_date               DateTime?                @db.Date
+  source_system            String?
+  source_ref               Json                     @default("{}")
+  confidence               Decimal?                 @db.Decimal
+  collected_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  created_at               DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                 @default(now()) @db.Timestamptz(6)
+  customer_info_categories customer_info_categories @relation(fields: [customer_category_id], references: [id], onUpdate: NoAction)
+  customers                customers                @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "customer_info_items_fkey")
+}
+
+model customer_product_info_items {
+  id                      BigInt                  @id @default(autoincrement())
+  customer_product_id     BigInt
+  product_category_id     BigInt
+  data                    Json                    @default("{}")
+  is_active               Boolean                 @default(true)
+  as_of_date              DateTime?               @db.Date
+  source_system           String?
+  source_ref              Json                    @default("{}")
+  confidence              Decimal?                @db.Decimal
+  collected_at            DateTime                @default(now()) @db.Timestamptz(6)
+  created_at              DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                @default(now()) @db.Timestamptz(6)
+  customer_products       customer_products       @relation(fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product_info_categories product_info_categories @relation(fields: [product_category_id], references: [id], onUpdate: NoAction)
+
+  @@index([as_of_date], map: "idx_cpi_items_as_of_date")
+  @@index([customer_product_id, product_category_id, is_active], map: "idx_cpi_items_product_cat_active")
+}
+
+model customer_product_signal_links {
+  id                   BigInt             @id @default(autoincrement())
+  customer_product_id  BigInt
+  signal_definition_id BigInt
+  relation_type        String             @default("core") @db.VarChar(50)
+  priority_weight      Decimal            @default(1.0) @db.Decimal(10, 4)
+  fit_rationale        String?
+  is_active            Boolean            @default(true)
+  meta                 Json               @default("{}")
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime           @default(now()) @db.Timestamptz(6)
+  customer_products    customer_products  @relation(fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "customer_product_signal_links_product_fkey")
+  signal_definitions   signal_definitions @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "customer_product_signal_links_signal_fkey")
+
+  @@unique([customer_product_id, signal_definition_id], map: "customer_product_signal_links_unique")
+  @@index([customer_product_id], map: "idx_customer_product_signal_links_product_id")
+  @@index([relation_type], map: "idx_customer_product_signal_links_relation_type")
+  @@index([signal_definition_id], map: "idx_customer_product_signal_links_signal_definition_id")
+}
+
+model customer_product_signal_query_overrides {
+  id                   BigInt             @id @default(autoincrement())
+  customer_product_id  BigInt
+  signal_definition_id BigInt
+  phrase               String
+  override_type        String             @default("add") @db.VarChar(50)
+  reason               String?
+  is_active            Boolean            @default(true)
+  meta                 Json               @default("{}")
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime           @default(now()) @db.Timestamptz(6)
+  customer_products    customer_products  @relation(fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "customer_product_signal_query_overrides_product_fkey")
+  signal_definitions   signal_definitions @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "customer_product_signal_query_overrides_signal_fkey")
+
+  @@index([customer_product_id, signal_definition_id], map: "idx_customer_product_signal_query_overrides_product_signal")
+}
+
+model customer_products {
+  id                                                                                              BigInt                                    @id @default(autoincrement())
+  customer_id                                                                                     BigInt
+  name                                                                                            String
+  description                                                                                     String?
+  is_active                                                                                       Boolean                                   @default(true)
+  meta                                                                                            Json                                      @default("{}")
+  created_at                                                                                      DateTime                                  @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                      DateTime                                  @default(now()) @db.Timestamptz(6)
+  parent_id                                                                                       BigInt?
+  product_level                                                                                   customer_product_level_enum
+  customer_product_info_items                                                                     customer_product_info_items[]
+  customer_product_signal_links                                                                   customer_product_signal_links[]
+  customer_product_signal_query_overrides                                                         customer_product_signal_query_overrides[]
+  customers                                                                                       customers                                 @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products                                                                               customer_products?                        @relation("customer_productsTocustomer_products", fields: [parent_id], references: [id], onUpdate: NoAction, map: "fk_customer_products_parent")
+  other_customer_products                                                                         customer_products[]                       @relation("customer_productsTocustomer_products")
+  opportunities_sales                                                                             opportunities_sales[]
+  opportunity_bundle_analytics_opportunity_bundle_analytics_lead_l2_product_idTocustomer_products opportunity_bundle_analytics[]            @relation("opportunity_bundle_analytics_lead_l2_product_idTocustomer_products")
+  opportunity_bundle_analytics_opportunity_bundle_analytics_lead_product_idTocustomer_products    opportunity_bundle_analytics[]            @relation("opportunity_bundle_analytics_lead_product_idTocustomer_products")
+  opportunity_candidate_items_opportunity_candidate_items_customer_product_idTocustomer_products  opportunity_candidate_items[]             @relation("opportunity_candidate_items_customer_product_idTocustomer_products")
+  opportunity_candidate_items_opportunity_candidate_items_parent_l2_product_idTocustomer_products opportunity_candidate_items[]             @relation("opportunity_candidate_items_parent_l2_product_idTocustomer_products")
+  opportunity_candidates_opportunity_candidates_lead_l2_product_idTocustomer_products             opportunity_candidates[]                  @relation("opportunity_candidates_lead_l2_product_idTocustomer_products")
+  opportunity_candidates_opportunity_candidates_lead_product_idTocustomer_products                opportunity_candidates[]                  @relation("opportunity_candidates_lead_product_idTocustomer_products")
+  product_rankings                                                                                product_rankings[]
+  product_scoring_results_product_scoring_results_customer_product_idTocustomer_products          product_scoring_results[]                 @relation("product_scoring_results_customer_product_idTocustomer_products")
+  product_scoring_results_product_scoring_results_parent_l2_product_idTocustomer_products         product_scoring_results[]                 @relation("product_scoring_results_parent_l2_product_idTocustomer_products")
+  product_shortlist_items                                                                         product_shortlist_items[]
+  research_run_product_scope                                                                      research_run_product_scope[]
+
+  @@unique([customer_id, parent_id, name], map: "uq_customer_products_customer_parent_name")
+  @@index([customer_id, is_active], map: "idx_customer_products_active")
+  @@index([customer_id], map: "idx_customer_products_customer_id")
+  @@index([customer_id, product_level], map: "idx_customer_products_customer_id_level")
+  @@index([customer_id, parent_id], map: "idx_customer_products_customer_parent")
+  @@index([customer_id, parent_id, product_level], map: "idx_customer_products_customer_parent_level")
+  @@index([parent_id], map: "idx_customer_products_parent_id")
+}
+
+model customers {
+  id                  BigInt                @id @default(autoincrement())
+  company_id          Int                   @unique
+  display_name        String
+  is_active           Boolean               @default(true)
+  settings            Json                  @default("{}")
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  customer_accounts   customer_accounts[]
+  customer_info_items customer_info_items[]
+  customer_products   customer_products[]
+  companies           companies             @relation(fields: [company_id], references: [id], onUpdate: NoAction)
+  research_runs       research_runs[]
+
+  @@index([is_active], map: "idx_customers_is_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model external_resource_call_logs {
+  id                   BigInt   @id @default(autoincrement())
+  report_id            Int?
+  company_id           Int?
+  step_id              BigInt?
+  execution_id         String?  @db.VarChar(20)
+  node_name            String?  @db.VarChar(150)
+  task                 String   @db.VarChar(50)
+  provider             String   @db.VarChar(50)
+  model                String   @db.VarChar(100)
+  prompt_tokens        Int      @default(0)
+  completion_tokens    Int      @default(0)
+  is_success           Boolean  @default(true)
+  error_message        String?
+  duration_ms          Int?
+  external_request_id  String?  @db.VarChar(100)
+  metadata             Json     @default("{}")
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  resource_units_count Int      @default(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model external_resource_pricing {
+  id                  BigInt    @id @default(autoincrement())
+  provider            String    @db.VarChar(50)
+  model               String    @db.VarChar(100)
+  input_price         Decimal   @default(0) @db.Decimal(18, 8)
+  input_tokens_count  Int
+  output_price        Decimal   @default(0) @db.Decimal(18, 8)
+  output_tokens_count Int
+  valid_from          DateTime  @default(now()) @db.Timestamptz(6)
+  valid_to            DateTime? @db.Timestamptz(6)
+  is_active           Boolean   @default(true)
+  metadata            Json      @default("{}")
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  mcp_call_price      Decimal   @default(0) @db.Decimal(18, 8)
+  mcp_calls_count     Int       @default(1)
+}
+
+model n8n_tasks {
+  id             Int       @id @default(autoincrement())
+  work_flow_id   String    @db.VarChar(255)
+  work_flow_name String    @db.VarChar(255)
+  work_flow_url  String
+  status         String    @default("PENDING")
+  execution_id   String?   @db.VarChar(255)
+  metadata       Json?
+  report_id      Int?
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  reports        reports?  @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model opportunities_sales {
+  id                            Int                            @id @default(autoincrement())
+  report_id                     Int
+  product_id                    BigInt
+  company_id                    Int
+  opportunity_name              String?                        @db.VarChar
+  priority_score                Int?
+  data                          Json?
+  created_at                    DateTime                       @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime                       @default(now()) @db.Timestamp(6)
+  tier                          Int?                           @default(1)
+  meta                          Json?
+  timing_label_horizon          String?
+  deal_size_tier                String?
+  companies                     companies                      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer_products             customer_products              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports                       reports                        @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  opportunities_sales_deep_dive opportunities_sales_deep_dive?
+  stakeholders                  stakeholders[]
+
+  @@unique([report_id, product_id, company_id], map: "uq_opportunities_sales")
+}
+
+model opportunities_sales_deep_dive {
+  id                  Int                 @id @default(autoincrement())
+  opportunity_id      Int                 @unique(map: "opportunities_sales_deep_dive_unique")
+  data                Json?
+  created_at          DateTime            @default(now()) @db.Timestamp(6)
+  updated_at          DateTime            @default(now()) @db.Timestamp(6)
+  meta                Json?               @db.Json
+  opportunities_sales opportunities_sales @relation(fields: [opportunity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model opportunity_bundle_analytics {
+  id                                                                                   BigInt                  @id @default(autoincrement())
+  research_run_id                                                                      BigInt
+  company_id                                                                           Int
+  seed_id                                                                              String
+  lead_l2_product_id                                                                   BigInt?
+  lead_product_id                                                                      BigInt
+  lead_product_scoring_result_id                                                       BigInt
+  continue_opportunity                                                                 Boolean                 @default(true)
+  assembly_outcome                                                                     String                  @db.VarChar(50)
+  title                                                                                String?
+  org_unit                                                                             String?
+  motion_family                                                                        String?                 @db.VarChar(30)
+  motion_wave                                                                          String?                 @db.VarChar(20)
+  opportunity_space                                                                    String?
+  stage                                                                                String?                 @db.VarChar(30)
+  stage_detail                                                                         String?
+  status                                                                               String?                 @db.VarChar(30)
+  owner_label                                                                          String?
+  owner_type                                                                           String?                 @db.VarChar(30)
+  specialist_overlay                                                                   String?
+  amount_model_text                                                                    String?
+  amount_type                                                                          String?                 @db.VarChar(20)
+  why_now                                                                              String?
+  notes                                                                                String?
+  sequencing_note                                                                      String?
+  crm_linking_note                                                                     String?
+  depends_on_seed_id                                                                   String?
+  handoff_required                                                                     Boolean                 @default(false)
+  handoff_to_org_unit                                                                  String?
+  primary_business_problem                                                             String?
+  primary_buyer_persona                                                                String?
+  primary_value_proposition                                                            String?
+  solution_center                                                                      String?
+  commercial_model_hypothesis                                                          String?
+  score                                                                                Decimal?                @db.Decimal(10, 4)
+  confidence_score                                                                     Decimal?                @db.Decimal(10, 4)
+  commercial_readiness_score                                                           Decimal?                @db.Decimal(10, 4)
+  dependency_readiness_score                                                           Decimal?                @db.Decimal(10, 4)
+  handoff_complexity_score                                                             Decimal?                @db.Decimal(10, 4)
+  bundle_pass_confidence                                                               Decimal?                @db.Decimal(10, 4)
+  bundle_dependency_risk                                                               Decimal?                @db.Decimal(10, 4)
+  signal_overconcentration_risk                                                        Decimal?                @db.Decimal(10, 4)
+  bundle_strength_reason                                                               String?
+  scope_type                                                                           String?                 @db.VarChar(30)
+  entity_links                                                                         Json                    @default("[]")
+  primary_scope_company_id                                                             Int?
+  seed_signal_analytics                                                                Json                    @default("{}")
+  counterfactual_summary                                                               Json                    @default("{}")
+  duplicate_summary                                                                    Json                    @default("{}")
+  signal_quality_summary                                                               Json                    @default("{}")
+  bundle_items                                                                         Json                    @default("[]")
+  bundle_item_count                                                                    Int                     @default(0)
+  scored_bundle_item_count                                                             Int                     @default(0)
+  hidden_dependency_count                                                              Int                     @default(0)
+  raw_llm_bundle_response                                                              Json                    @default("{}")
+  request_meta                                                                         Json                    @default("{}")
+  created_at                                                                           DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                                                           DateTime                @default(now()) @db.Timestamptz(6)
+  companies                                                                            companies               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products_opportunity_bundle_analytics_lead_l2_product_idTocustomer_products customer_products?      @relation("opportunity_bundle_analytics_lead_l2_product_idTocustomer_products", fields: [lead_l2_product_id], references: [id], onUpdate: NoAction)
+  customer_products_opportunity_bundle_analytics_lead_product_idTocustomer_products    customer_products       @relation("opportunity_bundle_analytics_lead_product_idTocustomer_products", fields: [lead_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product_scoring_results                                                              product_scoring_results @relation(fields: [lead_product_scoring_result_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "opportunity_bundle_analytics_lead_product_scoring_result_id_fke")
+  research_runs                                                                        research_runs           @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([assembly_outcome], map: "idx_oba_assembly_outcome")
+  @@index([research_run_id, company_id], map: "idx_oba_run_company")
+  @@index([scope_type], map: "idx_oba_scope_type")
+  @@index([seed_id], map: "idx_oba_seed_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model opportunity_candidate_entities {
+  id                       BigInt                 @id @default(autoincrement())
+  opportunity_candidate_id BigInt
+  company_id               Int
+  entity_role              String                 @db.VarChar
+  confidence               Decimal?               @db.Decimal
+  signal_definition_ids    Json?
+  meta                     Json?
+  created_at               DateTime               @default(now()) @db.Timestamptz(6)
+  opportunity_candidates   opportunity_candidates @relation(fields: [opportunity_candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([company_id])
+  @@index([opportunity_candidate_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model opportunity_candidate_items {
+  id                                                                                    BigInt                      @id @default(autoincrement())
+  opportunity_candidate_id                                                              BigInt
+  customer_product_id                                                                   BigInt
+  product_scoring_result_id                                                             BigInt?
+  product_level                                                                         customer_product_level_enum
+  parent_l2_product_id                                                                  BigInt?
+  item_role                                                                             String                      @db.VarChar(50)
+  is_scored                                                                             Boolean                     @default(false)
+  is_primary                                                                            Boolean                     @default(false)
+  is_required_for_close                                                                 Boolean                     @default(false)
+  source_score                                                                          Decimal?                    @db.Decimal(10, 4)
+  source_confidence_score                                                               Decimal?                    @db.Decimal(10, 4)
+  sort_order                                                                            Int                         @default(1)
+  inclusion_reason                                                                      String?
+  meta                                                                                  Json                        @default("{}")
+  created_at                                                                            DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                                                                            DateTime                    @default(now()) @db.Timestamptz(6)
+  customer_products_opportunity_candidate_items_customer_product_idTocustomer_products  customer_products           @relation("opportunity_candidate_items_customer_product_idTocustomer_products", fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  opportunity_candidates                                                                opportunity_candidates      @relation(fields: [opportunity_candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products_opportunity_candidate_items_parent_l2_product_idTocustomer_products customer_products?          @relation("opportunity_candidate_items_parent_l2_product_idTocustomer_products", fields: [parent_l2_product_id], references: [id], onUpdate: NoAction)
+  product_scoring_results                                                               product_scoring_results?    @relation(fields: [product_scoring_result_id], references: [id], onUpdate: NoAction)
+
+  @@unique([opportunity_candidate_id, customer_product_id], map: "opportunity_candidate_items_unique")
+  @@index([opportunity_candidate_id, item_role, sort_order], map: "idx_opportunity_candidate_items_candidate_role")
+  @@index([meta], map: "idx_opportunity_candidate_items_meta_gin", type: Gin)
+  @@index([customer_product_id], map: "idx_opportunity_candidate_items_product")
+  @@index([product_scoring_result_id], map: "idx_opportunity_candidate_items_scoring_result")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model opportunity_candidates {
+  id                                                                                                             BigInt                            @id @default(autoincrement())
+  research_run_id                                                                                                BigInt
+  company_id                                                                                                     Int
+  title                                                                                                          String
+  org_unit                                                                                                       String
+  motion_family                                                                                                  String                            @db.VarChar(30)
+  motion_wave                                                                                                    String?                           @db.VarChar(20)
+  opportunity_space                                                                                              String?
+  lead_l2_product_id                                                                                             BigInt?
+  lead_product_id                                                                                                BigInt?
+  lead_product_scoring_result_id                                                                                 BigInt?
+  stage                                                                                                          String                            @default("lead") @db.VarChar(50)
+  stage_detail                                                                                                   String?
+  status                                                                                                         String                            @default("candidate") @db.VarChar(30)
+  close_target_text                                                                                              String?
+  close_target_from                                                                                              DateTime?                         @db.Date
+  close_target_to                                                                                                DateTime?                         @db.Date
+  owner_label                                                                                                    String?
+  owner_type                                                                                                     String?                           @db.VarChar(100)
+  specialist_overlay                                                                                             String?
+  amount_model_text                                                                                              String?
+  amount_type                                                                                                    String                            @default("unknown") @db.VarChar(20)
+  depends_on_opportunity_id                                                                                      BigInt?
+  relationship_anchor_opportunity_id                                                                             BigInt?
+  handoff_required                                                                                               Boolean                           @default(false)
+  handoff_to_org_unit                                                                                            String?
+  crm_linking_note                                                                                               String?
+  sequencing_note                                                                                                String?
+  score                                                                                                          Decimal                           @default(0) @db.Decimal(10, 4)
+  confidence_score                                                                                               Decimal                           @default(0) @db.Decimal(10, 4)
+  commercial_readiness_score                                                                                     Decimal                           @default(0) @db.Decimal(10, 4)
+  dependency_readiness_score                                                                                     Decimal                           @default(0) @db.Decimal(10, 4)
+  handoff_complexity_score                                                                                       Decimal                           @default(0) @db.Decimal(10, 4)
+  rank_position                                                                                                  Int?
+  is_top_10                                                                                                      Boolean                           @default(false)
+  ranking_version                                                                                                String                            @default("v1") @db.VarChar(50)
+  why_now                                                                                                        String?
+  notes                                                                                                          String?
+  meta                                                                                                           Json                              @default("{}")
+  created_at                                                                                                     DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                                     DateTime                          @default(now()) @db.Timestamptz(6)
+  primary_business_problem                                                                                       String?
+  primary_buyer_persona                                                                                          String?
+  primary_value_proposition                                                                                      String?
+  solution_center                                                                                                String?
+  commercial_model_hypothesis                                                                                    String?
+  buyer_routing                                                                                                  Json?
+  horizon                                                                                                        String?                           @db.VarChar(20)
+  horizon_name                                                                                                   String?
+  horizon_reasoning                                                                                              String?
+  horizon_confidence                                                                                             Decimal?                          @db.Decimal(10, 4)
+  horizon_version                                                                                                String?                           @db.VarChar(50)
+  horizon_assigned_at                                                                                            DateTime?                         @db.Timestamptz(6)
+  horizon_meta                                                                                                   Json                              @default("{}")
+  delivery_type                                                                                                  String?                           @db.VarChar(50)
+  track_1_entity                                                                                                 String?
+  track_2_entities                                                                                               Json                              @default("[]")
+  track_meta                                                                                                     Json                              @default("{}")
+  portfolio_priority_score                                                                                       Decimal?                          @db.Decimal(10, 4)
+  portfolio_priority_reason                                                                                      String?
+  deal_size_general                                                                                              String?
+  deal_size_horizon                                                                                              String?
+  time_label_general                                                                                             String?
+  time_label_horizon                                                                                             String?
+  score_tier                                                                                                     Int?
+  score_tier_reasoning                                                                                           String?
+  deal_size_tier                                                                                                 Int?
+  deal_size_tier_reasoning                                                                                       String?
+  time_tier                                                                                                      Int?
+  time_tier_reasoning                                                                                            String?
+  signal_strength_tier                                                                                           Int?
+  signal_strength_tier_reasoning                                                                                 String?
+  signal_strength_score                                                                                          Decimal?                          @db.Decimal(10, 4)
+  signal_strength_reasoning                                                                                      String?
+  is_selected_for_deep_dive                                                                                      Boolean?                          @default(false)
+  scope_type                                                                                                     String?                           @db.VarChar
+  primary_scope_company_id                                                                                       Int?
+  opportunity_candidate_entities                                                                                 opportunity_candidate_entities[]
+  opportunity_candidate_items                                                                                    opportunity_candidate_items[]
+  companies                                                                                                      companies                         @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates                opportunity_candidates?           @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates", fields: [depends_on_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_depends_on_fkey")
+  other_opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates          opportunity_candidates[]          @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates")
+  customer_products_opportunity_candidates_lead_l2_product_idTocustomer_products                                 customer_products?                @relation("opportunity_candidates_lead_l2_product_idTocustomer_products", fields: [lead_l2_product_id], references: [id], onUpdate: NoAction)
+  customer_products_opportunity_candidates_lead_product_idTocustomer_products                                    customer_products?                @relation("opportunity_candidates_lead_product_idTocustomer_products", fields: [lead_product_id], references: [id], onUpdate: NoAction)
+  product_scoring_results                                                                                        product_scoring_results?          @relation(fields: [lead_product_scoring_result_id], references: [id], onUpdate: NoAction)
+  opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates       opportunity_candidates?           @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates", fields: [relationship_anchor_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_relationship_anchor_fkey")
+  other_opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates opportunity_candidates[]          @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates")
+  research_runs                                                                                                  research_runs                     @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  opportunity_candidates_deep_dive                                                                               opportunity_candidates_deep_dive?
+  opportunity_company_contexts                                                                                   opportunity_company_contexts?
+  opportunity_product_contexts                                                                                   opportunity_product_contexts?
+  stakeholders_v2                                                                                                stakeholders_v2[]
+
+  @@unique([research_run_id, company_id, ranking_version, rank_position], map: "opportunity_candidates_unique_rank")
+  @@index([lead_product_id], map: "idx_opportunity_candidates_lead_product")
+  @@index([meta], map: "idx_opportunity_candidates_meta_gin", type: Gin)
+  @@index([motion_family, motion_wave], map: "idx_opportunity_candidates_motion")
+  @@index([org_unit], map: "idx_opportunity_candidates_org_unit")
+  @@index([research_run_id, company_id], map: "idx_opportunity_candidates_run_company")
+  @@index([research_run_id, company_id, is_top_10, rank_position], map: "idx_opportunity_candidates_top10")
+}
+
+model opportunity_candidates_deep_dive {
+  id                     Int                    @id @default(autoincrement())
+  opportunity_id         BigInt                 @unique(map: "opportunity_candidates_deep_dive_unique")
+  data                   Json?
+  created_at             DateTime               @default(now()) @db.Timestamp(6)
+  updated_at             DateTime               @default(now()) @db.Timestamp(6)
+  meta                   Json?                  @db.Json
+  opportunity_candidates opportunity_candidates @relation(fields: [opportunity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model opportunity_company_contexts {
+  id                       BigInt                 @id @default(autoincrement())
+  opportunity_candidate_id BigInt                 @unique(map: "opportunity_company_contexts_unique")
+  summary_text             String?
+  context_json             Json                   @default("{}")
+  meta                     Json                   @default("{}")
+  created_at               DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime               @default(now()) @db.Timestamptz(6)
+  opportunity_candidates   opportunity_candidates @relation(fields: [opportunity_candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "opportunity_company_contexts_opportunity_fk")
+
+  @@index([opportunity_candidate_id], map: "idx_opportunity_company_contexts_opportunity")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model opportunity_product_contexts {
+  id                       BigInt                 @id @default(autoincrement())
+  opportunity_candidate_id BigInt                 @unique(map: "opportunity_product_contexts_unique")
+  summary_text             String?
+  context_json             Json                   @default("{}")
+  meta                     Json                   @default("{}")
+  created_at               DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime               @default(now()) @db.Timestamptz(6)
+  opportunity_candidates   opportunity_candidates @relation(fields: [opportunity_candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "opportunity_product_contexts_opportunity_fk")
+
+  @@index([opportunity_candidate_id], map: "idx_opportunity_product_contexts_opportunity")
+}
+
+model opportunity_seed_signal_facts {
+  id                                   BigInt                           @id @default(autoincrement())
+  seed_validation_log_id               BigInt
+  research_run_id                      BigInt
+  company_id                           Int
+  seed_id                              String
+  seed_type                            String?                          @db.VarChar(50)
+  signal_definition_id                 BigInt
+  signal_type_name                     String?                          @db.VarChar(100)
+  selected_opportunity_space           String?
+  include_in_bundle_assembly           Boolean?
+  viability_label                      String?                          @db.VarChar(50)
+  priority_hint                        String?                          @db.VarChar(20)
+  seed_confidence                      Decimal?                         @db.Decimal(10, 4)
+  decision_role                        String?                          @db.VarChar(50)
+  decision_status                      String?                          @db.VarChar(20)
+  product_specificity                  String?                          @db.VarChar(20)
+  influence_score                      Decimal?                         @db.Decimal(10, 4)
+  effective_signal_score               Decimal?                         @db.Decimal(10, 4)
+  evidence_quality_score               Decimal?                         @db.Decimal(10, 4)
+  evidence_quality_reason              String?
+  decision_confidence                  Decimal?                         @db.Decimal(10, 4)
+  causal_role                          String?                          @db.VarChar(50)
+  counterfactual_seed_impact           String?                          @db.VarChar(50)
+  counterfactual_bundle_impact         String?                          @db.VarChar(50)
+  counterfactual_top10_impact          String?                          @db.VarChar(50)
+  counterfactual_rank_drop_estimate    Decimal?                         @db.Decimal(10, 4)
+  cluster_id                           String?                          @db.VarChar(255)
+  cluster_primary_signal_definition_id BigInt?
+  cluster_size                         Int?
+  duplicate_assessment                 String?                          @db.VarChar(50)
+  is_near_duplicate                    Boolean                          @default(false)
+  duplicate_penalty                    Decimal?                         @db.Decimal(10, 4)
+  source_layers                        Json                             @default("[]")
+  base_confirmation_count              Int?
+  base_unique_sources_count            Int?
+  latest_effective_date                DateTime?                        @db.Timestamptz(6)
+  base_average_confidence              Decimal?                         @db.Decimal(10, 4)
+  base_strength_score                  Decimal?                         @db.Decimal(10, 4)
+  rollup_strength_score                Decimal?                         @db.Decimal(10, 4)
+  rollup_confidence_score              Decimal?                         @db.Decimal(10, 4)
+  rollup_freshness_score               Decimal?                         @db.Decimal(10, 4)
+  rollup_scope_classification          String?                          @db.VarChar(50)
+  account_support                      Boolean                          @default(false)
+  repeated_entity_support              Boolean                          @default(false)
+  material_entity_support_count        Int?
+  reason                               String?
+  created_at                           DateTime                         @default(now()) @db.Timestamptz(6)
+  updated_at                           DateTime                         @default(now()) @db.Timestamptz(6)
+  opportunity_seed_validation_logs     opportunity_seed_validation_logs @relation(fields: [seed_validation_log_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_definitions                   signal_definitions               @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([cluster_id], map: "idx_ossf_cluster_id")
+  @@index([research_run_id, company_id, signal_definition_id], map: "idx_ossf_run_company_signal")
+  @@index([seed_id], map: "idx_ossf_seed_id")
+  @@index([seed_validation_log_id], map: "idx_ossf_seed_log_id")
+  @@index([signal_definition_id, causal_role], map: "idx_ossf_signal_causal_role")
+  @@index([signal_definition_id, decision_status], map: "idx_ossf_signal_decision_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model opportunity_seed_validation_logs {
+  id                                       BigInt                          @id @default(autoincrement())
+  research_run_id                          BigInt
+  company_id                               Int
+  seed_id                                  String
+  seed_type                                String                          @db.VarChar(50)
+  candidate_lead_product_id                Int
+  candidate_lead_product_scoring_result_id BigInt
+  include_in_bundle_assembly               Boolean                         @default(false)
+  viability_label                          String                          @db.VarChar(30)
+  viability_reason                         String
+  refined_title                            String
+  proposed_org_unit                        String?
+  proposed_motion_family                   String                          @db.VarChar(20)
+  proposed_motion_wave                     String?                         @db.VarChar(10)
+  proposed_opportunity_space               String
+  proposed_stage                           String                          @db.VarChar(30)
+  proposed_owner_type                      String                          @db.VarChar(30)
+  why_now                                  String
+  commercial_hypothesis                    String
+  dependency_hypothesis                    String?
+  handoff_hypothesis                       String?
+  priority_hint                            String                          @db.VarChar(20)
+  seed_confidence                          Decimal                         @db.Decimal(6, 3)
+  next_validation_focus                    Json                            @default("[]")
+  scope_type                               String                          @db.VarChar(20)
+  entity_links                             Json                            @default("[]")
+  primary_scope_company_id                 Int?
+  selected_opportunity_space               String?
+  signal_decisions                         Json                            @default("[]")
+  analysis_warnings                        Json                            @default("[]")
+  request_meta                             Json                            @default("{}")
+  raw_llm_seed_response                    Json                            @default("{}")
+  created_at                               DateTime                        @default(now()) @db.Timestamptz(6)
+  signal_analytics_version                 String?                         @db.VarChar(20)
+  signal_decisions_version                 String?                         @db.VarChar(20)
+  selected_signal_count                    Int?
+  used_signal_count                        Int?
+  causal_signal_count                      Int?
+  redundant_signal_count                   Int?
+  duplicate_cluster_count                  Int?
+  seed_precision_hint                      String?                         @db.VarChar(20)
+  false_positive_risk                      Decimal?                        @db.Decimal(8, 4)
+  decision_utility_score                   Decimal?                        @db.Decimal(10, 4)
+  evidence_quality_score_avg               Decimal?                        @db.Decimal(10, 4)
+  decision_confidence_avg                  Decimal?                        @db.Decimal(10, 4)
+  influence_score_avg                      Decimal?                        @db.Decimal(10, 4)
+  signal_decisions_v2                      Json                            @default("[]")
+  counterfactual_summary                   Json                            @default("{}")
+  duplicate_summary                        Json                            @default("{}")
+  signal_quality_summary                   Json                            @default("{}")
+  updated_at                               DateTime                        @default(now()) @db.Timestamptz(6)
+  opportunity_seed_signal_facts            opportunity_seed_signal_facts[]
+}
+
+model persons {
+  id                                                  Int               @id @default(autoincrement())
+  full_name                                           String?
+  linkedin_url                                        String            @unique
+  hq_city                                             String?
+  hq_country                                          String?
+  created_at                                          DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at                                          DateTime?         @default(now()) @db.Timestamp(6)
+  contacts                                            Json?
+  stakeholders_stakeholders_person_idTopersons        stakeholders[]    @relation("stakeholders_person_idTopersons")
+  stakeholders_stakeholders_reports_toTopersons       stakeholders[]    @relation("stakeholders_reports_toTopersons")
+  stakeholders_v2_stakeholders_v2_person_idTopersons  stakeholders_v2[] @relation("stakeholders_v2_person_idTopersons")
+  stakeholders_v2_stakeholders_v2_reports_toTopersons stakeholders_v2[] @relation("stakeholders_v2_reports_toTopersons")
+
+  @@index([linkedin_url], map: "idx_persons_linkedin_url")
+}
+
+model product_info_categories {
+  id                            BigInt                        @id @default(autoincrement())
+  parent_id                     BigInt?
+  code                          String                        @unique
+  name                          String
+  description                   String?
+  created_at                    DateTime                      @default(now()) @db.Timestamptz(6)
+  customer_product_info_items   customer_product_info_items[]
+  product_info_categories       product_info_categories?      @relation("product_info_categoriesToproduct_info_categories", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_product_info_categories product_info_categories[]     @relation("product_info_categoriesToproduct_info_categories")
+
+  @@index([parent_id], map: "idx_product_info_categories_parent")
+}
+
+model product_ranking_items {
+  id                        BigInt                  @id @default(autoincrement())
+  product_ranking_id        BigInt
+  product_scoring_result_id BigInt
+  rank_position             Int
+  final_score               Decimal                 @db.Decimal(10, 4)
+  is_shortlisted            Boolean                 @default(false)
+  meta                      Json                    @default("{}")
+  created_at                DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                @default(now()) @db.Timestamptz(6)
+  product_rankings          product_rankings        @relation(fields: [product_ranking_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_ranking_items_ranking_fkey")
+  product_scoring_results   product_scoring_results @relation(fields: [product_scoring_result_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_ranking_items_result_fkey")
+
+  @@unique([product_ranking_id, rank_position], map: "product_ranking_items_unique_rank")
+  @@unique([product_ranking_id, product_scoring_result_id], map: "product_ranking_items_unique_result")
+  @@index([is_shortlisted], map: "idx_product_ranking_items_is_shortlisted")
+  @@index([product_ranking_id], map: "idx_product_ranking_items_ranking_id")
+  @@index([product_scoring_result_id], map: "idx_product_ranking_items_result_id")
+}
+
+model product_rankings {
+  id                    BigInt                      @id @default(autoincrement())
+  research_run_id       BigInt
+  company_id            Int
+  product_level         customer_product_level_enum
+  scoring_stage         String                      @db.VarChar(50)
+  scoring_version       String                      @default("v1") @db.VarChar(50)
+  parent_l2_product_id  BigInt?
+  meta                  Json                        @default("{}")
+  created_at            DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+  product_ranking_items product_ranking_items[]
+  companies             companies                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products     customer_products?          @relation(fields: [parent_l2_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_runs         research_runs               @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([research_run_id, company_id, product_level, scoring_stage, scoring_version, parent_l2_product_id], map: "product_rankings_unique")
+  @@index([company_id], map: "idx_product_rankings_company_id")
+  @@index([product_level], map: "idx_product_rankings_product_level")
+  @@index([research_run_id], map: "idx_product_rankings_research_run_id")
+  @@index([scoring_stage], map: "idx_product_rankings_scoring_stage")
+}
+
+model product_scoring_components {
+  id                        BigInt                   @id @default(autoincrement())
+  product_scoring_result_id BigInt
+  scoring_component_type_id BigInt?
+  component_code            String                   @db.VarChar(100)
+  component_group           String?                  @db.VarChar(100)
+  score                     Decimal                  @default(0) @db.Decimal(10, 4)
+  confidence_score          Decimal                  @default(0) @db.Decimal(10, 4)
+  explanation               String?
+  meta                      Json                     @default("{}")
+  created_at                DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                 @default(now()) @db.Timestamptz(6)
+  product_scoring_results   product_scoring_results  @relation(fields: [product_scoring_result_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_scoring_components_result_fkey")
+  scoring_component_types   scoring_component_types? @relation(fields: [scoring_component_type_id], references: [id], onUpdate: NoAction, map: "product_scoring_components_type_fkey")
+
+  @@unique([product_scoring_result_id, component_code], map: "product_scoring_components_unique")
+  @@index([component_code], map: "idx_product_scoring_components_component_code")
+  @@index([component_group], map: "idx_product_scoring_components_component_group")
+  @@index([product_scoring_result_id], map: "idx_product_scoring_components_result_id")
+  @@index([scoring_component_type_id], map: "idx_product_scoring_components_type_id")
+}
+
+model product_scoring_results {
+  id                                                                                BigInt                                 @id @default(autoincrement())
+  research_run_id                                                                   BigInt
+  company_id                                                                        Int
+  customer_product_id                                                               BigInt
+  product_level                                                                     customer_product_level_enum
+  scoring_stage                                                                     String                                 @db.VarChar(50)
+  parent_l2_product_id                                                              BigInt?
+  source_summary_id                                                                 BigInt?
+  source_parent_scoring_result_id                                                   BigInt?
+  fit_level                                                                         String                                 @db.VarChar(50)
+  priority_band                                                                     String?                                @db.VarChar(50)
+  final_score                                                                       Decimal                                @default(0) @db.Decimal(10, 4)
+  confidence_score                                                                  Decimal                                @default(0) @db.Decimal(10, 4)
+  reasoning_text                                                                    String?
+  reasoning_json                                                                    Json                                   @default("{}")
+  scoring_version                                                                   String                                 @default("v1") @db.VarChar(50)
+  meta                                                                              Json                                   @default("{}")
+  created_at                                                                        DateTime                               @default(now()) @db.Timestamptz(6)
+  updated_at                                                                        DateTime                               @default(now()) @db.Timestamptz(6)
+  opportunity_bundle_analytics                                                      opportunity_bundle_analytics[]
+  opportunity_candidate_items                                                       opportunity_candidate_items[]
+  opportunity_candidates                                                            opportunity_candidates[]
+  product_ranking_items                                                             product_ranking_items[]
+  product_scoring_components                                                        product_scoring_components[]
+  companies                                                                         companies                              @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products_product_scoring_results_customer_product_idTocustomer_products  customer_products                      @relation("product_scoring_results_customer_product_idTocustomer_products", fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products_product_scoring_results_parent_l2_product_idTocustomer_products customer_products?                     @relation("product_scoring_results_parent_l2_product_idTocustomer_products", fields: [parent_l2_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_runs                                                                     research_runs                          @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product_scoring_results                                                           product_scoring_results?               @relation("product_scoring_resultsToproduct_scoring_results", fields: [source_parent_scoring_result_id], references: [id], onUpdate: NoAction)
+  other_product_scoring_results                                                     product_scoring_results[]              @relation("product_scoring_resultsToproduct_scoring_results")
+  company_signal_summaries                                                          company_signal_summaries?              @relation(fields: [source_summary_id], references: [id], onUpdate: NoAction)
+  product_scoring_signal_contributions                                              product_scoring_signal_contributions[]
+  product_shortlist_items                                                           product_shortlist_items[]
+
+  @@unique([research_run_id, company_id, customer_product_id, scoring_stage, scoring_version], map: "product_scoring_results_unique")
+  @@index([company_id], map: "idx_product_scoring_results_company_id")
+  @@index([customer_product_id], map: "idx_product_scoring_results_customer_product_id")
+  @@index([final_score(sort: Desc)], map: "idx_product_scoring_results_final_score")
+  @@index([parent_l2_product_id], map: "idx_product_scoring_results_parent_l2_product_id")
+  @@index([product_level], map: "idx_product_scoring_results_product_level")
+  @@index([research_run_id], map: "idx_product_scoring_results_research_run_id")
+  @@index([scoring_stage], map: "idx_product_scoring_results_scoring_stage")
+  @@index([source_summary_id], map: "idx_product_scoring_results_source_summary_id")
+}
+
+model product_scoring_signal_contributions {
+  id                        BigInt                  @id @default(autoincrement())
+  product_scoring_result_id BigInt
+  signal_definition_id      BigInt
+  contribution_role         String                  @default("supporting") @db.VarChar(50)
+  contribution_score        Decimal                 @default(0) @db.Decimal(10, 4)
+  explanation               String?
+  meta                      Json                    @default("{}")
+  created_at                DateTime                @default(now()) @db.Timestamptz(6)
+  product_scoring_results   product_scoring_results @relation(fields: [product_scoring_result_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_scoring_signal_contributions_result_fkey")
+  signal_definitions        signal_definitions      @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_scoring_signal_contributions_signal_fkey")
+
+  @@unique([product_scoring_result_id, signal_definition_id], map: "product_scoring_signal_contributions_unique")
+  @@index([product_scoring_result_id], map: "idx_product_scoring_signal_contributions_result_id")
+  @@index([signal_definition_id], map: "idx_product_scoring_signal_contributions_signal_definition_id")
+}
+
+model product_shortlist_items {
+  id                        BigInt                  @id @default(autoincrement())
+  product_shortlist_id      BigInt
+  customer_product_id       BigInt
+  product_scoring_result_id BigInt
+  rank_position             Int
+  final_score               Decimal                 @db.Decimal(10, 4)
+  confidence_score          Decimal                 @db.Decimal(10, 4)
+  created_at                DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                @default(now()) @db.Timestamptz(6)
+  meta                      Json                    @default("{}")
+  customer_products         customer_products       @relation(fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_shortlist_items_product_fkey")
+  product_scoring_results   product_scoring_results @relation(fields: [product_scoring_result_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_shortlist_items_result_fkey")
+  product_shortlists        product_shortlists      @relation(fields: [product_shortlist_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_shortlist_items_shortlist_fkey")
+
+  @@unique([product_shortlist_id, customer_product_id], map: "product_shortlist_items_unique")
+  @@index([customer_product_id], map: "idx_product_shortlist_items_product_id")
+  @@index([product_shortlist_id], map: "idx_product_shortlist_items_shortlist_id")
+}
+
+model product_shortlists {
+  id                      BigInt                      @id @default(autoincrement())
+  research_run_id         BigInt
+  company_id              Int
+  product_level           customer_product_level_enum
+  scoring_stage           String                      @db.VarChar(50)
+  shortlist_rule          String                      @default("top_n") @db.VarChar(100)
+  rule_config             Json                        @default("{}")
+  created_at              DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
+  product_shortlist_items product_shortlist_items[]
+  companies               companies                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_runs           research_runs               @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([research_run_id, company_id, product_level, scoring_stage], map: "product_shortlists_unique")
+}
+
+model report_templates {
+  id          Int      @id @default(autoincrement())
+  is_active   Boolean  @default(true)
+  s3_key      String
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+  description String?
+  report_type String?  @db.VarChar(50)
+}
+
+model research_run_product_scope {
+  id                  BigInt            @id @default(autoincrement())
+  research_run_id     BigInt
+  customer_product_id BigInt
+  scope_type          String            @default("explicit") @db.VarChar(50)
+  meta                Json              @default("{}")
+  created_at          DateTime          @default(now()) @db.Timestamptz(6)
+  customer_products   customer_products @relation(fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "research_run_product_scope_product_fkey")
+  research_runs       research_runs     @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "research_run_product_scope_run_fkey")
+
+  @@unique([research_run_id, customer_product_id], map: "research_run_product_scope_unique")
+  @@index([customer_product_id], map: "idx_research_run_product_scope_product_id")
+  @@index([research_run_id], map: "idx_research_run_product_scope_run_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model research_runs {
+  id                           BigInt                         @id @default(autoincrement())
+  company_id                   Int?
+  report_id                    Int?
+  run_type                     String                         @default("initial") @db.VarChar(50)
+  parent_run_id                BigInt?
+  window_from                  DateTime                       @db.Date
+  window_to                    DateTime                       @db.Date
+  status                       String                         @default("completed") @db.VarChar(50)
+  meta                         Json                           @default("{}")
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  customer_id                  BigInt                         @default(2)
+  company_signal_summaries     company_signal_summaries[]
+  opportunity_bundle_analytics opportunity_bundle_analytics[]
+  opportunity_candidates       opportunity_candidates[]
+  product_rankings             product_rankings[]
+  product_scoring_results      product_scoring_results[]
+  product_shortlists           product_shortlists[]
+  research_run_product_scope   research_run_product_scope[]
+  companies                    companies?                     @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customers                    customers                      @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
+  research_runs                research_runs?                 @relation("research_runsToresearch_runs", fields: [parent_run_id], references: [id], onUpdate: NoAction, map: "research_runs_parent_fkey")
+  other_research_runs          research_runs[]                @relation("research_runsToresearch_runs")
+  reports                      reports?                       @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_confirmations         signal_confirmations[]
+  signal_search_tasks          signal_search_tasks[]
+
+  @@index([company_id], map: "idx_research_runs_company_id")
+  @@index([customer_id], map: "idx_research_runs_customer_id")
+  @@index([parent_run_id], map: "idx_research_runs_parent_run_id")
+  @@index([report_id], map: "idx_research_runs_report_id")
+  @@index([window_from, window_to], map: "idx_research_runs_window")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sales_report_step_intermediate_results {
+  id                                                                             BigInt     @id @default(autoincrement())
+  report_id                                                                      Int
+  company_id                                                                     Int
+  account_company_id                                                             Int?
+  step_id                                                                        String
+  step_key                                                                       String
+  workflow_id                                                                    String?
+  workflow_name                                                                  String?
+  execution_id                                                                   Int?
+  payload                                                                        Json       @default("{}")
+  metadata                                                                       Json       @default("{}")
+  created_at                                                                     DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at                                                                     DateTime   @default(now()) @db.Timestamptz(6)
+  status                                                                         Boolean    @default(true)
+  companies_sales_report_step_intermediate_results_account_company_idTocompanies companies? @relation("sales_report_step_intermediate_results_account_company_idTocompanies", fields: [account_company_id], references: [id], onUpdate: NoAction)
+  companies_sales_report_step_intermediate_results_company_idTocompanies         companies  @relation("sales_report_step_intermediate_results_company_idTocompanies", fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reports                                                                        reports    @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([report_id, company_id, step_id], map: "ux_report_step_intermediate_step")
+  @@index([execution_id], map: "idx_report_step_intermediate_execution")
+  @@index([report_id, company_id, step_id, created_at(sort: Desc)], map: "idx_report_step_intermediate_lookup")
+  @@index([payload(ops: JsonbPathOps)], map: "idx_report_step_intermediate_payload_gin", type: Gin)
+  @@index([step_id, created_at(sort: Desc)], map: "idx_report_step_intermediate_step")
+}
+
+model scoring_component_types {
+  id                         BigInt                       @id @default(autoincrement())
+  code                       String                       @unique(map: "scoring_component_types_code_unique") @db.VarChar(100)
+  name                       String
+  component_group            String?                      @db.VarChar(100)
+  description                String?
+  is_active                  Boolean                      @default(true)
+  sort_order                 Int                          @default(100)
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  product_scoring_components product_scoring_components[]
+
+  @@index([component_group], map: "idx_scoring_component_types_group")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_account_slot_events {
+  id                    BigInt                @id @default(autoincrement())
+  slot_id               BigInt
+  account_id            BigInt
+  event_type            String                @db.VarChar(50)
+  n8n_execution_id      String?               @db.VarChar(100)
+  payload               Json                  @default("{}")
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  service_accounts      service_accounts      @relation(fields: [account_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  service_account_slots service_account_slots @relation(fields: [slot_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([slot_id, created_at(sort: Desc)], map: "idx_service_account_slot_events_slot")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_account_slots {
+  id                          BigInt                        @id @default(autoincrement())
+  account_id                  BigInt
+  slot_no                     Int
+  lease_status                String                        @default("free") @db.VarChar(20)
+  n8n_execution_id            String?                       @db.VarChar(100)
+  lease_started_at            DateTime?                     @db.Timestamptz(6)
+  last_checked_at             DateTime?                     @db.Timestamptz(6)
+  last_seen_execution_status  String?                       @db.VarChar(50)
+  meta                        Json                          @default("{}")
+  created_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  service_account_slot_events service_account_slot_events[]
+  service_accounts            service_accounts              @relation(fields: [account_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([account_id, slot_no], map: "service_account_slots_unique")
+  @@index([lease_status, account_id], map: "idx_service_account_slots_status")
+}
+
+model service_account_types {
+  id               BigInt             @id @default(autoincrement())
+  type_code        String             @unique @db.VarChar(100)
+  type_name        String
+  description      String?
+  is_active        Boolean            @default(true)
+  meta             Json               @default("{}")
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  service_accounts service_accounts[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_accounts {
+  id                          BigInt                        @id @default(autoincrement())
+  account_type_id             BigInt
+  name                        String
+  status                      String                        @default("active") @db.VarChar(20)
+  credential_ref              String?
+  max_slots                   Int                           @default(35)
+  priority                    Int                           @default(100)
+  is_active                   Boolean                       @default(true)
+  meta                        Json                          @default("{}")
+  created_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  account_code                String                        @unique @db.VarChar(100)
+  service_account_slot_events service_account_slot_events[]
+  service_account_slots       service_account_slots[]
+  service_account_types       service_account_types         @relation(fields: [account_type_id], references: [id], onUpdate: NoAction)
+
+  @@index([status, is_active, priority], map: "idx_service_accounts_status")
+  @@index([account_type_id, is_active, status, priority], map: "idx_service_accounts_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model signal_candidates {
+  id                              BigInt   @id @default(autoincrement())
+  customer_id                     Int
+  signal_type                     String   @db.VarChar(20)
+  signal_key                      String   @db.VarChar(150)
+  signal_name                     String
+  signal_summary                  String?
+  account_level_trigger           String?
+  macro_force_or_context          String?
+  account_level_manifestations    Json     @default("[]")
+  observable_market_indicators    Json     @default("[]")
+  customer_need_or_constraint     String?
+  observable_indicators           Json     @default("[]")
+  evidence_patterns               Json     @default("[]")
+  activated_portfolio_areas       Json     @default("[]")
+  source_canonical_atom_keys      Json     @default("[]")
+  source_micro_signal_keys        Json     @default("[]")
+  source_cluster_keys             Json     @default("[]")
+  source_canonical_atom_key_count Int      @default(0)
+  source_micro_signal_key_count   Int      @default(0)
+  source_cluster_key_count        Int      @default(0)
+  why_it_matters                  String?
+  confidence                      String?  @db.VarChar(20)
+  coverage_assessment             String?
+  design_notes                    Json     @default("[]")
+  created_at                      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([customer_id, signal_type, signal_key], map: "signal_candidates_customer_signal_type_key_uniq")
+  @@index([customer_id])
+  @@index([signal_type])
+}
+
+model signal_categories {
+  id                 BigInt               @id @default(autoincrement())
+  code               String               @unique(map: "signal_categories_code_unique") @db.VarChar(100)
+  name               String
+  description        String?
+  is_active          Boolean              @default(true)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @default(now()) @db.Timestamptz(6)
+  signal_definitions signal_definitions[]
+
+  @@index([is_active], map: "idx_signal_categories_is_active")
+}
+
+model signal_confirmations {
+  id                                        BigInt                                      @id @default(autoincrement())
+  signal_definition_id                      BigInt
+  research_run_id                           BigInt
+  company_id                                Int?
+  source_system_id                          BigInt?
+  source_type                               String                                      @db.VarChar(50)
+  source_domain                             String?
+  title                                     String?
+  url                                       String?
+  url_hash                                  String?
+  publisher                                 String?
+  author_name                               String?
+  language_code                             String?                                     @db.VarChar(10)
+  published_at                              DateTime?                                   @db.Timestamptz(6)
+  event_date                                DateTime?                                   @db.Timestamptz(6)
+  discovered_at                             DateTime                                    @default(now()) @db.Timestamptz(6)
+  excerpt                                   String?
+  normalized_claim                          String?
+  why_it_confirms                           String?
+  why_it_applies                            String?
+  scope                                     String                                      @default("company") @db.VarChar(50)
+  jurisdiction_code                         String?                                     @db.VarChar(20)
+  industry_code                             String?                                     @db.VarChar(50)
+  source_confidence                         Decimal                                     @default(0) @db.Decimal(10, 4)
+  applicability_confidence                  Decimal                                     @default(0) @db.Decimal(10, 4)
+  freshness_score                           Decimal                                     @default(0) @db.Decimal(10, 4)
+  validation_status                         String                                      @default("raw") @db.VarChar(50)
+  dedupe_fingerprint                        String?
+  meta                                      Json                                        @default("{}")
+  raw_payload                               Json?
+  created_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  company_signal_summary_item_confirmations company_signal_summary_item_confirmations[]
+  companies                                 companies?                                  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_runs                             research_runs                               @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_definitions                        signal_definitions                          @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  source_systems                            source_systems?                             @relation(fields: [source_system_id], references: [id], onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_signal_confirmations_company_id")
+  @@index([dedupe_fingerprint], map: "idx_signal_confirmations_dedupe_fingerprint")
+  @@index([event_date], map: "idx_signal_confirmations_event_date")
+  @@index([published_at], map: "idx_signal_confirmations_published_at")
+  @@index([research_run_id], map: "idx_signal_confirmations_research_run_id")
+  @@index([scope], map: "idx_signal_confirmations_scope")
+  @@index([signal_definition_id], map: "idx_signal_confirmations_signal_definition_id")
+  @@index([url_hash], map: "idx_signal_confirmations_url_hash")
+  @@index([validation_status], map: "idx_signal_confirmations_validation_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model signal_definitions {
+  id                                      BigInt                                    @id @default(autoincrement())
+  code                                    String                                    @unique(map: "signal_definitions_code_unique") @db.VarChar(100)
+  signal_type_id                          BigInt
+  category_id                             BigInt?
+  name                                    String
+  description                             String
+  scope                                   String                                    @default("company") @db.VarChar(50)
+  requires_company_binding                Boolean                                   @default(true)
+  merged_into_signal_id                   BigInt?
+  semantic_fingerprint                    String?
+  is_active                               Boolean                                   @default(true)
+  meta                                    Json                                      @default("{}")
+  created_at                              DateTime                                  @default(now()) @db.Timestamptz(6)
+  updated_at                              DateTime                                  @default(now()) @db.Timestamptz(6)
+  normalized_name                         String?
+  name_fp                                 String?
+  description_fp                          String?
+  embedding                               Float[]
+  search_level                            String                                    @default("entity") @db.VarChar(20)
+  company_signal_summary_items            company_signal_summary_items[]
+  customer_product_signal_links           customer_product_signal_links[]
+  customer_product_signal_query_overrides customer_product_signal_query_overrides[]
+  opportunity_seed_signal_facts           opportunity_seed_signal_facts[]
+  product_scoring_signal_contributions    product_scoring_signal_contributions[]
+  signal_confirmations                    signal_confirmations[]
+  signal_categories                       signal_categories?                        @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  signal_definitions                      signal_definitions?                       @relation("signal_definitionsTosignal_definitions", fields: [merged_into_signal_id], references: [id], onUpdate: NoAction)
+  other_signal_definitions                signal_definitions[]                      @relation("signal_definitionsTosignal_definitions")
+  signal_types                            signal_types                              @relation(fields: [signal_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  signal_search_phrases                   signal_search_phrases[]
+  signal_search_tasks                     signal_search_tasks[]
+
+  @@index([category_id], map: "idx_signal_definitions_category_id")
+  @@index([description_fp], map: "idx_signal_definitions_description_fp")
+  @@index([is_active], map: "idx_signal_definitions_is_active")
+  @@index([name_fp], map: "idx_signal_definitions_name_fp")
+  @@index([normalized_name], map: "idx_signal_definitions_normalized_name")
+  @@index([scope], map: "idx_signal_definitions_scope")
+  @@index([semantic_fingerprint], map: "idx_signal_definitions_semantic_fingerprint")
+  @@index([signal_type_id], map: "idx_signal_definitions_signal_type_id")
+}
+
+model signal_search_phrases {
+  id                   BigInt             @id @default(autoincrement())
+  signal_definition_id BigInt
+  phrase               String
+  phrase_type          String             @default("core") @db.VarChar(50)
+  language_code        String             @default("en") @db.VarChar(10)
+  priority             Int                @default(100)
+  is_active            Boolean            @default(true)
+  meta                 Json               @default("{}")
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime           @default(now()) @db.Timestamptz(6)
+  signal_definitions   signal_definitions @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_signal_search_phrases_is_active")
+  @@index([language_code], map: "idx_signal_search_phrases_language_code")
+  @@index([signal_definition_id], map: "idx_signal_search_phrases_signal_definition_id")
+}
+
+model signal_search_tasks {
+  id                       BigInt                         @id @default(autoincrement())
+  research_run_id          BigInt
+  company_id               Int?
+  signal_definition_id     BigInt
+  status                   signal_search_task_status_enum @default(pending)
+  requires_company_binding Boolean                        @default(true)
+  attempt_count            Int                            @default(0)
+  started_at               DateTime?                      @db.Timestamptz(6)
+  finished_at              DateTime?                      @db.Timestamptz(6)
+  created_at               DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                       @default(now()) @db.Timestamptz(6)
+  meta                     Json?
+  companies                companies?                     @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_runs            research_runs                  @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_definitions       signal_definitions             @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([research_run_id, company_id, signal_definition_id], map: "signal_search_tasks_unique_run_company_signal")
+}
+
+model signal_types {
+  id                           BigInt                         @id @default(autoincrement())
+  code                         String                         @unique(map: "signal_types_code_unique") @db.VarChar(100)
+  name                         String
+  description                  String?
+  is_active                    Boolean                        @default(true)
+  sort_order                   Int                            @default(100)
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  company_signal_summary_items company_signal_summary_items[]
+  signal_definitions           signal_definitions[]
+
+  @@index([is_active], map: "idx_signal_types_is_active")
+}
+
+model source_systems {
+  id                   BigInt                 @id @default(autoincrement())
+  code                 String                 @unique(map: "source_systems_code_unique") @db.VarChar(100)
+  name                 String
+  source_type          String                 @db.VarChar(50)
+  description          String?
+  is_active            Boolean                @default(true)
+  meta                 Json                   @default("{}")
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  signal_confirmations signal_confirmations[]
+
+  @@index([source_type], map: "idx_source_systems_source_type")
+}
+
+model stakeholders {
+  id                                       Int                  @id @default(autoincrement())
+  person_id                                Int
+  company_id                               Int
+  linked_product_id                        String?
+  opportunity_id                           Int?
+  gate_role                                String
+  gate_role_type                           String?
+  role_title                               String?
+  entity_name                              String?
+  entity_level                             String?
+  rationale                                String?
+  created_at                               DateTime?            @default(now()) @db.Timestamp(6)
+  reports_to                               Int?
+  opportunities_sales                      opportunities_sales? @relation(fields: [opportunity_id], references: [id], onUpdate: NoAction, map: "fk_stakeholders_opportunity")
+  persons_stakeholders_person_idTopersons  persons              @relation("stakeholders_person_idTopersons", fields: [person_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  persons_stakeholders_reports_toTopersons persons?             @relation("stakeholders_reports_toTopersons", fields: [reports_to], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([person_id, company_id, linked_product_id, gate_role])
+  @@index([company_id], map: "idx_stakeholders_company_id")
+  @@index([linked_product_id], map: "idx_stakeholders_linked_product_id")
+  @@index([opportunity_id], map: "idx_stakeholders_opportunity_id")
+  @@index([person_id], map: "idx_stakeholders_person_id")
+}
+
+model stakeholders_v2 {
+  id                                          Int                     @id @default(autoincrement())
+  person_id                                   Int
+  company_id                                  Int
+  opportunity_id                              BigInt?
+  gate_role                                   String
+  gate_role_type                              String?
+  role_title                                  String?
+  entity_name                                 String?
+  entity_level                                String?
+  rationale                                   String?
+  created_at                                  DateTime?               @default(now()) @db.Timestamp(6)
+  reports_to                                  Int?
+  opportunity_candidates                      opportunity_candidates? @relation(fields: [opportunity_id], references: [id], onUpdate: NoAction, map: "fk_stakeholders_v2_opportunity")
+  persons_stakeholders_v2_person_idTopersons  persons                 @relation("stakeholders_v2_person_idTopersons", fields: [person_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  persons_stakeholders_v2_reports_toTopersons persons?                @relation("stakeholders_v2_reports_toTopersons", fields: [reports_to], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([person_id, company_id, opportunity_id, gate_role], map: "stakeholders_v2_person_id_company_id_opportunity_id_gate_role_k")
+  @@index([company_id], map: "idx_stakeholders_v2_company_id")
+  @@index([opportunity_id], map: "idx_stakeholders_v2_opportunity_id")
+  @@index([person_id], map: "idx_stakeholders_v2_person_id")
 }
 
 enum report_generation_step_dependency_enum {
@@ -869,4 +2354,17 @@ enum validation_status {
   pass
   failed
   warn
+}
+
+enum customer_product_level_enum {
+  l2
+  l3
+}
+
+enum signal_search_task_status_enum {
+  pending
+  in_progress
+  completed
+  failed
+  cancelled
 }
