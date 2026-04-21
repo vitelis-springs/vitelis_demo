@@ -10,6 +10,8 @@ export interface N8NTask {
 	work_flow_url: string;
 	status: N8NTaskStatus;
 	execution_id: string | null;
+	last_seen_execution_status: string | null;
+	last_checked_at: string | null;
 	metadata: Record<string, unknown> | null;
 	report_id: number | null;
 	created_at: string | null;
@@ -65,7 +67,12 @@ export const useGetN8NTasks = (
 		queryKey: ["n8n-tasks", reportId ?? "all"],
 		queryFn: () => n8nTasksApi.list(reportId),
 		enabled: options?.enabled ?? true,
-		refetchInterval: 10_000,
+		refetchInterval: (query) => {
+			const tasks = query.state.data?.data ?? [];
+			return tasks.some((task) => task.status === "PROCESSING")
+				? 5_000
+				: 30_000;
+		},
 	});
 };
 

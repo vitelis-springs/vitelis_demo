@@ -9,18 +9,14 @@ import {
 import {
 	App,
 	Button,
-	Card,
 	Form,
-	Modal,
 	Popconfirm,
 	Select,
 	Space,
-	Table,
 	Tag,
 	Typography,
 } from "antd";
 import { useCallback, useMemo, useState } from "react";
-import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import { useGetDeepDiveCompanies } from "../../hooks/api/useDeepDiveService";
 import {
 	type N8NTask,
@@ -31,6 +27,8 @@ import {
 	useStartN8NTask,
 	useStopN8NTask,
 } from "../../hooks/api/useN8NTasksService";
+import { FormModalShell } from "../shared/modal";
+import { DarkTableCard } from "../shared/table";
 
 const { Text } = Typography;
 
@@ -46,6 +44,11 @@ function formatDate(value: string | null) {
 	return new Date(value).toLocaleString();
 }
 
+function formatRawStatus(value: string | null) {
+	if (!value) return "—";
+	return value.toUpperCase();
+}
+
 interface CreateTaskFormValues {
 	targetCompany: number;
 	competitors: number[];
@@ -57,11 +60,28 @@ interface CreateTaskModalProps {
 	onClose: () => void;
 }
 
-function CreateTaskModal({ reportId, open, onClose }: CreateTaskModalProps) {
+export function buildCreateTaskPayload(
+	reportId: number,
+	values: CreateTaskFormValues,
+) {
+	return {
+		reportId,
+		targetCompany: values.targetCompany,
+		competitors: values.competitors,
+		id: reportId,
+	};
+}
+
+export function CreateTaskModal({
+	reportId,
+	open,
+	onClose,
+}: CreateTaskModalProps) {
 	const [form] = Form.useForm<CreateTaskFormValues>();
 	const { message } = App.useApp();
 	const createTask = useCreateN8NTask();
 	const { data: companiesData } = useGetDeepDiveCompanies(reportId);
+	const selectedTargetCompany = Form.useWatch("targetCompany", form);
 
 	const companies = useMemo(
 		() => companiesData?.data.companies ?? [],
@@ -73,14 +93,19 @@ function CreateTaskModal({ reportId, open, onClose }: CreateTaskModalProps) {
 		value: c.id,
 	}));
 
+	const competitorOptions = useMemo(() => {
+		if (selectedTargetCompany === undefined) {
+			return companyOptions;
+		}
+
+		return companyOptions.filter(
+			(option) => option.value !== selectedTargetCompany,
+		);
+	}, [companyOptions, selectedTargetCompany]);
+
 	const handleSubmit = async (values: CreateTaskFormValues) => {
 		try {
-			await createTask.mutateAsync({
-				reportId,
-				targetCompany: values.targetCompany,
-				competitors: values.competitors,
-				id: reportId,
-			});
+			await createTask.mutateAsync(buildCreateTaskPayload(reportId, values));
 			void message.success("Task created");
 			form.resetFields();
 			onClose();
@@ -90,14 +115,15 @@ function CreateTaskModal({ reportId, open, onClose }: CreateTaskModalProps) {
 	};
 
 	return (
-		<Modal
+		<FormModalShell
 			title="New Company Level Report"
 			open={open}
+			width={720}
 			onCancel={() => {
 				form.resetFields();
 				onClose();
 			}}
-			onOk={() => form.submit()}
+			onSubmit={() => form.submit()}
 			confirmLoading={createTask.isPending}
 			okText="Create"
 			cancelText="Cancel"
@@ -113,6 +139,15 @@ function CreateTaskModal({ reportId, open, onClose }: CreateTaskModalProps) {
 						optionFilterProp="label"
 						options={companyOptions}
 						placeholder="Select a target company"
+						onChange={(value) => {
+							const competitors = form.getFieldValue("competitors") ?? [];
+							form.setFieldsValue({
+								targetCompany: value,
+								competitors: competitors.filter(
+									(competitorId: number) => competitorId !== value,
+								),
+							});
+						}}
 					/>
 				</Form.Item>
 				<Form.Item
@@ -120,18 +155,36 @@ function CreateTaskModal({ reportId, open, onClose }: CreateTaskModalProps) {
 					label="Competitors"
 					rules={[
 						{ required: true, message: "Select at least one competitor" },
+						({ getFieldValue }) => ({
+							validator(_, value: number[] | undefined) {
+								const targetCompany = getFieldValue("targetCompany");
+								if (
+									targetCompany === undefined ||
+									!Array.isArray(value) ||
+									!value.includes(targetCompany)
+								) {
+									return Promise.resolve();
+								}
+
+								return Promise.reject(
+									new Error(
+										"Target company cannot be selected as a competitor",
+									),
+								);
+							},
+						}),
 					]}
 				>
 					<Select
 						mode="multiple"
 						showSearch
 						optionFilterProp="label"
-						options={companyOptions}
+						options={competitorOptions}
 						placeholder="Select competitors"
 					/>
 				</Form.Item>
 			</Form>
-		</Modal>
+		</FormModalShell>
 	);
 }
 
@@ -207,6 +260,23 @@ export default function N8NTasksTable({ reportId }: { reportId: number }) {
 				key: "status",
 				width: 130,
 				render: (v: N8NTaskStatus) => <Tag color={STATUS_COLORS[v]}>{v}</Tag>,
+			},
+			{
+				title: "n8n",
+				key: "sync",
+				width: 170,
+				render: (_: unknown, record: N8NTask) => (
+					<div>
+						<Text style={{ color: "#d9d9d9", fontSize: 12 }}>
+							{formatRawStatus(record.last_seen_execution_status)}
+						</Text>
+						<div>
+							<Text style={{ color: "#8c8c8c", fontSize: 11 }}>
+								Checked: {formatDate(record.last_checked_at)}
+							</Text>
+						</div>
+					</div>
+				),
 			},
 			{
 				title: "Execution ID",
@@ -325,23 +395,20 @@ export default function N8NTasksTable({ reportId }: { reportId: number }) {
 					icon={<PlusOutlined />}
 					onClick={() => setCreateOpen(true)}
 				>
-					New report
+					New company level report
 				</Button>
 			</div>
 
-			<Card style={{ ...DARK_CARD_STYLE }} styles={{ body: { padding: 0 } }}>
-				<Table
-					dataSource={tasks}
-					columns={columns}
-					rowKey="id"
-					loading={isLoading}
-					pagination={{ pageSize: 20, showSizeChanger: false }}
-					style={{ background: "#1f1f1f" }}
-					locale={{
-						emptyText: 'No tasks yet. Click "New report" to add one.',
-					}}
-				/>
-			</Card>
+			<DarkTableCard
+				dataSource={tasks}
+				columns={columns}
+				rowKey="id"
+				loading={isLoading}
+				pagination={{ pageSize: 20, showSizeChanger: false }}
+				locale={{
+					emptyText: 'No tasks yet. Click "New report" to add one.',
+				}}
+			/>
 
 			<CreateTaskModal
 				reportId={reportId}

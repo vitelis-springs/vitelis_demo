@@ -1,14 +1,24 @@
 /** biome-ignore-all lint/complexity/noStaticOnlyClass: <project> */
 import type { Prisma } from "../../../../generated/prisma";
 import { N8NService } from "../n8n/n8n.service";
-import { N8NTasksRepository } from "./n8n-tasks.repository";
+import { type N8NTaskStatus, N8NTasksRepository } from "./n8n-tasks.repository";
 
 const COMPANY_LEVEL_REPORT_FLOW_NAME = "company-level-report";
 const COMPANY_LEVEL_REPORT_FLOW_URL =
-	"https://vitelis2025.app.n8n.cloud/webhook-test/alix-company-level-report/with-yaml";
+	"https://vitelis2025.app.n8n.cloud/webhook/alix-company-level-report/with-yaml";
+const EXECUTION_STATUS_SYNC_COOLDOWN_MS = 30_000;
+
+type ExecutionStatusResponse = {
+	status?: unknown;
+};
+
+type ProcessingTask = Awaited<
+	ReturnType<typeof N8NTasksRepository.findProcessing>
+>[number];
 
 export class N8NTasksService {
 	static async list(reportId?: number) {
+		await N8NTasksService.syncProcessingTasks(reportId);
 		return N8NTasksRepository.findAll(reportId);
 	}
 
@@ -57,6 +67,10 @@ export class N8NTasksService {
 		);
 
 		if (!response.ok) {
+			console.error(
+				`Failed to start n8n task ${id}. Response status: ${response.status}`,
+				response,
+			);
 			await N8NTasksRepository.updateStatus(id, "ERROR");
 			throw new Error(`N8N request failed with status ${response.status}`);
 		}
@@ -64,7 +78,12 @@ export class N8NTasksService {
 		const result = (await response.json()) as Record<string, unknown>;
 		const executionId = result.executionId ? String(result.executionId) : null;
 
-		await N8NTasksRepository.updateStatus(id, "PROCESSING", executionId);
+		await N8NTasksRepository.updateSyncState(id, {
+			status: "PROCESSING",
+			executionId,
+			lastSeenExecutionStatus: null,
+			lastCheckedAt: null,
+		});
 		return { executionId };
 	}
 
@@ -76,7 +95,11 @@ export class N8NTasksService {
 			await N8NService.stopExecution(task.execution_id, "bizminer");
 		}
 
-		await N8NTasksRepository.updateStatus(id, "ERROR");
+		await N8NTasksRepository.updateSyncState(id, {
+			status: "ERROR",
+			lastSeenExecutionStatus: "canceled",
+			lastCheckedAt: new Date(),
+		});
 	}
 
 	static async delete(id: number) {
@@ -90,5 +113,89 @@ export class N8NTasksService {
 		status: "PENDING" | "PROCESSING" | "DONE" | "ERROR",
 	) {
 		return N8NTasksRepository.updateStatus(id, status);
+	}
+
+	private static async syncProcessingTasks(reportId?: number) {
+		const tasks = await N8NTasksRepository.findProcessing(reportId);
+		const now = Date.now();
+		const eligibleTasks = tasks.filter((task) =>
+			N8NTasksService.shouldSyncTask(task, now),
+		);
+
+		if (eligibleTasks.length === 0) {
+			return;
+		}
+
+		await Promise.allSettled(
+			eligibleTasks.map((task) => N8NTasksService.syncTaskExecutionState(task)),
+		);
+	}
+
+	private static shouldSyncTask(task: ProcessingTask, now: number) {
+		if (!task.last_checked_at) {
+			return true;
+		}
+
+		return (
+			now - task.last_checked_at.getTime() >= EXECUTION_STATUS_SYNC_COOLDOWN_MS
+		);
+	}
+
+	private static async syncTaskExecutionState(task: ProcessingTask) {
+		const lastCheckedAt = new Date();
+
+		try {
+			const execution = (await N8NService.getExecutionDetails(
+				task.execution_id as string,
+				"bizminer",
+			)) as ExecutionStatusResponse;
+			const rawStatus = N8NTasksService.extractExecutionStatus(execution);
+			const nextStatus = N8NTasksService.mapExecutionStatus(rawStatus);
+			console.log(
+				`Synced n8n task ${task.id} execution ${task.execution_id}:`,
+				"rawStatus:",
+				rawStatus,
+				"mappedStatus:",
+				nextStatus,
+			);
+
+			await N8NTasksRepository.updateSyncState(task.id, {
+				lastSeenExecutionStatus: rawStatus,
+				lastCheckedAt,
+				...(nextStatus ? { status: nextStatus } : {}),
+			});
+		} catch (error) {
+			console.error(
+				`Failed to sync n8n task ${task.id} execution ${task.execution_id}:`,
+				error,
+			);
+
+			await N8NTasksRepository.updateSyncState(task.id, {
+				lastCheckedAt,
+			});
+		}
+	}
+
+	private static extractExecutionStatus(execution: ExecutionStatusResponse) {
+		return typeof execution.status === "string"
+			? execution.status.toLowerCase()
+			: null;
+	}
+
+	private static mapExecutionStatus(
+		rawStatus: string | null,
+	): N8NTaskStatus | null {
+		switch (rawStatus) {
+			case "completed":
+			case "success":
+				return "DONE";
+			case "failed":
+			case "error":
+			case "crashed":
+			case "canceled":
+				return "ERROR";
+			default:
+				return null;
+		}
 	}
 }
