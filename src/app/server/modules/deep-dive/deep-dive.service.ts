@@ -20,6 +20,7 @@ import {
 	type SourceFilterParams,
 	type SourcesAnalyticsParams,
 } from "./deep-dive.repository";
+import { ReportStepsRepository } from "../report-steps/report-steps.repository";
 
 const DEFAULT_STATUS_COUNTS = {
 	PENDING: 0,
@@ -799,6 +800,19 @@ export class DeepDiveService {
 			DeepDiveRepository.getDistinctIndustriesForReports(),
 		]);
 
+		const reportIds = items.map((report) => report.id);
+		const costRows =
+			await ReportStepsRepository.getReportCostSummaryBatch(reportIds);
+		const costByReport = new Map(
+			costRows.map((row) => [
+				row.report_id,
+				{
+					totalCost: Number(row.total_cost),
+					callsWithoutPricing: Number(row.calls_without_pricing),
+				},
+			]),
+		);
+
 		return {
 			success: true,
 			data: {
@@ -834,6 +848,7 @@ export class DeepDiveService {
 							companies: report._count.report_companies,
 							steps: report._count.report_steps,
 						},
+						cost: costByReport.get(report.id) ?? null,
 					};
 				}),
 				filters: {
@@ -1816,9 +1831,7 @@ export class DeepDiveService {
 						? Number(r.total_confirmation_count)
 						: null,
 				avgEvidenceStrengthScore: Number(r.avg_evidence_strength_score),
-				avgEvidenceConfidenceScore: Number(
-					r.avg_evidence_confidence_score,
-				),
+				avgEvidenceConfidenceScore: Number(r.avg_evidence_confidence_score),
 				avgEvidenceFreshnessScore: Number(r.avg_evidence_freshness_score),
 				latestEffectiveDate: r.latest_effective_date?.toISOString() ?? null,
 				selectedOpportunitySpaces: r.selected_opportunity_spaces ?? [],
