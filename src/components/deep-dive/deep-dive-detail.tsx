@@ -3,6 +3,7 @@
 import {
 	FileExcelOutlined,
 	FundOutlined,
+	SearchOutlined,
 	SettingOutlined,
 	TableOutlined,
 } from "@ant-design/icons";
@@ -91,6 +92,14 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 									}}
 								>
 									Export xlsx report
+								</Button>
+								<Button
+									icon={<SearchOutlined />}
+									onClick={() =>
+										router.push(`${basePath}/${reportId}/try-query`)
+									}
+								>
+									Try Query
 								</Button>
 								<Button
 									icon={<SettingOutlined />}

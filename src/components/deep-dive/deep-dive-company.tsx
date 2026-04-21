@@ -164,10 +164,12 @@ export default function DeepDiveCompany({
   reportId,
   companyId,
   basePath = "/deep-dive",
+  showAdditionalData = true,
 }: {
   reportId: number;
   companyId: number;
   basePath?: string;
+  showAdditionalData?: boolean;
 }) {
   const { message } = App.useApp();
   const sourceParams = useMemo(() => ({ sourcesLimit: 50, sourcesOffset: 0 }), []);
@@ -451,13 +453,24 @@ export default function DeepDiveCompany({
 
   if (payload?.reportType === "sales_miner") {
     return (
-      <SalesMinerCompany
-        reportId={reportId}
-        companyId={companyId}
-        typeLevel={payload.typeLevel ?? "entity"}
-        companyName={payload.company.name}
-        basePath={basePath}
-      />
+      <>
+        <SalesMinerCompany
+          reportId={reportId}
+          companyId={companyId}
+          typeLevel={payload.typeLevel ?? "entity"}
+          companyName={payload.company.name}
+          basePath={basePath}
+          onEdit={() => setEditCompanyOpen(true)}
+        />
+        {payload?.company && (
+          <EditCompanyModal
+            reportId={reportId}
+            company={payload.company}
+            open={editCompanyOpen}
+            onClose={() => setEditCompanyOpen(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -598,7 +611,7 @@ export default function DeepDiveCompany({
         ]} />
       </Card>
 
-      {payload?.company.additionalData != null && (
+      {showAdditionalData && payload?.company.additionalData != null && (
         <Card
           title="Additional Data"
           style={{ ...DARK_CARD_STYLE, marginTop: 24 }}

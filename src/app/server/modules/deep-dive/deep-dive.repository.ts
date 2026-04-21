@@ -2799,6 +2799,127 @@ export class DeepDiveRepository {
     `;
 	}
 
+	static async getSalesMinerSignalStats(reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				signal_definition_id: bigint;
+				signal_type_name: string;
+				signal_definition_name: string;
+				researched_context_count: bigint;
+				decision_context_count: bigint;
+				researched_but_not_selected_context_count: bigint;
+				used_seed_count: bigint;
+				final_opportunity_count: bigint;
+				top10_opportunity_count: bigint;
+				deep_dive_opportunity_count: bigint;
+				used_effective_signal_score: number;
+				top10_effective_signal_score: number;
+				avg_effective_signal_score: number;
+				total_confirmation_count: number | null;
+				avg_evidence_strength_score: number;
+				avg_evidence_confidence_score: number;
+				avg_evidence_freshness_score: number;
+				latest_effective_date: Date | null;
+				selected_opportunity_spaces: string[] | null;
+				signal_effectiveness_class: string;
+			}>
+		>`
+      WITH researched_signals AS (
+        SELECT DISTINCT
+          sst.research_run_id,
+          COALESCE(sst.company_id, rr.company_id) AS company_id,
+          sst.signal_definition_id
+        FROM public.signal_search_tasks sst
+        JOIN public.research_runs rr ON rr.id = sst.research_run_id
+        WHERE rr.report_id = ${reportId}
+      ),
+      signal_rows AS (
+        SELECT
+          l.research_run_id,
+          l.company_id,
+          l.seed_id,
+          l.selected_opportunity_space,
+          j.value AS signal_json
+        FROM public.opportunity_seed_validation_logs l
+        JOIN public.research_runs rr ON rr.id = l.research_run_id
+        CROSS JOIN LATERAL jsonb_array_elements(
+          COALESCE(l.signal_decisions, '[]'::jsonb)
+        ) AS j(value)
+        WHERE rr.report_id = ${reportId}
+      ),
+      normalized_signals AS (
+        SELECT
+          sr.*,
+          NULLIF(sr.signal_json->>'signal_definition_id', '')::bigint AS signal_definition_id,
+          NULLIF(sr.signal_json->>'decision_status', '') AS decision_status,
+          COALESCE(NULLIF(sr.signal_json->>'influence_score', '')::numeric, 0) AS influence_score
+        FROM signal_rows sr
+        WHERE NULLIF(sr.signal_json->>'signal_definition_id', '') IS NOT NULL
+      ),
+      decision_metrics AS (
+        SELECT
+          ns.signal_definition_id,
+          COUNT(DISTINCT (ns.research_run_id::text || ':' || ns.company_id::text)) AS decision_context_count,
+          COUNT(DISTINCT ns.seed_id) FILTER (WHERE ns.decision_status = 'used') AS used_seed_count,
+          COUNT(*) FILTER (WHERE ns.decision_status = 'used') AS final_opportunity_count,
+          COUNT(*) FILTER (WHERE ns.decision_status = 'used') AS top10_opportunity_count,
+          COUNT(*) FILTER (WHERE ns.decision_status = 'used') AS deep_dive_opportunity_count,
+          ROUND(SUM(ns.influence_score) FILTER (WHERE ns.decision_status = 'used')::numeric, 4) AS used_effective_signal_score,
+          ROUND(SUM(ns.influence_score) FILTER (WHERE ns.decision_status = 'used')::numeric, 4) AS top10_effective_signal_score,
+          ROUND(AVG(ns.influence_score)::numeric, 4) AS avg_effective_signal_score,
+          ARRAY_AGG(DISTINCT ns.selected_opportunity_space)
+            FILTER (WHERE ns.selected_opportunity_space IS NOT NULL) AS selected_opportunity_spaces
+        FROM normalized_signals ns
+        GROUP BY ns.signal_definition_id
+      )
+      SELECT
+        rs.signal_definition_id,
+        st.name AS signal_type_name,
+        sd.name AS signal_definition_name,
+        COUNT(DISTINCT (rs.research_run_id::text || ':' || rs.company_id::text)) AS researched_context_count,
+        COALESCE(dm.decision_context_count, 0) AS decision_context_count,
+        COUNT(DISTINCT (rs.research_run_id::text || ':' || rs.company_id::text)) - COALESCE(dm.decision_context_count, 0) AS researched_but_not_selected_context_count,
+        COALESCE(dm.used_seed_count, 0) AS used_seed_count,
+        COALESCE(dm.final_opportunity_count, 0) AS final_opportunity_count,
+        COALESCE(dm.top10_opportunity_count, 0) AS top10_opportunity_count,
+        COALESCE(dm.deep_dive_opportunity_count, 0) AS deep_dive_opportunity_count,
+        COALESCE(dm.used_effective_signal_score, 0) AS used_effective_signal_score,
+        COALESCE(dm.top10_effective_signal_score, 0) AS top10_effective_signal_score,
+        COALESCE(dm.avg_effective_signal_score, 0) AS avg_effective_signal_score,
+        NULL::numeric AS total_confirmation_count,
+        0::numeric AS avg_evidence_strength_score,
+        0::numeric AS avg_evidence_confidence_score,
+        0::numeric AS avg_evidence_freshness_score,
+        NULL::timestamptz AS latest_effective_date,
+        COALESCE(dm.selected_opportunity_spaces, ARRAY[]::text[]) AS selected_opportunity_spaces,
+        CASE
+          WHEN COALESCE(dm.decision_context_count, 0) = 0 THEN 'researched_but_never_selected'
+          WHEN COALESCE(dm.final_opportunity_count, 0) = 0 THEN 'selected_but_never_converted'
+          WHEN COALESCE(dm.deep_dive_opportunity_count, 0) > 0 THEN 'deep_dive_signal'
+          WHEN COALESCE(dm.top10_opportunity_count, 0) > 0 THEN 'top10_signal'
+          ELSE 'converted_signal'
+        END AS signal_effectiveness_class
+      FROM researched_signals rs
+      JOIN public.signal_definitions sd ON sd.id = rs.signal_definition_id
+      JOIN public.signal_types st ON st.id = sd.signal_type_id
+      LEFT JOIN decision_metrics dm ON dm.signal_definition_id = rs.signal_definition_id
+      GROUP BY
+        rs.signal_definition_id,
+        st.name,
+        sd.name,
+        dm.decision_context_count,
+        dm.used_seed_count,
+        dm.final_opportunity_count,
+        dm.top10_opportunity_count,
+        dm.deep_dive_opportunity_count,
+        dm.used_effective_signal_score,
+        dm.top10_effective_signal_score,
+        dm.avg_effective_signal_score,
+        dm.selected_opportunity_spaces
+      ORDER BY used_effective_signal_score DESC NULLS LAST, signal_definition_name
+    `;
+	}
+
 	static async getSalesMinerReportOpportunitySummary(reportId: number) {
 		return prisma.$queryRaw<
 			Array<{

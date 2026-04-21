@@ -624,4 +624,62 @@ export class ReportStepsController {
       );
     }
   }
+
+  // ===== Cost stats =====
+
+  static async getReportCostStats(
+    request: NextRequest,
+    reportIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      if (!Number.isFinite(reportId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id" },
+          { status: 400 }
+        );
+      }
+
+      const result = await ReportStepsService.getReportCostStats(reportId);
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ ReportStepsController.getReportCostStats:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch cost stats" },
+        { status: 500 }
+      );
+    }
+  }
+
+  static async getStepCostTasks(
+    request: NextRequest,
+    reportIdParam: string,
+    stepIdParam: string
+  ): Promise<NextResponse> {
+    try {
+      const auth = extractAdminFromRequest(request);
+      if (!auth.success) return auth.response;
+
+      const reportId = Number(reportIdParam);
+      const stepId = Number(stepIdParam);
+      if (!Number.isFinite(reportId) || !Number.isFinite(stepId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid report id or step id" },
+          { status: 400 }
+        );
+      }
+
+      const result = await ReportStepsService.getStepCostTasks(reportId, stepId);
+      return NextResponse.json(result);
+    } catch (error) {
+      console.error("❌ ReportStepsController.getStepCostTasks:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch step cost tasks" },
+        { status: 500 }
+      );
+    }
+  }
 }

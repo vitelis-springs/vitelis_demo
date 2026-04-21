@@ -50,5 +50,5 @@ export default function BizMinerCompanyPage() {
     );
   }
 
-  return <DeepDiveCompany reportId={reportId} companyId={companyId} basePath="/biz-miner" />;
+  return <DeepDiveCompany reportId={reportId} companyId={companyId} basePath="/biz-miner" showAdditionalData={false} />;
 }

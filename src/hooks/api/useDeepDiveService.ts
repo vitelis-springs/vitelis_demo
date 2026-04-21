@@ -29,6 +29,10 @@ export interface DeepDiveListItem {
 		companies: number;
 		steps: number;
 	};
+	cost: {
+		totalCost: number;
+		callsWithoutPricing: number;
+	} | null;
 }
 
 export interface DeepDiveFilterOptions {
@@ -67,6 +71,9 @@ export interface DeepDiveCompanyRow {
 	url?: string | null;
 	status: DeepDiveStatus;
 	sourcesCount: number;
+	validSourcesCount: number;
+	usedSourcesCount: number;
+	candidatesCount: number;
 	stepsDone: number;
 	stepsTotal: number;
 }
@@ -1542,6 +1549,139 @@ export const useSearchCompanies = (query: string) => {
 		},
 		enabled: query.trim().length >= 2,
 		staleTime: 30_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export interface ReportCostTask {
+	id: string;
+	taskName: string;
+	model: string | null;
+	inputTokens: number;
+	outputTokens: number;
+	cachedInputTokens: number;
+	inputCost: number;
+	outputCost: number;
+	mcpCost: number;
+	totalCost: number;
+	startedAt: string | null;
+	finishedAt: string | null;
+}
+
+export interface ReportCostStep {
+	stepId: number;
+	stepName: string;
+	taskCount: number;
+	inputTokens: number;
+	outputTokens: number;
+	cachedInputTokens: number;
+	inputCost: number;
+	outputCost: number;
+	mcpCost: number;
+	totalCost: number;
+	callsWithoutPricing: number;
+	firstCallAt: string | null;
+	lastCallAt: string | null;
+}
+
+export interface ReportCostSummary {
+	taskCount: number;
+	inputTokens: number;
+	outputTokens: number;
+	cachedInputTokens: number;
+	inputCost: number;
+	outputCost: number;
+	mcpCost: number;
+	totalCost: number;
+	callsWithoutPricing: number;
+	firstCallAt: string | null;
+	lastCallAt: string | null;
+}
+
+export interface ReportCostStatsResponse {
+	success: boolean;
+	data: {
+		summary: ReportCostSummary | null;
+		steps: ReportCostStep[];
+	};
+}
+
+export interface StepCostTasksResponse {
+	success: boolean;
+	data: ReportCostTask[];
+}
+
+export const useGetReportCostStats = (reportId: number, enabled = true) => {
+	return useQuery({
+		queryKey: ["deep-dive", "cost-stats", reportId],
+		queryFn: async () => {
+			const response = await api.get(`/deep-dive/${reportId}/cost-stats`);
+			return response.data as ReportCostStatsResponse;
+		},
+		enabled: enabled && Number.isFinite(reportId),
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useGetStepCostTasks = (
+	reportId: number,
+	stepId: number | null,
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "cost-stats", reportId, "step", stepId],
+		queryFn: async () => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/cost-stats/${stepId}`,
+			);
+			return response.data as StepCostTasksResponse;
+		},
+		enabled: Number.isFinite(reportId) && stepId !== null,
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export interface SignalStatRow {
+	signalDefinitionId: number;
+	signalTypeName: string;
+	signalDefinitionName: string;
+	researchedContextCount: number;
+	decisionContextCount: number;
+	researchedButNotSelectedContextCount: number;
+	usedSeedCount: number;
+	finalOpportunityCount: number;
+	top10OpportunityCount: number;
+	deepDiveOpportunityCount: number;
+	usedEffectiveSignalScore: number;
+	top10EffectiveSignalScore: number;
+	avgEffectiveSignalScore: number;
+	totalConfirmationCount: number | null;
+	avgEvidenceStrengthScore: number;
+	avgEvidenceConfidenceScore: number;
+	avgEvidenceFreshnessScore: number;
+	latestEffectiveDate: string | null;
+	selectedOpportunitySpaces: string[];
+	signalEffectivenessClass: string;
+}
+
+export interface SignalStatsResponse {
+	success: boolean;
+	data: SignalStatRow[];
+}
+
+export const useGetSalesMinerSignalStats = (
+	reportId: number,
+	enabled = true,
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "signal-stats", reportId],
+		queryFn: async () => {
+			const response = await api.get(`/deep-dive/${reportId}/signal-stats`);
+			return response.data as SignalStatsResponse;
+		},
+		enabled: enabled && Number.isFinite(reportId),
+		staleTime: 5 * 60_000,
 		refetchOnWindowFocus: false,
 	});
 };

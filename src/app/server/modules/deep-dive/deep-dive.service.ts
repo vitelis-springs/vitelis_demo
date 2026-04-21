@@ -1790,4 +1790,40 @@ export class DeepDiveService {
 			})),
 		};
 	}
+
+	static async getSalesMinerSignalStats(reportId: number) {
+		const rows = await DeepDiveRepository.getSalesMinerSignalStats(reportId);
+		return {
+			success: true,
+			data: rows.map((r) => ({
+				signalDefinitionId: Number(r.signal_definition_id),
+				signalTypeName: r.signal_type_name,
+				signalDefinitionName: r.signal_definition_name,
+				researchedContextCount: Number(r.researched_context_count),
+				decisionContextCount: Number(r.decision_context_count),
+				researchedButNotSelectedContextCount: Number(
+					r.researched_but_not_selected_context_count,
+				),
+				usedSeedCount: Number(r.used_seed_count),
+				finalOpportunityCount: Number(r.final_opportunity_count),
+				top10OpportunityCount: Number(r.top10_opportunity_count),
+				deepDiveOpportunityCount: Number(r.deep_dive_opportunity_count),
+				usedEffectiveSignalScore: Number(r.used_effective_signal_score),
+				top10EffectiveSignalScore: Number(r.top10_effective_signal_score),
+				avgEffectiveSignalScore: Number(r.avg_effective_signal_score),
+				totalConfirmationCount:
+					r.total_confirmation_count != null
+						? Number(r.total_confirmation_count)
+						: null,
+				avgEvidenceStrengthScore: Number(r.avg_evidence_strength_score),
+				avgEvidenceConfidenceScore: Number(
+					r.avg_evidence_confidence_score,
+				),
+				avgEvidenceFreshnessScore: Number(r.avg_evidence_freshness_score),
+				latestEffectiveDate: r.latest_effective_date?.toISOString() ?? null,
+				selectedOpportunitySpaces: r.selected_opportunity_spaces ?? [],
+				signalEffectivenessClass: r.signal_effectiveness_class,
+			})),
+		};
+	}
 }

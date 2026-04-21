@@ -2,6 +2,7 @@
 
 import {
   Badge,
+  Button,
   Card,
   Col,
   Collapse,
@@ -15,7 +16,7 @@ import {
   Tabs,
   Typography,
 } from "antd";
-import { LinkOutlined } from "@ant-design/icons";
+import { EditOutlined, LinkOutlined } from "@ant-design/icons";
 import { useMemo } from "react";
 import {
   useGetSalesMinerCompany,
@@ -25,7 +26,6 @@ import {
 } from "../../hooks/api/useDeepDiveService";
 import DeepDivePageLayout from "./shared/page-layout";
 import PageHeader from "./shared/page-header";
-import { buildReportHref, resolveReportSection } from "./shared/report-route";
 
 const { Text, Paragraph, Title } = Typography;
 
@@ -333,12 +333,14 @@ function AccountLevelView({
   reportId,
   companyId,
   companyName,
-  basePath,
+  basePath = "/sales-miner",
+  onEdit,
 }: {
   reportId: number;
   companyId: number;
   companyName: string;
-  basePath: string;
+  basePath?: string;
+  onEdit?: () => void;
 }) {
   const { data, isLoading } = useGetSalesMinerCompany(reportId, companyId);
   const payload = data?.data;
@@ -361,7 +363,6 @@ function AccountLevelView({
     if (!payload || payload.level !== "account") return null;
     return toRecord(toRecord(payload.sellerBrief).seller_brief);
   }, [payload]);
-  const reportSection = resolveReportSection(basePath);
 
   const topOpportunities = (payload?.level === "account" ? payload.topOpportunities : []) ?? [];
   const pains = toArray(assessment?.pains) as Array<Record<string, unknown>>;
@@ -422,12 +423,19 @@ function AccountLevelView({
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          reportSection,
-          { label: `Report #${reportId}`, href: buildReportHref(basePath, reportId) },
+          { label: "Sales Miner", href: "/sales-miner" },
+          { label: `Report #${reportId}`, href: `${basePath}/${reportId}` },
           { label: companyName },
         ]}
         title={companyName}
-        extra={<Tag color="blue">Account Level</Tag>}
+        extra={
+          <Space>
+            <Tag color="blue">Account Level</Tag>
+            {onEdit && (
+              <Button icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
+            )}
+          </Space>
+        }
       />
 
       {itThemes.length > 0 && (
@@ -671,12 +679,14 @@ function EntityLevelView({
   reportId,
   companyId,
   companyName,
-  basePath,
+  basePath = "/sales-miner",
+  onEdit,
 }: {
   reportId: number;
   companyId: number;
   companyName: string;
-  basePath: string;
+  basePath?: string;
+  onEdit?: () => void;
 }) {
   const { data, isLoading } = useGetSalesMinerCompany(reportId, companyId);
   const payload = data?.data;
@@ -684,7 +694,6 @@ function EntityLevelView({
   const signals = (payload?.level === "entity" ? payload.signals : []) ?? [];
   const opportunities = (payload?.level === "entity" ? payload.opportunities : []) ?? [];
   const stakeholders = (payload?.level === "entity" ? payload.stakeholders : []) ?? [];
-  const reportSection = resolveReportSection(basePath);
 
   if (isLoading) {
     return (
@@ -698,12 +707,19 @@ function EntityLevelView({
     <DeepDivePageLayout>
       <PageHeader
         breadcrumbs={[
-          reportSection,
-          { label: `Report #${reportId}`, href: buildReportHref(basePath, reportId) },
+          { label: "Sales Miner", href: "/sales-miner" },
+          { label: `Report #${reportId}`, href: `${basePath}/${reportId}` },
           { label: companyName },
         ]}
         title={companyName}
-        extra={<Tag color="geekblue">Entity Level</Tag>}
+        extra={
+          <Space>
+            <Tag color="geekblue">Entity Level</Tag>
+            {onEdit && (
+              <Button icon={<EditOutlined />} onClick={onEdit}>Edit</Button>
+            )}
+          </Space>
+        }
       />
 
       <Tabs
@@ -751,12 +767,14 @@ export default function SalesMinerCompany({
   typeLevel,
   companyName,
   basePath = "/sales-miner",
+  onEdit,
 }: {
   reportId: number;
   companyId: number;
   typeLevel: string;
   companyName: string;
   basePath?: string;
+  onEdit?: () => void;
 }) {
   if (typeLevel === "account") {
     return (
@@ -765,6 +783,7 @@ export default function SalesMinerCompany({
         companyId={companyId}
         companyName={companyName}
         basePath={basePath}
+        onEdit={onEdit}
       />
     );
   }
@@ -775,6 +794,7 @@ export default function SalesMinerCompany({
       companyId={companyId}
       companyName={companyName}
       basePath={basePath}
+      onEdit={onEdit}
     />
   );
 }

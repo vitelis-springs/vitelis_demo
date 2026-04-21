@@ -67,7 +67,8 @@ function setupListMocks(reports = [SAMPLE_REPORT], total = 1) {
   mockTransaction.mockResolvedValueOnce([reports, total]);
   mockQueryRaw
     .mockResolvedValueOnce(SAMPLE_USE_CASES)
-    .mockResolvedValueOnce(SAMPLE_INDUSTRIES);
+    .mockResolvedValueOnce(SAMPLE_INDUSTRIES)
+    .mockResolvedValueOnce([]); // getReportCostSummaryBatch
 }
 
 /* ─── tests ─── */
