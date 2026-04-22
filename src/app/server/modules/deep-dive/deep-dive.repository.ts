@@ -3095,6 +3095,7 @@ export class DeepDiveRepository {
 				rule_label: string | null;
 				rule_level: string;
 				rule_description: string | null;
+				rule_criteria: unknown;
 			}[]
 		>`
       SELECT
@@ -3102,10 +3103,11 @@ export class DeepDiveRepository {
         rvr.validation_rule_id,
         rvr.execution_order,
         rvr.enabled,
-        vr.name  AS rule_name,
-        vr.label AS rule_label,
-        vr.level AS rule_level,
-        vr.description AS rule_description
+        vr.name        AS rule_name,
+        vr.label       AS rule_label,
+        vr.level       AS rule_level,
+        vr.description AS rule_description,
+        vr.criteria    AS rule_criteria
       FROM report_validation_rules rvr
       JOIN validation_rules vr ON vr.id = rvr.validation_rule_id
       WHERE rvr.report_id = ${reportId}
@@ -3121,9 +3123,10 @@ export class DeepDiveRepository {
 				label: string | null;
 				level: string;
 				description: string | null;
+				criteria: unknown;
 			}[]
 		>`
-      SELECT vr.id, vr.name, vr.label, vr.level, vr.description
+      SELECT vr.id, vr.name, vr.label, vr.level, vr.description, vr.criteria
       FROM validation_rules vr
       WHERE vr.enabled = true
         AND vr.id NOT IN (
@@ -3150,5 +3153,55 @@ export class DeepDiveRepository {
       DELETE FROM report_validation_rules
       WHERE report_id = ${reportId} AND validation_rule_id = ${ruleId}
     `;
+	}
+
+	static async updateValidationRule(
+		id: number,
+		params: {
+			name: string;
+			label: string | null;
+			level: string;
+			enabled: boolean;
+			description: string | null;
+			criteria: { pass: string; warn: string; fail: string };
+		},
+	) {
+		await prisma.$executeRaw`
+      UPDATE validation_rules
+      SET
+        name        = ${params.name},
+        label       = ${params.label},
+        level       = ${params.level}::"validation_rule_level",
+        enabled     = ${params.enabled},
+        description = ${params.description},
+        criteria    = ${JSON.stringify(params.criteria)}::jsonb,
+        updated_at  = NOW()
+      WHERE id = ${id}
+    `;
+	}
+
+	static async createValidationRule(params: {
+		name: string;
+		label: string | null;
+		level: string;
+		enabled: boolean;
+		description: string | null;
+		criteria: { pass: string; warn: string; fail: string };
+	}) {
+		const result = await prisma.$queryRaw<{ id: number }[]>`
+      INSERT INTO validation_rules (name, label, level, enabled, description, criteria, created_at, updated_at)
+      VALUES (
+        ${params.name},
+        ${params.label},
+        ${params.level}::"validation_rule_level",
+        ${params.enabled},
+        ${params.description},
+        ${JSON.stringify(params.criteria)}::jsonb,
+        NOW(),
+        NOW()
+      )
+      RETURNING id
+    `;
+		return result[0];
 	}
 }

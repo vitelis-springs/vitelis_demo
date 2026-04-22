@@ -2032,4 +2032,157 @@ export class DeepDiveController {
 			);
 		}
 	}
+
+	static async updateValidationRule(
+		request: NextRequest,
+		ruleIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const ruleId = Number(ruleIdParam);
+			if (!Number.isFinite(ruleId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid rule id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json()) as {
+				name?: unknown;
+				label?: unknown;
+				level?: unknown;
+				enabled?: unknown;
+				description?: unknown;
+				criteria?: unknown;
+			};
+
+			const name = typeof body.name === "string" ? body.name.trim() : "";
+			if (!name) {
+				return NextResponse.json(
+					{ success: false, error: "Name is required" },
+					{ status: 400 },
+				);
+			}
+
+			const level = typeof body.level === "string" ? body.level : "";
+			if (level !== "driver" && level !== "category") {
+				return NextResponse.json(
+					{ success: false, error: "Level must be driver or category" },
+					{ status: 400 },
+				);
+			}
+
+			const criteria =
+				body.criteria &&
+				typeof body.criteria === "object" &&
+				!Array.isArray(body.criteria)
+					? (body.criteria as {
+							pass?: unknown;
+							warn?: unknown;
+							fail?: unknown;
+						})
+					: {};
+
+			await DeepDiveService.updateValidationRule(ruleId, {
+				name,
+				label:
+					typeof body.label === "string" && body.label.trim()
+						? body.label.trim()
+						: null,
+				level,
+				enabled: body.enabled !== false,
+				description:
+					typeof body.description === "string" && body.description.trim()
+						? body.description.trim()
+						: null,
+				criteria: {
+					pass: typeof criteria.pass === "string" ? criteria.pass : "",
+					warn: typeof criteria.warn === "string" ? criteria.warn : "",
+					fail: typeof criteria.fail === "string" ? criteria.fail : "",
+				},
+			});
+
+			return NextResponse.json({ success: true });
+		} catch (error) {
+			console.error("❌ DeepDiveController.updateValidationRule:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to update validation rule" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async createValidationRule(
+		request: NextRequest,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const body = (await request.json()) as {
+				name?: unknown;
+				label?: unknown;
+				level?: unknown;
+				enabled?: unknown;
+				description?: unknown;
+				criteria?: unknown;
+			};
+
+			const name = typeof body.name === "string" ? body.name.trim() : "";
+			if (!name) {
+				return NextResponse.json(
+					{ success: false, error: "Name is required" },
+					{ status: 400 },
+				);
+			}
+
+			const level = typeof body.level === "string" ? body.level : "";
+			if (level !== "driver" && level !== "category") {
+				return NextResponse.json(
+					{ success: false, error: "Level must be driver or category" },
+					{ status: 400 },
+				);
+			}
+
+			const criteria =
+				body.criteria &&
+				typeof body.criteria === "object" &&
+				!Array.isArray(body.criteria)
+					? (body.criteria as {
+							pass?: unknown;
+							warn?: unknown;
+							fail?: unknown;
+						})
+					: {};
+
+			const result = await DeepDiveService.createValidationRule({
+				name,
+				label:
+					typeof body.label === "string" && body.label.trim()
+						? body.label.trim()
+						: null,
+				level,
+				enabled: body.enabled !== false,
+				description:
+					typeof body.description === "string" && body.description.trim()
+						? body.description.trim()
+						: null,
+				criteria: {
+					pass: typeof criteria.pass === "string" ? criteria.pass : "",
+					warn: typeof criteria.warn === "string" ? criteria.warn : "",
+					fail: typeof criteria.fail === "string" ? criteria.fail : "",
+				},
+			});
+
+			return NextResponse.json({ success: true, data: result });
+		} catch (error) {
+			console.error("❌ DeepDiveController.createValidationRule:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to create validation rule" },
+				{ status: 500 },
+			);
+		}
+	}
 }

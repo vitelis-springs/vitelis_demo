@@ -1740,6 +1740,12 @@ export const useGetValidationSummary = (reportId: number, enabled = true) => {
 	});
 };
 
+export interface ValidationRuleCriteria {
+	pass: string;
+	warn: string;
+	fail: string;
+}
+
 export interface ConfiguredValidationRule {
 	id: number;
 	ruleId: number;
@@ -1749,6 +1755,7 @@ export interface ConfiguredValidationRule {
 	label: string | null;
 	level: string;
 	description: string | null;
+	criteria: ValidationRuleCriteria;
 }
 
 export interface AvailableValidationRule {
@@ -1757,6 +1764,7 @@ export interface AvailableValidationRule {
 	label: string | null;
 	level: string;
 	description: string | null;
+	criteria: ValidationRuleCriteria;
 }
 
 export interface ReportValidationRulesResponse {
@@ -1802,6 +1810,50 @@ export const useRemoveReportValidationRule = (reportId: number) => {
 	return useMutation({
 		mutationFn: async (ruleId: number) => {
 			await api.delete(`/deep-dive/${reportId}/validation-rules/${ruleId}`);
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "validation-rules", reportId],
+			});
+		},
+	});
+};
+
+export interface CreateValidationRulePayload {
+	name: string;
+	label: string;
+	level: "driver" | "category";
+	enabled: boolean;
+	description: string;
+	criteria: { pass: string; warn: string; fail: string };
+}
+
+export const useUpdateValidationRule = (reportId: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async ({
+			ruleId,
+			payload,
+		}: {
+			ruleId: number;
+			payload: CreateValidationRulePayload;
+		}) => {
+			await api.patch(`/deep-dive/validation-rules/${ruleId}`, payload);
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "validation-rules", reportId],
+			});
+		},
+	});
+};
+
+export const useCreateValidationRule = (reportId: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (payload: CreateValidationRulePayload) => {
+			const response = await api.post("/deep-dive/validation-rules", payload);
+			return response.data as { success: boolean; data: { id: number } };
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({

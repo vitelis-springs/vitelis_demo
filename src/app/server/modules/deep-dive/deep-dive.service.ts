@@ -1874,6 +1874,15 @@ export class DeepDiveService {
 			DeepDiveRepository.getConfiguredValidationRules(reportId),
 			DeepDiveRepository.getAvailableValidationRules(reportId),
 		]);
+		const parseCriteria = (raw: unknown) => {
+			const c = raw as { pass?: string; warn?: string; fail?: string } | null;
+			return {
+				pass: c?.pass ?? "",
+				warn: c?.warn ?? "",
+				fail: c?.fail ?? "",
+			};
+		};
+
 		return {
 			configured: configured.map((r) => ({
 				id: r.id,
@@ -1884,6 +1893,7 @@ export class DeepDiveService {
 				label: r.rule_label,
 				level: r.rule_level,
 				description: r.rule_description,
+				criteria: parseCriteria(r.rule_criteria),
 			})),
 			available: available.map((r) => ({
 				id: r.id,
@@ -1891,6 +1901,7 @@ export class DeepDiveService {
 				label: r.label,
 				level: r.level,
 				description: r.description,
+				criteria: parseCriteria(r.criteria),
 			})),
 		};
 	}
@@ -1901,5 +1912,30 @@ export class DeepDiveService {
 
 	static async removeReportValidationRule(reportId: number, ruleId: number) {
 		await DeepDiveRepository.removeReportValidationRule(reportId, ruleId);
+	}
+
+	static async updateValidationRule(
+		id: number,
+		params: {
+			name: string;
+			label: string | null;
+			level: string;
+			enabled: boolean;
+			description: string | null;
+			criteria: { pass: string; warn: string; fail: string };
+		},
+	) {
+		await DeepDiveRepository.updateValidationRule(id, params);
+	}
+
+	static async createValidationRule(params: {
+		name: string;
+		label: string | null;
+		level: string;
+		enabled: boolean;
+		description: string | null;
+		criteria: { pass: string; warn: string; fail: string };
+	}) {
+		return DeepDiveRepository.createValidationRule(params);
 	}
 }
