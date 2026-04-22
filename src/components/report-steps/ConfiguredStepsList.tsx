@@ -120,7 +120,7 @@ export default function ConfiguredStepsList({
 										}
 										description={
 											<Text style={{ color: "#8c8c8c", fontSize: 12 }} ellipsis>
-												ID: {step.id} · {step.url}
+												{step.url}
 											</Text>
 										}
 									/>

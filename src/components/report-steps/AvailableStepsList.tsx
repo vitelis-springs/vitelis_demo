@@ -135,6 +135,9 @@ export default function AvailableStepsList({
 								<List.Item.Meta
 									title={
 										<Space>
+											<Tag color="grey" style={{ marginLeft: 8 }}>
+												{step.id}
+											</Tag>
 											<Text style={{ color: "#d9d9d9" }}>{step.name}</Text>
 											{step.dependency && (
 												<Tag color="cyan" style={{ marginLeft: 8 }}>
@@ -145,7 +148,7 @@ export default function AvailableStepsList({
 									}
 									description={
 										<Text style={{ color: "#8c8c8c", fontSize: 12 }} ellipsis>
-											ID: {step.id} · {step.url}
+											{step.url}
 										</Text>
 									}
 								/>
