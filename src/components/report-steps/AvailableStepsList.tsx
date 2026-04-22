@@ -65,7 +65,6 @@ export default function AvailableStepsList({
 			return step.name.toLowerCase().includes(normalizedQuery);
 		});
 	}, [steps, filter, searchValue]);
-
 	return (
 		<Card
 			title="Available Steps"
