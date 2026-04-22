@@ -1,20 +1,21 @@
 "use client";
 
-import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
 import {
-	Button,
 	Card,
-	Empty,
 	List,
-	Segmented,
+	Button,
+	Empty,
+	Typography,
 	Space,
 	Tag,
-	Typography,
+	Segmented,
+	Input,
 } from "antd";
+import { PlusOutlined, SettingOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import {
-	DARK_CARD_HEADER_STYLE,
 	DARK_CARD_STYLE,
+	DARK_CARD_HEADER_STYLE,
 } from "../../config/chart-theme";
 import type {
 	GenerationStep,
@@ -22,6 +23,7 @@ import type {
 } from "../../hooks/api/useReportStepsService";
 
 const { Text } = Typography;
+const { Search } = Input;
 
 interface AvailableStepsListProps {
 	steps: GenerationStep[];
@@ -41,6 +43,7 @@ export default function AvailableStepsList({
 	reportType,
 }: AvailableStepsListProps) {
 	const [filter, setFilter] = useState<StepReportType | "all">("all");
+	const [searchValue, setSearchValue] = useState("");
 
 	useEffect(() => {
 		if (reportType === "biz_miner" || reportType === "sales_miner") {
@@ -49,12 +52,19 @@ export default function AvailableStepsList({
 	}, [reportType]);
 
 	const filtered = useMemo(() => {
-		if (filter === "all") return steps;
-		return steps.filter(
-			(s) => s.reportType === filter || s.reportType === null,
-		);
-	}, [steps, filter]);
+		const normalizedQuery = searchValue.trim().toLowerCase();
 
+		return steps.filter((step) => {
+			const matchesType =
+				filter === "all" ||
+				step.reportType === filter ||
+				step.reportType === null;
+			if (!matchesType) return false;
+
+			if (!normalizedQuery) return true;
+			return step.name.toLowerCase().includes(normalizedQuery);
+		});
+	}, [steps, filter, searchValue]);
 	return (
 		<Card
 			title="Available Steps"
@@ -77,12 +87,22 @@ export default function AvailableStepsList({
 			}
 		>
 			<div style={{ height: 480, overflowY: "auto", padding: "8px 24px" }}>
+				<div style={{ marginBottom: 12, paddingTop: 8 }}>
+					<Search
+						allowClear
+						placeholder="Search step by name"
+						value={searchValue}
+						onChange={(event) => setSearchValue(event.target.value)}
+					/>
+				</div>
 				{filtered.length === 0 ? (
 					<Empty
 						image={Empty.PRESENTED_IMAGE_SIMPLE}
 						description={
 							<Text style={{ color: "#8c8c8c" }}>
-								All steps are already configured
+								{searchValue.trim()
+									? "No available steps match the current search"
+									: "All steps are already configured"}
 							</Text>
 						}
 					/>

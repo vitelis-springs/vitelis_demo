@@ -1686,4 +1686,181 @@ export const useGetSalesMinerSignalStats = (
 	});
 };
 
+export const useExportOpportunitiesXlsx = () => {
+	return useMutation({
+		mutationFn: async (reportId: number) => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/export-opportunities-xlsx`,
+				{ responseType: "blob" },
+			);
+			const url = URL.createObjectURL(response.data as Blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `opportunities-report-${reportId}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+		},
+	});
+};
+
+export interface ValidationCompanyRow {
+	companyId: number;
+	companyName: string;
+	total: number;
+	pass: number;
+	warn: number;
+	failed: number;
+}
+
+export interface ValidationRuleRow {
+	ruleName: string;
+	ruleLabel: string;
+	ruleLevel: string;
+	total: number;
+	pass: number;
+	warn: number;
+	failed: number;
+}
+
+export interface ValidationSummaryResponse {
+	byCompany: ValidationCompanyRow[];
+	byRule: ValidationRuleRow[];
+}
+
+export const useGetValidationSummary = (reportId: number, enabled = true) => {
+	return useQuery({
+		queryKey: ["deep-dive", "validation", reportId],
+		queryFn: async () => {
+			const response = await api.get(`/deep-dive/${reportId}/validation`);
+			return response.data as ValidationSummaryResponse;
+		},
+		enabled: enabled && Number.isFinite(reportId),
+		staleTime: 5 * 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export interface ValidationRuleCriteria {
+	pass: string;
+	warn: string;
+	fail: string;
+}
+
+export interface ConfiguredValidationRule {
+	id: number;
+	ruleId: number;
+	order: number | null;
+	enabled: boolean;
+	name: string;
+	label: string | null;
+	level: string;
+	description: string | null;
+	criteria: ValidationRuleCriteria;
+}
+
+export interface AvailableValidationRule {
+	id: number;
+	name: string;
+	label: string | null;
+	level: string;
+	description: string | null;
+	criteria: ValidationRuleCriteria;
+}
+
+export interface ReportValidationRulesResponse {
+	success: boolean;
+	data: {
+		configured: ConfiguredValidationRule[];
+		available: AvailableValidationRule[];
+	};
+}
+
+export const useGetReportValidationRules = (
+	reportId: number,
+	enabled = true,
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "validation-rules", reportId],
+		queryFn: async () => {
+			const response = await api.get(`/deep-dive/${reportId}/validation-rules`);
+			return (response.data as ReportValidationRulesResponse).data;
+		},
+		enabled: enabled && Number.isFinite(reportId),
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useAddReportValidationRule = (reportId: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (ruleId: number) => {
+			await api.post(`/deep-dive/${reportId}/validation-rules`, { ruleId });
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "validation-rules", reportId],
+			});
+		},
+	});
+};
+
+export const useRemoveReportValidationRule = (reportId: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (ruleId: number) => {
+			await api.delete(`/deep-dive/${reportId}/validation-rules/${ruleId}`);
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "validation-rules", reportId],
+			});
+		},
+	});
+};
+
+export interface CreateValidationRulePayload {
+	name: string;
+	label: string;
+	level: "driver" | "category";
+	enabled: boolean;
+	description: string;
+	criteria: { pass: string; warn: string; fail: string };
+}
+
+export const useUpdateValidationRule = (reportId: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async ({
+			ruleId,
+			payload,
+		}: {
+			ruleId: number;
+			payload: CreateValidationRulePayload;
+		}) => {
+			await api.patch(`/deep-dive/validation-rules/${ruleId}`, payload);
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "validation-rules", reportId],
+			});
+		},
+	});
+};
+
+export const useCreateValidationRule = (reportId: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (payload: CreateValidationRulePayload) => {
+			const response = await api.post("/deep-dive/validation-rules", payload);
+			return response.data as { success: boolean; data: { id: number } };
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "validation-rules", reportId],
+			});
+		},
+	});
+};
+
 export default deepDiveApi;

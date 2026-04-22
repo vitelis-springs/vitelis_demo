@@ -3,6 +3,7 @@
 import {
 	FileExcelOutlined,
 	FundOutlined,
+	SafetyCertificateOutlined,
 	SearchOutlined,
 	SettingOutlined,
 	TableOutlined,
@@ -128,6 +129,14 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 											}
 										>
 											Company Reports
+										</Button>
+										<Button
+											icon={<SafetyCertificateOutlined />}
+											onClick={() =>
+												router.push(`/biz-miner/${reportId}/validation`)
+											}
+										>
+											Validation
 										</Button>
 									</>
 								) : null}
