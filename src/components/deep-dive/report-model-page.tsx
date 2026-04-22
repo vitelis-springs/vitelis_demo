@@ -437,7 +437,7 @@ function ReportModelItemModal({
 			confirmLoading={confirmLoading}
 			destroyOnHidden
 		>
-			<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+			<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 				{dataPointId ? (
 					<div>
 						<Text
@@ -491,7 +491,11 @@ function ReportModelItemModal({
 							height="calc(90vh - 420px)"
 						/>
 					) : (
-						<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+						<Space
+							orientation="vertical"
+							size="middle"
+							style={{ width: "100%" }}
+						>
 							{Object.entries(settingsObj).map(([key, value]) => {
 								const inputKey = `${dataPointId ?? title}-${key}`;
 
@@ -758,7 +762,7 @@ export default function ReportModelPage({
 
 		const warningContent =
 			dependentKpis.length > 0 ? (
-				<Space direction="vertical" size={4}>
+				<Space orientation="vertical" size={4}>
 					<Text>
 						This will remove the item from the report model and delete its
 						results for all companies in this report.
@@ -936,7 +940,7 @@ export default function ReportModelPage({
 				}
 			/>
 
-			<Space direction="vertical" size="large" style={{ width: "100%" }}>
+			<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 				{useCaseName ? (
 					<Text style={{ color: "#8c8c8c" }}>
 						Use Case: <Text style={{ color: "#d9d9d9" }}>{useCaseName}</Text>
@@ -1003,7 +1007,7 @@ export default function ReportModelPage({
 					}
 					style={DARK_CARD_STYLE}
 				>
-					<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+					<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 						{visibleTypes.length ? (
 							<Tabs
 								activeKey={activeType}

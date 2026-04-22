@@ -22,31 +22,31 @@ import {
 	Typography,
 } from "antd";
 import React, {
+	type ChangeEvent,
 	forwardRef,
 	startTransition,
 	useImperativeHandle,
 	useRef,
 	useState,
-	type ChangeEvent,
 } from "react";
 import { flushSync } from "react-dom";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import {
-	useImportKpiModel,
 	type ImportKpiModelPayload,
 	type ReportModelItem,
+	useImportKpiModel,
 } from "../../hooks/api/useDeepDiveService";
 import {
 	detectKpiFieldMapping,
 	detectRdpFieldMapping,
 	KPI_FIELD_LABELS,
 	KPI_SHEET_NAME_PATTERN,
-	parseKpiModelWorkbook,
-	RDP_FIELD_LABELS,
-	RDP_SHEET_NAME_PATTERN,
 	type KpiFieldKey,
 	type KpiModelWorkbook,
 	type ParsedSheet,
+	parseKpiModelWorkbook,
+	RDP_FIELD_LABELS,
+	RDP_SHEET_NAME_PATTERN,
 	type RdpFieldKey,
 } from "../../shared/kpi-model-xlsx";
 
@@ -619,7 +619,7 @@ function SheetPreview<TKey extends string>({
 	const previewRows = sheet.rows.slice(0, 100);
 
 	return (
-		<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+		<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 			<Space wrap>
 				<Tag color="blue">{sheet.sheetName}</Tag>
 				<Text style={{ color: "#8c8c8c" }}>{sheet.rows.length} rows</Text>
@@ -961,7 +961,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 									),
 									children: (
 										<Space
-											direction="vertical"
+											orientation="vertical"
 											size="middle"
 											style={{ width: "100%" }}
 										>
@@ -1043,7 +1043,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 									),
 									children: (
 										<Space
-											direction="vertical"
+											orientation="vertical"
 											size="middle"
 											style={{ width: "100%" }}
 										>
@@ -1129,7 +1129,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 						</Space>
 					}
 				>
-					<Space direction="vertical" size="large" style={{ width: "100%" }}>
+					<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 						{(reportHasKpi || reportHasRdp) &&
 							!(reportHasKpi && reportHasRdp) && (
 								<Alert
@@ -1137,7 +1137,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 									showIcon
 									message="Existing model constraints"
 									description={
-										<Space direction="vertical" size={2}>
+										<Space orientation="vertical" size={2}>
 											{reportHasKpi && (
 												<Text>
 													KPI sheets will not be opened from XLSX because this
@@ -1181,7 +1181,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 								showIcon
 								message="No matching sheets found"
 								description={
-									<Space direction="vertical" size={2}>
+									<Space orientation="vertical" size={2}>
 										<Text>
 											Expected sheets containing{" "}
 											<Text code>{KPI_SHEET_NAME_PATTERN}</Text> or{" "}

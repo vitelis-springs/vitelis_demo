@@ -51,7 +51,7 @@ const columns: ColumnsType<DeepDiveCompanyRow> = [
 		dataIndex: "name",
 		sorter: (a, b) => a.name.localeCompare(b.name),
 		render: (value: string, record) => (
-			<Space direction="vertical" size={2}>
+			<Space orientation="vertical" size={2}>
 				<Text style={{ color: "#fff", fontWeight: 600 }}>{value}</Text>
 				{record.countryCode && (
 					<Text style={{ color: "#8c8c8c" }}>{record.countryCode}</Text>

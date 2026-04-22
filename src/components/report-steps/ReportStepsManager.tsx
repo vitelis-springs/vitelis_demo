@@ -4,11 +4,11 @@ import { App, Collapse, Layout, Space, Typography, Spin, Row, Col } from "antd";
 import { SettingOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState } from "react";
 import {
-  useGetReportSteps,
-  useAddStepToReport,
-  useRemoveStepFromReport,
-  useUpdateStepOrder,
-  useEnsureOrchestrator,
+	useGetReportSteps,
+	useAddStepToReport,
+	useRemoveStepFromReport,
+	useUpdateStepOrder,
+	useEnsureOrchestrator,
 } from "../../hooks/api/useReportStepsService";
 import type { GenerationStep } from "../../hooks/api/useReportStepsService";
 import { useGetDeepDiveOverview } from "../../hooks/api/useDeepDiveService";
@@ -23,199 +23,219 @@ const { Content } = Layout;
 const { Title, Text } = Typography;
 
 interface ReportStepsManagerProps {
-  reportId: number;
+	reportId: number;
 }
 
-function resolveSection(reportType?: string | null): { label: string; href: string } {
-  if (reportType === "biz_miner") return { label: "Biz Miner", href: "/biz-miner" };
-  if (reportType === "sales_miner") return { label: "Sales Miner", href: "/sales-miner" };
-  if (reportType === "internal") return { label: "Vitelis Sales", href: "/vitelis-sales" };
-  return { label: "Deep Dives", href: "/deep-dive" };
+function resolveSection(reportType?: string | null): {
+	label: string;
+	href: string;
+} {
+	if (reportType === "biz_miner")
+		return { label: "Biz Miner", href: "/biz-miner" };
+	if (reportType === "sales_miner")
+		return { label: "Sales Miner", href: "/sales-miner" };
+	if (reportType === "internal")
+		return { label: "Vitelis Sales", href: "/vitelis-sales" };
+	return { label: "Deep Dives", href: "/deep-dive" };
 }
 
 function resolveBackHref(reportId: number, reportType?: string | null): string {
-  const section = resolveSection(reportType);
-  return `${section.href}/${reportId}`;
+	const section = resolveSection(reportType);
+	return `${section.href}/${reportId}`;
 }
 
-export default function ReportStepsManager({ reportId }: ReportStepsManagerProps) {
-  const { message } = App.useApp();
-  const [addingStepId, setAddingStepId] = useState<number | null>(null);
-  const [removingStepId, setRemovingStepId] = useState<number | null>(null);
-  const [settingsStep, setSettingsStep] = useState<GenerationStep | null>(null);
+export default function ReportStepsManager({
+	reportId,
+}: ReportStepsManagerProps) {
+	const { message } = App.useApp();
+	const [addingStepId, setAddingStepId] = useState<number | null>(null);
+	const [removingStepId, setRemovingStepId] = useState<number | null>(null);
+	const [settingsStep, setSettingsStep] = useState<GenerationStep | null>(null);
 
-  const { data: overviewData, isLoading: reportLoading } = useGetDeepDiveOverview(reportId);
-  const { data: stepsData, isLoading: stepsLoading } = useGetReportSteps(reportId);
+	const { data: overviewData, isLoading: reportLoading } =
+		useGetDeepDiveOverview(reportId);
+	const { data: stepsData, isLoading: stepsLoading } =
+		useGetReportSteps(reportId);
 
-  const addStep = useAddStepToReport(reportId);
-  const removeStep = useRemoveStepFromReport(reportId);
-  const updateStepOrder = useUpdateStepOrder(reportId);
-  const ensureOrchestrator = useEnsureOrchestrator(reportId);
-  const hasEnsuredRef = useRef(false);
+	const addStep = useAddStepToReport(reportId);
+	const removeStep = useRemoveStepFromReport(reportId);
+	const updateStepOrder = useUpdateStepOrder(reportId);
+	const ensureOrchestrator = useEnsureOrchestrator(reportId);
+	const hasEnsuredRef = useRef(false);
 
-  const report = overviewData?.data?.report;
-  const configured = stepsData?.data?.configured ?? [];
-  const available = stepsData?.data?.available ?? [];
+	const report = overviewData?.data?.report;
+	const configured = stepsData?.data?.configured ?? [];
+	const available = stepsData?.data?.available ?? [];
 
-  useEffect(() => {
-    if (hasEnsuredRef.current) return;
-    hasEnsuredRef.current = true;
-    ensureOrchestrator.mutate(undefined, {
-      onError: () => {
-        message.error("Failed to initialize orchestrator");
-      },
-    });
-  }, [ensureOrchestrator, message]);
+	useEffect(() => {
+		if (hasEnsuredRef.current) return;
+		hasEnsuredRef.current = true;
+		ensureOrchestrator.mutate(undefined, {
+			onError: () => {
+				message.error("Failed to initialize orchestrator");
+			},
+		});
+	}, [ensureOrchestrator, message]);
 
-  const handleAddStep = (stepId: number) => {
-    setAddingStepId(stepId);
-    addStep.mutate(stepId, {
-      onSuccess: (result) => {
-        if (result.success) {
-          message.success("Step added");
-        } else {
-          message.error(result.error || "Failed to add step");
-        }
-        setAddingStepId(null);
-      },
-      onError: () => {
-        message.error("Failed to add step");
-        setAddingStepId(null);
-      },
-    });
-  };
+	const handleAddStep = (stepId: number) => {
+		setAddingStepId(stepId);
+		addStep.mutate(stepId, {
+			onSuccess: (result) => {
+				if (result.success) {
+					message.success("Step added");
+				} else {
+					message.error(result.error || "Failed to add step");
+				}
+				setAddingStepId(null);
+			},
+			onError: () => {
+				message.error("Failed to add step");
+				setAddingStepId(null);
+			},
+		});
+	};
 
-  const handleRemoveStep = (stepId: number) => {
-    setRemovingStepId(stepId);
-    removeStep.mutate(stepId, {
-      onSuccess: (result) => {
-        if (result.success) {
-          message.success("Step removed");
-        } else {
-          message.error(result.error || "Failed to remove step");
-        }
-        setRemovingStepId(null);
-      },
-      onError: () => {
-        message.error("Failed to remove step");
-        setRemovingStepId(null);
-      },
-    });
-  };
+	const handleRemoveStep = (stepId: number) => {
+		setRemovingStepId(stepId);
+		removeStep.mutate(stepId, {
+			onSuccess: (result) => {
+				if (result.success) {
+					message.success("Step removed");
+				} else {
+					message.error(result.error || "Failed to remove step");
+				}
+				setRemovingStepId(null);
+			},
+			onError: () => {
+				message.error("Failed to remove step");
+				setRemovingStepId(null);
+			},
+		});
+	};
 
-  const handleUpdateOrder = (stepId: number, order: number) => {
-    updateStepOrder.mutate({ stepId, order }, {
-      onError: () => {
-        message.error("Failed to update step order");
-      },
-    });
-  };
+	const handleUpdateOrder = (stepId: number, order: number) => {
+		updateStepOrder.mutate(
+			{ stepId, order },
+			{
+				onError: () => {
+					message.error("Failed to update step order");
+				},
+			},
+		);
+	};
 
-  if (reportLoading || stepsLoading) {
-    return (
-      <Layout style={{ minHeight: "100vh", background: "#141414" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100vh",
-          }}
-        >
-          <Spin size="large" />
-        </div>
-      </Layout>
-    );
-  }
+	if (reportLoading || stepsLoading) {
+		return (
+			<Layout style={{ minHeight: "100vh", background: "#141414" }}>
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "center",
+						alignItems: "center",
+						height: "100vh",
+					}}
+				>
+					<Spin size="large" />
+				</div>
+			</Layout>
+		);
+	}
 
-  return (
-    <Layout style={{ minHeight: "100vh", background: "#141414" }}>
-      <Content style={{ padding: 24, background: "#141414", minHeight: "100vh" }}>
-        <div style={{ maxWidth: 1600, width: "100%" }}>
-          {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <Space direction="vertical" size={4}>
-              <DeepDiveBreadcrumbs
-                items={[
-                  resolveSection(report?.reportType),
-                  {
-                    label: report?.name || `Report #${reportId}`,
-                    href: resolveBackHref(reportId, report?.reportType),
-                  },
-                  { label: "Steps" },
-                ]}
-              />
-              <Title level={2} style={{ margin: 0, color: "#58bfce" }}>
-                Step Configuration
-              </Title>
-              <Text style={{ color: "#8c8c8c" }}>
-                Manage report generation steps and monitor execution progress.
-              </Text>
-            </Space>
-          </div>
+	return (
+		<Layout style={{ minHeight: "100vh", background: "#141414" }}>
+			<Content
+				style={{ padding: 24, background: "#141414", minHeight: "100vh" }}
+			>
+				<div style={{ maxWidth: 1600, width: "100%" }}>
+					{/* Header */}
+					<div style={{ marginBottom: 24 }}>
+						<Space orientation="vertical" size={4}>
+							<DeepDiveBreadcrumbs
+								items={[
+									resolveSection(report?.reportType),
+									{
+										label: report?.name || `Report #${reportId}`,
+										href: resolveBackHref(reportId, report?.reportType),
+									},
+									{ label: "Steps" },
+								]}
+							/>
+							<Title level={2} style={{ margin: 0, color: "#58bfce" }}>
+								Step Configuration
+							</Title>
+							<Text style={{ color: "#8c8c8c" }}>
+								Manage report generation steps and monitor execution progress.
+							</Text>
+						</Space>
+					</div>
 
-          {/* Orchestrator Control */}
-          <div style={{ marginBottom: 24 }}>
-            <OrchestratorControl reportId={reportId} />
-          </div>
+					{/* Orchestrator Control */}
+					<div style={{ marginBottom: 24 }}>
+						<OrchestratorControl reportId={reportId} />
+					</div>
 
-          {/* Steps Configuration */}
-          <Collapse
-            style={{ marginBottom: 24, background: "#1f1f1f", border: "1px solid #303030" }}
-            items={[
-              {
-                key: "steps-config",
-                label: (
-                  <Space>
-                    <SettingOutlined style={{ color: "#58bfce" }} />
-                    <span style={{ color: "#d9d9d9", fontWeight: 600 }}>
-                      Step Configuration
-                    </span>
-                    <span style={{ color: "#8c8c8c", fontSize: 13 }}>
-                      {configured.length} configured · {available.length} available
-                    </span>
-                  </Space>
-                ),
-                children: (
-                  <Row gutter={24}>
-                    <Col xs={24} lg={12}>
-                      <ConfiguredStepsList
-                        steps={configured}
-                        loading={stepsLoading}
-                        onRemove={handleRemoveStep}
-                        onUpdateOrder={handleUpdateOrder}
-                        removingStepId={removingStepId}
-                        updatingOrder={updateStepOrder.isPending}
-                      />
-                    </Col>
-                    <Col xs={24} lg={12}>
-                      <AvailableStepsList
-                        steps={available}
-                        loading={stepsLoading}
-                        onAdd={handleAddStep}
-                        onOpenSettings={setSettingsStep}
-                        addingStepId={addingStepId}
-                        reportType={report?.reportType}
-                      />
-                    </Col>
-                  </Row>
-                ),
-                style: { background: "#1f1f1f", border: "none" },
-              },
-            ]}
-          />
+					{/* Steps Configuration */}
+					<Collapse
+						style={{
+							marginBottom: 24,
+							background: "#1f1f1f",
+							border: "1px solid #303030",
+						}}
+						items={[
+							{
+								key: "steps-config",
+								label: (
+									<Space>
+										<SettingOutlined style={{ color: "#58bfce" }} />
+										<span style={{ color: "#d9d9d9", fontWeight: 600 }}>
+											Step Configuration
+										</span>
+										<span style={{ color: "#8c8c8c", fontSize: 13 }}>
+											{configured.length} configured · {available.length}{" "}
+											available
+										</span>
+									</Space>
+								),
+								children: (
+									<Row gutter={24}>
+										<Col xs={24} lg={12}>
+											<ConfiguredStepsList
+												steps={configured}
+												loading={stepsLoading}
+												onRemove={handleRemoveStep}
+												onUpdateOrder={handleUpdateOrder}
+												removingStepId={removingStepId}
+												updatingOrder={updateStepOrder.isPending}
+											/>
+										</Col>
+										<Col xs={24} lg={12}>
+											<AvailableStepsList
+												steps={available}
+												loading={stepsLoading}
+												onAdd={handleAddStep}
+												onOpenSettings={setSettingsStep}
+												addingStepId={addingStepId}
+												reportType={report?.reportType}
+											/>
+										</Col>
+									</Row>
+								),
+								style: { background: "#1f1f1f", border: "none" },
+							},
+						]}
+					/>
 
-          {/* Company Steps Matrix */}
-          <CompanyStepsTable reportId={reportId} />
+					{/* Company Steps Matrix */}
+					<CompanyStepsTable reportId={reportId} />
 
-          {/* Step Settings Modal */}
-          <StepSettingsModal
-            step={settingsStep}
-            reportId={reportId}
-            onClose={() => setSettingsStep(null)}
-          />
-        </div>
-      </Content>
-    </Layout>
-  );
+					{/* Step Settings Modal */}
+					<StepSettingsModal
+						step={settingsStep}
+						reportId={reportId}
+						onClose={() => setSettingsStep(null)}
+					/>
+				</div>
+			</Content>
+		</Layout>
+	);
 }

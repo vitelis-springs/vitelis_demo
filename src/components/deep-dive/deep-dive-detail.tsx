@@ -69,7 +69,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 				<div style={{ maxWidth: 1400, width: "100%" }}>
 					{/* Header */}
 					<div style={{ marginBottom: 24 }}>
-						<Space direction="vertical" size={4}>
+						<Space orientation="vertical" size={4}>
 							<DeepDiveBreadcrumbs
 								items={[
 									{ label: listLabel, href: listHref },
