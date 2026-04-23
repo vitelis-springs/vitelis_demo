@@ -67,11 +67,14 @@ interface ReportModelItemModalProps {
 	dataPointId?: string;
 	initialName: string;
 	initialSettings: Record<string, unknown>;
+	initialManualMethod?: boolean | null;
+	showManualMethod?: boolean;
 	requiredFields?: string[];
 	onCancel: () => void;
 	onSubmit: (payload: {
 		name: string;
 		settings: Record<string, unknown>;
+		manualMethod?: boolean | null;
 	}) => Promise<void>;
 }
 
@@ -86,6 +89,23 @@ const REQUIRED_KPI_CREATE_FIELDS = [
 	"Quality Criteria (5 = High)",
 	"ID",
 ] as const;
+
+const REQUIRED_RDP_CREATE_FIELDS = [
+	"Name",
+	"Raw Data Points",
+	"Category",
+	"Output variable",
+] as const;
+
+const DEFAULT_RDP_SETTINGS: Record<string, unknown> = {
+	id: "",
+	"Raw Data Points": "",
+	Category: "",
+	"Output variable": "",
+	"Data source": "",
+	sources_proposal: "",
+	external_sources_hints: "",
+};
 
 function hasExistingKpi(items: ReportModelItem[]): boolean {
 	return items.some((item) => item.type?.startsWith("kpi_"));
@@ -352,12 +372,17 @@ function ReportModelItemModal({
 	dataPointId,
 	initialName,
 	initialSettings,
+	initialManualMethod = null,
+	showManualMethod = false,
 	requiredFields = [],
 	onCancel,
 	onSubmit,
 }: ReportModelItemModalProps) {
 	const { message } = App.useApp();
 	const [name, setName] = useState(initialName);
+	const [manualMethod, setManualMethod] = useState<boolean | null>(
+		initialManualMethod,
+	);
 	const [settingsObj, setSettingsObj] =
 		useState<Record<string, unknown>>(initialSettings);
 	const [settingsJson, setSettingsJson] = useState("{}");
@@ -366,10 +391,11 @@ function ReportModelItemModal({
 	useEffect(() => {
 		if (!open) return;
 		setName(initialName);
+		setManualMethod(initialManualMethod);
 		setSettingsObj(initialSettings);
 		setSettingsJson(stringifySettingsObject(initialSettings));
 		setMode("fields");
-	}, [initialName, initialSettings, open]);
+	}, [initialName, initialManualMethod, initialSettings, open]);
 
 	const handleSettingsFieldChange = (key: string, value: unknown) => {
 		setSettingsObj((prev) => ({
@@ -423,6 +449,7 @@ function ReportModelItemModal({
 		await onSubmit({
 			name,
 			settings: parsedSettings,
+			manualMethod: showManualMethod ? manualMethod : undefined,
 		});
 	};
 
@@ -464,6 +491,21 @@ function ReportModelItemModal({
 						placeholder="Model item name"
 					/>
 				</div>
+				{showManualMethod ? (
+					<div>
+						<Text
+							style={{ color: "#8c8c8c", display: "block", marginBottom: 8 }}
+						>
+							Manual method
+						</Text>
+						<Switch
+							checked={manualMethod ?? false}
+							checkedChildren="manual"
+							unCheckedChildren="auto"
+							onChange={(checked) => setManualMethod(checked)}
+						/>
+					</div>
+				) : null}
 				<div>
 					<Space
 						align="center"
@@ -726,6 +768,7 @@ export default function ReportModelPage({
 	const handleSaveEdit = async (payload: {
 		name: string;
 		settings: Record<string, unknown>;
+		manualMethod?: boolean | null;
 	}) => {
 		if (!editingItem) return;
 
@@ -734,6 +777,7 @@ export default function ReportModelPage({
 				dataPointId: editingItem.dataPointId,
 				name: payload.name,
 				settings: payload.settings,
+				manualMethod: payload.manualMethod,
 			});
 			void message.success("Model item updated");
 			handleCloseEdit();
@@ -810,7 +854,10 @@ export default function ReportModelPage({
 		const templateItem =
 			type === "kpi_driver" ? kpiTemplateItem : rdpTemplateItem;
 		const typeItems = type === "kpi_driver" ? kpiItems : rdpItems;
-		const initialSettings = buildSettingsTemplate(templateItem, typeItems);
+		const initialSettings =
+			type === "raw_data_point"
+				? DEFAULT_RDP_SETTINGS
+				: buildSettingsTemplate(templateItem, typeItems);
 		const nextIndex = getNextTypeIndex(typeItems);
 		const nextDataPointId =
 			type === "kpi_driver"
@@ -831,6 +878,7 @@ export default function ReportModelPage({
 	const handleSaveCreate = async (payload: {
 		name: string;
 		settings: Record<string, unknown>;
+		manualMethod?: boolean | null;
 	}) => {
 		if (!creatingItem) return;
 
@@ -840,6 +888,7 @@ export default function ReportModelPage({
 				type: creatingItem.type,
 				name: payload.name,
 				settings: payload.settings,
+				manualMethod: payload.manualMethod ?? false,
 			});
 			void message.success(
 				creatingItem.type === "kpi_driver" ? "KPI created" : "RDP created",
@@ -983,10 +1032,7 @@ export default function ReportModelPage({
 							>
 								Add KPI
 							</Button>
-							<Button
-								onClick={() => handleOpenCreate("raw_data_point")}
-								disabled={!rdpTemplateItem}
-							>
+							<Button onClick={() => handleOpenCreate("raw_data_point")}>
 								Add RDP
 							</Button>
 							<Input
@@ -1073,6 +1119,11 @@ export default function ReportModelPage({
 				}
 				initialName={editingItem?.name ?? ""}
 				initialSettings={editingItem?.settings ?? {}}
+				initialManualMethod={editingItem?.manualMethod ?? null}
+				showManualMethod={
+					editingItem?.type === "kpi_driver" ||
+					editingItem?.type === "raw_data_point"
+				}
 				requiredFields={
 					editingItem?.type === "kpi_driver"
 						? [...REQUIRED_KPI_CREATE_FIELDS]
@@ -1096,10 +1147,14 @@ export default function ReportModelPage({
 				dataPointId={creatingItem?.dataPointId}
 				initialName=""
 				initialSettings={creatingItem?.initialSettings ?? {}}
+				initialManualMethod={false}
+				showManualMethod
 				requiredFields={
 					creatingItem?.type === "kpi_driver"
 						? [...REQUIRED_KPI_CREATE_FIELDS]
-						: []
+						: creatingItem?.type === "raw_data_point"
+							? [...REQUIRED_RDP_CREATE_FIELDS]
+							: []
 				}
 				onCancel={handleCloseCreate}
 				onSubmit={handleSaveCreate}
