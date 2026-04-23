@@ -118,10 +118,22 @@ function parseUpdateReportModelItemPayload(
 		return null;
 	}
 
+	if (
+		value.manualMethod !== undefined &&
+		value.manualMethod !== null &&
+		typeof value.manualMethod !== "boolean"
+	) {
+		return null;
+	}
+
 	return {
 		dataPointId: value.dataPointId,
 		name: value.name === undefined ? undefined : (value.name as string | null),
 		settings: value.settings as Record<string, unknown> | undefined,
+		manualMethod:
+			value.manualMethod === undefined
+				? undefined
+				: (value.manualMethod as boolean | null),
 	};
 }
 
@@ -145,11 +157,19 @@ function parseCreateReportModelItemPayload(
 		return null;
 	}
 
+	if (
+		value.manualMethod !== undefined &&
+		typeof value.manualMethod !== "boolean"
+	) {
+		return null;
+	}
+
 	return {
 		dataPointId: value.dataPointId,
 		type: value.type,
 		name: value.name === undefined ? undefined : (value.name as string | null),
 		settings: value.settings as Record<string, unknown>,
+		manualMethod: value.manualMethod as boolean | undefined,
 	};
 }
 

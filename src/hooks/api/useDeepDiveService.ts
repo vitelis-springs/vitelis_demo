@@ -432,6 +432,7 @@ export interface UpdateReportModelItemPayload {
 	dataPointId: string;
 	name?: string | null;
 	settings?: Record<string, unknown>;
+	manualMethod?: boolean | null;
 }
 
 export interface CreateReportModelItemPayload {
@@ -439,6 +440,7 @@ export interface CreateReportModelItemPayload {
 	type: "kpi_driver" | "raw_data_point";
 	name?: string | null;
 	settings: Record<string, unknown>;
+	manualMethod?: boolean;
 }
 
 export interface ImportKpiModelPayload {

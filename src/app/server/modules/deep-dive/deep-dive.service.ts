@@ -73,6 +73,7 @@ export interface UpdateReportModelItemPayload {
 	dataPointId: string;
 	name?: string | null;
 	settings?: Record<string, unknown>;
+	manualMethod?: boolean | null;
 }
 
 export interface CreateReportModelItemPayload {
@@ -80,6 +81,7 @@ export interface CreateReportModelItemPayload {
 	type: string;
 	name?: string | null;
 	settings: Record<string, unknown>;
+	manualMethod?: boolean;
 }
 
 interface ImportedModelDataPoint {
@@ -641,6 +643,192 @@ export class DeepDiveService {
 		await DeepDiveRepository.replaceReportModel(reportId, payload);
 
 		return DeepDiveService.getReportModel(reportId);
+	}
+
+	static async importKpiModel(
+		reportId: number,
+		dataPoints: ImportedModelDataPoint[],
+	) {
+		const report = await DeepDiveRepository.getReportById(reportId);
+		if (!report)
+			return { success: false as const, error: "Deep dive not found" };
+
+		if (report.report_type !== "biz_miner") {
+			return {
+				success: false as const,
+				error: "Model page is available only for biz_miner reports",
+			};
+		}
+
+		if (!dataPoints.length) {
+			return { success: false as const, error: "No data points provided" };
+		}
+
+		const importedCategories = this.buildImportedKpiCategories(dataPoints);
+
+		await DeepDiveRepository.upsertDataPointsAndAppendToModel(reportId, [
+			...dataPoints,
+			...importedCategories,
+		]);
+		return this.getReportModel(reportId);
+	}
+
+	private static buildImportedKpiCategories(
+		dataPoints: ImportedModelDataPoint[],
+	): ImportedModelDataPoint[] {
+		const existingIds = new Set(dataPoints.map((dp) => dp.id));
+		const categoryMap = new Map<string, ImportedModelDataPoint>();
+
+		dataPoints.forEach((dp) => {
+			if (dp.type !== "kpi_driver") return;
+
+			const categoryValue = dp.settings["KPI Category"];
+			if (typeof categoryValue !== "string") return;
+
+			const category = categoryValue.trim();
+			if (!category) return;
+
+			const categoryId = `kpi_category_${category}`;
+			if (existingIds.has(categoryId) || categoryMap.has(categoryId)) return;
+
+			categoryMap.set(categoryId, {
+				id: categoryId,
+				type: "kpi_category",
+				name: category,
+				settings: {
+					"KPI Category": category,
+				},
+			});
+		});
+
+		return Array.from(categoryMap.values());
+	}
+
+	static async updateReportModelItem(
+		reportId: number,
+		payload: UpdateReportModelItemPayload,
+	) {
+		const report = await DeepDiveRepository.getReportById(reportId);
+		if (!report) {
+			return { success: false as const, error: "Deep dive not found" };
+		}
+
+		if (report.report_type !== "biz_miner") {
+			return {
+				success: false as const,
+				error: "Model page is available only for biz_miner reports",
+			};
+		}
+
+		const dataPointId = payload.dataPointId.trim();
+		if (!dataPointId) {
+			return { success: false as const, error: "dataPointId is required" };
+		}
+
+		const existing = await DeepDiveRepository.getReportModelItem(
+			reportId,
+			dataPointId,
+		);
+		if (!existing?.data_points) {
+			return { success: false as const, error: "Model item not found" };
+		}
+
+		const updateData: {
+			name?: string | null;
+			settings?: Prisma.InputJsonValue;
+			manual_method?: boolean | null;
+		} = {};
+
+		if (payload.name !== undefined) {
+			const normalized = payload.name?.trim() ?? null;
+			updateData.name = normalized || null;
+		}
+
+		if (payload.settings !== undefined) {
+			updateData.settings = asInputJsonObject(payload.settings);
+		}
+
+		if (payload.manualMethod !== undefined) {
+			updateData.manual_method = payload.manualMethod;
+		}
+
+		await DeepDiveRepository.updateReportModelItem(dataPointId, updateData);
+		return this.getReportModel(reportId);
+	}
+
+	static async deleteReportModelItem(reportId: number, dataPointIdRaw: string) {
+		const report = await DeepDiveRepository.getReportById(reportId);
+		if (!report) {
+			return { success: false as const, error: "Deep dive not found" };
+		}
+
+		if (report.report_type !== "biz_miner") {
+			return {
+				success: false as const,
+				error: "Model page is available only for biz_miner reports",
+			};
+		}
+
+		const dataPointId = dataPointIdRaw.trim();
+		if (!dataPointId) {
+			return { success: false as const, error: "dataPointId is required" };
+		}
+
+		const existing = await DeepDiveRepository.getReportModelItem(
+			reportId,
+			dataPointId,
+		);
+		if (!existing?.data_points) {
+			return { success: false as const, error: "Model item not found" };
+		}
+
+		await DeepDiveRepository.deleteReportModelItem(reportId, dataPointId);
+		return this.getReportModel(reportId);
+	}
+
+	static async createReportModelItem(
+		reportId: number,
+		payload: CreateReportModelItemPayload,
+	) {
+		const report = await DeepDiveRepository.getReportById(reportId);
+		if (!report) {
+			return { success: false as const, error: "Deep dive not found" };
+		}
+
+		if (report.report_type !== "biz_miner") {
+			return {
+				success: false as const,
+				error: "Model page is available only for biz_miner reports",
+			};
+		}
+
+		const dataPointId = payload.dataPointId.trim();
+		if (!dataPointId) {
+			return { success: false as const, error: "dataPointId is required" };
+		}
+
+		const type = payload.type.trim();
+		if (type !== "kpi_driver" && type !== "raw_data_point") {
+			return {
+				success: false as const,
+				error: "type must be kpi_driver or raw_data_point",
+			};
+		}
+
+		const existing = await DeepDiveRepository.getDataPointsByIds([dataPointId]);
+		if (existing.length > 0) {
+			return { success: false as const, error: "dataPointId already exists" };
+		}
+
+		await DeepDiveRepository.createReportModelItem(reportId, {
+			dataPointId,
+			type,
+			name: payload.name?.trim() || null,
+			settings: asInputJsonObject(payload.settings),
+			manualMethod: payload.manualMethod,
+		});
+
+		return this.getReportModel(reportId);
 	}
 
 	private static mapOverviewReport(report: ReportWithRelations) {

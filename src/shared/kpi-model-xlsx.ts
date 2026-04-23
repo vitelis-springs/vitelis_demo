@@ -17,10 +17,12 @@ export const KPI_FIELD_LABELS = {
 
 export const RDP_FIELD_LABELS = {
 	number: "#",
-	name: "Raw Data Point",
-	rdpCategory: "RDP Category",
-	definition: "Definition",
-	outputVariable: "Output Variable",
+	name: "Raw Data Points",
+	category: "Category",
+	outputVariable: "Output variable",
+	dataSource: "Data source",
+	sourcesProposal: "sources_proposal",
+	externalSourcesHints: "external_sources_hints",
 } as const;
 
 export type KpiFieldKey = keyof typeof KPI_FIELD_LABELS;
@@ -64,10 +66,16 @@ const KPI_NORM_MATCHES: Array<[string, KpiFieldKey]> = [
 
 const RDP_NORM_MATCHES: Array<[string, RdpFieldKey]> = [
 	["#", "number"],
+	["rawdatapoints", "name"],
 	["rawdatapoint", "name"],
-	["rdpcategory", "rdpCategory"],
-	["definition", "definition"],
+	["category", "category"],
+	["rdpcategory", "category"],
 	["outputvariable", "outputVariable"],
+	["datasource", "dataSource"],
+	["sourcesproposal", "sourcesProposal"],
+	["sourceshintswheretolookexternally", "externalSourcesHints"],
+	["sourceshints", "externalSourcesHints"],
+	["externalsourceshints", "externalSourcesHints"],
 ];
 
 function normalizeForMatch(value: string): string {
