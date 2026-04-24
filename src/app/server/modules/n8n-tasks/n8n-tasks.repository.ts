@@ -17,6 +17,7 @@ export interface N8NTaskSyncStateUpdate {
 	executionId?: string | null;
 	lastSeenExecutionStatus?: string | null;
 	lastCheckedAt?: Date | null;
+	instanceIndex?: number | null;
 }
 
 export class N8NTasksRepository {
@@ -35,6 +36,29 @@ export class N8NTasksRepository {
 				...(reportId !== undefined ? { report_id: reportId } : {}),
 			},
 			orderBy: { created_at: "desc" },
+		});
+	}
+
+	static async findPending(reportId?: number) {
+		return prisma.n8n_tasks.findMany({
+			where: {
+				status: "PENDING",
+				...(reportId !== undefined ? { report_id: reportId } : {}),
+			},
+			orderBy: { created_at: "asc" },
+		});
+	}
+
+	static async countProcessingByInstance(
+		instanceIndex: number,
+		reportId?: number,
+	): Promise<number> {
+		return prisma.n8n_tasks.count({
+			where: {
+				status: "PROCESSING",
+				instance_index: instanceIndex,
+				...(reportId !== undefined ? { report_id: reportId } : {}),
+			},
 		});
 	}
 
@@ -74,12 +98,13 @@ export class N8NTasksRepository {
 					? { execution_id: data.executionId }
 					: {}),
 				...(data.lastSeenExecutionStatus !== undefined
-					? {
-							last_seen_execution_status: data.lastSeenExecutionStatus,
-						}
+					? { last_seen_execution_status: data.lastSeenExecutionStatus }
 					: {}),
 				...(data.lastCheckedAt !== undefined
 					? { last_checked_at: data.lastCheckedAt }
+					: {}),
+				...(data.instanceIndex !== undefined
+					? { instance_index: data.instanceIndex }
 					: {}),
 				updated_at: new Date(),
 			},

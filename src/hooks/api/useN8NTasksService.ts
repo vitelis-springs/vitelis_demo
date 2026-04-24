@@ -14,6 +14,7 @@ export interface N8NTask {
 	last_checked_at: string | null;
 	metadata: Record<string, unknown> | null;
 	report_id: number | null;
+	instance_index: number | null;
 	created_at: string | null;
 	updated_at: string | null;
 }
@@ -50,6 +51,14 @@ const n8nTasksApi = {
 
 	async stop(id: number): Promise<{ success: boolean }> {
 		const response = await api.post(`/n8n-tasks/${id}/stop`, {});
+		return response.data;
+	},
+
+	async updateStatus(
+		id: number,
+		status: N8NTaskStatus,
+	): Promise<{ success: boolean; data: N8NTask }> {
+		const response = await api.patch(`/n8n-tasks/${id}`, { status });
 		return response.data;
 	},
 
@@ -104,6 +113,19 @@ export const useStopN8NTask = (reportId?: number) => {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (id: number) => n8nTasksApi.stop(id),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["n8n-tasks", reportId ?? "all"],
+			});
+		},
+	});
+};
+
+export const useUpdateN8NTaskStatus = (reportId?: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, status }: { id: number; status: N8NTaskStatus }) =>
+			n8nTasksApi.updateStatus(id, status),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["n8n-tasks", reportId ?? "all"],
