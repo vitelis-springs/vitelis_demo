@@ -1839,4 +1839,103 @@ export class DeepDiveService {
 			})),
 		};
 	}
+
+	static async getValidationSummary(reportId: number) {
+		const [byCompany, byRule] = await Promise.all([
+			DeepDiveRepository.getValidationSummary(reportId),
+			DeepDiveRepository.getValidationByRule(reportId),
+		]);
+
+		const toNum = (v: bigint) => Number(v);
+
+		return {
+			byCompany: byCompany.map((r) => ({
+				companyId: r.company_id,
+				companyName: r.company_name,
+				total: toNum(r.total),
+				pass: toNum(r.pass),
+				warn: toNum(r.warn),
+				failed: toNum(r.failed),
+			})),
+			byRule: byRule.map((r) => ({
+				ruleName: r.rule_name,
+				ruleLabel: r.rule_label,
+				ruleLevel: r.rule_level,
+				total: toNum(r.total),
+				pass: toNum(r.pass),
+				warn: toNum(r.warn),
+				failed: toNum(r.failed),
+			})),
+		};
+	}
+
+	static async getReportValidationRules(reportId: number) {
+		const [configured, available] = await Promise.all([
+			DeepDiveRepository.getConfiguredValidationRules(reportId),
+			DeepDiveRepository.getAvailableValidationRules(reportId),
+		]);
+		const parseCriteria = (raw: unknown) => {
+			const c = raw as { pass?: string; warn?: string; fail?: string } | null;
+			return {
+				pass: c?.pass ?? "",
+				warn: c?.warn ?? "",
+				fail: c?.fail ?? "",
+			};
+		};
+
+		return {
+			configured: configured.map((r) => ({
+				id: r.id,
+				ruleId: r.validation_rule_id,
+				order: r.execution_order,
+				enabled: r.enabled,
+				name: r.rule_name,
+				label: r.rule_label,
+				level: r.rule_level,
+				description: r.rule_description,
+				criteria: parseCriteria(r.rule_criteria),
+			})),
+			available: available.map((r) => ({
+				id: r.id,
+				name: r.name,
+				label: r.label,
+				level: r.level,
+				description: r.description,
+				criteria: parseCriteria(r.criteria),
+			})),
+		};
+	}
+
+	static async addReportValidationRule(reportId: number, ruleId: number) {
+		await DeepDiveRepository.addReportValidationRule(reportId, ruleId);
+	}
+
+	static async removeReportValidationRule(reportId: number, ruleId: number) {
+		await DeepDiveRepository.removeReportValidationRule(reportId, ruleId);
+	}
+
+	static async updateValidationRule(
+		id: number,
+		params: {
+			name: string;
+			label: string | null;
+			level: string;
+			enabled: boolean;
+			description: string | null;
+			criteria: { pass: string; warn: string; fail: string };
+		},
+	) {
+		await DeepDiveRepository.updateValidationRule(id, params);
+	}
+
+	static async createValidationRule(params: {
+		name: string;
+		label: string | null;
+		level: string;
+		enabled: boolean;
+		description: string | null;
+		criteria: { pass: string; warn: string; fail: string };
+	}) {
+		return DeepDiveRepository.createValidationRule(params);
+	}
 }

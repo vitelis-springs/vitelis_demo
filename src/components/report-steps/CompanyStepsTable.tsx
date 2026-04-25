@@ -173,9 +173,6 @@ export default function CompanyStepsTable({
 							updateStatus.variables?.stepId === step.id
 						}
 						style={{ width: 115 }}
-						styles={{
-							root: { backgroundColor: STATUS_BG[currentStatus] },
-						}}
 						options={STATUS_OPTIONS}
 						optionRender={(option) => (
 							<StepStatusBadge status={option.value as StepStatus} />
