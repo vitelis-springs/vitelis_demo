@@ -106,11 +106,11 @@ export function CreateTaskModal({
 	const handleSubmit = async (values: CreateTaskFormValues) => {
 		try {
 			await createTask.mutateAsync(buildCreateTaskPayload(reportId, values));
-			void message.success("Task created");
+			message.success("Task created");
 			form.resetFields();
 			onClose();
 		} catch {
-			void message.error("Failed to create task");
+			message.error("Failed to create task");
 		}
 	};
 
@@ -202,9 +202,9 @@ export default function N8NTasksTable({ reportId }: { reportId: number }) {
 	const handleStart = useCallback(
 		(id: number) => {
 			startTask.mutate(id, {
-				onSuccess: () => void message.success("Task started"),
+				onSuccess: () => message.success("Task started"),
 				onError: (err) =>
-					void message.error(
+					message.error(
 						err instanceof Error ? err.message : "Failed to start task",
 					),
 			});
@@ -215,9 +215,9 @@ export default function N8NTasksTable({ reportId }: { reportId: number }) {
 	const handleStop = useCallback(
 		(id: number) => {
 			stopTask.mutate(id, {
-				onSuccess: () => void message.success("Task stopped"),
+				onSuccess: () => message.success("Task stopped"),
 				onError: (err) =>
-					void message.error(
+					message.error(
 						err instanceof Error ? err.message : "Failed to stop task",
 					),
 			});
@@ -228,8 +228,8 @@ export default function N8NTasksTable({ reportId }: { reportId: number }) {
 	const handleDelete = useCallback(
 		(id: number) => {
 			deleteTask.mutate(id, {
-				onSuccess: () => void message.success("Task deleted"),
-				onError: () => void message.error("Failed to delete task"),
+				onSuccess: () => message.success("Task deleted"),
+				onError: () => message.error("Failed to delete task"),
 			});
 		},
 		[deleteTask, message],

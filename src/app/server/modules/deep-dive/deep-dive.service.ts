@@ -9,6 +9,7 @@ import {
 	type KpiScoreTier,
 	type KpiScoreValue,
 } from "../../../../shared/kpi-score";
+import { ReportStepsRepository } from "../report-steps/report-steps.repository";
 import {
 	type CompanyDataPointResultUpdateData,
 	type DeepDiveListParams,
@@ -20,7 +21,11 @@ import {
 	type SourceFilterParams,
 	type SourcesAnalyticsParams,
 } from "./deep-dive.repository";
-import { ReportStepsRepository } from "../report-steps/report-steps.repository";
+import { ValidationService } from "./validation/validation.service";
+import type {
+	ValidationRulePayload,
+	ValidationStatus,
+} from "./validation/validation.types";
 
 const DEFAULT_STATUS_COUNTS = {
 	PENDING: 0,
@@ -1841,101 +1846,38 @@ export class DeepDiveService {
 	}
 
 	static async getValidationSummary(reportId: number) {
-		const [byCompany, byRule] = await Promise.all([
-			DeepDiveRepository.getValidationSummary(reportId),
-			DeepDiveRepository.getValidationByRule(reportId),
-		]);
-
-		const toNum = (v: bigint) => Number(v);
-
-		return {
-			byCompany: byCompany.map((r) => ({
-				companyId: r.company_id,
-				companyName: r.company_name,
-				total: toNum(r.total),
-				pass: toNum(r.pass),
-				warn: toNum(r.warn),
-				failed: toNum(r.failed),
-			})),
-			byRule: byRule.map((r) => ({
-				ruleName: r.rule_name,
-				ruleLabel: r.rule_label,
-				ruleLevel: r.rule_level,
-				total: toNum(r.total),
-				pass: toNum(r.pass),
-				warn: toNum(r.warn),
-				failed: toNum(r.failed),
-			})),
-		};
+		return ValidationService.getValidationSummary(reportId);
 	}
 
 	static async getReportValidationRules(reportId: number) {
-		const [configured, available] = await Promise.all([
-			DeepDiveRepository.getConfiguredValidationRules(reportId),
-			DeepDiveRepository.getAvailableValidationRules(reportId),
-		]);
-		const parseCriteria = (raw: unknown) => {
-			const c = raw as { pass?: string; warn?: string; fail?: string } | null;
-			return {
-				pass: c?.pass ?? "",
-				warn: c?.warn ?? "",
-				fail: c?.fail ?? "",
-			};
-		};
-
-		return {
-			configured: configured.map((r) => ({
-				id: r.id,
-				ruleId: r.validation_rule_id,
-				order: r.execution_order,
-				enabled: r.enabled,
-				name: r.rule_name,
-				label: r.rule_label,
-				level: r.rule_level,
-				description: r.rule_description,
-				criteria: parseCriteria(r.rule_criteria),
-			})),
-			available: available.map((r) => ({
-				id: r.id,
-				name: r.name,
-				label: r.label,
-				level: r.level,
-				description: r.description,
-				criteria: parseCriteria(r.criteria),
-			})),
-		};
+		return ValidationService.getReportValidationRules(reportId);
 	}
 
 	static async addReportValidationRule(reportId: number, ruleId: number) {
-		await DeepDiveRepository.addReportValidationRule(reportId, ruleId);
+		await ValidationService.addReportValidationRule(reportId, ruleId);
 	}
 
 	static async removeReportValidationRule(reportId: number, ruleId: number) {
-		await DeepDiveRepository.removeReportValidationRule(reportId, ruleId);
+		await ValidationService.removeReportValidationRule(reportId, ruleId);
 	}
 
-	static async updateValidationRule(
-		id: number,
-		params: {
-			name: string;
-			label: string | null;
-			level: string;
-			enabled: boolean;
-			description: string | null;
-			criteria: { pass: string; warn: string; fail: string };
-		},
+	static async updateValidationRule(id: number, params: ValidationRulePayload) {
+		await ValidationService.updateValidationRule(id, params);
+	}
+
+	static async createValidationRule(params: ValidationRulePayload) {
+		return ValidationService.createValidationRule(params);
+	}
+
+	static async getValidationByCompany(
+		reportId: number,
+		companyId: number,
+		status?: ValidationStatus,
 	) {
-		await DeepDiveRepository.updateValidationRule(id, params);
-	}
-
-	static async createValidationRule(params: {
-		name: string;
-		label: string | null;
-		level: string;
-		enabled: boolean;
-		description: string | null;
-		criteria: { pass: string; warn: string; fail: string };
-	}) {
-		return DeepDiveRepository.createValidationRule(params);
+		return ValidationService.getValidationByCompany(
+			reportId,
+			companyId,
+			status,
+		);
 	}
 }

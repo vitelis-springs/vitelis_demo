@@ -61,7 +61,7 @@ export default function StepSettingsModal({
 		try {
 			parsedSettings = JSON.parse(jsonText) as Record<string, unknown>;
 		} catch {
-			void message.error("Invalid JSON");
+			message.error("Invalid JSON");
 			return;
 		}
 
@@ -80,15 +80,15 @@ export default function StepSettingsModal({
 			{
 				onSuccess: (result) => {
 					if (result.success) {
-						void message.success("Step saved");
+						message.success("Step saved");
 						onClose();
 						return;
 					}
 
-					void message.error(result.error || "Failed to save step");
+					message.error(result.error || "Failed to save step");
 				},
 				onError: () => {
-					void message.error("Failed to save step");
+					message.error("Failed to save step");
 				},
 			},
 		);

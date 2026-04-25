@@ -87,8 +87,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 									loading={exportReport.isPending}
 									onClick={() => {
 										exportReport.mutate(undefined, {
-											onError: () =>
-												void message.error("Failed to export report"),
+											onError: () => message.error("Failed to export report"),
 										});
 									}}
 								>

@@ -1,7 +1,7 @@
 "use client";
 
-import { Card, Table } from "antd";
 import type { CardProps, TableProps } from "antd";
+import { Card, Table } from "antd";
 import { DARK_CARD_STYLE } from "../../../config/chart-theme";
 
 interface DarkTableCardProps<RecordType extends object>

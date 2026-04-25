@@ -726,7 +726,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 			}
 
 			if (!file.name.toLowerCase().endsWith(".xlsx")) {
-				void message.error("Only .xlsx files are supported");
+				message.error("Only .xlsx files are supported");
 				onFileDialogSettled?.();
 				return;
 			}
@@ -750,7 +750,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 						setKpiExcludedOptionals(new Set());
 						setRdpExcludedOptionals(new Set());
 					});
-					void message.error(
+					message.error(
 						"Import is not possible: this report already contains KPI and RDP. Please update KPI Model manually.",
 					);
 					onFileDialogSettled?.();
@@ -784,40 +784,40 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 				if (nextWorkbook.rdpSheet) sheets.push("RDP");
 
 				if (incomingHasKpi && reportHasKpi) {
-					void message.warning(
+					message.warning(
 						"KPI sheet was skipped: this report already contains KPI. Please update KPI Model manually.",
 					);
 				}
 
 				if (incomingHasRdp && reportHasRdp) {
-					void message.warning(
+					message.warning(
 						"RDP sheet was skipped: this report already contains RDP. Please update KPI Model manually.",
 					);
 				}
 
 				if (!sheets.length) {
 					if (incomingHasKpi && reportHasKpi) {
-						void message.error(
+						message.error(
 							"KPI import is not possible: this report already contains KPI. Please update KPI Model manually.",
 						);
 					} else if (incomingHasRdp && reportHasRdp) {
-						void message.error(
+						message.error(
 							"RDP import is not possible: this report already contains RDP. Please update KPI Model manually.",
 						);
 					} else {
-						void message.warning(
+						message.warning(
 							`No sheets matching "${KPI_SHEET_NAME_PATTERN}" or "${RDP_SHEET_NAME_PATTERN}" were found`,
 						);
 					}
 					onFileDialogSettled?.();
 				} else {
-					void message.success(
+					message.success(
 						`Parsed sheets: ${sheets.join(", ")} from ${file.name}`,
 					);
 					onFileDialogSettled?.();
 				}
 			} catch (err) {
-				void message.error(
+				message.error(
 					err instanceof Error ? err.message : "Failed to parse XLSX file",
 				);
 				onFileDialogSettled?.();
@@ -875,7 +875,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 			const dataPoints = buildImportDataPoints(type);
 
 			if (!dataPoints.length) {
-				void message.error(
+				message.error(
 					"No valid rows found — check that the # field is mapped and has numeric values",
 				);
 				return;
@@ -913,7 +913,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 
 				const importedLabel =
 					type === "all" ? "KPI and RDP" : type === "kpi" ? "KPI" : "RDP";
-				void message.success(
+				message.success(
 					`Imported ${dataPoints.length} ${importedLabel} data points`,
 				);
 				onImported?.();
@@ -921,7 +921,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 				const msg =
 					(err as { response?: { data?: { error?: string } } }).response?.data
 						?.error ?? "Import failed";
-				void message.error(msg);
+				message.error(msg);
 			}
 		};
 
@@ -967,7 +967,11 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 										>
 											<Button
 												type="primary"
-												onClick={() => void handleApply("kpi")}
+												onClick={() => {
+													handleApply("kpi").catch((error) => {
+														console.error("Failed to apply KPI import", error);
+													});
+												}}
 												loading={importModel.isPending}
 												disabled={isParsing}
 											>
@@ -1049,7 +1053,11 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 										>
 											<Button
 												type="primary"
-												onClick={() => void handleApply("rdp")}
+												onClick={() => {
+													handleApply("rdp").catch((error) => {
+														console.error("Failed to apply RDP import", error);
+													});
+												}}
 												loading={importModel.isPending}
 												disabled={isParsing}
 											>
@@ -1095,7 +1103,9 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 				accept=".xlsx"
 				style={{ display: "none" }}
 				onChange={(e) => {
-					void handleFileChange(e);
+					handleFileChange(e).catch((error) => {
+						console.error("Failed to handle KPI model file", error);
+					});
 				}}
 			/>
 		);
@@ -1118,7 +1128,11 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 							{canApplyAll ? (
 								<Button
 									type="primary"
-									onClick={() => void handleApply("all")}
+									onClick={() => {
+										handleApply("all").catch((error) => {
+											console.error("Failed to apply full KPI import", error);
+										});
+									}}
 									loading={importModel.isPending}
 									disabled={isParsing}
 								>

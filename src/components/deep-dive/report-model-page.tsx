@@ -287,7 +287,9 @@ function buildTypeColumns(
 					unCheckedChildren="off"
 					disabled={isUpdating}
 					onChange={(checked) => {
-						void onToggleInclude(row.dataPointId, checked);
+						onToggleInclude(row.dataPointId, checked).catch((error) => {
+							console.error("Failed to toggle model row inclusion", error);
+						});
 					}}
 				/>
 			),
@@ -382,7 +384,7 @@ function ReportModelItemModal({
 		if (value === "fields") {
 			const parsed = parseSettingsObject(settingsJson);
 			if (!parsed) {
-				void message.error("Fix invalid JSON before switching to fields");
+				message.error("Fix invalid JSON before switching to fields");
 				return;
 			}
 			setSettingsObj(parsed);
@@ -398,7 +400,7 @@ function ReportModelItemModal({
 		if (mode === "json") {
 			const parsed = parseSettingsObject(settingsJson);
 			if (!parsed) {
-				void message.error("Settings JSON is invalid");
+				message.error("Settings JSON is invalid");
 				return;
 			}
 			parsedSettings = parsed;
@@ -416,7 +418,7 @@ function ReportModelItemModal({
 		});
 
 		if (missingFields.length > 0) {
-			void message.error(`Fill required fields: ${missingFields.join(", ")}`);
+			message.error(`Fill required fields: ${missingFields.join(", ")}`);
 			return;
 		}
 
@@ -431,7 +433,11 @@ function ReportModelItemModal({
 			title={title}
 			open={open}
 			onCancel={onCancel}
-			onOk={() => void handleOk()}
+			onOk={() => {
+				handleOk().catch((error) => {
+					console.error("Failed to save model item", error);
+				});
+			}}
 			okText={okText}
 			width={900}
 			confirmLoading={confirmLoading}
@@ -713,9 +719,9 @@ export default function ReportModelPage({
 							: item.includeToReport,
 				})),
 			});
-			void message.success("Model row updated");
+			message.success("Model row updated");
 		} catch {
-			void message.error("Failed to update model row");
+			message.error("Failed to update model row");
 		}
 	};
 
@@ -739,10 +745,10 @@ export default function ReportModelPage({
 				name: payload.name,
 				settings: payload.settings,
 			});
-			void message.success("Model item updated");
+			message.success("Model item updated");
 			handleCloseEdit();
 		} catch {
-			void message.error("Failed to update model item");
+			message.error("Failed to update model item");
 		}
 	};
 
@@ -802,9 +808,9 @@ export default function ReportModelPage({
 			onOk: async () => {
 				try {
 					await deleteModelItem.mutateAsync(item.dataPointId);
-					void message.success("Model item deleted");
+					message.success("Model item deleted");
 				} catch {
-					void message.error("Failed to delete model item");
+					message.error("Failed to delete model item");
 				}
 			},
 		});
@@ -845,12 +851,12 @@ export default function ReportModelPage({
 				name: payload.name,
 				settings: payload.settings,
 			});
-			void message.success(
+			message.success(
 				creatingItem.type === "kpi_driver" ? "KPI created" : "RDP created",
 			);
 			handleCloseCreate();
 		} catch {
-			void message.error("Failed to create model item");
+			message.error("Failed to create model item");
 		}
 	};
 
@@ -896,7 +902,14 @@ export default function ReportModelPage({
 					subTitle="The report model could not be loaded."
 					extra={
 						<Space>
-							<Button onClick={() => void refetch()} icon={<ReloadOutlined />}>
+							<Button
+								onClick={() => {
+									refetch().catch((error) => {
+										console.error("Failed to refresh report model", error);
+									});
+								}}
+								icon={<ReloadOutlined />}
+							>
 								Retry
 							</Button>
 							<Button type="primary" onClick={() => router.push(reportHref)}>
@@ -931,7 +944,11 @@ export default function ReportModelPage({
 						</Button>
 						<Button
 							icon={<ReloadOutlined />}
-							onClick={() => void refetch()}
+							onClick={() => {
+								refetch().catch((error) => {
+									console.error("Failed to refresh report model", error);
+								});
+							}}
 							loading={isFetching}
 						>
 							Refresh
@@ -974,7 +991,14 @@ export default function ReportModelPage({
 					existingItems={items}
 					onFileDialogOpen={() => setIsImportButtonLoading(true)}
 					onFileDialogSettled={() => setIsImportButtonLoading(false)}
-					onImported={() => void refetch()}
+					onImported={() => {
+						refetch().catch((error) => {
+							console.error(
+								"Failed to refresh report model after import",
+								error,
+							);
+						});
+					}}
 				/>
 
 				<Card
