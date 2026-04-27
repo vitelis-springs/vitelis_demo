@@ -101,6 +101,42 @@ export class N8NTasksController {
 		}
 	}
 
+	static async updateStatus(
+		request: NextRequest,
+		id: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const body = (await request.json()) as Record<string, unknown>;
+			const { status } = body;
+
+			if (
+				typeof status !== "string" ||
+				!["PENDING", "PROCESSING", "DONE", "ERROR"].includes(status)
+			) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid status value" },
+					{ status: 400 },
+				);
+			}
+
+			const task = await N8NTasksService.updateStatus(
+				Number(id),
+				status as "PENDING" | "PROCESSING" | "DONE" | "ERROR",
+			);
+			return NextResponse.json({ success: true, data: task });
+		} catch (error: unknown) {
+			const message =
+				error instanceof Error ? error.message : "Internal server error";
+			return NextResponse.json(
+				{ success: false, error: message },
+				{ status: 500 },
+			);
+		}
+	}
+
 	static async deleteTask(
 		request: NextRequest,
 		id: string,

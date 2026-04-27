@@ -132,6 +132,17 @@ export class N8NService {
 		return { url, apiKey };
 	}
 
+	static getConfigByInstanceIndex(index: number): N8NConfig {
+		if (index === 0) return N8NService.getSalesMinerConfig();
+		if (index === 1) return N8NService.getBizMinerConfig();
+		throw new Error(`Unknown N8N instance index: ${index}`);
+	}
+
+	static getTypeByInstanceIndex(index: number | null): string {
+		if (index === 0) return "salesminer";
+		return "bizminer";
+	}
+
 	private static async fetchWithTimeout(
 		url: string,
 		options: RequestInit,

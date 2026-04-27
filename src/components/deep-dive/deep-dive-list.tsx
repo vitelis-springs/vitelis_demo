@@ -1,6 +1,15 @@
 "use client";
 
-import { Card, Input, Select, Space, Table, Tag, Typography } from "antd";
+import {
+	Button,
+	Card,
+	Input,
+	Select,
+	Space,
+	Table,
+	Tag,
+	Typography,
+} from "antd";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
@@ -69,27 +78,8 @@ function renderBadges(record: DeepDiveListItem): React.ReactNode {
 	// TODO(human): Replace this placeholder with your badge implementation.
 	// Use record.useCase, record.industryName, record.settings to render Tag components.
 	// Example: if (record.useCase) tags.push(<Tag color="cyan" key="uc">{record.useCase.name}</Tag>);
-	if (record.useCase) {
-		tags.push(
-			<Tag color="cyan" key="use-case">
-				{record.useCase.name}
-			</Tag>,
-		);
-	}
-	if (record.industryName) {
-		tags.push(
-			<Tag color="green" key="industry">
-				{record.industryName}
-			</Tag>,
-		);
-	}
-	if (record.settings?.name) {
-		tags.push(
-			<Tag color="purple" key="settings">
-				{record.settings.name}
-			</Tag>,
-		);
-	}
+	void record;
+	void Tag;
 
 	if (tags.length === 0) return null;
 	return (

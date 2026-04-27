@@ -244,7 +244,11 @@ function buildRdpDataPoints(
 			const nameIdx = getIndex("name");
 			const name = nameIdx !== undefined ? (row.values[nameIdx] ?? null) : null;
 
-			const settings: Record<string, unknown> = { index };
+			const settings: Record<string, unknown> = {
+				id: index,
+				"Raw Data Points": name,
+				"Data source": "",
+			};
 
 			(Object.keys(RDP_FIELD_LABELS) as RdpFieldKey[]).forEach((key) => {
 				if (key === "number" || key === "name") return;
@@ -391,10 +395,12 @@ const KPI_COLUMN_WIDTHS: Partial<Record<KpiFieldKey, number>> = {
 };
 
 const RDP_COLUMN_WIDTHS: Partial<Record<RdpFieldKey, number>> = {
-	name: 220, // Raw Data Point
-	rdpCategory: 150, // RDP Category
-	definition: 200, // Definition
-	outputVariable: 160, // Output Variable
+	name: 220, // Raw Data Points
+	category: 150, // Category
+	outputVariable: 180, // Output variable
+	dataSource: 140, // Data source
+	sourcesProposal: 200, // sources_proposal
+	externalSourcesHints: 200, // external_sources_hints
 };
 
 const ID_COLUMN_WIDTH = 160;
