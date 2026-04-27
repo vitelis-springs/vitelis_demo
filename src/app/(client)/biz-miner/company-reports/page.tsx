@@ -48,6 +48,14 @@ export default function CompanyReportsPage() {
 		];
 	}, [reportsData]);
 
+	const reportMap = useMemo(() => {
+		const map = new Map<number, string>();
+		for (const item of reportsData?.data.items ?? []) {
+			map.set(item.id, item.name ?? `Report #${item.id}`);
+		}
+		return map;
+	}, [reportsData]);
+
 	if (isLoading) {
 		return (
 			<div
@@ -152,7 +160,7 @@ export default function CompanyReportsPage() {
 							)}
 						</div>
 
-						<N8NTasksTable reportId={selectedReportId} />
+						<N8NTasksTable reportId={selectedReportId} reportMap={reportMap} />
 					</div>
 				</Content>
 			</Layout>
