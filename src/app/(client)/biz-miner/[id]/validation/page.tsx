@@ -24,16 +24,16 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DARK_CARD_STYLE } from "../../../../../config/chart-theme";
 import DeepDiveBreadcrumbs from "../../../../../components/deep-dive/breadcrumbs";
 import StatCard from "../../../../../components/deep-dive/shared/stat-card";
 import ValidationRulesConfigDrawer from "../../../../../components/deep-dive/validation-rules-config-drawer";
-import { useAuth } from "../../../../../hooks/useAuth";
+import { DARK_CARD_STYLE } from "../../../../../config/chart-theme";
 import {
 	useGetValidationSummary,
 	type ValidationCompanyRow,
 	type ValidationRuleRow,
 } from "../../../../../hooks/api/useDeepDiveService";
+import { useAuth } from "../../../../../hooks/useAuth";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -277,7 +277,7 @@ export default function ValidationPage() {
 			key: "rule",
 			width: 260,
 			render: (_: unknown, row: ValidationRuleRow) => (
-				<Space direction="vertical" size={2}>
+				<Space orientation="vertical" size={2}>
 					<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
 						{row.ruleLabel}
 					</Text>
@@ -399,7 +399,7 @@ export default function ValidationPage() {
 							</div>
 						) : (
 							<Space
-								direction="vertical"
+								orientation="vertical"
 								size="large"
 								style={{ width: "100%" }}
 							>

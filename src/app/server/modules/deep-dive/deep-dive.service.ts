@@ -1,4 +1,5 @@
 /** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanasadtion> */
+/** biome-ignore-all lint/style/useDefaultSwitchClause: <explanation> */
 import { type Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
 import {
@@ -669,13 +670,14 @@ export class DeepDiveService {
 			return { success: false as const, error: "No data points provided" };
 		}
 
-		const importedCategories = this.buildImportedKpiCategories(dataPoints);
+		const importedCategories =
+			DeepDiveService.buildImportedKpiCategories(dataPoints);
 
 		await DeepDiveRepository.upsertDataPointsAndAppendToModel(reportId, [
 			...dataPoints,
 			...importedCategories,
 		]);
-		return this.getReportModel(reportId);
+		return DeepDiveService.getReportModel(reportId);
 	}
 
 	private static buildImportedKpiCategories(
@@ -758,7 +760,7 @@ export class DeepDiveService {
 		}
 
 		await DeepDiveRepository.updateReportModelItem(dataPointId, updateData);
-		return this.getReportModel(reportId);
+		return DeepDiveService.getReportModel(reportId);
 	}
 
 	static async deleteReportModelItem(reportId: number, dataPointIdRaw: string) {
@@ -788,7 +790,7 @@ export class DeepDiveService {
 		}
 
 		await DeepDiveRepository.deleteReportModelItem(reportId, dataPointId);
-		return this.getReportModel(reportId);
+		return DeepDiveService.getReportModel(reportId);
 	}
 
 	static async createReportModelItem(
@@ -833,7 +835,7 @@ export class DeepDiveService {
 			manualMethod: payload.manualMethod,
 		});
 
-		return this.getReportModel(reportId);
+		return DeepDiveService.getReportModel(reportId);
 	}
 
 	private static mapOverviewReport(report: ReportWithRelations) {
