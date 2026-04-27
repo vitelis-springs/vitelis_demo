@@ -4,6 +4,7 @@ import {
 	CaretRightOutlined,
 	CopyOutlined,
 	DeleteOutlined,
+	DownloadOutlined,
 	PlusOutlined,
 	StopOutlined,
 } from "@ant-design/icons";
@@ -203,9 +204,23 @@ export function CreateTaskModal({
 	);
 }
 
-export default function N8NTasksTable({ reportId }: { reportId?: number }) {
+function sanitizeFilePart(value: string): string {
+	return value
+		.replace(/[^a-zA-Z0-9а-яА-ЯёЁ\-_]/g, "_")
+		.replace(/_+/g, "_")
+		.replace(/^_|_$/g, "");
+}
+
+export default function N8NTasksTable({
+	reportId,
+	reportMap,
+}: {
+	reportId?: number;
+	reportMap?: Map<number, string>;
+}) {
 	const { message } = App.useApp();
 	const [createOpen, setCreateOpen] = useState(false);
+	const [downloadingIds, setDownloadingIds] = useState<Set<number>>(new Set());
 
 	const { data, isLoading } = useGetN8NTasks(reportId);
 	const startTask = useStartN8NTask(reportId);
@@ -320,6 +335,72 @@ export default function N8NTasksTable({ reportId }: { reportId?: number }) {
 			});
 		},
 		[deleteTask, message],
+	);
+
+	const handleDownload = useCallback(
+		async (record: N8NTask) => {
+			const taskReportId = record.report_id;
+			if (taskReportId === null) {
+				void message.error("Report ID is missing");
+				return;
+			}
+
+			setDownloadingIds((prev) => new Set(prev).add(record.id));
+			try {
+				const params = new URLSearchParams();
+				params.set("report_id", String(taskReportId));
+
+				const meta = record.metadata as Record<string, unknown> | null;
+				const targetCompanyId = meta?.target_company as number | undefined;
+				if (targetCompanyId !== undefined) {
+					params.set("company_ids", String(targetCompanyId));
+				}
+
+				const response = await fetch(
+					`/api/company-reports/download?${params.toString()}`,
+				);
+
+				if (!response.ok) {
+					const err = await response.json().catch(() => ({}));
+					throw new Error(
+						(err as { error?: string }).error ?? "Failed to download report",
+					);
+				}
+
+				const blob = await response.blob();
+
+				const reportName =
+					reportMap?.get(taskReportId) ?? `Report_${taskReportId}`;
+				const companyName =
+					targetCompanyId !== undefined
+						? (companyMap.get(targetCompanyId) ?? `Company_${targetCompanyId}`)
+						: "All";
+				const date = new Date().toISOString().split("T")[0];
+				const filename = `${sanitizeFilePart(reportName)}_${taskReportId}_${sanitizeFilePart(companyName)}_${date}.zip`;
+
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				window.URL.revokeObjectURL(url);
+				document.body.removeChild(a);
+
+				void message.success("Report downloaded");
+			} catch (error) {
+				void message.error(
+					error instanceof Error ? error.message : "Failed to download report",
+				);
+			} finally {
+				setDownloadingIds((prev) => {
+					const next = new Set(prev);
+					next.delete(record.id);
+					return next;
+				});
+			}
+		},
+		[companyMap, message, reportMap],
 	);
 
 	const columns = useMemo(
@@ -523,7 +604,7 @@ export default function N8NTasksTable({ reportId }: { reportId?: number }) {
 			{
 				title: "Actions",
 				key: "actions",
-				width: 160,
+				width: 200,
 				render: (_: unknown, record: N8NTask) => (
 					<Space size="small">
 						{(record.status === "PENDING" || record.status === "ERROR") && (
@@ -548,6 +629,16 @@ export default function N8NTasksTable({ reportId }: { reportId?: number }) {
 								Stop
 							</Button>
 						)}
+						{record.status === "DONE" && (
+							<Button
+								size="small"
+								icon={<DownloadOutlined />}
+								loading={downloadingIds.has(record.id)}
+								onClick={() => void handleDownload(record)}
+							>
+								Download
+							</Button>
+						)}
 						<Popconfirm
 							title="Delete this task?"
 							onConfirm={() => handleDelete(record.id)}
@@ -567,7 +658,9 @@ export default function N8NTasksTable({ reportId }: { reportId?: number }) {
 		],
 		[
 			companyMap,
+			downloadingIds,
 			handleDelete,
+			handleDownload,
 			handleStart,
 			handleStop,
 			message,
