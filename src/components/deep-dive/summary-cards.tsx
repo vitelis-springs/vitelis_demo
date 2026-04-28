@@ -2,18 +2,19 @@
 
 import { Card, Col, Row, Space, Statistic, Typography } from "antd";
 import {
-	FileDoneOutlined,
-	FileSearchOutlined,
-	LinkOutlined,
 	RightOutlined,
-	SearchOutlined,
+	CheckCircleOutlined,
+	DollarOutlined,
 	SettingOutlined,
 	SyncOutlined,
 	TeamOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 import {
-	DeepDiveStatus,
+	type DeepDiveCompanyRow,
+	type DeepDiveStatus,
+	useGetReportCostStats,
 	useGetDeepDiveMetric,
 } from "../../hooks/api/useDeepDiveService";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
@@ -21,33 +22,57 @@ import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
 
+function formatCost(value: number): string {
+	if (value === 0) return "$0.00";
+	if (value < 0.001) return `$${value.toFixed(6)}`;
+	if (value < 0.01) return `$${value.toFixed(4)}`;
+	return `$${value.toFixed(3)}`;
+}
+
 export default function SummaryCards({
 	reportId,
 	settingsName,
 	basePath = "/deep-dive",
 	compact = false,
+	companies,
+	companiesLoading = false,
 }: {
 	reportId: number;
 	settingsName: string | null;
 	basePath?: string;
 	compact?: boolean;
+	companies?: DeepDiveCompanyRow[];
+	companiesLoading?: boolean;
 }) {
 	const router = useRouter();
 	const companiesCount = useGetDeepDiveMetric<number>(
 		reportId,
 		"companies-count",
+		{ enabled: !companies },
 	);
 	const orchestratorStatus = useGetDeepDiveMetric<DeepDiveStatus>(
 		reportId,
 		"orchestrator-status",
 	);
-	const totalSources = useGetDeepDiveMetric<number>(reportId, "total-sources");
-	const usedSources = useGetDeepDiveMetric<number>(reportId, "used-sources");
-	const scrapeCandidates = useGetDeepDiveMetric<number>(
-		reportId,
-		"total-scrape-candidates",
-	);
-	const totalQueries = useGetDeepDiveMetric<number>(reportId, "total-queries");
+	const usedSources = useGetDeepDiveMetric<number>(reportId, "used-sources", {
+		enabled: !compact,
+	});
+	const costStats = useGetReportCostStats(reportId, !compact);
+	const completion = useMemo(() => {
+		const totals = (companies ?? []).reduce(
+			(acc, company) => ({
+				done: acc.done + company.stepsDone,
+				total: acc.total + company.stepsTotal,
+			}),
+			{ done: 0, total: 0 },
+		);
+
+		return {
+			...totals,
+			percent:
+				totals.total > 0 ? Math.round((totals.done / totals.total) * 100) : 0,
+		};
+	}, [companies]);
 
 	return (
 		<>
@@ -61,9 +86,11 @@ export default function SummaryCards({
 						<Statistic
 							title={<Text style={{ color: "#8c8c8c" }}>Total Companies</Text>}
 							value={
-								companiesCount.isLoading
+								companiesLoading || companiesCount.isLoading
 									? "..."
-									: (companiesCount.data?.data.value ?? "—")
+									: (companies?.length ??
+										companiesCount.data?.data.value ??
+										"—")
 							}
 							prefix={<TeamOutlined style={{ color: "#58bfce" }} />}
 							styles={{ content: { color: "#fff" } }}
@@ -132,21 +159,7 @@ export default function SummaryCards({
 
 			{!compact && (
 				<Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-					<Col xs={24} sm={12} md={6}>
-						<Card style={DARK_CARD_STYLE}>
-							<Statistic
-								title={<Text style={{ color: "#8c8c8c" }}>Total Sources</Text>}
-								value={
-									totalSources.isLoading
-										? "..."
-										: (totalSources.data?.data.value ?? "—")
-								}
-								prefix={<FileSearchOutlined style={{ color: "#58bfce" }} />}
-								styles={{ content: { color: "#fff" } }}
-							/>
-						</Card>
-					</Col>
-					<Col xs={24} sm={12} md={6}>
+					<Col xs={24} sm={12} md={8}>
 						<Card style={DARK_CARD_STYLE}>
 							<Statistic
 								title={<Text style={{ color: "#8c8c8c" }}>Used Sources</Text>}
@@ -155,53 +168,38 @@ export default function SummaryCards({
 										? "..."
 										: (usedSources.data?.data.value ?? "—")
 								}
-								prefix={<FileDoneOutlined style={{ color: "#58bfce" }} />}
+								prefix={<CheckCircleOutlined style={{ color: "#58bfce" }} />}
 								styles={{ content: { color: "#fff" } }}
 							/>
 						</Card>
 					</Col>
-					<Col xs={24} sm={12} md={6}>
+					<Col xs={24} sm={12} md={8}>
 						<Card style={DARK_CARD_STYLE}>
 							<Statistic
-								title={
-									<Text style={{ color: "#8c8c8c" }}>Scrape Candidates</Text>
-								}
+								title={<Text style={{ color: "#8c8c8c" }}>Report Cost</Text>}
 								value={
-									scrapeCandidates.isLoading
+									costStats.isLoading
 										? "..."
-										: (scrapeCandidates.data?.data.value ?? "—")
+										: formatCost(costStats.data?.data.summary?.totalCost ?? 0)
 								}
-								prefix={<LinkOutlined style={{ color: "#58bfce" }} />}
+								prefix={<DollarOutlined style={{ color: "#58bfce" }} />}
 								styles={{ content: { color: "#fff" } }}
 							/>
 						</Card>
 					</Col>
-					<Col xs={24} sm={12} md={6}>
-						<Card
-							style={{
-								...DARK_CARD_STYLE,
-								display: "flex",
-								cursor: "pointer",
-								transition: "border-color 0.2s",
-							}}
-							hoverable
-							onClick={() => router.push(`${basePath}/${reportId}/query`)}
-						>
+					<Col xs={24} sm={12} md={8}>
+						<Card style={DARK_CARD_STYLE}>
 							<Statistic
-								title={
-									<Space
-										style={{ width: "100%", justifyContent: "start", gap: 4 }}
-									>
-										<Text style={{ color: "#8c8c8c" }}>Total Queries</Text>
-										<RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
-									</Space>
+								title={<Text style={{ color: "#8c8c8c" }}>Completion</Text>}
+								value={companiesLoading ? "..." : `${completion.percent}%`}
+								suffix={
+									!companiesLoading && completion.total > 0 ? (
+										<Text style={{ color: "#8c8c8c", fontSize: 12 }}>
+											{completion.done}/{completion.total}
+										</Text>
+									) : null
 								}
-								value={
-									totalQueries.isLoading
-										? "..."
-										: (totalQueries.data?.data.value ?? "—")
-								}
-								prefix={<SearchOutlined style={{ color: "#58bfce" }} />}
+								prefix={<CheckCircleOutlined style={{ color: "#58bfce" }} />}
 								styles={{ content: { color: "#fff" } }}
 							/>
 						</Card>

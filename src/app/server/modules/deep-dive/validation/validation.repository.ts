@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanation> */
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: Repository methods are grouped statically to match existing module conventions. */
 import type { validation_status } from "../../../../../generated/prisma";
 import prisma from "../../../../../lib/prisma";
 import type {

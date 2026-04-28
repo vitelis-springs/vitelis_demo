@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanation> */
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: Controller classes are static route facades in this module. */
 import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../../lib/auth";
 import { ValidationService } from "./validation.service";

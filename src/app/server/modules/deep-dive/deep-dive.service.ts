@@ -1,5 +1,5 @@
-/** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanasadtion> */
-/** biome-ignore-all lint/style/useDefaultSwitchClause: <explanation> */
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: Service methods are grouped statically to match existing module conventions. */
+/** biome-ignore-all lint/style/useDefaultSwitchClause: Switches are exhaustive over validated union inputs. */
 import { type Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
 import {
@@ -185,6 +185,24 @@ export class DeepDiveService {
 				sources.size,
 			]),
 		);
+	}
+
+	private static countUniqueReportDataPointSources(
+		rows: ReportDataPointSourcesRow[],
+	): number {
+		const sources = new Set<string>();
+
+		rows.forEach((row) => {
+			if (!DeepDiveService.isJsonObject(row.data)) return;
+
+			const rawSources = row.data.sources ?? row.data.Sources;
+			DeepDiveService.extractSourcesFromValue(rawSources)
+				.map((entry) => DeepDiveService.normalizeSourceKey(entry))
+				.filter(Boolean)
+				.forEach((entry) => sources.add(entry));
+		});
+
+		return sources.size;
 	}
 
 	private static async buildSourceCountingContext(
@@ -1090,11 +1108,10 @@ export class DeepDiveService {
 				break;
 			}
 			case "used-sources": {
-				const sourceCountingContext =
-					await DeepDiveService.buildSourceCountingContext(reportId);
-				value = await DeepDiveRepository.getReportUsedSourcesCount(
-					reportId,
-					sourceCountingContext,
+				const reportDataPointSources =
+					await DeepDiveRepository.getReportDataPointSources(reportId);
+				value = DeepDiveService.countUniqueReportDataPointSources(
+					reportDataPointSources,
 				);
 				break;
 			}
@@ -1149,12 +1166,17 @@ export class DeepDiveService {
 			.map((row) => row.company_id)
 			.filter((id): id is number => typeof id === "number");
 
-		const [companyStatusRaw, reportDataPointSources, totalStepsCount] =
-			await Promise.all([
-				DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
-				DeepDiveRepository.getReportDataPointSources(reportId),
-				DeepDiveRepository.getReportStepsCount(reportId),
-			]);
+		const [
+			companyStatusRaw,
+			reportDataPointSources,
+			totalStepsCount,
+			companyLevelReportFileCounts,
+		] = await Promise.all([
+			DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
+			DeepDiveRepository.getReportDataPointSources(reportId),
+			DeepDiveRepository.getReportStepsCount(reportId),
+			DeepDiveRepository.getCompanyLevelReportFileCounts(reportId),
+		]);
 
 		const statusByCompany = new Map<
 			number,
@@ -1170,6 +1192,12 @@ export class DeepDiveService {
 
 		const sourcesMap = DeepDiveService.buildSourcesCountByCompany(
 			reportDataPointSources,
+		);
+		const companyLevelReportFilesMap = new Map(
+			companyLevelReportFileCounts.map((row) => [
+				row.company_id,
+				Number(row.files_count),
+			]),
 		);
 
 		return {
@@ -1195,6 +1223,11 @@ export class DeepDiveService {
 								totalStepsCount,
 							),
 							sourcesCount: sourcesMap.get(company.id) ?? 0,
+							validSourcesCount: 0,
+							usedSourcesCount: 0,
+							candidatesCount: 0,
+							companyLevelReportFilesCount:
+								companyLevelReportFilesMap.get(company.id) ?? 0,
 							stepsDone: doneSteps,
 							stepsTotal: totalStepsCount,
 						};
@@ -1218,19 +1251,17 @@ export class DeepDiveService {
 		const [
 			kpiRaw,
 			totalSources,
-			totalUsedSources,
+			reportDataPointSourcesForSummary,
 			totalScrapeCandidates,
 			totalQueries,
 			companyStatusRaw,
 			perCompanySources,
 			perCompanyUsedSources,
+			companyLevelReportFileCounts,
 		] = await Promise.all([
 			DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
 			DeepDiveRepository.getReportSourcesCount(reportId, sourceCountingContext),
-			DeepDiveRepository.getReportUsedSourcesCount(
-				reportId,
-				sourceCountingContext,
-			),
+			DeepDiveRepository.getReportDataPointSources(reportId),
 			DeepDiveRepository.getReportScrapeCandidatesCount(
 				reportId,
 				sourceCountingContext,
@@ -1245,7 +1276,11 @@ export class DeepDiveService {
 				reportId,
 				sourceCountingContext,
 			),
+			DeepDiveRepository.getCompanyLevelReportFileCounts(reportId),
 		]);
+		const totalUsedSources = DeepDiveService.countUniqueReportDataPointSources(
+			reportDataPointSourcesForSummary,
+		);
 
 		// Build KPI chart — categories are dynamic, derived from data
 		const categoriesSet = new Set<string>();
@@ -1294,6 +1329,12 @@ export class DeepDiveService {
 		for (const row of perCompanyUsedSources) {
 			usedSourcesMap.set(row.company_id, row.total);
 		}
+		const companyLevelReportFilesMap = new Map(
+			companyLevelReportFileCounts.map((row) => [
+				row.company_id,
+				Number(row.files_count),
+			]),
+		);
 
 		function deriveDominantStatus(
 			counts: Record<report_status_enum, number>,
@@ -1358,6 +1399,8 @@ export class DeepDiveService {
 							sourcesCount: sourcesMap.get(company.id) ?? 0,
 							validSourcesCount: validSourcesMap.get(company.id) ?? 0,
 							usedSourcesCount: usedSourcesMap.get(company.id) ?? 0,
+							companyLevelReportFilesCount:
+								companyLevelReportFilesMap.get(company.id) ?? 0,
 							stepsDone: doneSteps,
 							stepsTotal: totalStepsCount,
 						};

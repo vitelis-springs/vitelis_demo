@@ -169,6 +169,8 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 						reportId={reportId}
 						settingsName={report?.settings?.name ?? null}
 						basePath={basePath}
+						companies={companies}
+						companiesLoading={isCompaniesLoading}
 					/>
 					<KpiChartSection
 						reportId={reportId}

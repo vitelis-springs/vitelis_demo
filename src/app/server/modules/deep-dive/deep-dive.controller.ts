@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanatфівion> */
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: Controller classes are static route facades in this module. */
 import { type NextRequest, NextResponse } from "next/server";
 import { Prisma, report_status_enum } from "../../../../generated/prisma";
 import { extractAdminFromRequest } from "../../../../lib/auth";

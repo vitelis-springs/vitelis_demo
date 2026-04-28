@@ -74,6 +74,7 @@ export interface DeepDiveCompanyRow {
 	validSourcesCount: number;
 	usedSourcesCount: number;
 	candidatesCount: number;
+	companyLevelReportFilesCount: number;
 	stepsDone: number;
 	stepsTotal: number;
 }

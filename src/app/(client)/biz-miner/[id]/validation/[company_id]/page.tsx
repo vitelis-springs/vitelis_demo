@@ -24,6 +24,7 @@ import {
 	Tag,
 	Typography,
 } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import {
 	useParams,
 	usePathname,
@@ -46,6 +47,7 @@ import {
 	type ValidationStatus,
 } from "../../../../../../hooks/api/useDeepDiveService";
 import { useAuth } from "../../../../../../hooks/useAuth";
+import { useAuthStore } from "../../../../../../stores/auth-store";
 import { parseKpiScoreSelection } from "../../../../../../shared/kpi-score";
 
 const { Content } = Layout;
@@ -81,7 +83,9 @@ export default function ValidationByCompanyPage() {
 	const reportId = Number(params.id);
 	const companyId = Number(params.company_id);
 
-	const [isAuthLoading, setIsAuthLoading] = useState(true);
+	const [isAuthLoading, setIsAuthLoading] = useState(
+		() => !useAuthStore.persist.hasHydrated(),
+	);
 	const [editingTarget, setEditingTarget] =
 		useState<DatapointEditTarget | null>(null);
 	const [manualReviewTarget, setManualReviewTarget] =
@@ -100,16 +104,20 @@ export default function ValidationByCompanyPage() {
 		parsedRuleFilter !== null && Number.isFinite(parsedRuleFilter)
 			? parsedRuleFilter
 			: null;
-	const pageParam = Number(searchParams.get("page"));
-	const pageSizeParam = Number(searchParams.get("pageSize"));
-	const currentPage =
-		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const pageSize =
-		Number.isFinite(pageSizeParam) && pageSizeParam > 0 ? pageSizeParam : 50;
+	const [currentPage, setCurrentPage] = useState(1);
+	const [pageSize, setPageSize] = useState(50);
 
 	useEffect(() => {
-		const timer = setTimeout(() => setIsAuthLoading(false), 100);
-		return () => clearTimeout(timer);
+		if (useAuthStore.persist.hasHydrated()) {
+			setIsAuthLoading(false);
+			return;
+		}
+
+		const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
+			setIsAuthLoading(false);
+		});
+
+		return unsubscribe;
 	}, []);
 
 	useEffect(() => {
@@ -117,12 +125,13 @@ export default function ValidationByCompanyPage() {
 	}, [isLoggedIn, router, isAuthLoading]);
 
 	const apiStatus = statusFilter === "all" ? undefined : statusFilter;
+	const isAdminUser = isLoggedIn && isAdmin();
 
 	const { data, isLoading, isFetching, refetch } = useGetValidationByCompany(
 		reportId,
 		companyId,
 		apiStatus,
-		!isAuthLoading && isLoggedIn && !!isAdmin(),
+		!isAuthLoading && isAdminUser,
 	);
 
 	const updateDataPoint = useUpdateCompanyDataPoint(reportId, companyId);
@@ -136,8 +145,6 @@ export default function ValidationByCompanyPage() {
 			updates: Partial<{
 				status: ValidationStatus | "all";
 				ruleId: number | null;
-				page: number;
-				pageSize: number;
 			}>,
 		) => {
 			const next = new URLSearchParams(searchParams.toString());
@@ -145,24 +152,11 @@ export default function ValidationByCompanyPage() {
 			if (updates.status !== undefined) {
 				if (updates.status === "all") next.delete("status");
 				else next.set("status", updates.status);
-				next.delete("page");
 			}
 
 			if (updates.ruleId !== undefined) {
 				if (updates.ruleId === null) next.delete("ruleId");
 				else next.set("ruleId", String(updates.ruleId));
-				next.delete("page");
-			}
-
-			if (updates.page !== undefined) {
-				if (updates.page <= 1) next.delete("page");
-				else next.set("page", String(updates.page));
-			}
-
-			if (updates.pageSize !== undefined) {
-				if (updates.pageSize === 50) next.delete("pageSize");
-				else next.set("pageSize", String(updates.pageSize));
-				next.delete("page");
 			}
 
 			const qs = next.toString();
@@ -250,6 +244,134 @@ export default function ValidationByCompanyPage() {
 		);
 	}, [data?.items, ruleFilter]);
 
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [statusFilter, ruleFilter]);
+
+	useEffect(() => {
+		const maxPage = Math.max(1, Math.ceil(tableData.length / pageSize));
+		if (currentPage > maxPage) setCurrentPage(maxPage);
+	}, [currentPage, pageSize, tableData.length]);
+
+	const columns: ColumnsType<ValidationDriverItem> = useMemo(
+		() => [
+			{
+				title: "",
+				key: "actions",
+				width: 88,
+				render: (_: unknown, row: ValidationDriverItem) => (
+					<Space size={4}>
+						<Button
+							size="small"
+							title="Edit driver"
+							icon={<EditOutlined />}
+							onClick={() => {
+								const parsedScore = parseKpiScoreSelection(row.dataScore);
+								setEditingTarget({
+									resultId: row.resultId,
+									dataPointId: row.dataPointId ?? "",
+									type: row.driverType,
+									label: row.driverName,
+									reasoning: row.dataReasoning,
+									sources: row.dataSources,
+									score: row.dataScore,
+									scoreValue: parsedScore.scoreValue,
+									scoreTier: parsedScore.scoreTier,
+									status: row.resultStatus ?? true,
+								});
+							}}
+						/>
+						<Button
+							size="small"
+							title="Manual validation review"
+							icon={<CheckCircleOutlined />}
+							onClick={() => {
+								setManualReviewTarget(row);
+								setManualStatus("pass");
+								setManualComment("");
+							}}
+						/>
+					</Space>
+				),
+			},
+			{
+				title: "Driver",
+				key: "driver",
+				width: 220,
+				render: (_: unknown, row: ValidationDriverItem) => (
+					<Space orientation="vertical" size={2}>
+						<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
+							{row.driverName}
+						</Text>
+						{row.dataPointId && (
+							<Text
+								style={{
+									color: "#595959",
+									fontSize: 11,
+									fontFamily: "monospace",
+								}}
+							>
+								{row.dataPointId}
+							</Text>
+						)}
+					</Space>
+				),
+			},
+			{
+				title: "Type",
+				key: "type",
+				width: 110,
+				render: (_: unknown, row: ValidationDriverItem) => (
+					<Tag color="purple" style={{ fontSize: 11 }}>
+						{row.driverType}
+					</Tag>
+				),
+			},
+			{
+				title: "Rule",
+				key: "rule",
+				width: 100,
+				render: (_: unknown, row: ValidationDriverItem) => (
+					<Space orientation="vertical" size={2}>
+						<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
+							{row.ruleLabel ?? row.ruleName}
+						</Text>
+						<Text style={{ color: "#595959", fontSize: 11 }}>
+							{row.ruleName}
+						</Text>
+					</Space>
+				),
+			},
+			{
+				title: "Level",
+				dataIndex: "ruleLevel",
+				key: "ruleLevel",
+				width: 90,
+				render: (v: string) => (
+					<Tag color={v === "driver" ? "blue" : "gold"}>{v}</Tag>
+				),
+			},
+			{
+				title: "Status",
+				dataIndex: "status",
+				key: "status",
+				width: 90,
+				render: (v: string) => statusTag(v),
+			},
+			{
+				title: "Reasoning",
+				key: "reasoning",
+				width: 420,
+				render: (_: unknown, row: ValidationDriverItem) => (
+					<Text style={{ color: "#8c8c8c", fontSize: 12 }}>
+						{row.validationReasoning ?? "—"}
+					</Text>
+				),
+			},
+		],
+		[],
+	);
+
 	if (isAuthLoading) {
 		return (
 			<div
@@ -268,7 +390,7 @@ export default function ValidationByCompanyPage() {
 
 	if (!isLoggedIn) return null;
 
-	if (!isAdmin()) {
+	if (!isAdminUser) {
 		return (
 			<div
 				style={{
@@ -317,122 +439,8 @@ export default function ValidationByCompanyPage() {
 	const companyName = data?.companyName ?? `Company #${companyId}`;
 	const totals = data?.totals ?? { total: 0, pass: 0, warn: 0, failed: 0 };
 
-	const columns = [
-		{
-			title: "",
-			key: "actions",
-			width: 88,
-			render: (_: unknown, row: ValidationDriverItem) => (
-				<Space size={4}>
-					<Button
-						size="small"
-						title="Edit driver"
-						icon={<EditOutlined />}
-						onClick={() => {
-							const parsedScore = parseKpiScoreSelection(row.dataScore);
-							setEditingTarget({
-								resultId: row.resultId,
-								dataPointId: row.dataPointId ?? "",
-								type: row.driverType,
-								label: row.driverName,
-								reasoning: row.dataReasoning,
-								sources: row.dataSources,
-								score: row.dataScore,
-								scoreValue: parsedScore.scoreValue,
-								scoreTier: parsedScore.scoreTier,
-								status: row.resultStatus ?? true,
-							});
-						}}
-					/>
-					<Button
-						size="small"
-						title="Manual validation review"
-						icon={<CheckCircleOutlined />}
-						onClick={() => {
-							setManualReviewTarget(row);
-							setManualStatus("pass");
-							setManualComment("");
-						}}
-					/>
-				</Space>
-			),
-		},
-		{
-			title: "Driver",
-			key: "driver",
-			width: 220,
-			render: (_: unknown, row: ValidationDriverItem) => (
-				<Space orientation="vertical" size={2}>
-					<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
-						{row.driverName}
-					</Text>
-					{row.dataPointId && (
-						<Text
-							style={{
-								color: "#595959",
-								fontSize: 11,
-								fontFamily: "monospace",
-							}}
-						>
-							{row.dataPointId}
-						</Text>
-					)}
-				</Space>
-			),
-		},
-		{
-			title: "Type",
-			key: "type",
-			width: 110,
-			render: (_: unknown, row: ValidationDriverItem) => (
-				<Tag color="purple" style={{ fontSize: 11 }}>
-					{row.driverType}
-				</Tag>
-			),
-		},
-		{
-			title: "Rule",
-			key: "rule",
-			width: 100,
-			render: (_: unknown, row: ValidationDriverItem) => (
-				<Space orientation="vertical" size={2}>
-					<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
-						{row.ruleLabel ?? row.ruleName}
-					</Text>
-					<Text style={{ color: "#595959", fontSize: 11 }}>{row.ruleName}</Text>
-				</Space>
-			),
-		},
-		{
-			title: "Level",
-			dataIndex: "ruleLevel",
-			key: "ruleLevel",
-			width: 90,
-			render: (v: string) => (
-				<Tag color={v === "driver" ? "blue" : "gold"}>{v}</Tag>
-			),
-		},
-		{
-			title: "Status",
-			dataIndex: "status",
-			key: "status",
-			width: 90,
-			render: (v: string) => statusTag(v),
-		},
-		{
-			title: "Reasoning",
-			key: "reasoning",
-			width: 420,
-			render: (_: unknown, row: ValidationDriverItem) => (
-				<Text style={{ color: "#8c8c8c", fontSize: 12 }}>
-					{row.validationReasoning ?? "—"}
-				</Text>
-			),
-		},
-	];
-
 	return (
-		<App>
+		<>
 			<Layout style={{ minHeight: "100vh", background: "#141414" }}>
 				<Content style={{ padding: 24, background: "#141414" }}>
 					<div style={{ maxWidth: 1400 }}>
@@ -539,19 +547,21 @@ export default function ValidationByCompanyPage() {
 												allowClear
 												placeholder="Filter by rule"
 												value={ruleFilter ?? undefined}
-												onChange={(v) =>
-													updateRouteParams({ ruleId: v ?? null })
-												}
+												onChange={(v) => {
+													setCurrentPage(1);
+													updateRouteParams({ ruleId: v ?? null });
+												}}
 												options={ruleOptions}
 												style={{ width: 220 }}
 											/>
 											<Segmented
 												value={statusFilter}
-												onChange={(v) =>
+												onChange={(v) => {
+													setCurrentPage(1);
 													updateRouteParams({
 														status: v as ValidationStatus | "all",
-													})
-												}
+													});
+												}}
 												options={["all", "pass", "warn", "failed"].map((s) => ({
 													value: s,
 													label: STATUS_LABEL[s],
@@ -567,16 +577,17 @@ export default function ValidationByCompanyPage() {
 										pagination={{
 											current: currentPage,
 											pageSize,
+											total: tableData.length,
 											showSizeChanger: true,
+											onChange: (page, nextPageSize) => {
+												if (nextPageSize !== pageSize) {
+													setPageSize(nextPageSize);
+													setCurrentPage(1);
+													return;
+												}
+												setCurrentPage(page);
+											},
 										}}
-										onChange={(pagination) =>
-											updateRouteParams({
-												page: pagination.current ?? 1,
-												...(pagination.pageSize !== pageSize
-													? { pageSize: pagination.pageSize ?? 50 }
-													: {}),
-											})
-										}
 										scroll={{ x: "max-content" }}
 										size="small"
 									/>
@@ -627,6 +638,6 @@ export default function ValidationByCompanyPage() {
 					/>
 				</Space>
 			</Modal>
-		</App>
+		</>
 	);
 }

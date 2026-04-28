@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/complexity/noStaticOnlyClass: <sd> */
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: Repository methods are grouped statically to match existing module conventions. */
 import {
 	Prisma,
 	report_status_enum,
@@ -1103,6 +1103,34 @@ export class DeepDiveRepository {
 				data: true,
 			},
 		});
+	}
+
+	static async getCompanyLevelReportFileCounts(reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				company_id: number;
+				files_count: bigint;
+			}>
+		>`
+      SELECT
+        company_id,
+        SUM(
+          CASE
+            WHEN files IS NOT NULL
+              AND jsonb_typeof(files::jsonb -> 'files') = 'array'
+              THEN jsonb_array_length(files::jsonb -> 'files')
+            WHEN files IS NOT NULL
+              AND jsonb_typeof(files::jsonb) = 'array'
+              THEN jsonb_array_length(files::jsonb)
+            WHEN file IS NOT NULL THEN 1
+            ELSE 0
+          END
+        )::bigint AS files_count
+      FROM generated_company_reports
+      WHERE report_id = ${reportId}
+        AND company_id IS NOT NULL
+      GROUP BY company_id
+    `;
 	}
 
 	static async getCompanyScrapCandidates(
