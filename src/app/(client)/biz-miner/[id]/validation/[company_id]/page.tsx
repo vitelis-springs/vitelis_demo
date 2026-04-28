@@ -303,7 +303,7 @@ export default function ValidationByCompanyPage() {
 			key: "driver",
 			width: 220,
 			render: (_: unknown, row: ValidationDriverItem) => (
-				<Space direction="vertical" size={2}>
+				<Space orientation="vertical" size={2}>
 					<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
 						{row.driverName}
 					</Text>
@@ -336,7 +336,7 @@ export default function ValidationByCompanyPage() {
 			key: "rule",
 			width: 100,
 			render: (_: unknown, row: ValidationDriverItem) => (
-				<Space direction="vertical" size={2}>
+				<Space orientation="vertical" size={2}>
 					<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
 						{row.ruleLabel ?? row.ruleName}
 					</Text>
