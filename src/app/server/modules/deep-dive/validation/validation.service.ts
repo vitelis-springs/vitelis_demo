@@ -9,6 +9,7 @@ import {
 	toDataRecord,
 } from "./validation.tools";
 import type {
+	ValidationManualUpdatePayload,
 	ValidationRulePayload,
 	ValidationStatus,
 } from "./validation.types";
@@ -145,5 +146,21 @@ export class ValidationService {
 				failed: items.filter((item) => item.status === "failed").length,
 			},
 		};
+	}
+
+	static async updateValidationCheckManually(
+		reportId: number,
+		companyId: number,
+		validationId: number,
+		payload: ValidationManualUpdatePayload,
+	) {
+		const result = await ValidationRepository.updateValidationCheckManually(
+			reportId,
+			companyId,
+			validationId,
+			payload,
+		);
+
+		return result.count > 0;
 	}
 }

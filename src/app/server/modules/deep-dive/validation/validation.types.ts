@@ -19,6 +19,12 @@ export interface ValidationRulePayload {
 	criteria: ValidationRuleCriteria;
 }
 
+export interface ValidationManualUpdatePayload {
+	status: ValidationStatus;
+	comment: string | null;
+	resolvedBy: string;
+}
+
 export interface ValidationSummaryCompanyRow {
 	companyId: number;
 	companyName: string;

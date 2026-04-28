@@ -1,7 +1,10 @@
 /** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanation> */
 import type { validation_status } from "../../../../../generated/prisma";
 import prisma from "../../../../../lib/prisma";
-import type { ValidationRulePayload } from "./validation.types";
+import type {
+	ValidationManualUpdatePayload,
+	ValidationRulePayload,
+} from "./validation.types";
 
 export class ValidationRepository {
 	static async getValidationSummary(reportId: number) {
@@ -200,6 +203,36 @@ export class ValidationRepository {
 						},
 					},
 				},
+			},
+		});
+	}
+
+	static async updateValidationCheckManually(
+		reportId: number,
+		companyId: number,
+		validationId: number,
+		payload: ValidationManualUpdatePayload,
+	) {
+		const action =
+			payload.status === "pass"
+				? "Resolved manually"
+				: `Set to ${payload.status} manually`;
+		const parts = [`${action} by ${payload.resolvedBy}.`];
+		if (payload.comment) parts.push(`Comment: ${payload.comment}`);
+		const reasoning = parts.join(" ");
+
+		return prisma.report_data_point_validations.updateMany({
+			where: {
+				id: validationId,
+				report_data_point_results: {
+					report_id: reportId,
+					company_id: companyId,
+				},
+			},
+			data: {
+				status: payload.status,
+				reasoning,
+				updated_at: new Date(),
 			},
 		});
 	}

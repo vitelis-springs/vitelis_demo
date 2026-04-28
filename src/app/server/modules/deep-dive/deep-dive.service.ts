@@ -24,6 +24,7 @@ import {
 } from "./deep-dive.repository";
 import { ValidationService } from "./validation/validation.service";
 import type {
+	ValidationManualUpdatePayload,
 	ValidationRulePayload,
 	ValidationStatus,
 } from "./validation/validation.types";
@@ -2068,6 +2069,20 @@ export class DeepDiveService {
 			reportId,
 			companyId,
 			status,
+		);
+	}
+
+	static async updateValidationCheckManually(
+		reportId: number,
+		companyId: number,
+		validationId: number,
+		payload: ValidationManualUpdatePayload,
+	) {
+		return ValidationService.updateValidationCheckManually(
+			reportId,
+			companyId,
+			validationId,
+			payload,
 		);
 	}
 }

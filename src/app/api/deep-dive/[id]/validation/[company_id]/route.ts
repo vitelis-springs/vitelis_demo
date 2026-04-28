@@ -8,3 +8,15 @@ export async function GET(
 	const { id, company_id } = await params;
 	return DeepDiveController.getValidationByCompany(request, id, company_id);
 }
+
+export async function PATCH(
+	request: NextRequest,
+	{ params }: { params: Promise<{ id: string; company_id: string }> },
+) {
+	const { id, company_id } = await params;
+	return DeepDiveController.updateValidationCheckManually(
+		request,
+		id,
+		company_id,
+	);
+}

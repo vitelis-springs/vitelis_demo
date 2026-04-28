@@ -1818,6 +1818,12 @@ export interface ValidationByCompanyResponse {
 	};
 }
 
+export interface UpdateValidationCheckPayload {
+	validationId: number;
+	status: ValidationStatus;
+	comment?: string | null;
+}
+
 export const useGetValidationByCompany = (
 	reportId: number,
 	companyId: number,
@@ -1842,6 +1848,39 @@ export const useGetValidationByCompany = (
 		enabled: enabled && Number.isFinite(reportId) && Number.isFinite(companyId),
 		staleTime: 5 * 60_000,
 		refetchOnWindowFocus: false,
+	});
+};
+
+export const useUpdateValidationCheckManually = (
+	reportId: number,
+	companyId: number,
+) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (payload: UpdateValidationCheckPayload) => {
+			const response = await api.patch(
+				`/deep-dive/${reportId}/validation/${companyId}`,
+				payload,
+			);
+			return response.data as { success: boolean; error?: string };
+		},
+		onSuccess: () => {
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation-company", reportId, companyId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+		},
 	});
 };
 

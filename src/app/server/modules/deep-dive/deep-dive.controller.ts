@@ -1996,4 +1996,16 @@ export class DeepDiveController {
 			companyIdParam,
 		);
 	}
+
+	static async updateValidationCheckManually(
+		request: NextRequest,
+		reportIdParam: string,
+		companyIdParam: string,
+	): Promise<NextResponse> {
+		return ValidationController.updateValidationCheckManually(
+			request,
+			reportIdParam,
+			companyIdParam,
+		);
+	}
 }

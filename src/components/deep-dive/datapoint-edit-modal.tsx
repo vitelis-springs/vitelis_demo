@@ -200,14 +200,14 @@ export default function DatapointEditModal({
 				<Alert
 					type="info"
 					showIcon
-					message="Setting status to Not approved marks datapoint for future rerun flow."
+					title="Setting status to Not approved marks datapoint for future rerun flow."
 				/>
 
 				{isKpiScoreType && scoreChanged && hasPartialKpiScore && (
 					<Alert
 						type="warning"
 						showIcon
-						message="Set both Score Value and Score Tier, or clear both."
+						title="Set both Score Value and Score Tier, or clear both."
 					/>
 				)}
 			</Space>

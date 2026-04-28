@@ -1,5 +1,6 @@
 import type {
 	ValidationCompanyItem,
+	ValidationManualUpdatePayload,
 	ValidationRuleCriteria,
 	ValidationRulePayload,
 	ValidationStatus,
@@ -70,6 +71,27 @@ export function parseValidationRulePayload(
 				? body.description.trim()
 				: null,
 		criteria: parseValidationCriteria(body.criteria),
+	};
+}
+
+export function parseValidationManualUpdatePayload(
+	body: Record<string, unknown>,
+	resolvedBy: string,
+): ValidationManualUpdatePayload | { error: string } {
+	const status = parseValidationStatus(
+		typeof body.status === "string" ? body.status : null,
+	);
+	if (!status) return { error: "status must be pass, warn, or failed" };
+
+	const comment =
+		typeof body.comment === "string" && body.comment.trim()
+			? body.comment.trim()
+			: null;
+
+	return {
+		status,
+		comment,
+		resolvedBy,
 	};
 }
 

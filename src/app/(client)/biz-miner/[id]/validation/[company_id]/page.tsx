@@ -2,6 +2,7 @@
 
 import {
 	ArrowLeftOutlined,
+	CheckCircleOutlined,
 	EditOutlined,
 	ReloadOutlined,
 } from "@ant-design/icons";
@@ -10,7 +11,9 @@ import {
 	Button,
 	Card,
 	Col,
+	Input,
 	Layout,
+	Modal,
 	Result,
 	Row,
 	Segmented,
@@ -38,6 +41,7 @@ import {
 	type UpdateCompanyDataPointPayload,
 	useGetValidationByCompany,
 	useUpdateCompanyDataPoint,
+	useUpdateValidationCheckManually,
 	type ValidationDriverItem,
 	type ValidationStatus,
 } from "../../../../../../hooks/api/useDeepDiveService";
@@ -80,6 +84,10 @@ export default function ValidationByCompanyPage() {
 	const [isAuthLoading, setIsAuthLoading] = useState(true);
 	const [editingTarget, setEditingTarget] =
 		useState<DatapointEditTarget | null>(null);
+	const [manualReviewTarget, setManualReviewTarget] =
+		useState<ValidationDriverItem | null>(null);
+	const [manualStatus, setManualStatus] = useState<ValidationStatus>("pass");
+	const [manualComment, setManualComment] = useState("");
 
 	const statusParam = searchParams.get("status");
 	const statusFilter: ValidationStatus | "all" =
@@ -118,6 +126,10 @@ export default function ValidationByCompanyPage() {
 	);
 
 	const updateDataPoint = useUpdateCompanyDataPoint(reportId, companyId);
+	const updateValidationCheck = useUpdateValidationCheckManually(
+		reportId,
+		companyId,
+	);
 
 	const updateRouteParams = useCallback(
 		(
@@ -182,6 +194,40 @@ export default function ValidationByCompanyPage() {
 		},
 		[editingTarget, updateDataPoint, message, refetch],
 	);
+
+	const handleManualReview = useCallback(() => {
+		if (!manualReviewTarget) return;
+
+		updateValidationCheck.mutate(
+			{
+				validationId: manualReviewTarget.validationId,
+				status: manualStatus,
+				comment: manualComment,
+			},
+			{
+				onSuccess: (result) => {
+					if (!result.success) {
+						message.error(result.error ?? "Failed to update validation check");
+						return;
+					}
+					message.success("Validation check updated");
+					setManualReviewTarget(null);
+					setManualComment("");
+					refetch().catch(() => {
+						message.error("Failed to refresh validation details");
+					});
+				},
+				onError: () => message.error("Failed to update validation check"),
+			},
+		);
+	}, [
+		manualComment,
+		manualReviewTarget,
+		manualStatus,
+		message,
+		refetch,
+		updateValidationCheck,
+	]);
 
 	const ruleOptions = useMemo(() => {
 		if (!data?.items) return [];
@@ -275,27 +321,40 @@ export default function ValidationByCompanyPage() {
 		{
 			title: "",
 			key: "actions",
-			width: 48,
+			width: 88,
 			render: (_: unknown, row: ValidationDriverItem) => (
-				<Button
-					size="small"
-					icon={<EditOutlined />}
-					onClick={() => {
-						const parsedScore = parseKpiScoreSelection(row.dataScore);
-						setEditingTarget({
-							resultId: row.resultId,
-							dataPointId: row.dataPointId ?? "",
-							type: row.driverType,
-							label: row.driverName,
-							reasoning: row.dataReasoning,
-							sources: row.dataSources,
-							score: row.dataScore,
-							scoreValue: parsedScore.scoreValue,
-							scoreTier: parsedScore.scoreTier,
-							status: row.resultStatus ?? true,
-						});
-					}}
-				/>
+				<Space size={4}>
+					<Button
+						size="small"
+						title="Edit driver"
+						icon={<EditOutlined />}
+						onClick={() => {
+							const parsedScore = parseKpiScoreSelection(row.dataScore);
+							setEditingTarget({
+								resultId: row.resultId,
+								dataPointId: row.dataPointId ?? "",
+								type: row.driverType,
+								label: row.driverName,
+								reasoning: row.dataReasoning,
+								sources: row.dataSources,
+								score: row.dataScore,
+								scoreValue: parsedScore.scoreValue,
+								scoreTier: parsedScore.scoreTier,
+								status: row.resultStatus ?? true,
+							});
+						}}
+					/>
+					<Button
+						size="small"
+						title="Manual validation review"
+						icon={<CheckCircleOutlined />}
+						onClick={() => {
+							setManualReviewTarget(row);
+							setManualStatus("pass");
+							setManualComment("");
+						}}
+					/>
+				</Space>
 			),
 		},
 		{
@@ -440,7 +499,7 @@ export default function ValidationByCompanyPage() {
 							</div>
 						) : (
 							<Space
-								direction="vertical"
+								orientation="vertical"
 								size="large"
 								style={{ width: "100%" }}
 							>
@@ -535,6 +594,39 @@ export default function ValidationByCompanyPage() {
 				onClose={() => setEditingTarget(null)}
 				onSubmit={handleSave}
 			/>
+			<Modal
+				open={!!manualReviewTarget}
+				title="Manual validation review"
+				okText="Save"
+				cancelText="Cancel"
+				confirmLoading={updateValidationCheck.isPending}
+				onCancel={() => {
+					setManualReviewTarget(null);
+					setManualComment("");
+				}}
+				onOk={handleManualReview}
+			>
+				<Space orientation="vertical" style={{ width: "100%" }} size="middle">
+					<Select<ValidationStatus>
+						value={manualStatus}
+						onChange={setManualStatus}
+						options={[
+							{ value: "pass", label: "Pass" },
+							{ value: "warn", label: "Warn" },
+							{ value: "failed", label: "Failed" },
+						]}
+						style={{ width: "100%" }}
+					/>
+					<Input.TextArea
+						value={manualComment}
+						onChange={(event) => setManualComment(event.target.value)}
+						placeholder="Optional comment"
+						rows={4}
+						maxLength={1000}
+						showCount
+					/>
+				</Space>
+			</Modal>
 		</App>
 	);
 }

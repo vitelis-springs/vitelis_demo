@@ -647,7 +647,7 @@ function SheetPreview<TKey extends string>({
 				<Alert
 					type="warning"
 					showIcon
-					message="Some required fields could not be auto-detected"
+					title="Some required fields could not be auto-detected"
 					description={
 						<Text>
 							Click the <RetweetOutlined style={{ color: "#faad14" }} /> button
@@ -1155,7 +1155,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 								<Alert
 									type="warning"
 									showIcon
-									message="Existing model constraints"
+									title="Existing model constraints"
 									description={
 										<Space orientation="vertical" size={2}>
 											{reportHasKpi && (
@@ -1199,7 +1199,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 							<Alert
 								type="warning"
 								showIcon
-								message="No matching sheets found"
+								title="No matching sheets found"
 								description={
 									<Space orientation="vertical" size={2}>
 										<Text>

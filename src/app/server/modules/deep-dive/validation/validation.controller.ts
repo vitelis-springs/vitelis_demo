@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../../lib/auth";
 import { ValidationService } from "./validation.service";
 import {
+	parseValidationManualUpdatePayload,
 	parseValidationRulePayload,
 	parseValidationStatus,
 } from "./validation.tools";
@@ -223,6 +224,67 @@ export class ValidationController {
 			console.error("❌ ValidationController.getValidationByCompany:", error);
 			return NextResponse.json(
 				{ success: false, error: "Failed to fetch validation details" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async updateValidationCheckManually(
+		request: NextRequest,
+		reportIdParam: string,
+		companyIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			const companyId = Number(companyIdParam);
+			if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json()) as Record<string, unknown>;
+			const validationId = Number(body.validationId);
+			if (!Number.isFinite(validationId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid validation id" },
+					{ status: 400 },
+				);
+			}
+
+			const payload = parseValidationManualUpdatePayload(body, auth.user.email);
+			if ("error" in payload) {
+				return NextResponse.json(
+					{ success: false, error: payload.error },
+					{ status: 400 },
+				);
+			}
+
+			const updated = await ValidationService.updateValidationCheckManually(
+				reportId,
+				companyId,
+				validationId,
+				payload,
+			);
+			if (!updated) {
+				return NextResponse.json(
+					{ success: false, error: "Validation check not found" },
+					{ status: 404 },
+				);
+			}
+
+			return NextResponse.json({ success: true });
+		} catch (error) {
+			console.error(
+				"❌ ValidationController.updateValidationCheckManually:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to update validation check" },
 				{ status: 500 },
 			);
 		}
