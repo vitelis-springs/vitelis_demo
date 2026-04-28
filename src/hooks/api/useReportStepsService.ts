@@ -348,12 +348,20 @@ export const useUpdateGenerationStepSettings = (reportId: number | null) => {
 			};
 		}) => reportStepsApi.updateGenerationStepSettings(stepId, payload),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["report-steps", reportId],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ["generation-steps"],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["report-steps", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["generation-steps"],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -365,9 +373,13 @@ export const useAddStepToReport = (reportId: number) => {
 		mutationFn: (stepId: number) =>
 			reportStepsApi.addStepToReport(reportId, stepId),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["report-steps", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["report-steps", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -379,9 +391,13 @@ export const useRemoveStepFromReport = (reportId: number) => {
 		mutationFn: (stepId: number) =>
 			reportStepsApi.removeStepFromReport(reportId, stepId),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["report-steps", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["report-steps", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -393,9 +409,13 @@ export const useReorderSteps = (reportId: number) => {
 		mutationFn: (orderedStepIds: number[]) =>
 			reportStepsApi.reorderSteps(reportId, orderedStepIds),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["report-steps", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["report-steps", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -407,9 +427,13 @@ export const useUpdateStepOrder = (reportId: number) => {
 		mutationFn: ({ stepId, order }: { stepId: number; order: number }) =>
 			reportStepsApi.updateStepOrder(reportId, stepId, order),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["report-steps", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["report-steps", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -428,12 +452,20 @@ export const useUpdateStepStatus = (reportId: number) => {
 			status: StepStatus;
 		}) => reportStepsApi.updateStepStatus(reportId, companyId, stepId, status),
 		onSuccess: (_, variables) => {
-			void queryClient.invalidateQueries({
-				queryKey: ["steps-matrix", reportId],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ["company-step-statuses", reportId, variables.companyId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["steps-matrix", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["company-step-statuses", reportId, variables.companyId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -450,12 +482,20 @@ export const useBulkUpdateStepStatuses = (reportId: number) => {
 			updates: Array<{ step_id: number; status: StepStatus }>;
 		}) => reportStepsApi.bulkUpdateStepStatuses(reportId, companyId, updates),
 		onSuccess: (_, variables) => {
-			void queryClient.invalidateQueries({
-				queryKey: ["steps-matrix", reportId],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ["company-step-statuses", reportId, variables.companyId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["steps-matrix", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["company-step-statuses", reportId, variables.companyId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -467,12 +507,20 @@ export const useStartOrchestrator = (reportId: number) => {
 		mutationFn: (options?: { parallel_limit?: number }) =>
 			reportStepsApi.startOrchestrator(reportId, options),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["orchestrator", reportId],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ["steps-matrix", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["orchestrator", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["steps-matrix", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -483,9 +531,13 @@ export const useEnsureOrchestrator = (reportId: number) => {
 	return useMutation({
 		mutationFn: () => reportStepsApi.ensureOrchestrator(reportId),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["orchestrator", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["orchestrator", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -499,9 +551,13 @@ export const useUpdateOrchestrator = (reportId: number) => {
 			metadata?: Record<string, unknown>;
 		}) => reportStepsApi.updateOrchestrator(reportId, data),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["orchestrator", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["orchestrator", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };

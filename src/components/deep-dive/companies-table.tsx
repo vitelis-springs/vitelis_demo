@@ -2,6 +2,7 @@
 
 import {
 	DownloadOutlined,
+	FileDoneOutlined,
 	PlusOutlined,
 	SearchOutlined,
 } from "@ant-design/icons";
@@ -51,7 +52,7 @@ const columns: ColumnsType<DeepDiveCompanyRow> = [
 		dataIndex: "name",
 		sorter: (a, b) => a.name.localeCompare(b.name),
 		render: (value: string, record) => (
-			<Space direction="vertical" size={2}>
+			<Space orientation="vertical" size={2}>
 				<Text style={{ color: "#fff", fontWeight: 600 }}>{value}</Text>
 				{record.countryCode && (
 					<Text style={{ color: "#8c8c8c" }}>{record.countryCode}</Text>
@@ -80,6 +81,23 @@ const columns: ColumnsType<DeepDiveCompanyRow> = [
 		sorter: (a, b) => a.sourcesCount - b.sourcesCount,
 		render: (value: number) => (
 			<Text style={{ color: "#d9d9d9" }}>{value.toLocaleString()}</Text>
+		),
+	},
+	{
+		title: "Company Report",
+		dataIndex: "companyLevelReportFilesCount",
+		width: 150,
+		sorter: (a, b) =>
+			a.companyLevelReportFilesCount - b.companyLevelReportFilesCount,
+		render: (value: number) => (
+			<Space size={6}>
+				<FileDoneOutlined
+					style={{ color: value > 0 ? "#52c41a" : "#595959" }}
+				/>
+				<Text style={{ color: value > 0 ? "#d9d9d9" : "#595959" }}>
+					{value.toLocaleString()} {value === 1 ? "file" : "files"}
+				</Text>
+			</Space>
 		),
 	},
 	{

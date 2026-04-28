@@ -186,20 +186,22 @@ describe("E2E: GET /api/deep-dive/[id]/metric/[metric]", () => {
 		expect(body.data.value).toBe("PENDING");
 	});
 
-	it("returns used-sources metric from heavy query branch", async () => {
+	it("returns used-sources metric from unique datapoint result sources", async () => {
 		mockFindUnique.mockResolvedValueOnce(SAMPLE_REPORT);
-		mockQueryRaw
-			.mockResolvedValueOnce([
-				{ source_validation_settings_id: null, use_new_model: false },
-			])
-			.mockResolvedValueOnce([{ total: 77 }]);
+		mockReportDataPointResultsFindMany.mockResolvedValueOnce([
+			{
+				company_id: 100,
+				data: { sources: ["https://a.com", "https://b.com/"] },
+			},
+			{ company_id: 200, data: { Sources: "1. https://a.com\nhttps://c.com" } },
+		]);
 
 		const res = await callMetric("35", "used-sources");
 		const body = await res.json();
 
 		expect(res.status).toBe(200);
 		expect(body.data.metric).toBe("used-sources");
-		expect(body.data.value).toBe(77);
+		expect(body.data.value).toBe(3);
 	});
 
 	it("returns total-queries metric", async () => {
@@ -308,6 +310,9 @@ describe("E2E: GET /api/deep-dive/[id]/companies", () => {
 		]);
 
 		mockReportStepsCount.mockResolvedValueOnce(5);
+		mockQueryRaw.mockResolvedValueOnce([
+			{ company_id: 100, files_count: BigInt(2) },
+		]);
 
 		const res = await callCompanies("35");
 		const body = await res.json();
@@ -320,12 +325,14 @@ describe("E2E: GET /api/deep-dive/[id]/companies", () => {
 		const acme = body.data.companies.find((c: { id: number }) => c.id === 100);
 		expect(acme.status).toBe("PROCESSING");
 		expect(acme.sourcesCount).toBe(3);
+		expect(acme.companyLevelReportFilesCount).toBe(2);
 		expect(acme.stepsDone).toBe(3);
 		expect(acme.stepsTotal).toBe(5);
 
 		const beta = body.data.companies.find((c: { id: number }) => c.id === 200);
 		expect(beta.status).toBe("DONE");
 		expect(beta.sourcesCount).toBe(2);
+		expect(beta.companyLevelReportFilesCount).toBe(0);
 		expect(beta.stepsDone).toBe(5);
 		expect(beta.stepsTotal).toBe(5);
 	});

@@ -74,6 +74,7 @@ export interface DeepDiveCompanyRow {
 	validSourcesCount: number;
 	usedSourcesCount: number;
 	candidatesCount: number;
+	companyLevelReportFilesCount: number;
 	stepsDone: number;
 	stepsTotal: number;
 }
@@ -836,18 +837,34 @@ export const useUpdateDeepDiveSettings = (reportId: number) => {
 		mutationFn: (payload: UpdateDeepDiveSettingsPayload) =>
 			deepDiveApi.updateSettings(reportId, payload),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "settings", reportId],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "detail", reportId],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "overview", reportId],
-			});
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "list"],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "settings", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "detail", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "overview", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "list"],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -872,9 +889,13 @@ export const useReplaceReportModel = (reportId: number) => {
 			deepDiveApi.replaceReportModel(reportId, payload),
 		onSuccess: (data) => {
 			queryClient.setQueryData(["deep-dive", "model", reportId], data);
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "model", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "model", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -887,9 +908,13 @@ export const useImportKpiModel = (reportId: number) => {
 			deepDiveApi.importKpiModel(reportId, payload),
 		onSuccess: (data) => {
 			queryClient.setQueryData(["deep-dive", "model", reportId], data);
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "model", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "model", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -902,9 +927,13 @@ export const useCreateReportModelItem = (reportId: number) => {
 			deepDiveApi.createReportModelItem(reportId, payload),
 		onSuccess: (data) => {
 			queryClient.setQueryData(["deep-dive", "model", reportId], data);
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "model", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "model", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -917,9 +946,13 @@ export const useUpdateReportModelItem = (reportId: number) => {
 			deepDiveApi.updateReportModelItem(reportId, payload),
 		onSuccess: (data) => {
 			queryClient.setQueryData(["deep-dive", "model", reportId], data);
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "model", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "model", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -932,9 +965,13 @@ export const useDeleteReportModelItem = (reportId: number) => {
 			deepDiveApi.deleteReportModelItem(reportId, dataPointId),
 		onSuccess: (data) => {
 			queryClient.setQueryData(["deep-dive", "model", reportId], data);
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "model", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "model", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -990,9 +1027,13 @@ export const useUpdateCompanyDataPoint = (
 				payload,
 			),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "company", reportId, companyId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "company", reportId, companyId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -1287,9 +1328,13 @@ export const useUpdateQuery = (reportId: number) => {
 			payload: UpdateQueryPayload;
 		}) => queriesApi.updateQuery(reportId, queryId, payload),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "queries", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "queries", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -1742,6 +1787,104 @@ export const useGetValidationSummary = (reportId: number, enabled = true) => {
 	});
 };
 
+export type ValidationStatus = "pass" | "warn" | "failed";
+
+export interface ValidationDriverItem {
+	validationId: number;
+	status: ValidationStatus;
+	validationReasoning: string | null;
+	resultId: number;
+	dataPointId: string | null;
+	resultStatus: boolean | null;
+	driverName: string;
+	driverType: string;
+	ruleId: number;
+	ruleName: string;
+	ruleLabel: string | null;
+	ruleLevel: string;
+	dataReasoning: string;
+	dataSources: string;
+	dataScore: string;
+}
+
+export interface ValidationByCompanyResponse {
+	companyId: number;
+	companyName: string | null;
+	items: ValidationDriverItem[];
+	totals: {
+		total: number;
+		pass: number;
+		warn: number;
+		failed: number;
+	};
+}
+
+export interface UpdateValidationCheckPayload {
+	validationId: number;
+	status: ValidationStatus;
+	comment?: string | null;
+}
+
+export const useGetValidationByCompany = (
+	reportId: number,
+	companyId: number,
+	status?: ValidationStatus,
+	enabled = true,
+) => {
+	return useQuery({
+		queryKey: [
+			"deep-dive",
+			"validation-company",
+			reportId,
+			companyId,
+			status ?? "all",
+		],
+		queryFn: async () => {
+			const sp = status ? `?status=${status}` : "";
+			const response = await api.get(
+				`/deep-dive/${reportId}/validation/${companyId}${sp}`,
+			);
+			return response.data as ValidationByCompanyResponse;
+		},
+		enabled: enabled && Number.isFinite(reportId) && Number.isFinite(companyId),
+		staleTime: 5 * 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useUpdateValidationCheckManually = (
+	reportId: number,
+	companyId: number,
+) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (payload: UpdateValidationCheckPayload) => {
+			const response = await api.patch(
+				`/deep-dive/${reportId}/validation/${companyId}`,
+				payload,
+			);
+			return response.data as { success: boolean; error?: string };
+		},
+		onSuccess: () => {
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation-company", reportId, companyId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+		},
+	});
+};
+
 export interface ValidationRuleCriteria {
 	pass: string;
 	warn: string;
@@ -1800,9 +1943,13 @@ export const useAddReportValidationRule = (reportId: number) => {
 			await api.post(`/deep-dive/${reportId}/validation-rules`, { ruleId });
 		},
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "validation-rules", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation-rules", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -1814,9 +1961,13 @@ export const useRemoveReportValidationRule = (reportId: number) => {
 			await api.delete(`/deep-dive/${reportId}/validation-rules/${ruleId}`);
 		},
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "validation-rules", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation-rules", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -1843,9 +1994,13 @@ export const useUpdateValidationRule = (reportId: number) => {
 			await api.patch(`/deep-dive/validation-rules/${ruleId}`, payload);
 		},
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "validation-rules", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation-rules", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -1858,9 +2013,13 @@ export const useCreateValidationRule = (reportId: number) => {
 			return response.data as { success: boolean; data: { id: number } };
 		},
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["deep-dive", "validation-rules", reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "validation-rules", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };

@@ -22,31 +22,31 @@ import {
 	Typography,
 } from "antd";
 import React, {
+	type ChangeEvent,
 	forwardRef,
 	startTransition,
 	useImperativeHandle,
 	useRef,
 	useState,
-	type ChangeEvent,
 } from "react";
 import { flushSync } from "react-dom";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import {
-	useImportKpiModel,
 	type ImportKpiModelPayload,
 	type ReportModelItem,
+	useImportKpiModel,
 } from "../../hooks/api/useDeepDiveService";
 import {
 	detectKpiFieldMapping,
 	detectRdpFieldMapping,
 	KPI_FIELD_LABELS,
 	KPI_SHEET_NAME_PATTERN,
-	parseKpiModelWorkbook,
-	RDP_FIELD_LABELS,
-	RDP_SHEET_NAME_PATTERN,
 	type KpiFieldKey,
 	type KpiModelWorkbook,
 	type ParsedSheet,
+	parseKpiModelWorkbook,
+	RDP_FIELD_LABELS,
+	RDP_SHEET_NAME_PATTERN,
 	type RdpFieldKey,
 } from "../../shared/kpi-model-xlsx";
 
@@ -625,7 +625,7 @@ function SheetPreview<TKey extends string>({
 	const previewRows = sheet.rows.slice(0, 100);
 
 	return (
-		<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+		<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 			<Space wrap>
 				<Tag color="blue">{sheet.sheetName}</Tag>
 				<Text style={{ color: "#8c8c8c" }}>{sheet.rows.length} rows</Text>
@@ -647,7 +647,7 @@ function SheetPreview<TKey extends string>({
 				<Alert
 					type="warning"
 					showIcon
-					message="Some required fields could not be auto-detected"
+					title="Some required fields could not be auto-detected"
 					description={
 						<Text>
 							Click the <RetweetOutlined style={{ color: "#faad14" }} /> button
@@ -732,7 +732,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 			}
 
 			if (!file.name.toLowerCase().endsWith(".xlsx")) {
-				void message.error("Only .xlsx files are supported");
+				message.error("Only .xlsx files are supported");
 				onFileDialogSettled?.();
 				return;
 			}
@@ -756,7 +756,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 						setKpiExcludedOptionals(new Set());
 						setRdpExcludedOptionals(new Set());
 					});
-					void message.error(
+					message.error(
 						"Import is not possible: this report already contains KPI and RDP. Please update KPI Model manually.",
 					);
 					onFileDialogSettled?.();
@@ -790,40 +790,40 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 				if (nextWorkbook.rdpSheet) sheets.push("RDP");
 
 				if (incomingHasKpi && reportHasKpi) {
-					void message.warning(
+					message.warning(
 						"KPI sheet was skipped: this report already contains KPI. Please update KPI Model manually.",
 					);
 				}
 
 				if (incomingHasRdp && reportHasRdp) {
-					void message.warning(
+					message.warning(
 						"RDP sheet was skipped: this report already contains RDP. Please update KPI Model manually.",
 					);
 				}
 
 				if (!sheets.length) {
 					if (incomingHasKpi && reportHasKpi) {
-						void message.error(
+						message.error(
 							"KPI import is not possible: this report already contains KPI. Please update KPI Model manually.",
 						);
 					} else if (incomingHasRdp && reportHasRdp) {
-						void message.error(
+						message.error(
 							"RDP import is not possible: this report already contains RDP. Please update KPI Model manually.",
 						);
 					} else {
-						void message.warning(
+						message.warning(
 							`No sheets matching "${KPI_SHEET_NAME_PATTERN}" or "${RDP_SHEET_NAME_PATTERN}" were found`,
 						);
 					}
 					onFileDialogSettled?.();
 				} else {
-					void message.success(
+					message.success(
 						`Parsed sheets: ${sheets.join(", ")} from ${file.name}`,
 					);
 					onFileDialogSettled?.();
 				}
 			} catch (err) {
-				void message.error(
+				message.error(
 					err instanceof Error ? err.message : "Failed to parse XLSX file",
 				);
 				onFileDialogSettled?.();
@@ -881,7 +881,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 			const dataPoints = buildImportDataPoints(type);
 
 			if (!dataPoints.length) {
-				void message.error(
+				message.error(
 					"No valid rows found — check that the # field is mapped and has numeric values",
 				);
 				return;
@@ -919,7 +919,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 
 				const importedLabel =
 					type === "all" ? "KPI and RDP" : type === "kpi" ? "KPI" : "RDP";
-				void message.success(
+				message.success(
 					`Imported ${dataPoints.length} ${importedLabel} data points`,
 				);
 				onImported?.();
@@ -927,7 +927,7 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 				const msg =
 					(err as { response?: { data?: { error?: string } } }).response?.data
 						?.error ?? "Import failed";
-				void message.error(msg);
+				message.error(msg);
 			}
 		};
 
@@ -967,13 +967,17 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 									),
 									children: (
 										<Space
-											direction="vertical"
+											orientation="vertical"
 											size="middle"
 											style={{ width: "100%" }}
 										>
 											<Button
 												type="primary"
-												onClick={() => void handleApply("kpi")}
+												onClick={() => {
+													handleApply("kpi").catch((error) => {
+														console.error("Failed to apply KPI import", error);
+													});
+												}}
 												loading={importModel.isPending}
 												disabled={isParsing}
 											>
@@ -1049,13 +1053,17 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 									),
 									children: (
 										<Space
-											direction="vertical"
+											orientation="vertical"
 											size="middle"
 											style={{ width: "100%" }}
 										>
 											<Button
 												type="primary"
-												onClick={() => void handleApply("rdp")}
+												onClick={() => {
+													handleApply("rdp").catch((error) => {
+														console.error("Failed to apply RDP import", error);
+													});
+												}}
 												loading={importModel.isPending}
 												disabled={isParsing}
 											>
@@ -1101,7 +1109,9 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 				accept=".xlsx"
 				style={{ display: "none" }}
 				onChange={(e) => {
-					void handleFileChange(e);
+					handleFileChange(e).catch((error) => {
+						console.error("Failed to handle KPI model file", error);
+					});
 				}}
 			/>
 		);
@@ -1124,7 +1134,11 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 							{canApplyAll ? (
 								<Button
 									type="primary"
-									onClick={() => void handleApply("all")}
+									onClick={() => {
+										handleApply("all").catch((error) => {
+											console.error("Failed to apply full KPI import", error);
+										});
+									}}
 									loading={importModel.isPending}
 									disabled={isParsing}
 								>
@@ -1135,15 +1149,15 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 						</Space>
 					}
 				>
-					<Space direction="vertical" size="large" style={{ width: "100%" }}>
+					<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 						{(reportHasKpi || reportHasRdp) &&
 							!(reportHasKpi && reportHasRdp) && (
 								<Alert
 									type="warning"
 									showIcon
-									message="Existing model constraints"
+									title="Existing model constraints"
 									description={
-										<Space direction="vertical" size={2}>
+										<Space orientation="vertical" size={2}>
 											{reportHasKpi && (
 												<Text>
 													KPI sheets will not be opened from XLSX because this
@@ -1185,9 +1199,9 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 							<Alert
 								type="warning"
 								showIcon
-								message="No matching sheets found"
+								title="No matching sheets found"
 								description={
-									<Space direction="vertical" size={2}>
+									<Space orientation="vertical" size={2}>
 										<Text>
 											Expected sheets containing{" "}
 											<Text code>{KPI_SHEET_NAME_PATTERN}</Text> or{" "}

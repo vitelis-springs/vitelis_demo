@@ -90,9 +90,13 @@ export const useCreateN8NTask = () => {
 	return useMutation({
 		mutationFn: (payload: CreateN8NTaskPayload) => n8nTasksApi.create(payload),
 		onSuccess: (_, variables) => {
-			void queryClient.invalidateQueries({
-				queryKey: ["n8n-tasks", variables.reportId],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["n8n-tasks", variables.reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -102,9 +106,13 @@ export const useStartN8NTask = (reportId?: number) => {
 	return useMutation({
 		mutationFn: (id: number) => n8nTasksApi.start(id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["n8n-tasks", reportId ?? "all"],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["n8n-tasks", reportId ?? "all"],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -114,9 +122,13 @@ export const useStopN8NTask = (reportId?: number) => {
 	return useMutation({
 		mutationFn: (id: number) => n8nTasksApi.stop(id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["n8n-tasks", reportId ?? "all"],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["n8n-tasks", reportId ?? "all"],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -139,9 +151,13 @@ export const useDeleteN8NTask = (reportId?: number) => {
 	return useMutation({
 		mutationFn: (id: number) => n8nTasksApi.delete(id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["n8n-tasks", reportId ?? "all"],
-			});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["n8n-tasks", reportId ?? "all"],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };

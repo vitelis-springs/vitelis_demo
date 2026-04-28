@@ -70,7 +70,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 				<div style={{ maxWidth: 1400, width: "100%" }}>
 					{/* Header */}
 					<div style={{ marginBottom: 24 }}>
-						<Space direction="vertical" size={4}>
+						<Space orientation="vertical" size={4}>
 							<DeepDiveBreadcrumbs
 								items={[
 									{ label: listLabel, href: listHref },
@@ -87,8 +87,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 									loading={exportReport.isPending}
 									onClick={() => {
 										exportReport.mutate(undefined, {
-											onError: () =>
-												void message.error("Failed to export report"),
+											onError: () => message.error("Failed to export report"),
 										});
 									}}
 								>
@@ -170,6 +169,8 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 						reportId={reportId}
 						settingsName={report?.settings?.name ?? null}
 						basePath={basePath}
+						companies={companies}
+						companiesLoading={isCompaniesLoading}
 					/>
 					<KpiChartSection
 						reportId={reportId}

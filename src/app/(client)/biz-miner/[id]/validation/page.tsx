@@ -21,18 +21,19 @@ import {
 	Tooltip,
 	Typography,
 } from "antd";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DARK_CARD_STYLE } from "../../../../../config/chart-theme";
 import DeepDiveBreadcrumbs from "../../../../../components/deep-dive/breadcrumbs";
 import StatCard from "../../../../../components/deep-dive/shared/stat-card";
 import ValidationRulesConfigDrawer from "../../../../../components/deep-dive/validation-rules-config-drawer";
-import { useAuth } from "../../../../../hooks/useAuth";
+import { DARK_CARD_STYLE } from "../../../../../config/chart-theme";
 import {
 	useGetValidationSummary,
 	type ValidationCompanyRow,
 	type ValidationRuleRow,
 } from "../../../../../hooks/api/useDeepDiveService";
+import { useAuth } from "../../../../../hooks/useAuth";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -178,35 +179,69 @@ export default function ValidationPage() {
 			dataIndex: "companyName",
 			key: "companyName",
 			width: 220,
-			render: (v: string) => <Text style={{ color: "#d9d9d9" }}>{v}</Text>,
+			render: (v: string, row: ValidationCompanyRow) => (
+				<Link
+					href={`/biz-miner/${reportId}/validation/${row.companyId}`}
+					style={{ color: "#58bfce" }}
+				>
+					{v}
+				</Link>
+			),
 		},
 		{
 			title: "Total",
 			dataIndex: "total",
 			key: "total",
 			width: 80,
-			render: (v: number) => <Text style={{ color: "#8c8c8c" }}>{v}</Text>,
+			render: (v: number, row: ValidationCompanyRow) => (
+				<Link
+					href={`/biz-miner/${reportId}/validation/${row.companyId}`}
+					style={{ color: "#8c8c8c" }}
+				>
+					{v}
+				</Link>
+			),
 		},
 		{
 			title: "Pass",
 			dataIndex: "pass",
 			key: "pass",
 			width: 80,
-			render: (v: number) => <Tag color="success">{v}</Tag>,
+			render: (v: number, row: ValidationCompanyRow) => (
+				<Link
+					href={`/biz-miner/${reportId}/validation/${row.companyId}?status=pass`}
+				>
+					<Tag color="success" style={{ cursor: "pointer" }}>
+						{v}
+					</Tag>
+				</Link>
+			),
 		},
 		{
 			title: "Warn",
 			dataIndex: "warn",
 			key: "warn",
 			width: 80,
-			render: (v: number) => warnTag(v),
+			render: (v: number, row: ValidationCompanyRow) => (
+				<Link
+					href={`/biz-miner/${reportId}/validation/${row.companyId}?status=warn`}
+				>
+					<span style={{ cursor: "pointer" }}>{warnTag(v)}</span>
+				</Link>
+			),
 		},
 		{
 			title: "Failed",
 			dataIndex: "failed",
 			key: "failed",
 			width: 80,
-			render: (v: number) => failedTag(v),
+			render: (v: number, row: ValidationCompanyRow) => (
+				<Link
+					href={`/biz-miner/${reportId}/validation/${row.companyId}?status=failed`}
+				>
+					<span style={{ cursor: "pointer" }}>{failedTag(v)}</span>
+				</Link>
+			),
 		},
 		{
 			title: "Distribution",
@@ -242,7 +277,7 @@ export default function ValidationPage() {
 			key: "rule",
 			width: 260,
 			render: (_: unknown, row: ValidationRuleRow) => (
-				<Space direction="vertical" size={2}>
+				<Space orientation="vertical" size={2}>
 					<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
 						{row.ruleLabel}
 					</Text>
@@ -331,7 +366,14 @@ export default function ValidationPage() {
 								</Title>
 								<Button
 									icon={<ReloadOutlined />}
-									onClick={() => void refetch()}
+									onClick={() => {
+										refetch().catch((error) => {
+											console.error(
+												"Failed to refresh validation summary",
+												error,
+											);
+										});
+									}}
 									loading={isFetching}
 								>
 									Refresh
@@ -357,7 +399,7 @@ export default function ValidationPage() {
 							</div>
 						) : (
 							<Space
-								direction="vertical"
+								orientation="vertical"
 								size="large"
 								style={{ width: "100%" }}
 							>

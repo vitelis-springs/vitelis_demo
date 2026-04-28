@@ -1,5 +1,6 @@
 "use client";
 
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import {
 	App,
 	Button,
@@ -19,21 +20,20 @@ import {
 	Tooltip,
 	Typography,
 } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import {
-	DARK_CARD_STYLE,
 	DARK_CARD_HEADER_STYLE,
+	DARK_CARD_STYLE,
 } from "../../config/chart-theme";
 import {
-	useGetReportValidationRules,
-	useAddReportValidationRule,
-	useRemoveReportValidationRule,
-	useCreateValidationRule,
-	useUpdateValidationRule,
-	type ConfiguredValidationRule,
 	type AvailableValidationRule,
+	type ConfiguredValidationRule,
 	type CreateValidationRulePayload,
+	useAddReportValidationRule,
+	useCreateValidationRule,
+	useGetReportValidationRules,
+	useRemoveReportValidationRule,
+	useUpdateValidationRule,
 } from "../../hooks/api/useDeepDiveService";
 
 const { Text } = Typography;

@@ -43,10 +43,10 @@ const STATUS_OPTIONS: Array<{ value: StepStatus; label: string }> = [
 ];
 
 const STATUS_BG: Record<StepStatus, string> = {
-	PENDING: "rgba(139, 136, 136, 0.08)",
-	PROCESSING: "rgba(29, 138, 240, 0.1)",
-	DONE: "rgba(82, 203, 22, 0.1)",
-	ERROR: "rgba(229, 62, 65, 0.1)",
+	PENDING: "rgba(140, 140, 140, 0.08)",
+	PROCESSING: "rgba(24, 144, 255, 0.10)",
+	DONE: "rgba(82, 196, 26, 0.10)",
+	ERROR: "rgba(255, 77, 79, 0.10)",
 };
 
 type TableRowType = StepsMatrixRow & { companyName: string; key: number };
@@ -172,10 +172,7 @@ export default function CompanyStepsTable({
 							updateStatus.variables?.companyId === record.companyId &&
 							updateStatus.variables?.stepId === step.id
 						}
-						style={{
-							width: 115,
-							background: STATUS_BG[currentStatus as StepStatus],
-						}}
+						style={{ width: 115 }}
 						options={STATUS_OPTIONS}
 						optionRender={(option) => (
 							<StepStatusBadge status={option.value as StepStatus} />

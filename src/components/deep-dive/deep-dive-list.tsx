@@ -357,13 +357,6 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 					fixedReportType === "biz_miner" ||
 					fixedReportType === "sales_miner" ? (
 						<>
-							{fixedReportType === "biz_miner" && (
-								<Button
-									onClick={() => router.push("/biz-miner/company-reports")}
-								>
-									Company Reports
-								</Button>
-							)}
 							<CreateReportModal
 								reportType={fixedReportType}
 								useCases={useCasesForModal}

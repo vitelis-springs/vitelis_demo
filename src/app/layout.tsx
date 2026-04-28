@@ -1,26 +1,25 @@
-import "@ant-design/v5-patch-for-react-19";
 import type { ReactNode } from "react";
 import { Raleway } from "next/font/google";
 import StartupInitializer from "../components/startup-initializer";
 
-const raleway = Raleway({ 
-  subsets: ["latin"],
-  display: 'swap', // Prevent layout shift
-  preload: true,   // Preload the font
+const raleway = Raleway({
+	subsets: ["latin"],
+	display: "swap", // Prevent layout shift
+	preload: true, // Preload the font
 });
 
 export const metadata = {
-  title: "Vitelis",
-  description: "Company Analysis Platform",
+	title: "Vitelis",
+	description: "Company Analysis Platform",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <body className={raleway.className} suppressHydrationWarning>
-        <StartupInitializer />
-        {children}
-      </body>
-    </html>
-  );
+	return (
+		<html lang="en">
+			<body className={raleway.className} suppressHydrationWarning>
+				<StartupInitializer />
+				{children}
+			</body>
+		</html>
+	);
 }

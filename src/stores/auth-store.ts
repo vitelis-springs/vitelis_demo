@@ -30,25 +30,18 @@ export const useAuthStore = create<AuthState>()(
 			user: null,
 			token: null,
 			login: (user: User, token: string) => {
-				console.log("🔐 Auth Store: Login called with:", {
-					user: user.email,
-					token: token ? `${token.substring(0, 20)}...` : "none",
-				});
 				set({
 					isLoggedIn: true,
 					user,
 					token,
 				});
-				console.log("✅ Auth Store: Login state updated");
 			},
 			logout: () => {
-				console.log("🔐 Auth Store: Logout called, clearing auth state");
 				set({
 					isLoggedIn: false,
 					user: null,
 					token: null,
 				});
-				console.log("🔐 Auth Store: Auth state cleared");
 			},
 			updateUser: (userData: Partial<User>) =>
 				set((state) => ({
