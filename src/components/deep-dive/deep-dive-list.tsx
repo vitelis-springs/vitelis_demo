@@ -10,6 +10,7 @@ import {
 	Tag,
 	Typography,
 } from "antd";
+import { FileExcelOutlined } from "@ant-design/icons";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
@@ -24,6 +25,7 @@ import PageHeader from "./shared/page-header";
 import DeepDiveStatusTag from "./status-tag";
 import CreateReportModal, { CloneReportButton } from "./create-report-modal";
 import { ReportCostModal } from "../report-steps/ReportCostModal";
+import ExportXlsxModal from "./export-xlsx-modal";
 
 const { Text } = Typography;
 
@@ -117,6 +119,7 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 		fixedReportType,
 	);
 	const [cloneFromId, setCloneFromId] = useState<number | null>(null);
+	const [xlsxModalOpen, setXlsxModalOpen] = useState(false);
 
 	const { data, isLoading } = useGetDeepDives({
 		limit: pageSize,
@@ -357,6 +360,21 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 					fixedReportType === "biz_miner" ||
 					fixedReportType === "sales_miner" ? (
 						<>
+							{fixedReportType === "biz_miner" && (
+								<>
+									<Button
+										onClick={() => router.push("/biz-miner/company-reports")}
+									>
+										Company Reports
+									</Button>
+									<Button
+										icon={<FileExcelOutlined />}
+										onClick={() => setXlsxModalOpen(true)}
+									>
+										Export XLSX Report
+									</Button>
+								</>
+							)}
 							<CreateReportModal
 								reportType={fixedReportType}
 								useCases={useCasesForModal}
@@ -467,6 +485,13 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
           .deep-dive-row td { transition: background 0.2s ease; }
         `}</style>
 			</Card>
+
+			{fixedReportType === "biz_miner" && (
+				<ExportXlsxModal
+					open={xlsxModalOpen}
+					onClose={() => setXlsxModalOpen(false)}
+				/>
+			)}
 		</DeepDivePageLayout>
 	);
 }

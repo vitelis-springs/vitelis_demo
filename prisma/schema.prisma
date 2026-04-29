@@ -578,6 +578,8 @@ model reports {
   sales_report_step_intermediate_results   sales_report_step_intermediate_results[]
   temp_resolved_data_points_result         temp_resolved_data_points_result[]
 
+  report_countries                         report_countries[]
+
   @@index([source_validation_settings_id], map: "idx_reports_source_validation_settings_id")
 }
 
@@ -2351,6 +2353,27 @@ enum report_status_enum {
 enum validation_rule_level {
   driver
   category
+}
+
+model countries {
+  id               String             @id @db.VarChar
+  country_name     String             @db.VarChar
+  settings         Json?
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?          @default(now()) @db.Timestamp(6)
+  report_countries report_countries[]
+}
+
+model report_countries {
+  report_id  Int
+  country_id String    @db.VarChar
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  reports    reports   @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_countries_report_id_fkey")
+  countries  countries @relation(fields: [country_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_countries_country_id_fkey")
+
+  @@id([report_id, country_id], map: "report_countries_pkey")
+  @@index([report_id], map: "idx_report_countries_report_id")
+  @@index([country_id], map: "idx_report_countries_country_id")
 }
 
 enum validation_status {

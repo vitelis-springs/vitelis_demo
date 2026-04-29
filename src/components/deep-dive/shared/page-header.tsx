@@ -23,14 +23,12 @@ export default function PageHeader({
 }: PageHeaderProps) {
 	return (
 		<div style={{ marginBottom: 24 }}>
-			<Space orientation="vertical" size={4}>
-				<DeepDiveBreadcrumbs items={breadcrumbs} />
-				<Space align="center" size="middle">
-					<Title level={2} style={{ margin: 0, color: "#58bfce" }}>
-						{title}
-					</Title>
-					{extra}
-				</Space>
+			<DeepDiveBreadcrumbs items={breadcrumbs} />
+			<Space align="center" size="middle" style={{ marginTop: 4 }}>
+				<Title level={2} style={{ margin: 0, color: "#58bfce" }}>
+					{title}
+				</Title>
+				{extra}
 			</Space>
 		</div>
 	);
