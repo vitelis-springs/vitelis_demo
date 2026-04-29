@@ -57,6 +57,7 @@ interface Draft {
 	name: string;
 	description: string;
 	useCaseId: number | null;
+	countryIds: string[];
 	rsName: string;
 	rsMasterFileId: string;
 	rsPrefix: number | null;
@@ -82,6 +83,8 @@ export default function DeepDiveSettings({
 		[data],
 	);
 
+	const countryOptions = useMemo(() => data?.data.countries.all ?? [], [data]);
+
 	const [draft, setDraft] = useState<Draft | null>(null);
 
 	useEffect(() => {
@@ -92,6 +95,7 @@ export default function DeepDiveSettings({
 			name: data.data.report.name ?? "",
 			description: data.data.report.description ?? "",
 			useCaseId: data.data.report.useCaseId ?? null,
+			countryIds: data.data.countries.selected,
 			rsName: rs?.name ?? "",
 			rsMasterFileId: rs?.masterFileId ?? "",
 			rsPrefix: rs?.prefix ?? null,
@@ -142,6 +146,7 @@ export default function DeepDiveSettings({
 					name: draft.svsName.trim() || undefined,
 					settings: svsJsonResult.value,
 				},
+				countryIds: draft.countryIds,
 			},
 			{
 				onSuccess: () => message.success("Settings saved"),
@@ -281,6 +286,33 @@ export default function DeepDiveSettings({
 									/>
 								</div>
 							)}
+
+							<div style={{ marginBottom: 16 }}>
+								<Text
+									style={{
+										color: "#8c8c8c",
+										fontSize: 12,
+										display: "block",
+										marginBottom: 4,
+									}}
+								>
+									Countries
+								</Text>
+								<Select
+									mode="multiple"
+									value={draft.countryIds}
+									onChange={(v) => set({ countryIds: v })}
+									options={countryOptions.map((c) => ({
+										value: c.id,
+										label: `${c.id} — ${c.name}`,
+									}))}
+									placeholder="Select countries"
+									allowClear
+									showSearch
+									optionFilterProp="label"
+									style={{ width: "100%" }}
+								/>
+							</div>
 
 							<Divider style={{ borderColor: "#303030", marginTop: 8 }} />
 

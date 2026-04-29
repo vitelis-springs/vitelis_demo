@@ -689,7 +689,8 @@ export class DeepDiveController {
 				);
 			}
 
-			const { reportInfo, reportSettings, validatorSettings } = body;
+			const { reportInfo, reportSettings, validatorSettings, countryIds } =
+				body;
 
 			if (
 				!isRecord(reportInfo) ||
@@ -719,6 +720,12 @@ export class DeepDiveController {
 					{ status: 400 },
 				);
 			}
+
+			const parsedCountryIds =
+				Array.isArray(countryIds) &&
+				countryIds.every((id) => typeof id === "string")
+					? (countryIds as string[])
+					: undefined;
 
 			const result = await DeepDiveService.updateSettings(reportId, {
 				reportInfo: {
@@ -753,6 +760,7 @@ export class DeepDiveController {
 							: undefined,
 					settings: validatorSettings.settings as Record<string, unknown>,
 				},
+				countryIds: parsedCountryIds,
 			});
 
 			if (!result.success) {
