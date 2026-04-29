@@ -496,7 +496,7 @@ export interface CreateReportPayload {
 	cloneOptions?: CloneOptions;
 }
 
-const deepDiveApi = {
+export const deepDiveApi = {
 	async create(
 		payload: CreateReportPayload,
 	): Promise<{ success: boolean; data: { id: number; name: string | null } }> {
@@ -2020,6 +2020,34 @@ export const useCreateValidationRule = (reportId: number) => {
 				.catch((error) => {
 					console.error("Failed to invalidate query", error);
 				});
+		},
+	});
+};
+
+export const useGenerateXlsxReport = () => {
+	return useMutation({
+		mutationFn: async (payload: {
+			company_ids: number[];
+			report_ids: number[];
+		}) => {
+			const response = await api.post("/n8n/bizminer/generate-xlsx", payload, {
+				responseType: "blob",
+			});
+
+			const blob = response.data as Blob;
+			const contentDisposition = response.headers["content-disposition"] as
+				| string
+				| undefined;
+			const filename =
+				contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ??
+				`report_${Date.now()}.xlsx`;
+
+			const url = window.URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = url;
+			anchor.download = filename;
+			anchor.click();
+			window.URL.revokeObjectURL(url);
 		},
 	});
 };
