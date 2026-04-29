@@ -52,6 +52,7 @@ export interface UpdateDeepDiveSettingsPayload {
 		name?: string;
 		settings: Record<string, unknown>;
 	};
+	countryIds?: string[];
 }
 
 export interface UpdateCompanyDataPointPayload {
@@ -450,10 +451,13 @@ export class DeepDiveService {
 	}
 
 	static async getSettings(reportId: number) {
-		const [snapshot, allUseCases] = await Promise.all([
-			DeepDiveRepository.getReportSettingsSnapshot(reportId),
-			DeepDiveRepository.listAllUseCases(),
-		]);
+		const [snapshot, allUseCases, allCountries, selectedCountryIds] =
+			await Promise.all([
+				DeepDiveRepository.getReportSettingsSnapshot(reportId),
+				DeepDiveRepository.listAllUseCases(),
+				DeepDiveRepository.listAllCountries(),
+				DeepDiveRepository.getReportCountryIds(reportId),
+			]);
 
 		if (!snapshot) return null;
 
@@ -473,6 +477,10 @@ export class DeepDiveService {
 				},
 				options: {
 					useCases: allUseCases,
+				},
+				countries: {
+					all: allCountries.map((c) => ({ id: c.id, name: c.country_name })),
+					selected: selectedCountryIds,
 				},
 			},
 		};
@@ -539,6 +547,13 @@ export class DeepDiveService {
 				reportId,
 				reportSettingsId,
 				sourceValidationSettingsId,
+			);
+		}
+
+		if (payload.countryIds !== undefined) {
+			await DeepDiveRepository.syncReportCountries(
+				reportId,
+				payload.countryIds,
 			);
 		}
 

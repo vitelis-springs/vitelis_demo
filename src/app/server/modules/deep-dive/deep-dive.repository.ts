@@ -3267,4 +3267,39 @@ export class DeepDiveRepository {
 			status,
 		);
 	}
+
+	static async listAllCountries() {
+		return prisma.countries.findMany({
+			select: { id: true, country_name: true },
+			orderBy: { country_name: "asc" },
+		});
+	}
+
+	static async getReportCountryIds(reportId: number): Promise<string[]> {
+		const rows = await prisma.report_countries.findMany({
+			where: { report_id: reportId },
+			select: { country_id: true },
+		});
+		return rows.map((r) => r.country_id);
+	}
+
+	static async syncReportCountries(
+		reportId: number,
+		countryIds: string[],
+	): Promise<void> {
+		await prisma.$transaction([
+			prisma.report_countries.deleteMany({ where: { report_id: reportId } }),
+			...(countryIds.length > 0
+				? [
+						prisma.report_countries.createMany({
+							data: countryIds.map((country_id) => ({
+								report_id: reportId,
+								country_id,
+							})),
+							skipDuplicates: true,
+						}),
+					]
+				: []),
+		]);
+	}
 }

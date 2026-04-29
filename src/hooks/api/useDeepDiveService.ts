@@ -383,6 +383,10 @@ export interface DeepDiveSettingsResponse {
 		options: {
 			useCases: Array<{ id: number; name: string }>;
 		};
+		countries: {
+			all: Array<{ id: string; name: string }>;
+			selected: string[];
+		};
 	};
 }
 
@@ -469,6 +473,7 @@ export interface UpdateDeepDiveSettingsPayload {
 		name?: string;
 		settings: Record<string, unknown>;
 	};
+	countryIds?: string[];
 }
 
 export interface CloneOptions {
