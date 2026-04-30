@@ -10,9 +10,11 @@ import {
 } from "@ant-design/icons";
 import { App, Button, Layout, Space, Typography } from "antd";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+	deepDiveApi,
 	useExportReport,
+	useGenerateXlsxReport,
 	useGetDeepDiveCompanies,
 	useGetDeepDiveKpiChart,
 	useGetDeepDiveOverview,
@@ -51,6 +53,34 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 		};
 	})();
 	const exportReport = useExportReport(reportId, report?.name);
+	const { mutateAsync: generateXlsx } = useGenerateXlsxReport();
+	const [generatePending, setGeneratePending] = useState(false);
+
+	const isBizMiner = report?.reportType === "biz_miner";
+	const exportPending = isBizMiner ? generatePending : exportReport.isPending;
+
+	const handleExport = async () => {
+		if (isBizMiner) {
+			setGeneratePending(true);
+			try {
+				const res = await deepDiveApi.getCompanies(reportId);
+				const companyIds = res.data.companies.map((c) => c.id);
+				if (companyIds.length === 0) {
+					message.warning("No companies found in this report");
+					return;
+				}
+				await generateXlsx({ company_ids: companyIds, report_ids: [reportId] });
+			} catch {
+				message.error("Failed to export XLSX");
+			} finally {
+				setGeneratePending(false);
+			}
+		} else {
+			exportReport.mutate(undefined, {
+				onError: () => message.error("Failed to export report"),
+			});
+		}
+	};
 
 	const allCategories = useMemo(
 		() => kpiData?.data.categories ?? [],
@@ -84,11 +114,9 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 								{report?.status && <DeepDiveStatusTag status={report.status} />}
 								<Button
 									icon={<FileExcelOutlined />}
-									loading={exportReport.isPending}
+									loading={exportPending}
 									onClick={() => {
-										exportReport.mutate(undefined, {
-											onError: () => message.error("Failed to export report"),
-										});
+										handleExport().catch(() => undefined);
 									}}
 								>
 									Export xlsx report

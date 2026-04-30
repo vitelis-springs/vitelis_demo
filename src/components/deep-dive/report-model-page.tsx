@@ -4,6 +4,7 @@ import {
 	DeleteOutlined,
 	EditOutlined,
 	ImportOutlined,
+	PlusOutlined,
 	ReloadOutlined,
 } from "@ant-design/icons";
 import {
@@ -23,7 +24,6 @@ import {
 	Table,
 	Tabs,
 	Tag,
-	Tooltip,
 	Typography,
 } from "antd";
 import { useRouter } from "next/navigation";
@@ -65,6 +65,9 @@ interface ReportModelItemModalProps {
 	okText: string;
 	confirmLoading: boolean;
 	dataPointId?: string;
+	dataPointIdPrefix?: string;
+	dataPointIdSuffixKey?: string;
+	editableFields?: boolean;
 	initialName: string;
 	initialSettings: Record<string, unknown>;
 	initialManualMethod?: boolean | null;
@@ -75,6 +78,7 @@ interface ReportModelItemModalProps {
 		name: string;
 		settings: Record<string, unknown>;
 		manualMethod?: boolean | null;
+		dataPointId?: string;
 	}) => Promise<void>;
 }
 
@@ -108,7 +112,7 @@ const DEFAULT_RDP_SETTINGS: Record<string, unknown> = {
 };
 
 function hasExistingKpi(items: ReportModelItem[]): boolean {
-	return items.some((item) => item.type?.startsWith("kpi_"));
+	return items.some((item) => item.type === "kpi_driver");
 }
 
 function hasExistingRdp(items: ReportModelItem[]): boolean {
@@ -162,7 +166,11 @@ function getCellColumnWidth(values: unknown[]): number {
 	return BASE_COLUMN_MIN_WIDTH;
 }
 
-function renderDynamicValue(value: unknown) {
+const LONG_TEXT_THRESHOLD = 300;
+
+function DynamicValueCell({ value }: { value: unknown }) {
+	const [modalOpen, setModalOpen] = useState(false);
+
 	if (value === null || value === undefined || value === "") {
 		return <Text style={{ color: "#8c8c8c" }}>—</Text>;
 	}
@@ -178,16 +186,47 @@ function renderDynamicValue(value: unknown) {
 	}
 
 	const text = stringifyCellValue(value);
+	const isLong = text.length > LONG_TEXT_THRESHOLD;
 
 	return (
-		<Tooltip title={text} placement="topLeft">
+		<>
 			<Paragraph
 				style={{ marginBottom: 0, color: "#d9d9d9" }}
-				ellipsis={{ rows: 4, expandable: true }}
+				ellipsis={{ rows: 4 }}
 			>
 				{text}
 			</Paragraph>
-		</Tooltip>
+			{isLong && (
+				<Button
+					type="link"
+					size="small"
+					style={{ padding: 0, height: "auto", fontSize: 12 }}
+					onClick={() => setModalOpen(true)}
+				>
+					View full
+				</Button>
+			)}
+			{isLong && (
+				<Modal
+					title="Field value"
+					open={modalOpen}
+					onCancel={() => setModalOpen(false)}
+					footer={null}
+					width={900}
+					styles={{ body: { maxHeight: "70vh", overflowY: "auto" } }}
+				>
+					<Paragraph
+						style={{
+							color: "#d9d9d9",
+							whiteSpace: "pre-wrap",
+							marginBottom: 0,
+						}}
+					>
+						{text}
+					</Paragraph>
+				</Modal>
+			)}
+		</>
 	);
 }
 
@@ -360,8 +399,9 @@ function buildTypeColumns(
 			width:
 				COMPACT_DYNAMIC_COLUMN_WIDTHS[key] ??
 				getCellColumnWidth(typeItems.map((item) => item.settings?.[key])),
-			render: (_value: unknown, row: ReportModelItem) =>
-				renderDynamicValue(row.settings?.[key]),
+			render: (_value: unknown, row: ReportModelItem) => (
+				<DynamicValueCell value={row.settings?.[key]} />
+			),
 		})),
 	];
 }
@@ -372,6 +412,9 @@ function ReportModelItemModal({
 	okText,
 	confirmLoading,
 	dataPointId,
+	dataPointIdPrefix,
+	dataPointIdSuffixKey = "id",
+	editableFields = false,
 	initialName,
 	initialSettings,
 	initialManualMethod = null,
@@ -389,6 +432,7 @@ function ReportModelItemModal({
 		useState<Record<string, unknown>>(initialSettings);
 	const [settingsJson, setSettingsJson] = useState("{}");
 	const [mode, setMode] = useState<"fields" | "json">("fields");
+	const [newFieldKey, setNewFieldKey] = useState("");
 
 	useEffect(() => {
 		if (!open) return;
@@ -397,7 +441,13 @@ function ReportModelItemModal({
 		setSettingsObj(initialSettings);
 		setSettingsJson(stringifySettingsObject(initialSettings));
 		setMode("fields");
+		setNewFieldKey("");
 	}, [initialName, initialManualMethod, initialSettings, open]);
+
+	const resolvedDataPointId =
+		dataPointIdPrefix !== undefined
+			? `${dataPointIdPrefix}${String(settingsObj[dataPointIdSuffixKey] ?? "")}`
+			: dataPointId;
 
 	const handleSettingsFieldChange = (key: string, value: unknown) => {
 		setSettingsObj((prev) => ({
@@ -434,7 +484,7 @@ function ReportModelItemModal({
 
 		const missingFields = requiredFields.filter((field) => {
 			if (field === "Name") return !name.trim();
-			if (field === "ID") return !dataPointId?.trim();
+			if (field === "ID") return !resolvedDataPointId?.trim();
 
 			const value = parsedSettings[field];
 			if (typeof value === "string") return !value.trim();
@@ -452,6 +502,8 @@ function ReportModelItemModal({
 			name,
 			settings: parsedSettings,
 			manualMethod: showManualMethod ? manualMethod : undefined,
+			dataPointId:
+				dataPointIdPrefix !== undefined ? resolvedDataPointId : undefined,
 		});
 	};
 
@@ -471,7 +523,7 @@ function ReportModelItemModal({
 			destroyOnHidden
 		>
 			<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-				{dataPointId ? (
+				{resolvedDataPointId !== undefined ? (
 					<div>
 						<Text
 							style={{ color: "#8c8c8c", display: "block", marginBottom: 8 }}
@@ -481,7 +533,22 @@ function ReportModelItemModal({
 								<Text style={{ color: "#ff4d4f" }}> *</Text>
 							) : null}
 						</Text>
-						<Input value={dataPointId} readOnly />
+						{dataPointIdPrefix !== undefined ? (
+							<Input
+								addonBefore={dataPointIdPrefix}
+								value={String(settingsObj[dataPointIdSuffixKey] ?? "")}
+								onChange={(e) => {
+									const digits = e.target.value.replace(/\D/g, "");
+									handleSettingsFieldChange(
+										dataPointIdSuffixKey,
+										digits === "" ? "" : Number(digits),
+									);
+								}}
+								placeholder="123"
+							/>
+						) : (
+							<Input value={resolvedDataPointId} readOnly />
+						)}
 					</div>
 				) : null}
 				<div>
@@ -546,22 +613,54 @@ function ReportModelItemModal({
 						>
 							{Object.entries(settingsObj).map(([key, value]) => {
 								const inputKey = `${dataPointId ?? title}-${key}`;
+								const isRequired = requiredFields.includes(key);
+								const canDelete =
+									editableFields && !isRequired && key !== dataPointIdSuffixKey;
+
+								const fieldLabel = (
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											alignItems: "center",
+											marginBottom: 8,
+										}}
+									>
+										<Text style={{ color: "#8c8c8c" }}>
+											{key}
+											{isRequired ? (
+												<Text style={{ color: "#ff4d4f" }}> *</Text>
+											) : null}
+										</Text>
+										{canDelete && (
+											<Button
+												type="text"
+												size="small"
+												icon={<DeleteOutlined />}
+												style={{ color: "#595959" }}
+												onClick={() =>
+													setSettingsObj((prev) => {
+														const next = { ...prev };
+														delete next[key];
+														return next;
+													})
+												}
+											/>
+										)}
+									</div>
+								);
+
+								if (
+									key === dataPointIdSuffixKey &&
+									dataPointIdPrefix !== undefined
+								) {
+									return null;
+								}
 
 								if (typeof value === "boolean") {
 									return (
 										<div key={inputKey}>
-											<Text
-												style={{
-													color: "#8c8c8c",
-													display: "block",
-													marginBottom: 8,
-												}}
-											>
-												{key}
-												{requiredFields.includes(key) ? (
-													<Text style={{ color: "#ff4d4f" }}> *</Text>
-												) : null}
-											</Text>
+											{fieldLabel}
 											<Switch
 												checked={value}
 												onChange={(checked) =>
@@ -575,18 +674,7 @@ function ReportModelItemModal({
 								if (typeof value === "number") {
 									return (
 										<div key={inputKey}>
-											<Text
-												style={{
-													color: "#8c8c8c",
-													display: "block",
-													marginBottom: 8,
-												}}
-											>
-												{key}
-												{requiredFields.includes(key) ? (
-													<Text style={{ color: "#ff4d4f" }}> *</Text>
-												) : null}
-											</Text>
+											{fieldLabel}
 											<InputNumber
 												value={value}
 												onChange={(nextValue) =>
@@ -601,18 +689,7 @@ function ReportModelItemModal({
 								if (typeof value === "string" || value === null) {
 									return (
 										<div key={inputKey}>
-											<Text
-												style={{
-													color: "#8c8c8c",
-													display: "block",
-													marginBottom: 8,
-												}}
-											>
-												{key}
-												{requiredFields.includes(key) ? (
-													<Text style={{ color: "#ff4d4f" }}> *</Text>
-												) : null}
-											</Text>
+											{fieldLabel}
 											<Input
 												value={value ?? ""}
 												onChange={(event) =>
@@ -625,18 +702,7 @@ function ReportModelItemModal({
 
 								return (
 									<div key={inputKey}>
-										<Text
-											style={{
-												color: "#8c8c8c",
-												display: "block",
-												marginBottom: 8,
-											}}
-										>
-											{key}
-											{requiredFields.includes(key) ? (
-												<Text style={{ color: "#ff4d4f" }}> *</Text>
-											) : null}
-										</Text>
+										{fieldLabel}
 										<TextArea
 											rows={4}
 											value={JSON.stringify(value, null, 2)}
@@ -654,6 +720,41 @@ function ReportModelItemModal({
 									</div>
 								);
 							})}
+
+							{editableFields && (
+								<div style={{ display: "flex", gap: 8 }}>
+									<Input
+										value={newFieldKey}
+										onChange={(e) => setNewFieldKey(e.target.value)}
+										placeholder="New field name"
+										onPressEnter={() => {
+											const key = newFieldKey.trim();
+											if (!key) return;
+											if (key in settingsObj) {
+												message.warning("Field already exists");
+												return;
+											}
+											setSettingsObj((prev) => ({ ...prev, [key]: "" }));
+											setNewFieldKey("");
+										}}
+									/>
+									<Button
+										icon={<PlusOutlined />}
+										onClick={() => {
+											const key = newFieldKey.trim();
+											if (!key) return;
+											if (key in settingsObj) {
+												message.warning("Field already exists");
+												return;
+											}
+											setSettingsObj((prev) => ({ ...prev, [key]: "" }));
+											setNewFieldKey("");
+										}}
+									>
+										Add field
+									</Button>
+								</div>
+							)}
 						</Space>
 					)}
 				</div>
@@ -889,12 +990,13 @@ export default function ReportModelPage({
 		name: string;
 		settings: Record<string, unknown>;
 		manualMethod?: boolean | null;
+		dataPointId?: string;
 	}) => {
 		if (!creatingItem) return;
 
 		try {
 			await createModelItem.mutateAsync({
-				dataPointId: creatingItem.dataPointId,
+				dataPointId: payload.dataPointId ?? creatingItem.dataPointId,
 				type: creatingItem.type,
 				name: payload.name,
 				settings: payload.settings,
@@ -1172,7 +1274,21 @@ export default function ReportModelPage({
 				}
 				okText="Create"
 				confirmLoading={createModelItem.isPending}
-				dataPointId={creatingItem?.dataPointId}
+				dataPointId={undefined}
+				dataPointIdPrefix={
+					creatingItem?.type === "kpi_driver"
+						? "kpi_driver_"
+						: creatingItem?.type === "raw_data_point"
+							? "raw_data_point_"
+							: undefined
+				}
+				dataPointIdSuffixKey={
+					creatingItem?.type === "kpi_driver" ? "index" : "id"
+				}
+				editableFields={
+					creatingItem?.type === "kpi_driver" ||
+					creatingItem?.type === "raw_data_point"
+				}
 				initialName=""
 				initialSettings={creatingItem?.initialSettings ?? {}}
 				initialManualMethod={false}

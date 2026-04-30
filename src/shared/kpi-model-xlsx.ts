@@ -19,6 +19,7 @@ export const RDP_FIELD_LABELS = {
 	number: "#",
 	name: "Raw Data Points",
 	category: "Category",
+	definition: "Definition",
 	outputVariable: "Output variable",
 	dataSource: "Data source",
 	sourcesProposal: "sources_proposal",
@@ -27,6 +28,10 @@ export const RDP_FIELD_LABELS = {
 
 export type KpiFieldKey = keyof typeof KPI_FIELD_LABELS;
 export type RdpFieldKey = keyof typeof RDP_FIELD_LABELS;
+
+export const RDP_REQUIRED_KEYS: ReadonlySet<RdpFieldKey> = new Set<RdpFieldKey>(
+	["name", "category", "definition", "outputVariable"],
+);
 
 export interface ParsedSheet {
 	sheetName: string;
@@ -70,6 +75,7 @@ const RDP_NORM_MATCHES: Array<[string, RdpFieldKey]> = [
 	["rawdatapoint", "name"],
 	["category", "category"],
 	["rdpcategory", "category"],
+	["definition", "definition"],
 	["outputvariable", "outputVariable"],
 	["datasource", "dataSource"],
 	["sourcesproposal", "sourcesProposal"],

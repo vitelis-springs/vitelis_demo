@@ -182,17 +182,15 @@ export class N8NController {
 				);
 			}
 
-			const upstream = await fetch(
-				`${backendUrl}/generate-company-reports-v3`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						company_ids: companyIds,
-						report_ids: reportIds,
-					}),
-				},
-			);
+			const upstreamUrl = `${backendUrl}/generate-company-reports-v3`;
+			const upstream = await fetch(upstreamUrl, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					company_ids: companyIds,
+					report_ids: reportIds,
+				}),
+			});
 
 			if (!upstream.ok) {
 				return NextResponse.json(
