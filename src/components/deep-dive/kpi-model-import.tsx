@@ -46,6 +46,7 @@ import {
 	type ParsedSheet,
 	parseKpiModelWorkbook,
 	RDP_FIELD_LABELS,
+	RDP_REQUIRED_KEYS,
 	RDP_SHEET_NAME_PATTERN,
 	type RdpFieldKey,
 } from "../../shared/kpi-model-xlsx";
@@ -70,7 +71,7 @@ export interface KpiModelImportHandle {
 }
 
 function hasExistingKpi(items: ReportModelItem[]): boolean {
-	return items.some((item) => item.type?.startsWith("kpi_"));
+	return items.some((item) => item.type === "kpi_driver");
 }
 
 function hasExistingRdp(items: ReportModelItem[]): boolean {
@@ -273,6 +274,22 @@ function buildRdpDataPoints(
 		.filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
+function getMissingRdpRequired(
+	sheet: ParsedSheet,
+	userMapping: RdpUserMapping,
+): RdpFieldKey[] {
+	const autoMap = detectRdpFieldMapping(sheet.headers);
+	return (Array.from(RDP_REQUIRED_KEYS) as RdpFieldKey[]).filter((key) => {
+		const idx = resolveColumnIndex(
+			sheet.headers,
+			autoMap as Map<string, number>,
+			userMapping,
+			key,
+		);
+		return idx === undefined;
+	});
+}
+
 // ---- UI sub-components ----
 
 function RemapPopover({
@@ -335,6 +352,7 @@ function FieldMappingHeader<TKey extends string>({
 	autoMappingIndex,
 	userMapping,
 	onRemap,
+	isRequired = true,
 }: {
 	fieldKey: TKey;
 	label: string;
@@ -342,12 +360,15 @@ function FieldMappingHeader<TKey extends string>({
 	autoMappingIndex: number | undefined;
 	userMapping: Partial<Record<TKey, string>>;
 	onRemap: (key: TKey, header: string) => void;
+	isRequired?: boolean;
 }) {
 	const userOverride = userMapping[fieldKey];
 	const isMapped =
 		userOverride !== undefined
 			? headers.includes(userOverride)
 			: autoMappingIndex !== undefined;
+
+	const warningColor = isRequired ? "#ff4d4f" : "#faad14";
 
 	return (
 		<div style={{ whiteSpace: "normal", wordBreak: "break-word", minWidth: 0 }}>
@@ -358,16 +379,25 @@ function FieldMappingHeader<TKey extends string>({
 					/>
 				) : (
 					<WarningOutlined
-						style={{ color: "#faad14", fontSize: 11, marginTop: 2 }}
+						style={{ color: warningColor, fontSize: 11, marginTop: 2 }}
 					/>
 				)}
 				<Tooltip
-					title={isMapped ? undefined : `"${label}" not found. Click ↺ to map.`}
+					title={
+						isMapped
+							? undefined
+							: isRequired
+								? `"${label}" is required. Click ↺ to map.`
+								: `"${label}" not found. Click ↺ to map.`
+					}
 				>
 					<Text
-						style={{ color: isMapped ? "#d9d9d9" : "#faad14", fontSize: 12 }}
+						style={{ color: isMapped ? "#d9d9d9" : warningColor, fontSize: 12 }}
 					>
 						{label}
+						{isRequired && !isMapped && (
+							<span style={{ color: "#ff4d4f" }}> *</span>
+						)}
 					</Text>
 				</Tooltip>
 				<RemapPopover
@@ -397,6 +427,7 @@ const KPI_COLUMN_WIDTHS: Partial<Record<KpiFieldKey, number>> = {
 const RDP_COLUMN_WIDTHS: Partial<Record<RdpFieldKey, number>> = {
 	name: 220, // Raw Data Points
 	category: 150, // Category
+	definition: 200, // Definition
 	outputVariable: 180, // Output variable
 	dataSource: 140, // Data source
 	sourcesProposal: 200, // sources_proposal
@@ -419,6 +450,7 @@ function buildPreviewColumns<TKey extends string>(
 	cellRenderers: Partial<Record<TKey, (val: string | null) => React.ReactNode>>,
 	onRemap: (key: TKey, header: string) => void,
 	onToggleOptional: (header: string, included: boolean) => void,
+	requiredKeys?: ReadonlySet<TKey>,
 ) {
 	const numberIdx = resolveColumnIndex(
 		sheet.headers,
@@ -427,7 +459,7 @@ function buildPreviewColumns<TKey extends string>(
 		"number",
 	);
 
-	const requiredKeys = (Object.keys(fieldLabels) as TKey[]).filter(
+	const allFieldKeys = (Object.keys(fieldLabels) as TKey[]).filter(
 		(k) => k !== ("number" as TKey),
 	);
 
@@ -455,7 +487,7 @@ function buildPreviewColumns<TKey extends string>(
 		},
 	};
 
-	const requiredColumns = requiredKeys.map((key) => {
+	const requiredColumns = allFieldKeys.map((key) => {
 		const label = fieldLabels[key];
 		const autoIdx = autoMapping.get(key);
 		const idx = resolveColumnIndex(
@@ -464,6 +496,7 @@ function buildPreviewColumns<TKey extends string>(
 			userMapping as Partial<Record<string, string>>,
 			key as string,
 		);
+		const isRequired = requiredKeys === undefined || requiredKeys.has(key);
 
 		return {
 			title: (
@@ -474,6 +507,7 @@ function buildPreviewColumns<TKey extends string>(
 					autoMappingIndex={autoIdx}
 					userMapping={userMapping}
 					onRemap={onRemap}
+					isRequired={isRequired}
 				/>
 			),
 			key: `req_${key as string}`,
@@ -583,6 +617,7 @@ function SheetPreview<TKey extends string>({
 	onRemap,
 	onToggleOptional,
 	detectMapping,
+	requiredKeys,
 }: {
 	sheet: ParsedSheet;
 	prefix: number;
@@ -595,10 +630,15 @@ function SheetPreview<TKey extends string>({
 	onRemap: (key: TKey, header: string) => void;
 	onToggleOptional: (header: string, included: boolean) => void;
 	detectMapping: (headers: string[]) => Map<TKey, number>;
+	requiredKeys?: ReadonlySet<TKey>;
 }) {
 	const autoMapping = detectMapping(sheet.headers);
 
-	const missingRequired = (Object.keys(fieldLabels) as TKey[]).filter((key) => {
+	const keysToCheck = requiredKeys
+		? (Object.keys(fieldLabels) as TKey[]).filter((k) => requiredKeys.has(k))
+		: (Object.keys(fieldLabels) as TKey[]);
+
+	const missingRequired = keysToCheck.filter((key) => {
 		const idx = resolveColumnIndex(
 			sheet.headers,
 			autoMapping as unknown as Map<string, number>,
@@ -620,6 +660,7 @@ function SheetPreview<TKey extends string>({
 		cellRenderers,
 		onRemap,
 		onToggleOptional,
+		requiredKeys,
 	);
 
 	const previewRows = sheet.rows.slice(0, 100);
@@ -1051,56 +1092,77 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 											</Text>
 										</Space>
 									),
-									children: (
-										<Space
-											orientation="vertical"
-											size="middle"
-											style={{ width: "100%" }}
-										>
-											<Button
-												type="primary"
-												onClick={() => {
-													handleApply("rdp").catch((error) => {
-														console.error("Failed to apply RDP import", error);
-													});
-												}}
-												loading={importModel.isPending}
-												disabled={isParsing}
+									children: (() => {
+										const missingRdp = getMissingRdpRequired(
+											workbook.rdpSheet,
+											rdpUserMapping,
+										);
+										return (
+											<Space
+												orientation="vertical"
+												size="middle"
+												style={{ width: "100%" }}
 											>
-												Apply RDP import
-											</Button>
-											<SheetPreview
-												sheet={workbook.rdpSheet}
-												prefix={prefix}
-												fieldLabels={RDP_FIELD_LABELS}
-												idPrefix="raw_data_point_"
-												userMapping={rdpUserMapping}
-												excludedOptionals={rdpExcludedOptionals}
-												columnWidths={RDP_COLUMN_WIDTHS}
-												cellRenderers={{}}
-												onRemap={(key, header) =>
-													setRdpUserMapping((prev) => ({
-														...prev,
-														[key]: header || undefined,
-													}))
-												}
-												onToggleOptional={(header, included) =>
-													toggleOptional(
-														setRdpExcludedOptionals,
-														header,
-														included,
-													)
-												}
-												detectMapping={detectRdpFieldMapping}
-											/>
-										</Space>
-									),
+												<Tooltip
+													title={
+														missingRdp.length > 0
+															? `Required fields not mapped: ${missingRdp.map((k) => RDP_FIELD_LABELS[k]).join(", ")}`
+															: undefined
+													}
+												>
+													<Button
+														type="primary"
+														onClick={() => {
+															handleApply("rdp").catch((error) => {
+																console.error(
+																	"Failed to apply RDP import",
+																	error,
+																);
+															});
+														}}
+														loading={importModel.isPending}
+														disabled={isParsing || missingRdp.length > 0}
+													>
+														Apply RDP import
+													</Button>
+												</Tooltip>
+												<SheetPreview
+													sheet={workbook.rdpSheet}
+													prefix={prefix}
+													fieldLabels={RDP_FIELD_LABELS}
+													idPrefix="raw_data_point_"
+													userMapping={rdpUserMapping}
+													excludedOptionals={rdpExcludedOptionals}
+													columnWidths={RDP_COLUMN_WIDTHS}
+													cellRenderers={{}}
+													onRemap={(key, header) =>
+														setRdpUserMapping((prev) => ({
+															...prev,
+															[key]: header || undefined,
+														}))
+													}
+													onToggleOptional={(header, included) =>
+														toggleOptional(
+															setRdpExcludedOptionals,
+															header,
+															included,
+														)
+													}
+													detectMapping={detectRdpFieldMapping}
+													requiredKeys={RDP_REQUIRED_KEYS}
+												/>
+											</Space>
+										);
+									})(),
 								},
 							]
 						: []),
 				]
 			: [];
 		const canApplyAll = Boolean(workbook?.kpiSheet && workbook?.rdpSheet);
+		const missingRdpForAll = workbook?.rdpSheet
+			? getMissingRdpRequired(workbook.rdpSheet, rdpUserMapping)
+			: [];
 
 		const fileInput = (
 			<input
@@ -1132,18 +1194,26 @@ const KpiModelImport = forwardRef<KpiModelImportHandle, KpiModelImportProps>(
 								</Text>
 							) : null}
 							{canApplyAll ? (
-								<Button
-									type="primary"
-									onClick={() => {
-										handleApply("all").catch((error) => {
-											console.error("Failed to apply full KPI import", error);
-										});
-									}}
-									loading={importModel.isPending}
-									disabled={isParsing}
+								<Tooltip
+									title={
+										missingRdpForAll.length > 0
+											? `Required RDP fields not mapped: ${missingRdpForAll.map((k) => RDP_FIELD_LABELS[k]).join(", ")}`
+											: undefined
+									}
 								>
-									Apply all
-								</Button>
+									<Button
+										type="primary"
+										onClick={() => {
+											handleApply("all").catch((error) => {
+												console.error("Failed to apply full KPI import", error);
+											});
+										}}
+										loading={importModel.isPending}
+										disabled={isParsing || missingRdpForAll.length > 0}
+									>
+										Apply all
+									</Button>
+								</Tooltip>
 							) : null}
 							<Button onClick={handleClose}>Close</Button>
 						</Space>

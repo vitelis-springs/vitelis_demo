@@ -28,10 +28,11 @@ import type { TableRowSelection } from "antd/lib/table/interface";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
+	deepDiveApi,
 	useGetDeepDiveOverview,
 	useGetSalesMinerReportOverview,
 	useGetSalesMinerSignalStats,
-	useExportOpportunitiesXlsx,
+	useGenerateXlsxReport,
 	type SalesMinerReportCompanyRow,
 	type SalesMinerSignalSummaryRow,
 } from "../../hooks/api/useDeepDiveService";
@@ -421,8 +422,26 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 	const { message } = App.useApp();
 	const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
 	const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
-	const exportXlsx = useExportOpportunitiesXlsx();
+	const { mutateAsync: generateXlsx } = useGenerateXlsxReport();
+	const [exportPending, setExportPending] = useState(false);
 	const signalCount = signalStatsData?.data.length ?? null;
+
+	const handleExport = async () => {
+		setExportPending(true);
+		try {
+			const res = await deepDiveApi.getCompanies(reportId);
+			const companyIds = res.data.companies.map((c) => c.id);
+			if (companyIds.length === 0) {
+				message.warning("No companies found in this report");
+				return;
+			}
+			await generateXlsx({ company_ids: companyIds, report_ids: [reportId] });
+		} catch {
+			message.error("Failed to export XLSX");
+		} finally {
+			setExportPending(false);
+		}
+	};
 
 	if (isLoading || !data) {
 		return (
@@ -485,14 +504,11 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 							icon={<DownloadOutlined />}
 							size="small"
 							type="primary"
-							loading={exportXlsx.isPending}
+							loading={exportPending}
 							style={{ marginTop: 8 }}
-							onClick={() =>
-								exportXlsx.mutate(reportId, {
-									onError: () =>
-										message.error("Failed to export opportunities"),
-								})
-							}
+							onClick={() => {
+								handleExport().catch(() => undefined);
+							}}
 						>
 							Export XLSX
 						</Button>
@@ -561,7 +577,8 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 	const { message } = App.useApp();
 	const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
 	const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
-	const exportXlsx = useExportOpportunitiesXlsx();
+	const { mutateAsync: generateXlsx } = useGenerateXlsxReport();
+	const [exportPending, setExportPending] = useState(false);
 	const signalCount = signalStatsData?.data.length ?? null;
 
 	if (isLoading || !data) {
@@ -580,6 +597,27 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 	const totalSignals = isV2
 		? data.data.signalSummary.reduce((s, r) => s + r.signalCount, 0)
 		: 0;
+
+	const exportReportId = relatedReportId ?? reportId;
+	const handleExport = async () => {
+		setExportPending(true);
+		try {
+			const res = await deepDiveApi.getCompanies(exportReportId);
+			const companyIds = res.data.companies.map((c) => c.id);
+			if (companyIds.length === 0) {
+				message.warning("No companies found in this report");
+				return;
+			}
+			await generateXlsx({
+				company_ids: companyIds,
+				report_ids: [exportReportId],
+			});
+		} catch {
+			message.error("Failed to export XLSX");
+		} finally {
+			setExportPending(false);
+		}
+	};
 
 	return (
 		<>
@@ -627,14 +665,11 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 							icon={<DownloadOutlined />}
 							size="small"
 							type="primary"
-							loading={exportXlsx.isPending}
+							loading={exportPending}
 							style={{ marginTop: 8 }}
-							onClick={() =>
-								exportXlsx.mutate(relatedReportId ?? reportId, {
-									onError: () =>
-										message.error("Failed to export opportunities"),
-								})
-							}
+							onClick={() => {
+								handleExport().catch(() => undefined);
+							}}
 						>
 							Export XLSX
 						</Button>
