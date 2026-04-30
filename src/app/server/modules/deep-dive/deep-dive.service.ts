@@ -242,6 +242,21 @@ export class DeepDiveService {
 		};
 	}
 
+	private static applySourcesUpdate(
+		data: Record<string, unknown>,
+		sources: string | null,
+		options: { isRaw: boolean },
+	): void {
+		if (options.isRaw) {
+			data.sources = sources;
+			delete data.Sources;
+			return;
+		}
+
+		data.Sources = sources;
+		delete data.sources;
+	}
+
 	private static normalizeKpiScoreInput(
 		payload: UpdateCompanyDataPointPayload,
 	): {
@@ -366,8 +381,7 @@ export class DeepDiveService {
 					? null
 					: DeepDiveService.normalizeTextInput(payload.sources);
 
-			mutableData.Sources = sources;
-			mutableData.sources = sources;
+			DeepDiveService.applySourcesUpdate(mutableData, sources, { isRaw });
 			dataChanged = true;
 		}
 
