@@ -307,6 +307,12 @@ function buildTypeColumns(
 		}, new Set<string>()),
 	);
 
+	const maxIdLength = typeItems.reduce(
+		(max, item) => Math.max(max, item.dataPointId.length),
+		0,
+	);
+	const idColumnWidth = maxIdLength > 20 ? 260 : 180;
+
 	return [
 		{
 			title: "Actions",
@@ -356,7 +362,7 @@ function buildTypeColumns(
 		{
 			title: "ID",
 			key: "dataPointId",
-			width: 180,
+			width: idColumnWidth,
 			fixed: "left" as const,
 			render: (_value: unknown, row: ReportModelItem) => (
 				<Text code style={{ color: "#d9d9d9" }}>
@@ -1247,6 +1253,7 @@ export default function ReportModelPage({
 						? editingItem.dataPointId
 						: undefined
 				}
+				editableFields={editingItem !== null}
 				initialName={editingItem?.name ?? ""}
 				initialSettings={editingItem?.settings ?? {}}
 				initialManualMethod={editingItem?.manualMethod ?? null}
