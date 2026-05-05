@@ -1,8 +1,7 @@
 /** biome-ignore-all lint/complexity/noStaticOnlyClass: <asd> */
-
-import { get } from "http";
 import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
+import { DeepDiveService } from "../deep-dive/deep-dive.service";
 import { N8NService } from "./n8n.service";
 
 export class N8NController {
@@ -185,17 +184,30 @@ export class N8NController {
 				);
 			}
 
-			//const table_config = getTableConfigForReports(reportIds[0]);
+			let rep_data = {} as any;
+
+			if (typeof reportIds[0] === "number") {
+				rep_data = await DeepDiveService.getSettings(reportIds[0]);
+			}
+
+			console.log(
+				"🚀 Merging report data with request body:",
+				JSON.stringify(rep_data, null, 2),
+			);
 
 			const upstreamUrl = `${backendUrl}/generate-company-reports-v3`;
+
+			const merger_body = {
+				company_ids: companyIds,
+				report_ids: reportIds,
+				table_config:
+					rep_data?.data?.current?.reportSettings?.settings?.table_config || {},
+			};
+
 			const upstream = await fetch(upstreamUrl, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					company_ids: companyIds,
-					report_ids: reportIds,
-					table_config:{},
-				}),
+				body: JSON.stringify(merger_body),
 			});
 
 			if (!upstream.ok) {
