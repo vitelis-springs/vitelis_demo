@@ -359,7 +359,7 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 				extra={
 					fixedReportType === "biz_miner" ||
 					fixedReportType === "sales_miner" ? (
-						<>
+						<Space wrap align="center">
 							{fixedReportType === "biz_miner" && (
 								<>
 									<Button
@@ -375,6 +375,11 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 									</Button>
 								</>
 							)}
+							{fixedReportType === "sales_miner" && (
+								<Button onClick={() => router.push("/sales-miner/customers")}>
+									Customers
+								</Button>
+							)}
 							<CreateReportModal
 								reportType={fixedReportType}
 								useCases={useCasesForModal}
@@ -387,7 +392,7 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 									onCloneClose={() => setCloneFromId(null)}
 								/>
 							)}
-						</>
+						</Space>
 					) : (
 						<Text style={{ color: "#8c8c8c" }}>
 							Track progress, queries, and company statuses
