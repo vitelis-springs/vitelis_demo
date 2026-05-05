@@ -29,10 +29,10 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
 	deepDiveApi,
+	useExportOpportunitiesXlsx,
 	useGetDeepDiveOverview,
 	useGetSalesMinerReportOverview,
 	useGetSalesMinerSignalStats,
-	useGenerateXlsxReport,
 	type SalesMinerReportCompanyRow,
 	type SalesMinerSignalSummaryRow,
 } from "../../hooks/api/useDeepDiveService";
@@ -422,20 +422,14 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 	const { message } = App.useApp();
 	const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
 	const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
-	const { mutateAsync: generateXlsx } = useGenerateXlsxReport();
+	const { mutateAsync: exportOpportunitiesXlsx } = useExportOpportunitiesXlsx();
 	const [exportPending, setExportPending] = useState(false);
 	const signalCount = signalStatsData?.data.length ?? null;
 
 	const handleExport = async () => {
 		setExportPending(true);
 		try {
-			const res = await deepDiveApi.getCompanies(reportId);
-			const companyIds = res.data.companies.map((c) => c.id);
-			if (companyIds.length === 0) {
-				message.warning("No companies found in this report");
-				return;
-			}
-			await generateXlsx({ company_ids: companyIds, report_ids: [reportId] });
+			await exportOpportunitiesXlsx(reportId);
 		} catch {
 			message.error("Failed to export XLSX");
 		} finally {
@@ -577,7 +571,7 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 	const { message } = App.useApp();
 	const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
 	const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
-	const { mutateAsync: generateXlsx } = useGenerateXlsxReport();
+	const { mutateAsync: exportOpportunitiesXlsx } = useExportOpportunitiesXlsx();
 	const [exportPending, setExportPending] = useState(false);
 	const signalCount = signalStatsData?.data.length ?? null;
 
@@ -602,16 +596,7 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 	const handleExport = async () => {
 		setExportPending(true);
 		try {
-			const res = await deepDiveApi.getCompanies(exportReportId);
-			const companyIds = res.data.companies.map((c) => c.id);
-			if (companyIds.length === 0) {
-				message.warning("No companies found in this report");
-				return;
-			}
-			await generateXlsx({
-				company_ids: companyIds,
-				report_ids: [exportReportId],
-			});
+			await exportOpportunitiesXlsx(exportReportId);
 		} catch {
 			message.error("Failed to export XLSX");
 		} finally {

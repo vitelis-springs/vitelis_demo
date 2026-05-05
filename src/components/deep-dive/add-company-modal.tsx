@@ -6,14 +6,19 @@ import {
 	Button,
 	Form,
 	Input,
+	InputNumber,
 	Modal,
+	Segmented,
 	Select,
+	Space,
+	Switch,
 	Tabs,
 	Tooltip,
 	Typography,
 } from "antd";
 import {
 	BulbOutlined,
+	DeleteOutlined,
 	LinkOutlined,
 	PlusOutlined,
 	ReloadOutlined,
@@ -27,6 +32,21 @@ import {
 import JsonEditor from "./json-editor";
 
 const { Text } = Typography;
+
+function parseAdditionalData(value: string): Record<string, unknown> | null {
+	try {
+		const parsed = value.trim() ? JSON.parse(value) : {};
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+			return null;
+		return parsed as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+function stringifyAdditionalData(value: Record<string, unknown>): string {
+	return JSON.stringify(value, null, 2);
+}
 
 interface Props {
 	reportId: number;
@@ -43,7 +63,7 @@ interface NewCompanyFormValues {
 	investPortal?: string;
 	careerPortal?: string;
 	reportRole?: string;
-	additionalDataJson?: string;
+	parentCompanyId?: number;
 }
 
 function toSlug(value: string): string {
@@ -71,6 +91,18 @@ function NewCompanyTab({
 	// tracks whether the user has manually edited the slug
 	const slugManuallyEdited = useRef(false);
 	const [generating, setGenerating] = useState(false);
+	const [additionalDataMode, setAdditionalDataMode] = useState<
+		"fields" | "json"
+	>("fields");
+	const [additionalDataObj, setAdditionalDataObj] = useState<
+		Record<string, unknown>
+	>({});
+	const [additionalDataJson, setAdditionalDataJson] = useState("{}");
+	const [newFieldKey, setNewFieldKey] = useState("");
+	const [parentSearch, setParentSearch] = useState("");
+	const { data: parentSearchResult, isFetching: parentSearchFetching } =
+		useSearchCompanies(parentSearch);
+	const parentCompanies = parentSearchResult?.data ?? [];
 	const watchedName = Form.useWatch("name", form);
 	const watchedUrl = Form.useWatch("url", form);
 	const canGenerate = !!watchedName?.trim() && !!watchedUrl?.trim();
@@ -94,13 +126,18 @@ function NewCompanyTab({
 			);
 			if (!res.ok) throw new Error(`Webhook error: ${res.status}`);
 			const data = await res.json();
-			form.setFieldValue("additionalDataJson", JSON.stringify(data, null, 2));
+			const jsonStr = JSON.stringify(data, null, 2);
+			setAdditionalDataJson(jsonStr);
+			if (additionalDataMode === "fields") {
+				const parsed = parseAdditionalData(jsonStr);
+				if (parsed) setAdditionalDataObj(parsed);
+			}
 		} catch (err) {
 			message.error(err instanceof Error ? err.message : "Webhook call failed");
 		} finally {
 			setGenerating(false);
 		}
-	}, [form, message]);
+	}, [additionalDataMode, form, message]);
 
 	const handleGenerateSlug = useCallback(() => {
 		const name = form.getFieldValue("name") as string;
@@ -117,13 +154,18 @@ function NewCompanyTab({
 	const handleSubmit = useCallback(
 		async (values: NewCompanyFormValues) => {
 			let additionalData: unknown = null;
-			if (values.additionalDataJson?.trim()) {
-				try {
-					additionalData = JSON.parse(values.additionalDataJson);
-				} catch {
-					message.error("Invalid JSON in Additional Data");
-					return;
+			if (additionalDataMode === "json") {
+				if (additionalDataJson.trim() && additionalDataJson.trim() !== "{}") {
+					const parsed = parseAdditionalData(additionalDataJson);
+					if (!parsed) {
+						message.error("Invalid JSON in Additional Data");
+						return;
+					}
+					additionalData = parsed;
 				}
+			} else {
+				additionalData =
+					Object.keys(additionalDataObj).length > 0 ? additionalDataObj : null;
 			}
 
 			try {
@@ -138,16 +180,30 @@ function NewCompanyTab({
 					careerPortal: values.careerPortal || null,
 					reportRole: values.reportRole || null,
 					additionalData,
+					parentCompanyId: values.parentCompanyId ?? null,
 				});
 				message.success("Company created and linked to report");
 				form.resetFields();
 				slugManuallyEdited.current = false;
+				setAdditionalDataMode("fields");
+				setAdditionalDataObj({});
+				setAdditionalDataJson("{}");
+				setNewFieldKey("");
+				setParentSearch("");
 				onSuccess();
 			} catch {
 				message.error("Failed to create company");
 			}
 		},
-		[addCompany, form, message, onSuccess],
+		[
+			addCompany,
+			additionalDataJson,
+			additionalDataMode,
+			additionalDataObj,
+			form,
+			message,
+			onSuccess,
+		],
 	);
 
 	return (
@@ -245,16 +301,38 @@ function NewCompanyTab({
 						/>
 					</Form.Item>
 
+					<Form.Item name="reportRole" label="Report Role">
+						<Input placeholder="e.g. competitor, partner" />
+					</Form.Item>
+
 					<Form.Item
-						name="reportRole"
-						label="Report Role"
+						name="parentCompanyId"
+						label="Parent Company"
 						style={{ marginBottom: 0 }}
 					>
-						<Input placeholder="e.g. competitor, partner" />
+						<Select
+							showSearch
+							allowClear
+							placeholder="Search by name or ID..."
+							filterOption={false}
+							onSearch={setParentSearch}
+							loading={parentSearchFetching}
+							notFoundContent={
+								parentSearch.trim().length >= 2 && !parentSearchFetching ? (
+									<Text type="secondary">No companies found</Text>
+								) : parentSearch.trim().length < 2 ? (
+									<Text type="secondary">Type at least 2 characters</Text>
+								) : null
+							}
+							options={parentCompanies.map((c) => ({
+								value: c.id,
+								label: `#${c.id} — ${c.name}`,
+							}))}
+						/>
 					</Form.Item>
 				</div>
 
-				{/* ── right: JSON ── */}
+				{/* ── right: additional data ── */}
 				<div style={{ flex: 1 }}>
 					<div
 						style={{
@@ -265,21 +343,202 @@ function NewCompanyTab({
 						}}
 					>
 						<Typography.Text style={{ fontSize: 14 }}>
-							Additional Data (JSON)
+							Additional Data
 						</Typography.Text>
-						<Button
-							size="small"
-							icon={<BulbOutlined />}
-							loading={generating}
-							disabled={!canGenerate}
-							onClick={handleGenerate}
-						>
-							Generate
-						</Button>
+						<Space size="small">
+							<Button
+								size="small"
+								icon={<BulbOutlined />}
+								loading={generating}
+								disabled={!canGenerate}
+								onClick={handleGenerate}
+							>
+								Generate
+							</Button>
+							<Segmented<"fields" | "json">
+								size="small"
+								value={additionalDataMode}
+								options={[
+									{ label: "Fields", value: "fields" },
+									{ label: "JSON", value: "json" },
+								]}
+								onChange={(val) => {
+									if (val === "fields") {
+										const parsed = parseAdditionalData(additionalDataJson);
+										if (!parsed) {
+											message.error(
+												"Fix invalid JSON before switching to fields",
+											);
+											return;
+										}
+										setAdditionalDataObj(parsed);
+									} else {
+										setAdditionalDataJson(
+											stringifyAdditionalData(additionalDataObj),
+										);
+									}
+									setAdditionalDataMode(val);
+								}}
+							/>
+						</Space>
 					</div>
-					<Form.Item name="additionalDataJson" style={{ marginBottom: 0 }}>
-						<JsonEditor height="calc(90vh - 340px)" />
-					</Form.Item>
+
+					{additionalDataMode === "json" ? (
+						<JsonEditor
+							value={additionalDataJson}
+							onChange={setAdditionalDataJson}
+							height="calc(90vh - 370px)"
+						/>
+					) : (
+						<Space
+							direction="vertical"
+							size="middle"
+							style={{
+								width: "100%",
+								maxHeight: "calc(90vh - 370px)",
+								overflowY: "auto",
+							}}
+						>
+							{Object.entries(additionalDataObj).map(([key, value]) => {
+								const fieldLabel = (
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											alignItems: "center",
+											marginBottom: 4,
+										}}
+									>
+										<Text style={{ color: "#8c8c8c", fontSize: 12 }}>
+											{key}
+										</Text>
+										<Button
+											type="text"
+											size="small"
+											icon={<DeleteOutlined />}
+											style={{ color: "#595959" }}
+											onClick={() =>
+												setAdditionalDataObj((prev) => {
+													const next = { ...prev };
+													delete next[key];
+													return next;
+												})
+											}
+										/>
+									</div>
+								);
+
+								if (typeof value === "boolean") {
+									return (
+										<div key={key}>
+											{fieldLabel}
+											<Switch
+												checked={value}
+												onChange={(checked) =>
+													setAdditionalDataObj((prev) => ({
+														...prev,
+														[key]: checked,
+													}))
+												}
+											/>
+										</div>
+									);
+								}
+
+								if (typeof value === "number") {
+									return (
+										<div key={key}>
+											{fieldLabel}
+											<InputNumber
+												value={value}
+												onChange={(next) =>
+													setAdditionalDataObj((prev) => ({
+														...prev,
+														[key]: next ?? null,
+													}))
+												}
+												style={{ width: "100%" }}
+											/>
+										</div>
+									);
+								}
+
+								if (typeof value === "string" || value === null) {
+									return (
+										<div key={key}>
+											{fieldLabel}
+											<Input.TextArea
+												autoSize={{ minRows: 1, maxRows: 8 }}
+												value={value ?? ""}
+												onChange={(e) =>
+													setAdditionalDataObj((prev) => ({
+														...prev,
+														[key]: e.target.value,
+													}))
+												}
+											/>
+										</div>
+									);
+								}
+
+								return (
+									<div key={key}>
+										{fieldLabel}
+										<Input.TextArea
+											rows={3}
+											value={JSON.stringify(value, null, 2)}
+											onChange={(e) => {
+												try {
+													setAdditionalDataObj((prev) => ({
+														...prev,
+														[key]: JSON.parse(e.target.value),
+													}));
+												} catch {
+													setAdditionalDataObj((prev) => ({
+														...prev,
+														[key]: e.target.value,
+													}));
+												}
+											}}
+										/>
+									</div>
+								);
+							})}
+
+							<div style={{ display: "flex", gap: 8 }}>
+								<Input
+									value={newFieldKey}
+									onChange={(e) => setNewFieldKey(e.target.value)}
+									placeholder="New field name"
+									onPressEnter={() => {
+										const k = newFieldKey.trim();
+										if (!k) return;
+										if (k in additionalDataObj) {
+											message.warning("Field already exists");
+											return;
+										}
+										setAdditionalDataObj((prev) => ({ ...prev, [k]: "" }));
+										setNewFieldKey("");
+									}}
+								/>
+								<Button
+									icon={<PlusOutlined />}
+									onClick={() => {
+										const k = newFieldKey.trim();
+										if (!k) return;
+										if (k in additionalDataObj) {
+											message.warning("Field already exists");
+											return;
+										}
+										setAdditionalDataObj((prev) => ({ ...prev, [k]: "" }));
+										setNewFieldKey("");
+									}}
+								>
+									Add field
+								</Button>
+							</div>
+						</Space>
+					)}
 				</div>
 			</div>
 

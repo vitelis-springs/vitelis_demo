@@ -2002,6 +2002,7 @@ export class DeepDiveService {
 					slug?: string | null;
 					reportRole?: string | null;
 					additionalData?: unknown;
+					parentCompanyId?: number | null;
 			  },
 	) {
 		if (payload.mode === "existing") {
@@ -2019,6 +2020,7 @@ export class DeepDiveService {
 			slug: payload.slug,
 			reportRole: payload.reportRole,
 			additionalData: payload.additionalData,
+			parentCompanyId: payload.parentCompanyId,
 		});
 
 		return { success: true, data: { companyId: company.id } };
