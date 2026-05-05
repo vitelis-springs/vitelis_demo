@@ -190,11 +190,6 @@ export class N8NController {
 				rep_data = await DeepDiveService.getSettings(reportIds[0]);
 			}
 
-			console.log(
-				"🚀 Merging report data with request body:",
-				JSON.stringify(rep_data, null, 2),
-			);
-
 			const upstreamUrl = `${backendUrl}/generate-company-reports-v3`;
 
 			const merger_body = {
