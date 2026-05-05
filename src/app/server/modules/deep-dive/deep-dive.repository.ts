@@ -823,6 +823,7 @@ export class DeepDiveRepository {
 			slug?: string | null;
 			reportRole?: string | null;
 			additionalData?: unknown;
+			parentCompanyId?: number | null;
 		},
 	) {
 		return prisma.$transaction(async (tx) => {
@@ -838,6 +839,7 @@ export class DeepDiveRepository {
 					career_portal: data.careerPortal ?? null,
 					slug: data.slug ?? null,
 					report_role: data.reportRole ?? null,
+					parent_company: data.parentCompanyId ?? null,
 					...(data.additionalData != null
 						? {
 								additional_data: data.additionalData as Parameters<
@@ -911,8 +913,15 @@ export class DeepDiveRepository {
 	}
 
 	static async searchCompaniesByName(query: string, limit = 20) {
+		const numericId = Number(query);
+		const isId = Number.isInteger(numericId) && numericId > 0;
 		return prisma.companies.findMany({
-			where: { name: { contains: query, mode: "insensitive" } },
+			where: {
+				OR: [
+					{ name: { contains: query, mode: "insensitive" } },
+					...(isId ? [{ id: numericId }] : []),
+				],
+			},
 			select: { id: true, name: true, country_code: true, url: true },
 			orderBy: { name: "asc" },
 			take: limit,
