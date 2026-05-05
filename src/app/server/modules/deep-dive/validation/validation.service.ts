@@ -105,6 +105,7 @@ export class ValidationService {
 			rows.map((row) => {
 				const result = row.report_data_point_results;
 				const data = toDataRecord(result.data);
+				const rawSources = data.Sources ?? data.sources;
 				return {
 					validationId: row.id,
 					status: row.status as string,
@@ -120,6 +121,7 @@ export class ValidationService {
 					ruleLevel: row.validation_rules.level as string,
 					dataReasoning: getString(data, "Reasoning"),
 					dataSources: getString(data, "Sources") || getString(data, "sources"),
+					dataSourcesRaw: rawSources,
 					dataScore:
 						result.value ||
 						result.manualValue ||

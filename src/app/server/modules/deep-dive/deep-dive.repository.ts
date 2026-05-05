@@ -9,115 +9,39 @@ import type { SortOrder } from "../../../../types/sorting";
 import { ValidationRepository } from "./validation/validation.repository";
 import type { ValidationRulePayload } from "./validation/validation.types";
 
-export interface DeepDiveListParams {
-	limit: number;
-	offset: number;
-	query?: string;
-	status?: report_status_enum;
-	useCaseId?: number;
-	industryId?: number;
-	reportType?: string;
-	sortBy?: string;
-	sortOrder?: SortOrder;
-}
+export type {
+	CompanyDataPointResultUpdateData,
+	CreateReportModelItemData,
+	DeepDiveListParams,
+	DeepDiveSettingsSnapshot,
+	ReportDataPointSourcesRow,
+	ReportModelItemUpdateData,
+	ReportModelUpdateRow,
+	ReportSettingsProfile,
+	ReportWithRelations,
+	ScrapeCandidatesParams,
+	SourceCountingContext,
+	SourceFilterParams,
+	SourcesAnalyticsParams,
+	ValidatorSettingsProfile,
+} from "./deep-dive.types";
 
-export interface SourceFilterParams {
-	limit: number;
-	offset: number;
-	tier?: number;
-	isVectorized?: boolean;
-	dateFrom?: Date;
-	dateTo?: Date;
-	metaKey?: string;
-	metaValue?: string;
-	metaGroupBy?: string;
-}
-
-export interface SourcesAnalyticsParams {
-	limit: number;
-	offset: number;
-	tier?: number;
-	qualityClass?: string;
-	isValid?: boolean;
-	agent?: string;
-	category?: string;
-	tag?: string;
-	dateFrom?: Date;
-	dateTo?: Date;
-	search?: string;
-	sortBy?: string;
-	sortOrder?: SortOrder;
-}
-
-export interface ScrapeCandidatesParams {
-	limit: number;
-	offset: number;
-	search?: string;
-	sortBy?: string;
-	sortOrder?: SortOrder;
-}
-
-export interface SourceCountingContext {
-	useNewModel: boolean;
-	sourceValidationSettingsId: number | null;
-}
-
-export interface ReportSettingsProfile {
-	id: number;
-	name: string;
-	masterFileId: string;
-	prefix: number | null;
-	settings: unknown;
-}
-
-export interface ValidatorSettingsProfile {
-	id: number;
-	name: string;
-	settings: unknown;
-}
-
-export interface DeepDiveSettingsSnapshot {
-	reportId: number;
-	reportName: string | null;
-	reportDescription: string | null;
-	reportUseCaseId: number | null;
-	reportUseCaseName: string | null;
-	reportSettingsId: number | null;
-	sourceValidationSettingsId: number | null;
-	reportSettings: ReportSettingsProfile | null;
-	validatorSettings: ValidatorSettingsProfile | null;
-}
-
-export interface CompanyDataPointResultUpdateData {
-	value?: string | null;
-	manualValue?: string | null;
-	data?: Prisma.InputJsonValue;
-	status?: boolean;
-}
-
-export interface ReportModelUpdateRow {
-	dataPointId: string;
-	includeToReport: boolean;
-}
-
-export interface ReportDataPointSourcesRow {
-	company_id: number | null;
-	data: unknown;
-}
-
-export interface ReportModelItemUpdateData {
-	name?: string | null;
-	settings?: Prisma.InputJsonValue;
-	manual_method?: boolean | null;
-}
-
-export interface CreateReportModelItemData {
-	dataPointId: string;
-	type: string;
-	name: string | null;
-	settings: Prisma.InputJsonValue;
-	manualMethod?: boolean;
-}
+import type {
+	CompanyDataPointResultUpdateData,
+	CreateReportModelItemData,
+	DeepDiveListParams,
+	DeepDiveSettingsSnapshot,
+	ReportDataPointSourcesRow,
+	ReportModelItemUpdateData,
+	ReportModelUpdateRow,
+	ReportSettingsProfile,
+	ReportWithRelations,
+	ScrapeCandidatesParams,
+	SourceCountingContext,
+	SourceFilterParams,
+	SourcesAnalyticsParams,
+	ValidatorSettingsProfile,
+} from "./deep-dive.types";
 
 export class DeepDiveRepository {
 	private static buildOrderBy(
@@ -317,6 +241,13 @@ export class DeepDiveRepository {
 			where.report_type = params.reportType;
 		}
 
+		if (params.createdFrom || params.createdTo) {
+			where.created_at = {
+				...(params.createdFrom && { gte: params.createdFrom }),
+				...(params.createdTo && { lte: params.createdTo }),
+			};
+		}
+
 		const ALLOWED_SORT: Record<string, string> = {
 			id: "id",
 			name: "name",
@@ -377,7 +308,9 @@ export class DeepDiveRepository {
     `;
 	}
 
-	static async getReportById(reportId: number) {
+	static async getReportById(
+		reportId: number,
+	): Promise<ReportWithRelations | null> {
 		return prisma.reports.findUnique({
 			where: { id: reportId },
 			include: {

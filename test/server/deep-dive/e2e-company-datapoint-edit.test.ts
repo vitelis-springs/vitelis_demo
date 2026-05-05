@@ -21,8 +21,8 @@ jest.mock("../../../src/lib/auth", () => ({
 }));
 
 import { PATCH } from "../../../src/app/api/deep-dive/[id]/companies/[companyId]/data-points/[resultId]/route";
-import { extractAdminFromRequest } from "../../../src/lib/auth";
 import { DeepDiveRepository } from "../../../src/app/server/modules/deep-dive/deep-dive.repository";
+import { extractAdminFromRequest } from "../../../src/lib/auth";
 
 function makeRequest(path: string, body: unknown): NextRequest {
 	return new NextRequest(new URL(path, "http://localhost:3000"), {
@@ -43,7 +43,9 @@ function callPatch(
 			`/api/deep-dive/${reportId}/companies/${companyId}/data-points/${resultId}`,
 			body,
 		),
-		{ params: Promise.resolve({ id: reportId, companyId, resultId }) },
+		{
+			params: Promise.resolve({ id: reportId, companyId, resultId }),
+		},
 	);
 }
 
@@ -230,6 +232,66 @@ describe("E2E: PATCH /api/deep-dive/[id]/companies/[companyId]/data-points/[resu
 				}),
 			}),
 		);
+	});
+
+	it("preserves structured sources array for kpi driver updates", async () => {
+		const base = {
+			id: 42,
+			report_id: 10,
+			company_id: 173,
+			data_point_id: "kpi_driver_Automation",
+			value: "3 Medium",
+			manualValue: null,
+			status: true,
+			data: {
+				"Metric (KPI Driver)": "Automation",
+				Score: "3 Medium",
+				Reasoning: "Old reasoning",
+				Sources: "https://legacy.example/source",
+			},
+			updates_at: new Date("2026-02-24T10:00:00.000Z"),
+			data_points: { type: "kpi_driver", name: "Automation" },
+		};
+		const structuredSources = [
+			{
+				reference_number: 1,
+				url: "https://example.com/source-1",
+				title: "Source one",
+			},
+			{
+				reference_number: 2,
+				url: "https://example.com/source-2",
+				title: "Source two",
+			},
+		];
+		const updated = {
+			...base,
+			data: {
+				...base.data,
+				Sources: structuredSources,
+			},
+		};
+
+		jest
+			.spyOn(DeepDiveRepository, "getCompanyDataPointResultById")
+			.mockResolvedValueOnce(base as never);
+		const updateSpy = jest
+			.spyOn(DeepDiveRepository, "updateCompanyDataPointResult")
+			.mockResolvedValueOnce(updated as never);
+
+		const res = await callPatch("10", "173", "42", {
+			sources: structuredSources,
+			reasoning: "Old reasoning",
+		});
+		const body = await res.json();
+
+		expect(res.status).toBe(200);
+		expect(body.success).toBe(true);
+		const updatePayload = updateSpy.mock.calls[0]?.[1];
+		expect(updatePayload).toBeDefined();
+		const updateData = updatePayload?.data as Record<string, unknown>;
+		expect(updateData.Sources).toEqual(structuredSources);
+		expect(updateData).not.toHaveProperty("sources");
 	});
 
 	it("updates raw datapoint and syncs manualValue + data.answer", async () => {

@@ -20,7 +20,11 @@ jest.mock("../../../src/lib/auth", () => ({
 	})),
 }));
 
-import { PATCH } from "../../../src/app/api/deep-dive/[id]/validation/[company_id]/route";
+import {
+	GET,
+	PATCH,
+} from "../../../src/app/api/deep-dive/[id]/validation/[company_id]/route";
+import { DeepDiveRepository } from "../../../src/app/server/modules/deep-dive/deep-dive.repository";
 import { ValidationRepository } from "../../../src/app/server/modules/deep-dive/validation/validation.repository";
 import { extractAdminFromRequest } from "../../../src/lib/auth";
 
@@ -39,6 +43,22 @@ function callPatch(
 ): Promise<Response> {
 	return PATCH(
 		makeRequest(`/api/deep-dive/${reportId}/validation/${companyId}`, body),
+		{ params: Promise.resolve({ id: reportId, company_id: companyId }) },
+	);
+}
+
+function callGet(
+	reportId: string,
+	companyId: string,
+	query = "",
+): Promise<Response> {
+	return GET(
+		new NextRequest(
+			new URL(
+				`/api/deep-dive/${reportId}/validation/${companyId}${query}`,
+				"http://localhost:3000",
+			),
+		),
 		{ params: Promise.resolve({ id: reportId, company_id: companyId }) },
 	);
 }
@@ -110,5 +130,63 @@ describe("E2E: PATCH /api/deep-dive/[id]/validation/[company_id]", () => {
 			comment: "Driver value corrected manually.",
 			resolvedBy: "admin@test.com",
 		});
+	});
+
+	it("returns structured dataSourcesRaw for validation edit flows", async () => {
+		const structuredSources = [
+			{
+				url: "https://example.com/source",
+				title: "Structured source",
+				reference_number: 1,
+			},
+		];
+
+		jest.spyOn(DeepDiveRepository, "getCompany").mockResolvedValueOnce({
+			id: 173,
+			name: "Acme Corp",
+		} as never);
+		jest
+			.spyOn(ValidationRepository, "getValidationByCompany")
+			.mockResolvedValueOnce([
+				{
+					id: 25,
+					status: "failed",
+					reasoning: "Needs manual review",
+					validation_rules: {
+						id: 7,
+						name: "source_quality",
+						label: "Source quality",
+						level: "driver",
+					},
+					report_data_point_results: {
+						id: 31,
+						data_point_id: "kpi_driver_source_quality",
+						value: "3 Medium",
+						manualValue: null,
+						status: false,
+						data: {
+							Reasoning: "Evidence summary",
+							Sources: structuredSources,
+							"KPI Score": "3 Medium",
+						},
+						data_points: {
+							name: "Source quality",
+							type: "kpi_driver",
+						},
+						companies: {
+							id: 173,
+							name: "Acme Corp",
+						},
+					},
+				},
+			] as never);
+
+		const res = await callGet("10", "173");
+		const body = await res.json();
+
+		expect(res.status).toBe(200);
+		expect(body.items).toHaveLength(1);
+		expect(body.items[0].dataSources).toBe("");
+		expect(body.items[0].dataSourcesRaw).toEqual(structuredSources);
 	});
 });

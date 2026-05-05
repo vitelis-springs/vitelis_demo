@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { N8NController } from "../../../../server/modules/n8n";
 
 export async function POST(request: NextRequest) {

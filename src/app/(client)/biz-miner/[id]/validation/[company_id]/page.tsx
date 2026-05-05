@@ -33,9 +33,8 @@ import {
 } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DeepDiveBreadcrumbs from "../../../../../../components/deep-dive/breadcrumbs";
-import DatapointEditModal, {
-	type DatapointEditTarget,
-} from "../../../../../../components/deep-dive/datapoint-edit-modal";
+import DatapointEditModal from "../../../../../../components/deep-dive/datapoint-edit-modal";
+import type { DatapointEditTarget } from "../../../../../../components/deep-dive/datapoint-edit-modal.types";
 import StatCard from "../../../../../../components/deep-dive/shared/stat-card";
 import { DARK_CARD_STYLE } from "../../../../../../config/chart-theme";
 import {
@@ -66,6 +65,17 @@ const STATUS_COLOR: Record<string, string> = {
 	failed: "#ff4d4f",
 };
 
+const isStructuredSourcesValue = (value: unknown): boolean =>
+	Array.isArray(value) || (typeof value === "object" && value !== null);
+
+const toSourcesJsonText = (value: unknown): string => {
+	try {
+		return JSON.stringify(value ?? [], null, 2);
+	} catch {
+		return "[]";
+	}
+};
+
 function statusTag(status: string) {
 	const color =
 		status === "pass" ? "success" : status === "warn" ? "warning" : "error";
@@ -84,7 +94,7 @@ export default function ValidationByCompanyPage() {
 	const companyId = Number(params.company_id);
 
 	const [isAuthLoading, setIsAuthLoading] = useState(
-		() => !useAuthStore.persist.hasHydrated(),
+		() => !useAuthStore.persist?.hasHydrated(),
 	);
 	const [editingTarget, setEditingTarget] =
 		useState<DatapointEditTarget | null>(null);
@@ -108,12 +118,12 @@ export default function ValidationByCompanyPage() {
 	const [pageSize, setPageSize] = useState(50);
 
 	useEffect(() => {
-		if (useAuthStore.persist.hasHydrated()) {
+		if (useAuthStore.persist?.hasHydrated()) {
 			setIsAuthLoading(false);
 			return;
 		}
 
-		const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
+		const unsubscribe = useAuthStore.persist?.onFinishHydration(() => {
 			setIsAuthLoading(false);
 		});
 
@@ -274,6 +284,12 @@ export default function ValidationByCompanyPage() {
 									label: row.driverName,
 									reasoning: row.dataReasoning,
 									sources: row.dataSources,
+									sourcesMode: isStructuredSourcesValue(row.dataSourcesRaw)
+										? "json"
+										: "text",
+									sourcesJson: isStructuredSourcesValue(row.dataSourcesRaw)
+										? toSourcesJsonText(row.dataSourcesRaw)
+										: undefined,
 									score: row.dataScore,
 									scoreValue: parsedScore.scoreValue,
 									scoreTier: parsedScore.scoreTier,
