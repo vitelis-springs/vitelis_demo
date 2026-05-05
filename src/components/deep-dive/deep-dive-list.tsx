@@ -1,8 +1,10 @@
 "use client";
 
+import { FileExcelOutlined } from "@ant-design/icons";
 import {
 	Button,
 	Card,
+	DatePicker,
 	Input,
 	Select,
 	Space,
@@ -10,24 +12,25 @@ import {
 	Tag,
 	Typography,
 } from "antd";
-import { FileExcelOutlined } from "@ant-design/icons";
+import dayjs, { type Dayjs } from "dayjs";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import {
-	DeepDiveListItem,
-	DeepDiveStatus,
+	type DeepDiveListItem,
+	type DeepDiveStatus,
 	useGetDeepDives,
 } from "../../hooks/api/useDeepDiveService";
 import useServerSortedTable from "../../hooks/useServerSortedTable";
-import DeepDivePageLayout from "./shared/page-layout";
-import PageHeader from "./shared/page-header";
-import DeepDiveStatusTag from "./status-tag";
-import CreateReportModal, { CloneReportButton } from "./create-report-modal";
 import { ReportCostModal } from "../report-steps/ReportCostModal";
+import CreateReportModal, { CloneReportButton } from "./create-report-modal";
 import ExportXlsxModal from "./export-xlsx-modal";
+import PageHeader from "./shared/page-header";
+import DeepDivePageLayout from "./shared/page-layout";
+import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
+const { RangePicker } = DatePicker;
 
 const STATUS_OPTIONS: Array<{ label: string; value: DeepDiveStatus | "" }> = [
 	{ label: "All Statuses", value: "" },
@@ -43,24 +46,6 @@ const REPORT_TYPE_OPTIONS: Array<{ label: string; value: string | "" }> = [
 	{ label: "SalesMiner", value: "sales_miner" },
 	{ label: "Internal", value: "internal" },
 ];
-
-function formatRelativeTime(value?: string | null) {
-	if (!value) return "—";
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return "—";
-
-	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffMins = Math.floor(diffMs / 60000);
-	const diffHours = Math.floor(diffMins / 60);
-	const diffDays = Math.floor(diffHours / 24);
-
-	if (diffMins < 1) return "just now";
-	if (diffMins < 60) return `${diffMins}m ago`;
-	if (diffHours < 24) return `${diffHours}h ago`;
-	if (diffDays < 7) return `${diffDays}d ago`;
-	return date.toLocaleDateString();
-}
 
 /**
  * TODO(human): Implement renderBadges — render tag badges for a report row.
@@ -97,6 +82,8 @@ interface DeepDiveListProps {
 
 export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 	const router = useRouter();
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
 	const {
 		page,
 		pageSize,
@@ -121,6 +108,31 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 	const [cloneFromId, setCloneFromId] = useState<number | null>(null);
 	const [xlsxModalOpen, setXlsxModalOpen] = useState(false);
 
+	const createdFromParam = searchParams.get("createdFrom");
+	const createdToParam = searchParams.get("createdTo");
+	const createdRange: [Dayjs | null, Dayjs | null] | null =
+		createdFromParam || createdToParam
+			? [
+					createdFromParam ? dayjs(createdFromParam) : null,
+					createdToParam ? dayjs(createdToParam) : null,
+				]
+			: null;
+
+	const setCreatedRange = (range: [Dayjs | null, Dayjs | null] | null) => {
+		const params = new URLSearchParams(searchParams.toString());
+		if (range?.[0]) {
+			params.set("createdFrom", range[0].toISOString());
+		} else {
+			params.delete("createdFrom");
+		}
+		if (range?.[1]) {
+			params.set("createdTo", range[1].endOf("day").toISOString());
+		} else {
+			params.delete("createdTo");
+		}
+		router.replace(`${pathname}?${params.toString()}`);
+	};
+
 	const { data, isLoading } = useGetDeepDives({
 		limit: pageSize,
 		offset,
@@ -131,6 +143,8 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 		reportType,
 		sortBy,
 		sortOrder,
+		createdFrom: createdFromParam ?? undefined,
+		createdTo: createdToParam ?? undefined,
 	});
 
 	const items = data?.data.items ?? [];
@@ -308,6 +322,18 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 				},
 			},
 			{
+				title: "Created",
+				dataIndex: "createdAt",
+				key: "created_at",
+				width: 140,
+				sorter: true,
+				render: (value: string | null) => (
+					<Text style={{ color: "#8c8c8c", fontSize: 13 }}>
+						{value ? dayjs(value).format("D MMM YYYY") : "—"}
+					</Text>
+				),
+			},
+			{
 				title: "Updated",
 				dataIndex: "updatedAt",
 				key: "updated_at",
@@ -315,7 +341,7 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 				sorter: true,
 				render: (value: string | null) => (
 					<Text style={{ color: "#8c8c8c", fontSize: 13 }}>
-						{formatRelativeTime(value)}
+						{value ? dayjs(value).format("D MMM YYYY") : "—"}
 					</Text>
 				),
 			},
@@ -446,6 +472,15 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 						}}
 						options={industryOptions}
 						style={{ width: 200 }}
+					/>
+					<RangePicker
+						value={createdRange}
+						onChange={(range) => {
+							resetPage();
+							setCreatedRange(range);
+						}}
+						placeholder={["Created from", "Created to"]}
+						style={{ width: 280 }}
 					/>
 				</Space>
 			</Card>

@@ -2,36 +2,17 @@
 
 import { Alert, Input, Modal, Select, Space, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
-import type { UpdateCompanyDataPointPayload } from "../../hooks/api/useDeepDiveService";
 import {
 	KPI_SCORE_TIERS,
 	KPI_SCORE_VALUES,
 	type KpiScoreTier,
 	type KpiScoreValue,
 } from "../../shared/kpi-score";
+import type { UpdateCompanyDataPointPayload } from "../../types/deep-dive.types";
+import JsonEditor from "./json-editor";
+import type { DatapointEditModalProps } from "./datapoint-edit-modal.types";
 
 const { Text } = Typography;
-
-export interface DatapointEditTarget {
-	resultId: number;
-	dataPointId: string;
-	type: string;
-	label: string;
-	reasoning: string;
-	sources: string;
-	score: string;
-	scoreValue: KpiScoreValue | null;
-	scoreTier: KpiScoreTier | null;
-	status: boolean;
-}
-
-interface DatapointEditModalProps {
-	open: boolean;
-	loading: boolean;
-	target: DatapointEditTarget | null;
-	onClose: () => void;
-	onSubmit: (payload: UpdateCompanyDataPointPayload) => void;
-}
 
 function normalizeOptional(value: string): string | null {
 	const trimmed = value.trim();
@@ -47,6 +28,7 @@ export default function DatapointEditModal({
 }: DatapointEditModalProps) {
 	const [reasoning, setReasoning] = useState("");
 	const [sources, setSources] = useState("");
+	const [sourcesJson, setSourcesJson] = useState("");
 	const [score, setScore] = useState("");
 	const [scoreValue, setScoreValue] = useState<KpiScoreValue | null>(null);
 	const [scoreTier, setScoreTier] = useState<KpiScoreTier | null>(null);
@@ -56,6 +38,7 @@ export default function DatapointEditModal({
 		if (!target) return;
 		setReasoning(target.reasoning);
 		setSources(target.sources);
+		setSourcesJson(target.sourcesJson ?? "[]");
 		setScore(target.score);
 		setScoreValue(target.scoreValue);
 		setScoreTier(target.scoreTier);
@@ -81,11 +64,59 @@ export default function DatapointEditModal({
 	const scoreChanged =
 		scoreValue !== targetScoreValue || scoreTier !== targetScoreTier;
 	const hasPartialKpiScore = (scoreValue === null) !== (scoreTier === null);
+	const useJsonSourcesEditor = target?.sourcesMode === "json";
+
+	const parsedSourcesJson = useJsonSourcesEditor
+		? (() => {
+				const trimmed = sourcesJson.trim();
+				if (!trimmed) {
+					return {
+						ok: true as const,
+						supported: true as const,
+						value: null as null,
+					};
+				}
+				try {
+					const parsed = JSON.parse(trimmed) as unknown;
+					const supported =
+						parsed === null ||
+						typeof parsed === "string" ||
+						Array.isArray(parsed) ||
+						(typeof parsed === "object" && parsed !== null);
+					return {
+						ok: true as const,
+						supported,
+						value: parsed,
+					};
+				} catch {
+					return {
+						ok: false as const,
+						supported: false as const,
+						value: null as null,
+					};
+				}
+			})()
+		: { ok: true as const, supported: true as const, value: null as null };
+
+	const isSaveDisabled =
+		(isKpiScoreType && scoreChanged && hasPartialKpiScore) ||
+		!parsedSourcesJson.ok ||
+		!parsedSourcesJson.supported;
 
 	const handleSubmit = () => {
+		if (!parsedSourcesJson.ok) {
+			return;
+		}
+
 		const payload: UpdateCompanyDataPointPayload = {
 			reasoning: normalizeOptional(reasoning),
-			sources: normalizeOptional(sources),
+			sources: useJsonSourcesEditor
+				? (parsedSourcesJson.value as
+						| string
+						| Record<string, unknown>
+						| unknown[]
+						| null)
+				: normalizeOptional(sources),
 			status,
 		};
 
@@ -112,7 +143,7 @@ export default function DatapointEditModal({
 			okText="Save"
 			confirmLoading={loading}
 			okButtonProps={{
-				disabled: isKpiScoreType && scoreChanged && hasPartialKpiScore,
+				disabled: isSaveDisabled,
 			}}
 			width={760}
 			destroyOnHidden
@@ -137,12 +168,20 @@ export default function DatapointEditModal({
 					autoSize={{ minRows: 4, maxRows: 12 }}
 				/>
 
-				<Input.TextArea
-					value={sources}
-					onChange={(event) => setSources(event.target.value)}
-					placeholder="Sources (URLs or comma/newline separated values)"
-					autoSize={{ minRows: 3, maxRows: 10 }}
-				/>
+				{useJsonSourcesEditor ? (
+					<JsonEditor
+						value={sourcesJson}
+						onChange={setSourcesJson}
+						height="calc(80vh - 460px)"
+					/>
+				) : (
+					<Input.TextArea
+						value={sources}
+						onChange={(event) => setSources(event.target.value)}
+						placeholder="Sources (URLs or comma/newline separated values)"
+						autoSize={{ minRows: 3, maxRows: 10 }}
+					/>
+				)}
 
 				{isRaw ? (
 					<Input
@@ -210,6 +249,19 @@ export default function DatapointEditModal({
 						title="Set both Score Value and Score Tier, or clear both."
 					/>
 				)}
+
+				{useJsonSourcesEditor &&
+					(!parsedSourcesJson.ok || !parsedSourcesJson.supported) && (
+						<Alert
+							type="warning"
+							showIcon
+							title={
+								!parsedSourcesJson.ok
+									? "Sources JSON is invalid"
+									: "Sources JSON must be string, object, array, or null"
+							}
+						/>
+					)}
 			</Space>
 		</Modal>
 	);

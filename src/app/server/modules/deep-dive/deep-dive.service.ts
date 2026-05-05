@@ -11,17 +11,25 @@ import {
 	type KpiScoreValue,
 } from "../../../../shared/kpi-score";
 import { ReportStepsRepository } from "../report-steps/report-steps.repository";
-import {
-	type CompanyDataPointResultUpdateData,
-	type DeepDiveListParams,
-	DeepDiveRepository,
-	type ReportDataPointSourcesRow,
-	type ReportModelUpdateRow,
-	type ScrapeCandidatesParams,
-	type SourceCountingContext,
-	type SourceFilterParams,
-	type SourcesAnalyticsParams,
-} from "./deep-dive.repository";
+import { DeepDiveRepository } from "./deep-dive.repository";
+import type {
+	CompanyDataPointResultUpdateData,
+	CreateReportModelItemPayload,
+	DeepDiveListParams,
+	DeepDiveMetricKey,
+	ImportedModelDataPoint,
+	ReportDataPointSourcesRow,
+	ReportWithRelations,
+	ReportModelImportRow,
+	ReportModelUpdateRow,
+	ScrapeCandidatesParams,
+	SourceCountingContext,
+	SourceFilterParams,
+	SourcesAnalyticsParams,
+	UpdateCompanyDataPointPayload,
+	UpdateDeepDiveSettingsPayload,
+	UpdateReportModelItemPayload,
+} from "./deep-dive.types";
 import { ValidationService } from "./validation/validation.service";
 import type {
 	ValidationManualUpdatePayload,
@@ -36,69 +44,6 @@ const DEFAULT_STATUS_COUNTS = {
 	ERROR: 0,
 };
 
-export interface UpdateDeepDiveSettingsPayload {
-	reportInfo: {
-		name: string;
-		description?: string | null;
-		useCaseId?: number | null;
-	};
-	reportSettings: {
-		name?: string;
-		masterFileId?: string;
-		prefix?: number | null;
-		settings: Record<string, unknown>;
-	};
-	validatorSettings: {
-		name?: string;
-		settings: Record<string, unknown>;
-	};
-	countryIds?: string[];
-}
-
-export interface UpdateCompanyDataPointPayload {
-	reasoning?: string | null;
-	sources?: string | null;
-	score?: string | number | null;
-	scoreValue?: KpiScoreValue | null;
-	scoreTier?: KpiScoreTier | null;
-	status?: boolean;
-}
-
-export type DeepDiveMetricKey =
-	| "companies-count"
-	| "orchestrator-status"
-	| "total-sources"
-	| "used-sources"
-	| "total-scrape-candidates"
-	| "total-queries";
-
-export interface ReportModelImportRow {
-	dataPointId: string;
-	includeToReport?: boolean;
-}
-
-export interface UpdateReportModelItemPayload {
-	dataPointId: string;
-	name?: string | null;
-	settings?: Record<string, unknown>;
-	manualMethod?: boolean | null;
-}
-
-export interface CreateReportModelItemPayload {
-	dataPointId: string;
-	type: string;
-	name?: string | null;
-	settings: Record<string, unknown>;
-	manualMethod?: boolean;
-}
-
-interface ImportedModelDataPoint {
-	id: string;
-	type: string;
-	name: string | null;
-	settings: Record<string, unknown>;
-}
-
 function asSettingsRecord(value: unknown): Record<string, unknown> | null {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
 		return null;
@@ -112,10 +57,6 @@ function asInputJsonObject(
 ): Prisma.InputJsonValue {
 	return value as Prisma.InputJsonValue;
 }
-
-type ReportWithRelations = NonNullable<
-	Awaited<ReturnType<typeof DeepDiveRepository.getReportById>>
->;
 
 export class DeepDiveService {
 	private static isJsonObject(
@@ -245,7 +186,7 @@ export class DeepDiveService {
 
 	private static applySourcesUpdate(
 		data: Record<string, unknown>,
-		sources: string | null,
+		sources: string | Record<string, unknown> | unknown[] | null,
 		options: { isRaw: boolean },
 	): void {
 		if (options.isRaw) {
@@ -380,7 +321,9 @@ export class DeepDiveService {
 			const sources =
 				payload.sources === null
 					? null
-					: DeepDiveService.normalizeTextInput(payload.sources);
+					: typeof payload.sources === "string"
+						? DeepDiveService.normalizeTextInput(payload.sources)
+						: payload.sources;
 
 			DeepDiveService.applySourcesUpdate(mutableData, sources, { isRaw });
 			dataChanged = true;
@@ -493,7 +436,12 @@ export class DeepDiveService {
 					useCases: allUseCases,
 				},
 				countries: {
-					all: allCountries.map((c) => ({ id: c.id, name: c.country_name })),
+					all: allCountries.map(
+						(country: { id: string; country_name: string }) => ({
+							id: country.id,
+							name: country.country_name,
+						}),
+					),
 					selected: selectedCountryIds,
 				},
 			},

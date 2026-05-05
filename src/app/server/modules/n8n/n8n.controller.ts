@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { N8NService } from "./n8n.service";
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: <asd> */
+
+import { get } from "http";
+import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
+import { N8NService } from "./n8n.service";
 
 export class N8NController {
 	static async startBizMiner(request: NextRequest): Promise<NextResponse> {
@@ -182,6 +185,8 @@ export class N8NController {
 				);
 			}
 
+			//const table_config = getTableConfigForReports(reportIds[0]);
+
 			const upstreamUrl = `${backendUrl}/generate-company-reports-v3`;
 			const upstream = await fetch(upstreamUrl, {
 				method: "POST",
@@ -189,6 +194,7 @@ export class N8NController {
 				body: JSON.stringify({
 					company_ids: companyIds,
 					report_ids: reportIds,
+					table_config:{},
 				}),
 			});
 

@@ -10,14 +10,14 @@ import {
 } from "../../../../shared/kpi-score";
 import type { SortOrder } from "../../../../types/sorting";
 import { N8NService } from "../n8n/n8n.service";
-import {
-	type CreateReportModelItemPayload,
-	type DeepDiveMetricKey,
-	DeepDiveService,
-	type ReportModelImportRow,
-	type UpdateCompanyDataPointPayload,
-	type UpdateReportModelItemPayload,
-} from "./deep-dive.service";
+import type {
+	CreateReportModelItemPayload,
+	DeepDiveMetricKey,
+	ReportModelImportRow,
+	UpdateCompanyDataPointPayload,
+	UpdateReportModelItemPayload,
+} from "./deep-dive.types";
+import { DeepDiveService } from "./deep-dive.service";
 import { ValidationController } from "./validation/validation.controller";
 
 const DEFAULT_LIMIT = 50;
@@ -72,10 +72,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isJsonObject(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function parseReportModelRows(value: unknown): ReportModelImportRow[] | null {
 	if (!Array.isArray(value)) return null;
 
@@ -116,7 +112,7 @@ function parseUpdateReportModelItemPayload(
 		return null;
 	}
 
-	if (value.settings !== undefined && !isJsonObject(value.settings)) {
+	if (value.settings !== undefined && !isRecord(value.settings)) {
 		return null;
 	}
 
@@ -146,7 +142,7 @@ function parseCreateReportModelItemPayload(
 		!isRecord(value) ||
 		typeof value.dataPointId !== "string" ||
 		typeof value.type !== "string" ||
-		!isJsonObject(value.settings)
+		!isRecord(value.settings)
 	) {
 		return null;
 	}
@@ -381,6 +377,8 @@ export class DeepDiveController {
 			const industryRaw = toNumber(searchParams.get("industryId"));
 			const sortBy = searchParams.get("sortBy")?.trim() || undefined;
 			const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
+			const createdFrom = parseDate(searchParams.get("createdFrom"));
+			const createdTo = parseDate(searchParams.get("createdTo"));
 			const reportTypeRaw = searchParams.get("reportType")?.trim();
 			const VALID_REPORT_TYPES = ["biz_miner", "sales_miner", "internal"];
 			const reportType =
@@ -398,6 +396,8 @@ export class DeepDiveController {
 				reportType,
 				sortBy,
 				sortOrder,
+				createdFrom: createdFrom || undefined,
+				createdTo: createdTo || undefined,
 			});
 
 			return NextResponse.json(result);
@@ -696,9 +696,9 @@ export class DeepDiveController {
 				!isRecord(reportInfo) ||
 				typeof reportInfo.name !== "string" ||
 				!isRecord(reportSettings) ||
-				!isJsonObject(reportSettings.settings) ||
+				!isRecord(reportSettings.settings) ||
 				!isRecord(validatorSettings) ||
-				!isJsonObject(validatorSettings.settings)
+				!isRecord(validatorSettings.settings)
 			) {
 				return NextResponse.json(
 					{ success: false, error: "Invalid payload" },
@@ -1327,13 +1327,25 @@ export class DeepDiveController {
 			}
 
 			if ("sources" in body) {
-				if (body.sources !== null && typeof body.sources !== "string") {
+				const invalidSources =
+					body.sources !== null &&
+					typeof body.sources !== "string" &&
+					!Array.isArray(body.sources) &&
+					!isRecord(body.sources);
+				if (invalidSources) {
 					return NextResponse.json(
-						{ success: false, error: "sources must be a string or null" },
+						{
+							success: false,
+							error: "sources must be a string, array, object, or null",
+						},
 						{ status: 400 },
 					);
 				}
-				payload.sources = body.sources as string | null;
+				payload.sources = body.sources as
+					| string
+					| Record<string, unknown>
+					| unknown[]
+					| null;
 			}
 
 			if ("score" in body) {

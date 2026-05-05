@@ -1,5 +1,6 @@
 "use client";
 
+import { EditOutlined } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
 import {
 	App,
@@ -17,7 +18,6 @@ import {
 	Tag,
 	Typography,
 } from "antd";
-import { EditOutlined } from "@ant-design/icons";
 import { useCallback, useMemo, useState } from "react";
 import {
 	PolarAngleAxis,
@@ -36,76 +36,39 @@ import {
 	DARK_CARD_STYLE,
 } from "../../config/chart-theme";
 import {
-	DeepDiveCompanyResponse,
-	DeepDiveStatus,
+	type DeepDiveCompanyResponse,
+	type DeepDiveStatus,
+	type UpdateCompanyDataPointPayload,
 	useGetDeepDiveCompany,
 	useUpdateCompanyDataPoint,
-	type UpdateCompanyDataPointPayload,
 } from "../../hooks/api/useDeepDiveService";
-import SalesMinerCompany from "./sales-miner-company";
-import EditCompanyModal from "./edit-company-modal";
 import { parseKpiScoreSelection } from "../../shared/kpi-score";
 import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
-import DatapointEditModal, {
-	type DatapointEditTarget,
-} from "./datapoint-edit-modal";
-import {
-	useResizableColumns,
-	RESIZABLE_TABLE_COMPONENTS,
-} from "./shared/resizable-table";
+import DatapointEditModal from "./datapoint-edit-modal";
+import type {
+	CategoryRow,
+	DataRecord,
+	DriverRow,
+	RadarDataPoint,
+	RawDataPointRow,
+	SourceRecord,
+} from "./deep-dive-company.types";
+import type { DatapointEditTarget } from "./datapoint-edit-modal.types";
+import EditCompanyModal from "./edit-company-modal";
+import SalesMinerCompany from "./sales-miner-company";
 import { MarkdownCell, SourcesCell } from "./shared/markdown-cell";
-import DeepDivePageLayout from "./shared/page-layout";
 import PageHeader from "./shared/page-header";
+import DeepDivePageLayout from "./shared/page-layout";
+import {
+	RESIZABLE_TABLE_COMPONENTS,
+	useResizableColumns,
+} from "./shared/resizable-table";
 import StatCard from "./shared/stat-card";
 import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
 
 const SCORE_DOMAIN: [number, number] = [0, 5];
-
-/* ─────────────── types ─────────────── */
-
-type DataRecord = Record<string, unknown>;
-
-type CategoryRow = {
-	key: number;
-	dataPointId: string;
-	category: string;
-	score: number | null;
-	scoreLabel: string;
-	reasoning: string | null;
-	editTarget: DatapointEditTarget;
-};
-
-type DriverRow = {
-	key: number;
-	dataPointId: string;
-	category: string;
-	kpi: string;
-	driver: string;
-	score: number | null;
-	scoreLabel: string;
-	reasoning: string | null;
-	sources: string[];
-	editTarget: DatapointEditTarget;
-};
-
-type RawDataPointRow = {
-	key: number;
-	question: string;
-	answer: string;
-	explanation: string | null;
-	sources: string[];
-	dataPointId: string;
-	editTarget: DatapointEditTarget;
-};
-
-type RadarDataPoint = {
-	category: string;
-	company: number;
-	top5Average: number;
-	reportAverage: number;
-};
 
 /* ─────────────── helpers ─────────────── */
 
@@ -140,15 +103,43 @@ const toScoreLabel = (value: unknown, fallback?: number | null): string => {
 const SOURCE_URL_REGEX = /https?:\/\/[^\s<>"`]+/g;
 
 const trimSourceToken = (value: string): string =>
-	value.replace(/^[\[(]*/, "").replace(/[)\],.;:]+$/, "");
+	value.replace(/^[[(]*/, "").replace(/[)\],.;:]+$/, "");
+
+const isSourceRecord = (value: unknown): value is SourceRecord =>
+	typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isStructuredSourcesValue = (value: unknown): boolean =>
+	Array.isArray(value) &&
+	value.some((item) => isSourceRecord(item) || Array.isArray(item));
 
 const normalizeSources = (value: unknown): string[] => {
 	if (Array.isArray(value)) {
 		return value
-			.filter((item): item is string => typeof item === "string")
+			.flatMap((item) => {
+				if (typeof item === "string") {
+					return [item];
+				}
+				if (Array.isArray(item)) {
+					return normalizeSources(item);
+				}
+				if (isSourceRecord(item)) {
+					const rawUrl = item.url;
+					const rawTitle = item.title;
+					const url =
+						typeof rawUrl === "string" ? trimSourceToken(rawUrl.trim()) : "";
+					const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
+					if (url && title) return [`[${title}](${url})`];
+					if (url) return [url];
+					if (title) return [title];
+				}
+				return [];
+			})
 			.map((item) => item.trim())
 			.map((item) => item.replace(/^\d+\.\s*/, ""))
 			.map((item) => {
+				if (/^\[[^\]]+\]\(https?:\/\/.+\)$/.test(item)) {
+					return item;
+				}
 				const match = item.match(SOURCE_URL_REGEX);
 				return match?.[0] ? trimSourceToken(match[0]) : item;
 			})
@@ -195,6 +186,15 @@ const toSourcesText = (value: unknown): string =>
 	normalizeSources(value)
 		.map((source, index) => `${index + 1}. ${source}`)
 		.join("\n");
+
+const toSourcesJsonText = (value: unknown): string => {
+	const fallback = "[]";
+	try {
+		return JSON.stringify(value ?? [], null, 2);
+	} catch {
+		return fallback;
+	}
+};
 
 const deriveCompanyStatus = (
 	steps: DeepDiveCompanyResponse["data"]["steps"],
@@ -314,6 +314,7 @@ export default function DeepDiveCompany({
 				type === "raw_data_point" || dpId.startsWith("raw_data_point");
 
 			if (isCategory) {
+				const sourcesValue = dr["Sources"] ?? dr["sources"];
 				const sv = parseScore(result.value ?? dr["KPI Score"]);
 				const scoreText = toScoreLabel(result.value ?? dr["KPI Score"], sv);
 				const parsedScore = parseKpiScoreSelection(
@@ -337,7 +338,11 @@ export default function DeepDiveCompany({
 						type,
 						label: categoryName,
 						reasoning: getString(dr, "Reasoning") || "",
-						sources: toSourcesText(dr["Sources"] ?? dr["sources"]),
+						sources: toSourcesText(sourcesValue),
+						sourcesMode: isStructuredSourcesValue(sourcesValue)
+							? "json"
+							: "text",
+						sourcesJson: toSourcesJsonText(sourcesValue),
 						score: scoreText === "—" ? "" : scoreText,
 						scoreValue: parsedScore.scoreValue,
 						scoreTier: parsedScore.scoreTier,
@@ -345,6 +350,7 @@ export default function DeepDiveCompany({
 					},
 				});
 			} else if (isDriver) {
+				const sourcesValue = dr["Sources"] ?? dr["sources"];
 				const sv = parseScore(result.value ?? dr["Score"]);
 				const categoryName = getString(dr, "KPI Category") || "Uncategorized";
 				const kpiName =
@@ -366,14 +372,18 @@ export default function DeepDiveCompany({
 					score: sv,
 					scoreLabel: scoreText,
 					reasoning: getString(dr, "Reasoning"),
-					sources: normalizeSources(dr["Sources"] ?? dr["sources"]),
+					sources: normalizeSources(sourcesValue),
 					editTarget: {
 						resultId: result.id,
 						dataPointId: dpId,
 						type,
 						label: driverName,
 						reasoning: getString(dr, "Reasoning") || "",
-						sources: toSourcesText(dr["Sources"] ?? dr["sources"]),
+						sources: toSourcesText(sourcesValue),
+						sourcesMode: isStructuredSourcesValue(sourcesValue)
+							? "json"
+							: "text",
+						sourcesJson: toSourcesJsonText(sourcesValue),
 						score: scoreText === "—" ? "" : scoreText,
 						scoreValue: parsedScore.scoreValue,
 						scoreTier: parsedScore.scoreTier,
@@ -381,6 +391,7 @@ export default function DeepDiveCompany({
 					},
 				});
 			} else if (isRaw) {
+				const sourcesValue = dr["sources"] ?? dr["Sources"];
 				const question =
 					getString(dr, "raw_data_point") ||
 					result.name ||
@@ -399,14 +410,18 @@ export default function DeepDiveCompany({
 					question,
 					answer,
 					explanation,
-					sources: normalizeSources(dr["sources"] ?? dr["Sources"]),
+					sources: normalizeSources(sourcesValue),
 					editTarget: {
 						resultId: result.id,
 						dataPointId: dpId,
 						type,
 						label: question,
 						reasoning: explanation || "",
-						sources: toSourcesText(dr["sources"] ?? dr["Sources"]),
+						sources: toSourcesText(sourcesValue),
+						sourcesMode: isStructuredSourcesValue(sourcesValue)
+							? "json"
+							: "text",
+						sourcesJson: toSourcesJsonText(sourcesValue),
 						score: scoreText,
 						scoreValue: null,
 						scoreTier: null,
@@ -822,7 +837,7 @@ export default function DeepDiveCompany({
 						<Progress
 							percent={progress.percent}
 							strokeColor="#58bfce"
-							trailColor="#262626"
+							railColor="#262626"
 						/>
 						<Text style={{ color: "#8c8c8c" }}>
 							{progress.total

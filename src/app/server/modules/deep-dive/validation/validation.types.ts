@@ -1,6 +1,7 @@
 import type { validation_status } from "../../../../../generated/prisma";
+import type { ValidationStatus } from "../../../../../shared/deep-dive-contract.types";
 
-export type ValidationStatus = "pass" | "warn" | "failed";
+export type { ValidationStatus } from "../../../../../shared/deep-dive-contract.types";
 
 export type ValidationDbStatus = validation_status;
 
@@ -59,6 +60,7 @@ export interface ValidationCompanyItem {
 	ruleLevel: string;
 	dataReasoning: string;
 	dataSources: string;
+	dataSourcesRaw?: unknown;
 	dataScore: string;
 }
 
