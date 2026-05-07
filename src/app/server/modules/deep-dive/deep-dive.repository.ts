@@ -839,7 +839,9 @@ export class DeepDiveRepository {
 					career_portal: data.careerPortal ?? null,
 					slug: data.slug ?? null,
 					report_role: data.reportRole ?? null,
-					parent_company: data.parentCompanyId ?? null,
+					...(data.parentCompanyId != null
+						? { companies: { connect: { id: data.parentCompanyId } } }
+						: {}),
 					...(data.additionalData != null
 						? {
 								additional_data: data.additionalData as Parameters<
