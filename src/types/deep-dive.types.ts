@@ -684,6 +684,7 @@ export type AddCompanyPayload =
 			slug?: string | null;
 			reportRole?: string | null;
 			additionalData?: unknown;
+			parentCompanyId?: number | null;
 	  };
 
 export interface ReportCostTask {
