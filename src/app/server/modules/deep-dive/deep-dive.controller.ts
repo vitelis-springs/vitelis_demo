@@ -11,6 +11,7 @@ import {
 import type { SortOrder } from "../../../../types/sorting";
 import { N8NService } from "../n8n/n8n.service";
 import type {
+	CreateCompanyDataPointPayload,
 	CreateReportModelItemPayload,
 	DeepDiveMetricKey,
 	ReportModelImportRow,
@@ -169,6 +170,78 @@ function parseCreateReportModelItemPayload(
 		settings: value.settings as Record<string, unknown>,
 		manualMethod: value.manualMethod as boolean | undefined,
 	};
+}
+
+function parseCompanyDataPointPayload(
+	value: unknown,
+	options: { requireDataPointId: boolean },
+): CreateCompanyDataPointPayload | UpdateCompanyDataPointPayload | null {
+	if (!isRecord(value)) return null;
+
+	const payload: CreateCompanyDataPointPayload | UpdateCompanyDataPointPayload =
+		{};
+
+	if (options.requireDataPointId) {
+		if (typeof value.dataPointId !== "string") return null;
+		(payload as CreateCompanyDataPointPayload).dataPointId = value.dataPointId;
+	}
+
+	if ("reasoning" in value) {
+		if (value.reasoning !== null && typeof value.reasoning !== "string") {
+			return null;
+		}
+		payload.reasoning = value.reasoning as string | null;
+	}
+
+	if ("sources" in value) {
+		const invalidSources =
+			value.sources !== null &&
+			typeof value.sources !== "string" &&
+			!Array.isArray(value.sources) &&
+			!isRecord(value.sources);
+		if (invalidSources) return null;
+		payload.sources = value.sources as
+			| string
+			| Record<string, unknown>
+			| unknown[]
+			| null;
+	}
+
+	if ("score" in value) {
+		const score = value.score;
+		if (
+			score !== null &&
+			typeof score !== "string" &&
+			typeof score !== "number"
+		) {
+			return null;
+		}
+		payload.score = score as string | number | null;
+	}
+
+	if ("scoreValue" in value) {
+		const scoreValue = value.scoreValue;
+		if (scoreValue !== null && !isKpiScoreValue(scoreValue)) return null;
+		payload.scoreValue = scoreValue as KpiScoreValue | null;
+	}
+
+	if ("scoreTier" in value) {
+		const scoreTier = value.scoreTier;
+		if (scoreTier !== null && !isKpiScoreTier(scoreTier)) return null;
+		payload.scoreTier = scoreTier as KpiScoreTier | null;
+	}
+
+	if ("status" in value) {
+		if (typeof value.status !== "boolean") return null;
+		payload.status = value.status;
+	}
+
+	if ("rawData" in value) {
+		if (!isRecord(value.rawData)) return null;
+		payload.rawData = value.rawData as Record<string, unknown>;
+	}
+
+	return payload;
 }
 
 function serializeError(error: unknown): Record<string, unknown> {
@@ -1438,6 +1511,91 @@ export class DeepDiveController {
 			console.error("❌ DeepDiveController.updateCompanyDataPoint:", error);
 			return NextResponse.json(
 				{ success: false, error: "Failed to update data point" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async createCompanyDataPoint(
+		request: NextRequest,
+		reportIdParam: string,
+		companyIdParam: string,
+	) {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			const companyId = Number(companyIdParam);
+
+			if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report/company id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json().catch(() => null)) as unknown;
+			const payload = parseCompanyDataPointPayload(body, {
+				requireDataPointId: true,
+			}) as CreateCompanyDataPointPayload | null;
+
+			if (!payload) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid payload" },
+					{ status: 400 },
+				);
+			}
+
+			const hasContent =
+				(typeof payload.reasoning === "string" &&
+					payload.reasoning.trim() !== "") ||
+				(payload.sources != null &&
+					(typeof payload.sources !== "string" ||
+						payload.sources.trim() !== "")) ||
+				(payload.score != null && payload.score !== "") ||
+				payload.scoreValue != null ||
+				payload.scoreTier != null ||
+				(payload.rawData != null &&
+					Object.values(payload.rawData).some((v) => v != null));
+
+			if (!hasContent) {
+				return NextResponse.json(
+					{
+						success: false,
+						error:
+							"At least one of reasoning, sources, or score must be provided",
+					},
+					{ status: 400 },
+				);
+			}
+
+			const result = await DeepDiveService.createManualCompanyDataPoint(
+				reportId,
+				companyId,
+				payload,
+			);
+
+			if (!result) {
+				return NextResponse.json(
+					{
+						success: false,
+						error: "Company not found in report",
+					},
+					{ status: 404 },
+				);
+			}
+
+			if (!result.success) {
+				const status = result.error === "Model item not found" ? 404 : 400;
+				return NextResponse.json(result, { status });
+			}
+
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ DeepDiveController.createCompanyDataPoint:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to create data point" },
 				{ status: 500 },
 			);
 		}

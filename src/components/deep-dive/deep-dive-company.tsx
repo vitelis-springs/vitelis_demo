@@ -39,6 +39,7 @@ import {
 	type DeepDiveCompanyResponse,
 	type DeepDiveStatus,
 	type UpdateCompanyDataPointPayload,
+	useCreateCompanyDataPoint,
 	useGetDeepDiveCompany,
 	useUpdateCompanyDataPoint,
 } from "../../hooks/api/useDeepDiveService";
@@ -230,6 +231,7 @@ export default function DeepDiveCompany({
 		sourceParams,
 	);
 	const updateDataPoint = useUpdateCompanyDataPoint(reportId, companyId);
+	const createDataPoint = useCreateCompanyDataPoint(reportId, companyId);
 	const payload = data?.data;
 
 	const steps = useMemo(() => payload?.steps ?? [], [payload?.steps]);
@@ -264,6 +266,38 @@ export default function DeepDiveCompany({
 		(updatePayload: UpdateCompanyDataPointPayload) => {
 			if (!editingTarget) return;
 
+			if (editingTarget.resultId === null) {
+				createDataPoint.mutate(
+					{
+						dataPointId: editingTarget.dataPointId,
+						...updatePayload,
+					},
+					{
+						onSuccess: (result) => {
+							if (!result.success) {
+								message.error(result.error || "Failed to add data point");
+								return;
+							}
+							message.success("Data point added");
+							setEditingTarget(null);
+						},
+						onError: (error: unknown) => {
+							const errorMessage =
+								typeof error === "object" &&
+								error !== null &&
+								"response" in error &&
+								typeof (error as { response?: { data?: { error?: string } } })
+									.response?.data?.error === "string"
+									? (error as { response?: { data?: { error?: string } } })
+											.response!.data!.error!
+									: "Failed to add data point";
+							message.error(errorMessage);
+						},
+					},
+				);
+				return;
+			}
+
 			updateDataPoint.mutate(
 				{
 					resultId: editingTarget.resultId,
@@ -293,7 +327,7 @@ export default function DeepDiveCompany({
 				},
 			);
 		},
-		[editingTarget, message, updateDataPoint],
+		[createDataPoint, editingTarget, message, updateDataPoint],
 	);
 
 	/* ── parse KPI results ── */
@@ -347,6 +381,7 @@ export default function DeepDiveCompany({
 						scoreValue: parsedScore.scoreValue,
 						scoreTier: parsedScore.scoreTier,
 						status: result.status ?? true,
+						rawData: (result.data as Record<string, unknown> | null) ?? null,
 					},
 				});
 			} else if (isDriver) {
@@ -388,6 +423,7 @@ export default function DeepDiveCompany({
 						scoreValue: parsedScore.scoreValue,
 						scoreTier: parsedScore.scoreTier,
 						status: result.status ?? true,
+						rawData: (result.data as Record<string, unknown> | null) ?? null,
 					},
 				});
 			} else if (isRaw) {
@@ -426,10 +462,97 @@ export default function DeepDiveCompany({
 						scoreValue: null,
 						scoreTier: null,
 						status: result.status ?? true,
+						rawData: (result.data as Record<string, unknown> | null) ?? null,
 					},
 				});
 			}
 		}
+
+		const existingDataPointIds = new Set(
+			kpiResults
+				.map((result) => result.dataPointId)
+				.filter((id): id is string => typeof id === "string" && id.length > 0),
+		);
+		(payload?.manualDataPoints ?? []).forEach((item, index) => {
+			if (!item.dataPointId || existingDataPointIds.has(item.dataPointId)) {
+				return;
+			}
+
+			const settings = toDataRecord(item.settings);
+			const type = item.type ?? "";
+			const key = -(index + 1);
+
+			if (type === "kpi_driver" || item.dataPointId.startsWith("kpi_driver")) {
+				const categoryName =
+					getString(settings, "KPI Category") || "Uncategorized";
+				const kpiName =
+					getString(settings, "Definition (KPI)") ||
+					getString(settings, "KPI") ||
+					"—";
+				const driverName =
+					getString(settings, "Metric (KPI Driver)") ||
+					getString(settings, "KPI Driver") ||
+					item.name ||
+					item.dataPointId;
+				drivers.push({
+					key,
+					dataPointId: item.dataPointId,
+					category: categoryName,
+					kpi: kpiName,
+					driver: driverName,
+					score: null,
+					scoreLabel: "—",
+					reasoning: null,
+					sources: [],
+					editTarget: {
+						resultId: null,
+						dataPointId: item.dataPointId,
+						type,
+						label: driverName,
+						isNew: true,
+						reasoning: "",
+						sources: "",
+						sourcesMode: "text",
+						sourcesJson: "[]",
+						score: "",
+						scoreValue: null,
+						scoreTier: null,
+						status: true,
+					},
+				});
+			} else if (
+				type === "raw_data_point" ||
+				item.dataPointId.startsWith("raw_data_point")
+			) {
+				const question =
+					getString(settings, "raw_data_point") ||
+					item.name ||
+					item.dataPointId;
+				rawDataPoints.push({
+					key,
+					dataPointId: item.dataPointId,
+					question,
+					answer: "—",
+					explanation: null,
+					sources: [],
+					editTarget: {
+						resultId: null,
+						dataPointId: item.dataPointId,
+						type,
+						label: question,
+						isNew: true,
+						reasoning: "",
+						sources: "",
+						sourcesMode: "text",
+						sourcesJson: "[]",
+						score: "",
+						scoreValue: null,
+						scoreTier: null,
+						status: true,
+					},
+				});
+			}
+		});
 
 		categories.sort((a, b) => a.category.localeCompare(b.category));
 		drivers.sort(
@@ -443,7 +566,7 @@ export default function DeepDiveCompany({
 			driverRows: drivers,
 			rawRows: rawDataPoints,
 		};
-	}, [kpiResults]);
+	}, [kpiResults, payload?.manualDataPoints]);
 
 	/* ── radar chart data ── */
 	const radarData = useMemo((): RadarDataPoint[] => {
@@ -1025,7 +1148,7 @@ export default function DeepDiveCompany({
 
 			<DatapointEditModal
 				open={!!editingTarget}
-				loading={updateDataPoint.isPending}
+				loading={updateDataPoint.isPending || createDataPoint.isPending}
 				target={editingTarget}
 				onClose={() => setEditingTarget(null)}
 				onSubmit={handleSaveDataPoint}

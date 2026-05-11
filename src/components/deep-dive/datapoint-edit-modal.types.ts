@@ -2,10 +2,11 @@ import type { KpiScoreTier, KpiScoreValue } from "../../shared/kpi-score";
 import type { UpdateCompanyDataPointPayload } from "../../types/deep-dive.types";
 
 export interface DatapointEditTarget {
-	resultId: number;
+	resultId: number | null;
 	dataPointId: string;
 	type: string;
 	label: string;
+	isNew?: boolean;
 	reasoning: string;
 	sources: string;
 	sourcesMode?: "text" | "json";
@@ -14,6 +15,7 @@ export interface DatapointEditTarget {
 	scoreValue: KpiScoreValue | null;
 	scoreTier: KpiScoreTier | null;
 	status: boolean;
+	rawData?: Record<string, unknown> | null;
 }
 
 export interface DatapointEditModalProps {

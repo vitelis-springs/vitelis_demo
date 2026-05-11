@@ -11,6 +11,7 @@ import type { ValidationRulePayload } from "./validation/validation.types";
 
 export type {
 	CompanyDataPointResultUpdateData,
+	CreateCompanyDataPointResultData,
 	CreateReportModelItemData,
 	DeepDiveListParams,
 	DeepDiveSettingsSnapshot,
@@ -28,6 +29,7 @@ export type {
 
 import type {
 	CompanyDataPointResultUpdateData,
+	CreateCompanyDataPointResultData,
 	CreateReportModelItemData,
 	DeepDiveListParams,
 	DeepDiveSettingsSnapshot,
@@ -1011,6 +1013,39 @@ export class DeepDiveRepository {
 		});
 	}
 
+	static async getManualReportModelItems(reportId: number) {
+		return prisma.report_data_points.findMany({
+			where: {
+				report_id: reportId,
+				data_points: {
+					manual_method: true,
+				},
+				OR: [
+					{
+						data_point_id: { startsWith: "raw_data_point_" },
+						data_points: { type: "raw_data_point" },
+					},
+					{
+						data_point_id: { startsWith: "kpi_driver_" },
+						data_points: { type: "kpi_driver" },
+					},
+				],
+			},
+			include: {
+				data_points: {
+					select: {
+						id: true,
+						name: true,
+						type: true,
+						settings: true,
+						manual_method: true,
+					},
+				},
+			},
+			orderBy: { data_point_id: "asc" },
+		});
+	}
+
 	static async getCompanyDataPointResultById(
 		reportId: number,
 		companyId: number,
@@ -1033,6 +1068,23 @@ export class DeepDiveRepository {
 		return prisma.report_data_point_results.update({
 			where: { id: resultId },
 			data,
+			include: { data_points: true },
+		});
+	}
+
+	static async createCompanyDataPointResult(
+		data: CreateCompanyDataPointResultData,
+	) {
+		return prisma.report_data_point_results.create({
+			data: {
+				report_id: data.reportId,
+				company_id: data.companyId,
+				data_point_id: data.dataPointId,
+				value: data.value,
+				manualValue: data.manualValue,
+				data: data.data,
+				status: data.status,
+			},
 			include: { data_points: true },
 		});
 	}

@@ -4,6 +4,8 @@ import type {
 	AddCompanyPayload,
 	CompanySearchResult,
 	CompanyUpdatePayload,
+	CreateCompanyDataPointPayload,
+	CreateCompanyDataPointResponse,
 	CreateReportModelItemPayload,
 	CreateReportPayload,
 	CreateValidationRulePayload,
@@ -206,6 +208,18 @@ export const deepDiveApi = {
 	): Promise<UpdateCompanyDataPointResponse> {
 		const response = await api.patch(
 			`/deep-dive/${reportId}/companies/${companyId}/data-points/${resultId}`,
+			payload,
+		);
+		return response.data;
+	},
+
+	async createCompanyDataPoint(
+		reportId: number,
+		companyId: number,
+		payload: CreateCompanyDataPointPayload,
+	): Promise<CreateCompanyDataPointResponse> {
+		const response = await api.post(
+			`/deep-dive/${reportId}/companies/${companyId}/data-points`,
 			payload,
 		);
 		return response.data;
@@ -563,6 +577,27 @@ export const useUpdateCompanyDataPoint = (
 				resultId,
 				payload,
 			),
+		onSuccess: () => {
+			queryClient
+				.invalidateQueries({
+					queryKey: ["deep-dive", "company", reportId, companyId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+		},
+	});
+};
+
+export const useCreateCompanyDataPoint = (
+	reportId: number,
+	companyId: number,
+) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: CreateCompanyDataPointPayload) =>
+			deepDiveApi.createCompanyDataPoint(reportId, companyId, payload),
 		onSuccess: () => {
 			queryClient
 				.invalidateQueries({

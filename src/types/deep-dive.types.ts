@@ -1,5 +1,6 @@
 import type {
 	CreateReportModelItemBasePayload,
+	DataPointResultData,
 	DeepDiveDateRangeParams,
 	DeepDiveListFilterParams,
 	DeepDiveMetricName,
@@ -11,7 +12,12 @@ import type {
 } from "../shared/deep-dive-contract.types";
 
 export type {
+	CreateCompanyDataPointPayload,
+	DataPointResultData,
 	DeepDiveMetricName,
+	KpiDriverResultData,
+	KpiProductResultData,
+	RawDataPointResultData,
 	UpdateCompanyDataPointPayload,
 	UpdateDeepDiveSettingsPayload,
 	UpdateReportModelItemPayload,
@@ -273,9 +279,17 @@ export interface DeepDiveCompanyResponse {
 			type?: string | null;
 			value?: string | null;
 			manualValue?: string | null;
-			data?: unknown;
+			data?: DataPointResultData | null;
 			status?: boolean | null;
 			updatedAt?: string | null;
+		}>;
+		manualDataPoints: Array<{
+			dataPointId: string;
+			name?: string | null;
+			type?: string | null;
+			settings?: Record<string, unknown> | null;
+			manualMethod?: boolean | null;
+			resultId?: number | null;
 		}>;
 		scrapCandidates: Array<{
 			id: number;
@@ -321,10 +335,12 @@ export interface UpdateCompanyDataPointResponse {
 		value: string | null;
 		manualValue: string | null;
 		status: boolean | null;
-		data: unknown;
+		data: DataPointResultData | null;
 		updatedAt: string | null;
 	};
 }
+
+export type CreateCompanyDataPointResponse = UpdateCompanyDataPointResponse;
 
 export interface DeepDiveListParams
 	extends DeepDivePaginationParams,

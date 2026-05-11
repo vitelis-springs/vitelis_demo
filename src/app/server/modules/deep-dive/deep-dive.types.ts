@@ -11,6 +11,11 @@ import type {
 } from "../../../../shared/deep-dive-contract.types";
 
 export type {
+	CreateCompanyDataPointPayload,
+	DataPointResultData,
+	KpiDriverResultData,
+	KpiProductResultData,
+	RawDataPointResultData,
 	UpdateCompanyDataPointPayload,
 	UpdateDeepDiveSettingsPayload,
 	UpdateReportModelItemPayload,
@@ -90,6 +95,16 @@ export interface CompanyDataPointResultUpdateData {
 	manualValue?: string | null;
 	data?: Prisma.InputJsonValue;
 	status?: boolean;
+}
+
+export interface CreateCompanyDataPointResultData {
+	reportId: number;
+	companyId: number;
+	dataPointId: string;
+	value?: string | null;
+	manualValue?: string | null;
+	data: Prisma.InputJsonValue;
+	status: boolean;
 }
 
 export interface ReportModelUpdateRow {
