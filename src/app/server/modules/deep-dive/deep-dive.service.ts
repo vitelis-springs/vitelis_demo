@@ -22,9 +22,9 @@ import type {
 	KpiDriverResultData,
 	RawDataPointResultData,
 	ReportDataPointSourcesRow,
-	ReportWithRelations,
 	ReportModelImportRow,
 	ReportModelUpdateRow,
+	ReportWithRelations,
 	ScrapeCandidatesParams,
 	SourceCountingContext,
 	SourceFilterParams,
@@ -37,6 +37,7 @@ import type {
 type ManualDataPointResultBuilder = KpiDriverResultData &
 	RawDataPointResultData &
 	Record<string, unknown>;
+
 import { ValidationService } from "./validation/validation.service";
 import type {
 	ValidationManualUpdatePayload,
@@ -148,7 +149,9 @@ export class DeepDiveService {
 			DeepDiveService.extractSourcesFromValue(rawSources)
 				.map((entry) => DeepDiveService.normalizeSourceKey(entry))
 				.filter(Boolean)
-				.forEach((entry) => sources.add(entry));
+				.forEach((entry) => {
+					sources.add(entry);
+				});
 		});
 
 		return sources.size;
@@ -308,6 +311,20 @@ export class DeepDiveService {
 		);
 	}
 
+	private static deriveValueFromRawData(
+		raw: Record<string, unknown>,
+		flags: { isCategory?: boolean; isDriver?: boolean; isRaw?: boolean },
+	): { value?: string | null; manualValue?: string | null } {
+		const toStr = (v: unknown): string | null => (v != null ? String(v) : null);
+		if (flags.isCategory) return { value: toStr(raw["KPI Score"]) };
+		if (flags.isDriver) return { value: toStr(raw.Score) };
+		if (flags.isRaw) {
+			const tv = toStr(raw.answer);
+			return { value: tv, manualValue: tv };
+		}
+		return {};
+	}
+
 	static async updateCompanyDataPoint(
 		reportId: number,
 		companyId: number,
@@ -334,25 +351,17 @@ export class DeepDiveService {
 
 		if (payload.rawData !== undefined) {
 			const raw = payload.rawData;
-			const updatePatch: CompanyDataPointResultUpdateData = {
-				data: raw as unknown as CompanyDataPointResultUpdateData["data"],
-			};
-			if (payload.status !== undefined) updatePatch.status = payload.status;
-			if (isCategory) {
-				const s = raw["KPI Score"];
-				updatePatch.value = s != null ? String(s) : null;
-			} else if (isDriver) {
-				const s = raw.Score;
-				updatePatch.value = s != null ? String(s) : null;
-			} else if (isRaw) {
-				const a = raw.answer;
-				const tv = a != null ? String(a) : null;
-				updatePatch.value = tv;
-				updatePatch.manualValue = tv;
-			}
 			const updated = await DeepDiveRepository.updateCompanyDataPointResult(
 				resultId,
-				updatePatch,
+				{
+					data: raw as unknown as CompanyDataPointResultUpdateData["data"],
+					...(payload.status !== undefined && { status: payload.status }),
+					...DeepDiveService.deriveValueFromRawData(raw, {
+						isCategory,
+						isDriver,
+						isRaw,
+					}),
+				},
 			);
 			return {
 				success: true as const,
@@ -512,24 +521,13 @@ export class DeepDiveService {
 
 		if (payload.rawData !== undefined) {
 			const raw = payload.rawData;
-			const value = isDriver
-				? raw.Score != null
-					? String(raw.Score)
-					: null
-				: isRaw
-					? raw.answer != null
-						? String(raw.answer)
-						: null
-					: null;
-			const manualValue = isRaw ? value : null;
 			const created = await DeepDiveRepository.createCompanyDataPointResult({
 				reportId,
 				companyId,
 				dataPointId,
-				value,
-				manualValue,
 				data: raw as Prisma.InputJsonValue,
 				status: payload.status ?? true,
+				...DeepDiveService.deriveValueFromRawData(raw, { isDriver, isRaw }),
 			});
 			return {
 				success: true as const,
