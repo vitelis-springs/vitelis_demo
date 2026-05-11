@@ -177,7 +177,7 @@ export default function ValidationByCompanyPage() {
 
 	const handleSave = useCallback(
 		(payload: UpdateCompanyDataPointPayload) => {
-			if (!editingTarget) return;
+			if (!editingTarget || editingTarget.resultId === null) return;
 			updateDataPoint.mutate(
 				{ resultId: editingTarget.resultId, payload },
 				{

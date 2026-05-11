@@ -57,6 +57,12 @@ export interface UpdateCompanyDataPointPayload {
 	scoreValue?: KpiScoreValue | null;
 	scoreTier?: KpiScoreTier | null;
 	status?: boolean;
+	rawData?: Record<string, unknown>;
+}
+
+export interface CreateCompanyDataPointPayload
+	extends UpdateCompanyDataPointPayload {
+	dataPointId: string;
 }
 
 export interface UpdateDeepDiveSettingsPayload {
@@ -92,3 +98,42 @@ export interface CreateReportModelItemBasePayload {
 	settings: Record<string, unknown>;
 	manualMethod?: boolean;
 }
+
+export interface KpiDriverResultData {
+	Index?: number | null;
+	Score?: string | null;
+	Sources?: string | null;
+	Reasoning?: string | null;
+	"KPI Category"?: string | null;
+	"Definition (KPI)"?: string | null;
+	"Metric (KPI Driver)"?: string | null;
+	"KPI Score"?: string | number | null;
+	"Key Question"?: string | null;
+	"Country Code"?: string | null;
+	"L3 Category"?: string | null;
+}
+
+export interface RawDataPointResultData {
+	answer?: string | number | null;
+	explanation?: string | null;
+	sources?: string | null;
+	raw_data_point_id?: string | number | null;
+	raw_data_point?: string | null;
+}
+
+export interface KpiProductResultData {
+	settings: Record<string, unknown>;
+	kpi_results: Record<string, unknown>;
+	raw_data_points?: unknown;
+	id?: number | null;
+	company_id?: number | null;
+	company_name?: string | null;
+	execId?: string | null;
+	name?: string | null;
+	report_id?: number | null;
+}
+
+export type DataPointResultData =
+	| KpiDriverResultData
+	| RawDataPointResultData
+	| KpiProductResultData;

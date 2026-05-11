@@ -1,6 +1,15 @@
 "use client";
 
-import { Alert, Input, Modal, Select, Space, Tag, Typography } from "antd";
+import {
+	Alert,
+	Input,
+	Modal,
+	Segmented,
+	Select,
+	Space,
+	Tag,
+	Typography,
+} from "antd";
 import { useEffect, useState } from "react";
 import {
 	KPI_SCORE_TIERS,
@@ -9,10 +18,30 @@ import {
 	type KpiScoreValue,
 } from "../../shared/kpi-score";
 import type { UpdateCompanyDataPointPayload } from "../../types/deep-dive.types";
-import JsonEditor from "./json-editor";
 import type { DatapointEditModalProps } from "./datapoint-edit-modal.types";
+import JsonEditor from "./json-editor";
 
 const { Text } = Typography;
+
+function buildDefaultTemplate(type: string): Record<string, unknown> {
+	if (type === "kpi_driver")
+		return {
+			Reasoning: null,
+			Sources: null,
+			Score: null,
+			"KPI Category": null,
+			"Definition (KPI)": null,
+			"Metric (KPI Driver)": null,
+		};
+	if (type === "raw_data_point")
+		return {
+			answer: null,
+			explanation: null,
+			sources: null,
+			raw_data_point: null,
+		};
+	return {};
+}
 
 function normalizeOptional(value: string): string | null {
 	const trimmed = value.trim();
@@ -33,6 +62,8 @@ export default function DatapointEditModal({
 	const [scoreValue, setScoreValue] = useState<KpiScoreValue | null>(null);
 	const [scoreTier, setScoreTier] = useState<KpiScoreTier | null>(null);
 	const [status, setStatus] = useState(true);
+	const [mode, setMode] = useState<"form" | "json">("form");
+	const [jsonData, setJsonData] = useState<string>("");
 
 	useEffect(() => {
 		if (!target) return;
@@ -43,6 +74,12 @@ export default function DatapointEditModal({
 		setScoreValue(target.scoreValue);
 		setScoreTier(target.scoreTier);
 		setStatus(target.status);
+		setMode("form");
+
+		const initialJson = target.rawData
+			? JSON.stringify(target.rawData, null, 2)
+			: JSON.stringify(buildDefaultTemplate(target.type), null, 2);
+		setJsonData(initialJson);
 	}, [target]);
 
 	const targetScore = target?.score ?? "";
@@ -98,15 +135,45 @@ export default function DatapointEditModal({
 			})()
 		: { ok: true as const, supported: true as const, value: null as null };
 
+	const parsedJsonMode = (() => {
+		if (mode !== "json") return null;
+		try {
+			const parsed = JSON.parse(jsonData.trim()) as unknown;
+			if (
+				typeof parsed !== "object" ||
+				parsed === null ||
+				Array.isArray(parsed)
+			) {
+				return { ok: false as const, hasContent: false };
+			}
+			const hasContent = Object.values(parsed as Record<string, unknown>).some(
+				(v) => v != null,
+			);
+			return {
+				ok: true as const,
+				hasContent,
+				value: parsed as Record<string, unknown>,
+			};
+		} catch {
+			return { ok: false as const, hasContent: false };
+		}
+	})();
+
 	const isSaveDisabled =
-		(isKpiScoreType && scoreChanged && hasPartialKpiScore) ||
-		!parsedSourcesJson.ok ||
-		!parsedSourcesJson.supported;
+		mode === "json"
+			? !parsedJsonMode?.ok || !parsedJsonMode?.hasContent
+			: (isKpiScoreType && scoreChanged && hasPartialKpiScore) ||
+				!parsedSourcesJson.ok ||
+				!parsedSourcesJson.supported;
 
 	const handleSubmit = () => {
-		if (!parsedSourcesJson.ok) {
+		if (mode === "json") {
+			if (!parsedJsonMode?.ok || !parsedJsonMode.value) return;
+			onSubmit({ rawData: parsedJsonMode.value, status });
 			return;
 		}
+
+		if (!parsedSourcesJson.ok) return;
 
 		const payload: UpdateCompanyDataPointPayload = {
 			reasoning: normalizeOptional(reasoning),
@@ -136,7 +203,7 @@ export default function DatapointEditModal({
 
 	return (
 		<Modal
-			title="Edit Data Point"
+			title={target?.isNew ? "Add Manual Data Point" : "Edit Data Point"}
 			open={open}
 			onCancel={onClose}
 			onOk={handleSubmit}
@@ -161,69 +228,122 @@ export default function DatapointEditModal({
 					</Text>
 				</div>
 
-				<Input.TextArea
-					value={reasoning}
-					onChange={(event) => setReasoning(event.target.value)}
-					placeholder="Reasoning"
-					autoSize={{ minRows: 4, maxRows: 12 }}
+				<Segmented
+					options={[
+						{ label: "Form", value: "form" },
+						{ label: "JSON", value: "json" },
+					]}
+					value={mode}
+					onChange={(v) => setMode(v as "form" | "json")}
+					size="small"
 				/>
 
-				{useJsonSourcesEditor ? (
-					<JsonEditor
-						value={sourcesJson}
-						onChange={setSourcesJson}
-						height="calc(80vh - 460px)"
-					/>
+				{mode === "json" ? (
+					<>
+						<JsonEditor
+							value={jsonData}
+							onChange={setJsonData}
+							height="calc(80vh - 320px)"
+						/>
+						{parsedJsonMode && !parsedJsonMode.ok && (
+							<Alert type="warning" showIcon title="Invalid JSON object" />
+						)}
+						{parsedJsonMode?.ok && !parsedJsonMode.hasContent && (
+							<Alert
+								type="warning"
+								showIcon
+								title="At least one field must have a non-null value"
+							/>
+						)}
+					</>
 				) : (
-					<Input.TextArea
-						value={sources}
-						onChange={(event) => setSources(event.target.value)}
-						placeholder="Sources (URLs or comma/newline separated values)"
-						autoSize={{ minRows: 3, maxRows: 10 }}
-					/>
-				)}
+					<>
+						<Input.TextArea
+							value={reasoning}
+							onChange={(event) => setReasoning(event.target.value)}
+							placeholder={isKpiScoreType ? "Reasoning" : "explanation"}
+							autoSize={{ minRows: 4, maxRows: 12 }}
+						/>
 
-				{isRaw ? (
-					<Input
-						value={score}
-						onChange={(event) => setScore(event.target.value)}
-						placeholder="Score / Answer"
-					/>
-				) : isKpiScoreType ? (
-					<Space size={12} wrap>
-						<Select<KpiScoreValue>
-							allowClear
-							value={scoreValue ?? undefined}
-							onChange={(value) =>
-								setScoreValue((value ?? null) as KpiScoreValue | null)
-							}
-							placeholder="Score Value (1-5)"
-							style={{ width: 180 }}
-							options={KPI_SCORE_VALUES.map((value) => ({
-								value,
-								label: String(value),
-							}))}
-						/>
-						<Select<KpiScoreTier>
-							allowClear
-							value={scoreTier ?? undefined}
-							onChange={(value) =>
-								setScoreTier((value ?? null) as KpiScoreTier | null)
-							}
-							placeholder="Score Tier"
-							style={{ width: 240 }}
-							options={KPI_SCORE_TIERS.map((value) => ({
-								value,
-								label: value,
-							}))}
-						/>
-					</Space>
-				) : (
-					<Input
-						value={score}
-						onChange={(event) => setScore(event.target.value)}
-						placeholder="Score"
-					/>
+						{useJsonSourcesEditor ? (
+							<JsonEditor
+								value={sourcesJson}
+								onChange={setSourcesJson}
+								height="calc(80vh - 460px)"
+							/>
+						) : (
+							<Input.TextArea
+								value={sources}
+								onChange={(event) => setSources(event.target.value)}
+								placeholder="Sources (URLs or comma/newline separated values)"
+								autoSize={{ minRows: 3, maxRows: 10 }}
+							/>
+						)}
+
+						{isRaw ? (
+							<Input
+								value={score}
+								onChange={(event) => setScore(event.target.value)}
+								placeholder={isKpiScoreType ? "Score" : "answer"}
+							/>
+						) : isKpiScoreType ? (
+							<Space size={12} wrap>
+								<Select<KpiScoreValue>
+									allowClear
+									value={scoreValue ?? undefined}
+									onChange={(value) =>
+										setScoreValue((value ?? null) as KpiScoreValue | null)
+									}
+									placeholder="Score Value (1-5)"
+									style={{ width: 180 }}
+									options={KPI_SCORE_VALUES.map((value) => ({
+										value,
+										label: String(value),
+									}))}
+								/>
+								<Select<KpiScoreTier>
+									allowClear
+									value={scoreTier ?? undefined}
+									onChange={(value) =>
+										setScoreTier((value ?? null) as KpiScoreTier | null)
+									}
+									placeholder="Score Tier"
+									style={{ width: 240 }}
+									options={KPI_SCORE_TIERS.map((value) => ({
+										value,
+										label: value,
+									}))}
+								/>
+							</Space>
+						) : (
+							<Input
+								value={score}
+								onChange={(event) => setScore(event.target.value)}
+								placeholder="Score"
+							/>
+						)}
+
+						{isKpiScoreType && scoreChanged && hasPartialKpiScore && (
+							<Alert
+								type="warning"
+								showIcon
+								title="Set both Score Value and Score Tier, or clear both."
+							/>
+						)}
+
+						{useJsonSourcesEditor &&
+							(!parsedSourcesJson.ok || !parsedSourcesJson.supported) && (
+								<Alert
+									type="warning"
+									showIcon
+									title={
+										!parsedSourcesJson.ok
+											? "Sources JSON is invalid"
+											: "Sources JSON must be string, object, array, or null"
+									}
+								/>
+							)}
+					</>
 				)}
 
 				<Select
@@ -241,27 +361,6 @@ export default function DatapointEditModal({
 					showIcon
 					title="Setting status to Not approved marks datapoint for future rerun flow."
 				/>
-
-				{isKpiScoreType && scoreChanged && hasPartialKpiScore && (
-					<Alert
-						type="warning"
-						showIcon
-						title="Set both Score Value and Score Tier, or clear both."
-					/>
-				)}
-
-				{useJsonSourcesEditor &&
-					(!parsedSourcesJson.ok || !parsedSourcesJson.supported) && (
-						<Alert
-							type="warning"
-							showIcon
-							title={
-								!parsedSourcesJson.ok
-									? "Sources JSON is invalid"
-									: "Sources JSON must be string, object, array, or null"
-							}
-						/>
-					)}
 			</Space>
 		</Modal>
 	);

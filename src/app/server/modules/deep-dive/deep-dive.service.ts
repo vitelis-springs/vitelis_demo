@@ -14,14 +14,17 @@ import { ReportStepsRepository } from "../report-steps/report-steps.repository";
 import { DeepDiveRepository } from "./deep-dive.repository";
 import type {
 	CompanyDataPointResultUpdateData,
+	CreateCompanyDataPointPayload,
 	CreateReportModelItemPayload,
 	DeepDiveListParams,
 	DeepDiveMetricKey,
 	ImportedModelDataPoint,
+	KpiDriverResultData,
+	RawDataPointResultData,
 	ReportDataPointSourcesRow,
-	ReportWithRelations,
 	ReportModelImportRow,
 	ReportModelUpdateRow,
+	ReportWithRelations,
 	ScrapeCandidatesParams,
 	SourceCountingContext,
 	SourceFilterParams,
@@ -30,6 +33,11 @@ import type {
 	UpdateDeepDiveSettingsPayload,
 	UpdateReportModelItemPayload,
 } from "./deep-dive.types";
+
+type ManualDataPointResultBuilder = KpiDriverResultData &
+	RawDataPointResultData &
+	Record<string, unknown>;
+
 import { ValidationService } from "./validation/validation.service";
 import type {
 	ValidationManualUpdatePayload,
@@ -141,7 +149,9 @@ export class DeepDiveService {
 			DeepDiveService.extractSourcesFromValue(rawSources)
 				.map((entry) => DeepDiveService.normalizeSourceKey(entry))
 				.filter(Boolean)
-				.forEach((entry) => sources.add(entry));
+				.forEach((entry) => {
+					sources.add(entry);
+				});
 		});
 
 		return sources.size;
@@ -271,6 +281,50 @@ export class DeepDiveService {
 		};
 	}
 
+	private static mapCompanyDataPointResult(
+		result: Awaited<
+			ReturnType<typeof DeepDiveRepository.updateCompanyDataPointResult>
+		>,
+	) {
+		return {
+			id: result.id,
+			reportId: result.report_id,
+			companyId: result.company_id,
+			dataPointId: result.data_point_id,
+			type: result.data_points?.type ?? null,
+			value: result.value,
+			manualValue: result.manualValue,
+			status: result.status,
+			data: result.data,
+			updatedAt: result.updates_at,
+		};
+	}
+
+	private static isManualCompanyDataPointShape(
+		dataPointId: string,
+		dataPointType: string,
+	): boolean {
+		return (
+			(dataPointType === "raw_data_point" &&
+				dataPointId.startsWith("raw_data_point_")) ||
+			(dataPointType === "kpi_driver" && dataPointId.startsWith("kpi_driver_"))
+		);
+	}
+
+	private static deriveValueFromRawData(
+		raw: Record<string, unknown>,
+		flags: { isCategory?: boolean; isDriver?: boolean; isRaw?: boolean },
+	): { value?: string | null; manualValue?: string | null } {
+		const toStr = (v: unknown): string | null => (v != null ? String(v) : null);
+		if (flags.isCategory) return { value: toStr(raw["KPI Score"]) };
+		if (flags.isDriver) return { value: toStr(raw.Score) };
+		if (flags.isRaw) {
+			const tv = toStr(raw.answer);
+			return { value: tv, manualValue: tv };
+		}
+		return {};
+	}
+
 	static async updateCompanyDataPoint(
 		reportId: number,
 		companyId: number,
@@ -295,11 +349,28 @@ export class DeepDiveService {
 			dataPointType === "raw_data_point" ||
 			dataPointId.startsWith("raw_data_point");
 
-		const mutableData: Record<string, unknown> = DeepDiveService.isJsonObject(
-			existing.data,
-		)
-			? { ...existing.data }
-			: {};
+		if (payload.rawData !== undefined) {
+			const raw = payload.rawData;
+			const updated = await DeepDiveRepository.updateCompanyDataPointResult(
+				resultId,
+				{
+					data: raw as unknown as CompanyDataPointResultUpdateData["data"],
+					...(payload.status !== undefined && { status: payload.status }),
+					...DeepDiveService.deriveValueFromRawData(raw, {
+						isCategory,
+						isDriver,
+						isRaw,
+					}),
+				},
+			);
+			return {
+				success: true as const,
+				data: DeepDiveService.mapCompanyDataPointResult(updated),
+			};
+		}
+
+		const mutableData: ManualDataPointResultBuilder =
+			DeepDiveService.isJsonObject(existing.data) ? { ...existing.data } : {};
 
 		const patch: CompanyDataPointResultUpdateData = {};
 		let dataChanged = false;
@@ -366,8 +437,7 @@ export class DeepDiveService {
 				dataChanged = true;
 			} else {
 				patch.value = normalizedScore.textValue;
-				mutableData.Score =
-					normalizedScore.numericValue ?? normalizedScore.textValue;
+				mutableData.Score = normalizedScore.textValue;
 				dataChanged = true;
 			}
 		}
@@ -392,18 +462,156 @@ export class DeepDiveService {
 
 		return {
 			success: true as const,
-			data: {
-				id: updated.id,
-				reportId: updated.report_id,
-				companyId: updated.company_id,
-				dataPointId: updated.data_point_id,
-				type: updated.data_points?.type ?? null,
-				value: updated.value,
-				manualValue: updated.manualValue,
-				status: updated.status,
-				data: updated.data,
-				updatedAt: updated.updates_at,
-			},
+			data: DeepDiveService.mapCompanyDataPointResult(updated),
+		};
+	}
+
+	static async createManualCompanyDataPoint(
+		reportId: number,
+		companyId: number,
+		payload: CreateCompanyDataPointPayload,
+	) {
+		const company = await DeepDiveRepository.getCompany(reportId, companyId);
+		if (!company) return null;
+
+		const dataPointId = payload.dataPointId.trim();
+		if (!dataPointId) {
+			return { success: false as const, error: "dataPointId is required" };
+		}
+
+		const existing = await DeepDiveRepository.getReportModelItem(
+			reportId,
+			dataPointId,
+		);
+		if (!existing?.data_points) {
+			return { success: false as const, error: "Model item not found" };
+		}
+
+		const dataPoint = existing.data_points;
+		const dataPointType = dataPoint.type ?? "";
+		if (dataPoint.manual_method !== true) {
+			return {
+				success: false as const,
+				error: "Only manual data points can be added from company detail",
+			};
+		}
+
+		if (
+			!DeepDiveService.isManualCompanyDataPointShape(dataPointId, dataPointType)
+		) {
+			return {
+				success: false as const,
+				error:
+					"Manual company data points must be raw_data_point_* or kpi_driver_* and match their model type",
+			};
+		}
+		const isDriver = dataPointType === "kpi_driver";
+		const isRaw = dataPointType === "raw_data_point";
+
+		const duplicate = await DeepDiveRepository.getCompanyKpiResults(
+			reportId,
+			companyId,
+		);
+		if (duplicate.some((row) => row.data_point_id === dataPointId)) {
+			return {
+				success: false as const,
+				error: "Data point result already exists for this company",
+			};
+		}
+
+		if (payload.rawData !== undefined) {
+			const raw = payload.rawData;
+			const created = await DeepDiveRepository.createCompanyDataPointResult({
+				reportId,
+				companyId,
+				dataPointId,
+				data: raw as Prisma.InputJsonValue,
+				status: payload.status ?? true,
+				...DeepDiveService.deriveValueFromRawData(raw, { isDriver, isRaw }),
+			});
+			return {
+				success: true as const,
+				data: DeepDiveService.mapCompanyDataPointResult(created),
+			};
+		}
+
+		const mutableData: ManualDataPointResultBuilder = asSettingsRecord(
+			dataPoint.settings,
+		)
+			? { ...(dataPoint.settings as Record<string, unknown>) }
+			: {};
+		let value: string | null = null;
+		let manualValue: string | null = null;
+
+		if (payload.reasoning !== undefined) {
+			const reasoning =
+				payload.reasoning === null
+					? null
+					: DeepDiveService.normalizeTextInput(payload.reasoning);
+			if (isRaw) mutableData.explanation = reasoning;
+			mutableData.Reasoning = reasoning;
+		}
+
+		if (payload.sources !== undefined) {
+			const sources =
+				payload.sources === null
+					? null
+					: typeof payload.sources === "string"
+						? DeepDiveService.normalizeTextInput(payload.sources)
+						: payload.sources;
+			DeepDiveService.applySourcesUpdate(mutableData, sources, { isRaw });
+		}
+
+		if (isDriver) {
+			const normalizedKpiScore =
+				DeepDiveService.normalizeKpiScoreInput(payload);
+			if (!normalizedKpiScore.success) {
+				return {
+					success: false as const,
+					error: normalizedKpiScore.error || "Invalid KPI score payload",
+				};
+			}
+			if (normalizedKpiScore.provided) {
+				value = normalizedKpiScore.concatenatedValue ?? null;
+				mutableData.Score = value;
+			}
+			mutableData["Metric (KPI Driver)"] =
+				mutableData["Metric (KPI Driver)"] ?? dataPoint.name ?? dataPointId;
+		}
+
+		if (isRaw) {
+			mutableData.raw_data_point =
+				mutableData.raw_data_point ?? dataPoint.name ?? dataPointId;
+			if (payload.score !== undefined) {
+				const normalizedScore = DeepDiveService.normalizeRawScoreInput(
+					payload.score,
+				);
+				if (!normalizedScore) {
+					return {
+						success: false as const,
+						error: "score must be a finite number, string, or null",
+					};
+				}
+				value = normalizedScore.textValue;
+				manualValue = normalizedScore.textValue;
+				mutableData.answer =
+					normalizedScore.numericValue ?? normalizedScore.textValue;
+			}
+		}
+
+		const created = await DeepDiveRepository.createCompanyDataPointResult({
+			reportId,
+			companyId,
+			dataPointId,
+			value,
+			manualValue,
+			data: mutableData as Prisma.InputJsonValue,
+			status: payload.status ?? true,
+		});
+
+		return {
+			success: true as const,
+			data: DeepDiveService.mapCompanyDataPointResult(created),
 		};
 	}
 
@@ -1500,6 +1708,7 @@ export class DeepDiveService {
 			scrapCandidatesTotal,
 			sources,
 			kpiAllScores,
+			manualModelItems,
 		] = await Promise.all([
 			DeepDiveRepository.getCompanyStepStatuses(reportId, companyId),
 			DeepDiveRepository.getCompanyKpiResults(reportId, companyId),
@@ -1507,6 +1716,7 @@ export class DeepDiveService {
 			DeepDiveRepository.getCompanyScrapCandidatesCount(reportId, companyId),
 			DeepDiveRepository.getCompanySources(reportId, companyId, filters),
 			DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
+			DeepDiveRepository.getManualReportModelItems(reportId),
 		]);
 
 		const statusByStepId = new Map<number, (typeof stepStatuses)[number]>();
@@ -1633,6 +1843,24 @@ export class DeepDiveService {
 					status: result.status,
 					updatedAt: result.updates_at,
 				})),
+				manualDataPoints: manualModelItems
+					.filter((row) =>
+						DeepDiveService.isManualCompanyDataPointShape(
+							row.data_point_id ?? "",
+							row.data_points?.type ?? "",
+						),
+					)
+					.map((row) => ({
+						dataPointId: row.data_point_id ?? "",
+						name: row.data_points?.name ?? null,
+						type: row.data_points?.type ?? null,
+						settings: asSettingsRecord(row.data_points?.settings),
+						manualMethod: row.data_points?.manual_method ?? null,
+						resultId:
+							kpiResults.find(
+								(result) => result.data_point_id === row.data_point_id,
+							)?.id ?? null,
+					})),
 				scrapCandidates: scrapCandidates.map((candidate) => ({
 					id: candidate.id,
 					title: candidate.title,
