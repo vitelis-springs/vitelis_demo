@@ -50,6 +50,17 @@ export type DeepDiveMetricName =
 
 export type ValidationStatus = "pass" | "warn" | "failed";
 
+export const VALIDATION_RULE_LEVELS = ["single", "group"] as const;
+export type ValidationRuleLevel = (typeof VALIDATION_RULE_LEVELS)[number];
+
+export const VALIDATION_DATA_POINT_LEVELS = [
+	"rdp",
+	"driver",
+	"kpi_category",
+] as const;
+export type ValidationDataPointLevel =
+	(typeof VALIDATION_DATA_POINT_LEVELS)[number];
+
 export interface UpdateCompanyDataPointPayload {
 	reasoning?: string | null;
 	sources?: string | Record<string, unknown> | unknown[] | null;

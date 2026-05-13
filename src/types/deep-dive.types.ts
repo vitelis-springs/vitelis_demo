@@ -8,6 +8,8 @@ import type {
 	DeepDiveSortParams,
 	ScrapeCandidatesBaseParams,
 	SourcesAnalyticsFilterParams,
+	ValidationDataPointLevel,
+	ValidationRuleLevel,
 	ValidationStatus,
 } from "../shared/deep-dive-contract.types";
 
@@ -21,7 +23,13 @@ export type {
 	UpdateCompanyDataPointPayload,
 	UpdateDeepDiveSettingsPayload,
 	UpdateReportModelItemPayload,
+	ValidationDataPointLevel,
+	ValidationRuleLevel,
 	ValidationStatus,
+} from "../shared/deep-dive-contract.types";
+export {
+	VALIDATION_DATA_POINT_LEVELS,
+	VALIDATION_RULE_LEVELS,
 } from "../shared/deep-dive-contract.types";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
@@ -886,7 +894,8 @@ export interface ConfiguredValidationRule {
 	enabled: boolean;
 	name: string;
 	label: string | null;
-	level: string;
+	level: ValidationRuleLevel;
+	dataPointLevel: ValidationDataPointLevel | null;
 	description: string | null;
 	criteria: ValidationRuleCriteria;
 }
@@ -895,7 +904,8 @@ export interface AvailableValidationRule {
 	id: number;
 	name: string;
 	label: string | null;
-	level: string;
+	level: ValidationRuleLevel;
+	dataPointLevel: ValidationDataPointLevel | null;
 	description: string | null;
 	criteria: ValidationRuleCriteria;
 }
@@ -911,7 +921,8 @@ export interface ReportValidationRulesResponse {
 export interface CreateValidationRulePayload {
 	name: string;
 	label: string;
-	level: "driver" | "category";
+	level: ValidationRuleLevel;
+	data_point_level: ValidationDataPointLevel | null;
 	enabled: boolean;
 	description: string;
 	criteria: ValidationRuleCriteria;

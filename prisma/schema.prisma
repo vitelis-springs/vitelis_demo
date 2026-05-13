@@ -2903,10 +2903,8 @@ enum report_status_enum {
 }
 
 enum validation_rule_level {
-  driver
-  category
-  raw_data_point
-  kpi_category
+  single
+  group
 }
 
 enum validation_status {
