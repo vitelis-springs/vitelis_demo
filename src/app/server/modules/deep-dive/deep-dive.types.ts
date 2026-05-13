@@ -6,9 +6,12 @@ import type {
 	DeepDiveMetricName,
 	DeepDivePaginationParams,
 	DeepDiveSortParams,
+	KpiDriverResultData,
+	RawDataPointResultData,
 	ScrapeCandidatesBaseParams,
 	SourcesAnalyticsFilterParams,
 } from "../../../../shared/deep-dive-contract.types";
+import type { DeepDiveRepository } from "./deep-dive.repository";
 
 export type {
 	CreateCompanyDataPointPayload,
@@ -147,3 +150,49 @@ export interface ImportedModelDataPoint {
 	name: string | null;
 	settings: Record<string, unknown>;
 }
+
+export const DEFAULT_STATUS_COUNTS = {
+	PENDING: 0,
+	PROCESSING: 0,
+	DONE: 0,
+	ERROR: 0,
+};
+
+export type MissingReportDataPointsRow = {
+	company_id: number;
+	missing_count: number;
+	missing_data_point_ids: string[];
+};
+
+export type CompanyCategoryMathDetail = {
+	category: string;
+	currentValue: number | null;
+	expectedCalculatedValue: number | null;
+	delta: number | null;
+};
+
+export type StaticValidationSummary = {
+	categoryMathOk: boolean;
+	categoryMathMismatchCount: number;
+	categoryMathDetails: CompanyCategoryMathDetail[];
+	missingReportDataPointsCount: number;
+	missingReportDataPointIds: string[];
+	hasMissingReportDataPoints: boolean;
+};
+
+export const DEFAULT_STATIC_VALIDATION: StaticValidationSummary = {
+	categoryMathOk: true,
+	categoryMathMismatchCount: 0,
+	categoryMathDetails: [],
+	missingReportDataPointsCount: 0,
+	missingReportDataPointIds: [],
+	hasMissingReportDataPoints: false,
+};
+
+export type ManualDataPointResultBuilder = KpiDriverResultData &
+	RawDataPointResultData &
+	Record<string, unknown>;
+
+export type CompanyKpiResultRow = Awaited<
+	ReturnType<typeof DeepDiveRepository.getCompanyKpiResults>
+>[number];

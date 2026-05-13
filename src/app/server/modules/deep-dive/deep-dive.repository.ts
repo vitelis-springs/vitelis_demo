@@ -1013,6 +1013,21 @@ export class DeepDiveRepository {
 		});
 	}
 
+	static async getCompaniesKpiResults(reportId: number, companyIds: number[]) {
+		if (companyIds.length === 0) {
+			return [];
+		}
+
+		return prisma.report_data_point_results.findMany({
+			where: {
+				report_id: reportId,
+				company_id: { in: companyIds },
+			},
+			include: { data_points: true },
+			orderBy: [{ company_id: "asc" }, { updates_at: "desc" }],
+		});
+	}
+
 	static async getManualReportModelItems(reportId: number) {
 		return prisma.report_data_points.findMany({
 			where: {
@@ -1257,6 +1272,37 @@ export class DeepDiveRepository {
         AND rdpr.value ~ '^\s*[0-9]+(\.[0-9]+)?(\s+.+)?$'
       GROUP BY rdpr.company_id, c.name, dp.name
       ORDER BY rdpr.company_id, dp.name
+    `;
+	}
+
+	static async getMissingReportDataPointsByCompany(
+		reportId: number,
+		companyIds: number[],
+	) {
+		if (companyIds.length === 0) {
+			return [] as Array<{
+				company_id: number;
+				missing_count: number;
+				missing_data_point_ids: string[];
+			}>;
+		}
+
+		return prisma.$queryRaw<
+			Array<{
+				company_id: number;
+				missing_count: number;
+				missing_data_point_ids: string[];
+			}>
+		>`
+      SELECT
+        company_id,
+        COUNT(*)::int AS missing_count,
+        ARRAY_AGG(id ORDER BY id)::text[] AS missing_data_point_ids
+      FROM public.missing_report_data_points
+      WHERE report_id = ${reportId}
+        AND company_id = ANY(${companyIds}::int[])
+      GROUP BY company_id
+      ORDER BY company_id
     `;
 	}
 

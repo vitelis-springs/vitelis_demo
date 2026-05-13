@@ -85,6 +85,20 @@ export interface KpiChartItem {
 	[category: string]: string | number | null;
 }
 
+export interface DeepDiveStaticValidation {
+	categoryMathOk: boolean;
+	categoryMathMismatchCount: number;
+	categoryMathDetails: Array<{
+		category: string;
+		currentValue: number | null;
+		expectedCalculatedValue: number | null;
+		delta: number | null;
+	}>;
+	missingReportDataPointsCount: number;
+	missingReportDataPointIds: string[];
+	hasMissingReportDataPoints: boolean;
+}
+
 export interface DeepDiveCompanyRow {
 	id: number;
 	name: string;
@@ -98,6 +112,7 @@ export interface DeepDiveCompanyRow {
 	companyLevelReportFilesCount: number;
 	stepsDone: number;
 	stepsTotal: number;
+	staticValidation: DeepDiveStaticValidation;
 }
 
 export interface DeepDiveDetailResponse {
@@ -283,6 +298,14 @@ export interface DeepDiveCompanyResponse {
 			status?: boolean | null;
 			updatedAt?: string | null;
 		}>;
+		staticValidationDebug?: {
+			categoryMath: Array<{
+				category: string;
+				currentValue: number | null;
+				expectedCalculatedValue: number | null;
+				delta: number | null;
+			}>;
+		} | null;
 		manualDataPoints: Array<{
 			dataPointId: string;
 			name?: string | null;

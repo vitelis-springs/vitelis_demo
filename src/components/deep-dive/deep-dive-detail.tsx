@@ -10,7 +10,7 @@ import {
 } from "@ant-design/icons";
 import { App, Button, Layout, Space, Typography } from "antd";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	deepDiveApi,
 	useExportReport,
@@ -91,6 +91,41 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 		() => companiesData?.data.companies ?? [],
 		[companiesData],
 	);
+	const loggedMismatchCompaniesRef = useRef<Set<number>>(new Set());
+
+	useEffect(() => {
+		if (!isBizMiner || isCompaniesLoading || companies.length === 0) return;
+
+		const mismatchCompanies = companies.filter(
+			(company) => company.staticValidation.categoryMathMismatchCount > 0,
+		);
+		if (mismatchCompanies.length === 0) return;
+
+		for (const company of mismatchCompanies) {
+			if (loggedMismatchCompaniesRef.current.has(company.id)) continue;
+			loggedMismatchCompaniesRef.current.add(company.id);
+
+			deepDiveApi
+				.getCompany(reportId, company.id, {})
+				.then((response) => {
+					console.log("[StaticValidation][CategoryMathDebug]", {
+						reportId,
+						companyId: company.id,
+						companyName: company.name,
+						mismatchCount: company.staticValidation.categoryMathMismatchCount,
+						rows: response.data.staticValidationDebug?.categoryMath ?? [],
+					});
+				})
+				.catch((error: unknown) => {
+					console.error("[StaticValidation][CategoryMathDebug][Failed]", {
+						reportId,
+						companyId: company.id,
+						companyName: company.name,
+						error,
+					});
+				});
+		}
+	}, [companies, isBizMiner, isCompaniesLoading, reportId]);
 
 	return (
 		<Layout style={{ minHeight: "100vh", background: "#141414" }}>
@@ -197,6 +232,7 @@ export default function DeepDiveDetail({ reportId }: { reportId: number }) {
 						reportId={reportId}
 						settingsName={report?.settings?.name ?? null}
 						basePath={basePath}
+						reportType={report?.reportType ?? null}
 						companies={companies}
 						companiesLoading={isCompaniesLoading}
 					/>
