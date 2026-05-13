@@ -101,10 +101,12 @@ model companies {
   parent_company                                                                                              Int?
   slug                                                                                                        String?                                    @unique(map: "companies_slug_unique") @db.VarChar(255)
   report_role                                                                                                 String?                                    @db.VarChar
+  gics_code                                                                                                   String?                                    @db.VarChar(8)
   alixpartner_reports                                                                                         alixpartner_reports[]
   bizminer_reports                                                                                            bizminer_reports[]
   companies                                                                                                   companies?                                 @relation("companies_parent_company_fk", fields: [parent_company], references: [id], onUpdate: NoAction, map: "companies__parent_company_fk")
   other_companies                                                                                             companies[]                                @relation("companies_parent_company_fk")
+  gics_codes                                                                                                  gics_codes?                                @relation(fields: [gics_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
   industries                                                                                                  industries?                                @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   company_data_points                                                                                         company_data_points[]
   company_info_items                                                                                          company_info_items[]
@@ -122,8 +124,10 @@ model companies {
   opportunity_candidates                                                                                      opportunity_candidates[]
   product_rankings                                                                                            product_rankings[]
   product_scoring_results                                                                                     product_scoring_results[]
+  product_scoring_signal_attributions                                                                         product_scoring_signal_attributions[]
   product_shortlists                                                                                          product_shortlists[]
   report_companies                                                                                            report_companies[]
+  report_company_signal_scope                                                                                 report_company_signal_scope[]
   report_data_collection_query_completions                                                                    report_data_collection_query_completions[]
   report_data_point_results                                                                                   report_data_point_results[]
   report_results                                                                                              report_results[]
@@ -135,6 +139,11 @@ model companies {
   scape_url_candidates                                                                                        scape_url_candidates[]
   signal_confirmations                                                                                        signal_confirmations[]
   signal_search_tasks                                                                                         signal_search_tasks[]
+  sm_additional_research_task_candidates                                                                      sm_additional_research_task_candidates[]
+  sm_additional_research_task_results                                                                         sm_additional_research_task_results[]
+  sm_additional_research_tasks                                                                                sm_additional_research_tasks[]
+  sm_l2_product_fit_context_items                                                                             sm_l2_product_fit_context_items[]
+  sm_l2_product_fit_contexts                                                                                  sm_l2_product_fit_contexts[]
   source_metadata                                                                                             source_metadata[]
   sources                                                                                                     sources[]
   sources_indexed                                                                                             sources_indexed[]
@@ -459,7 +468,7 @@ model report_data_point_results {
   created_at                    DateTime?                       @default(now()) @db.Timestamp(6)
   updates_at                    DateTime?                       @default(now()) @db.Timestamp(6)
   companies                     companies?                      @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  data_points                   data_points?                    @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data_points                   data_points?                    @relation(fields: [data_point_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   reports                       reports?                        @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   report_data_point_validations report_data_point_validations[]
 
@@ -472,7 +481,7 @@ model report_data_points {
   report_id         Int?
   data_point_id     String?      @db.VarChar
   include_to_report Boolean?     @default(true)
-  data_points       data_points? @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data_points       data_points? @relation(fields: [data_point_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   reports           reports?     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([report_id, data_point_id], map: "report_data_points_unique_report_dp")
@@ -530,6 +539,7 @@ model report_step_statuses {
   updated_at              DateTime?               @default(now()) @db.Timestamptz(6)
   companies               companies               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_statuses_companies_fk")
   report_generation_steps report_generation_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_statuses_report_generation_steps_fk")
+  report_steps            report_steps            @relation(fields: [report_id, step_id], references: [report_id, step_id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_statuses_report_steps_fk")
   reports                 reports                 @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_statuses_reports_fk")
 
   @@unique([report_id, company_id, step_id], map: "report_step_statuses_report_company_step_uniq")
@@ -541,6 +551,7 @@ model report_steps {
   report_id               Int
   step_id                 Int
   step_order              Int
+  report_step_statuses    report_step_statuses[]
   report_generation_steps report_generation_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_steps_report_generation_steps_fk")
   reports                 reports                 @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_steps_reports_fk")
 
@@ -562,6 +573,8 @@ model reports {
   n8n_tasks                                n8n_tasks[]
   opportunities_sales                      opportunities_sales[]
   report_companies                         report_companies[]
+  report_company_signal_scope              report_company_signal_scope[]
+  report_countries                         report_countries[]
   report_data_collection_queries           report_data_collection_queries[]
   report_data_collection_query_completions report_data_collection_query_completions[]
   report_data_point_results                report_data_point_results[]
@@ -571,14 +584,13 @@ model reports {
   report_step_statuses                     report_step_statuses[]
   report_steps                             report_steps[]
   report_url_candidates                    report_url_candidates[]
+  report_validation_rules                  report_validation_rules[]
   report_settings                          report_settings?                           @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   source_validation_settings               source_validation_settings?                @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   use_cases                                use_cases?                                 @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   research_runs                            research_runs[]
   sales_report_step_intermediate_results   sales_report_step_intermediate_results[]
   temp_resolved_data_points_result         temp_resolved_data_points_result[]
-
-  report_countries                         report_countries[]
 
   @@index([source_validation_settings_id], map: "idx_reports_source_validation_settings_id")
 }
@@ -685,7 +697,7 @@ model temp_resolved_data_points_result {
   created_at    DateTime?    @default(now()) @db.Timestamp(6)
   updates_at    DateTime?    @default(now()) @db.Timestamp(6)
   companies     companies?   @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  data_points   data_points? @relation(fields: [data_point_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data_points   data_points? @relation(fields: [data_point_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   reports       reports?     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([company_id, report_id, data_point_id], map: "temp_resolved_data_points_result_unique_combination")
@@ -877,7 +889,9 @@ model validation_rules {
   created_at                    DateTime                        @default(now()) @db.Timestamp(6)
   updated_at                    DateTime                        @default(now()) @db.Timestamp(6)
   label                         String?                         @db.VarChar(255)
+  data_point_level              String?
   report_data_point_validations report_data_point_validations[]
+  report_validation_rules       report_validation_rules[]
 }
 
 model company_info_categories {
@@ -972,6 +986,7 @@ model company_signal_summaries {
   research_runs                research_runs                  @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   company_signal_summary_items company_signal_summary_items[]
   product_scoring_results      product_scoring_results[]
+  sm_l2_product_fit_contexts   sm_l2_product_fit_contexts[]
 
   @@unique([research_run_id, company_id, summary_version], map: "company_signal_summaries_unique")
   @@index([company_id], map: "idx_company_signal_summaries_company_id")
@@ -1008,6 +1023,7 @@ model company_signal_summary_items {
   signal_definitions                        signal_definitions?                         @relation(fields: [signal_definition_id], references: [id], onUpdate: NoAction)
   signal_types                              signal_types?                               @relation(fields: [signal_type_id], references: [id], onUpdate: NoAction)
   company_signal_summaries                  company_signal_summaries                    @relation(fields: [company_signal_summary_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "company_signal_summary_items_summary_fkey")
+  product_scoring_signal_attributions       product_scoring_signal_attributions[]
 
   @@index([signal_definition_id], map: "idx_company_signal_summary_items_signal_definition_id")
   @@index([company_signal_summary_id], map: "idx_company_signal_summary_items_summary_id")
@@ -1188,34 +1204,40 @@ model customer_product_signal_query_overrides {
 }
 
 model customer_products {
-  id                                                                                              BigInt                                    @id @default(autoincrement())
-  customer_id                                                                                     BigInt
-  name                                                                                            String
-  description                                                                                     String?
-  is_active                                                                                       Boolean                                   @default(true)
-  meta                                                                                            Json                                      @default("{}")
-  created_at                                                                                      DateTime                                  @default(now()) @db.Timestamptz(6)
-  updated_at                                                                                      DateTime                                  @default(now()) @db.Timestamptz(6)
-  parent_id                                                                                       BigInt?
-  product_level                                                                                   customer_product_level_enum
-  customer_product_info_items                                                                     customer_product_info_items[]
-  customer_product_signal_links                                                                   customer_product_signal_links[]
-  customer_product_signal_query_overrides                                                         customer_product_signal_query_overrides[]
-  customers                                                                                       customers                                 @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  customer_products                                                                               customer_products?                        @relation("customer_productsTocustomer_products", fields: [parent_id], references: [id], onUpdate: NoAction, map: "fk_customer_products_parent")
-  other_customer_products                                                                         customer_products[]                       @relation("customer_productsTocustomer_products")
-  opportunities_sales                                                                             opportunities_sales[]
-  opportunity_bundle_analytics_opportunity_bundle_analytics_lead_l2_product_idTocustomer_products opportunity_bundle_analytics[]            @relation("opportunity_bundle_analytics_lead_l2_product_idTocustomer_products")
-  opportunity_bundle_analytics_opportunity_bundle_analytics_lead_product_idTocustomer_products    opportunity_bundle_analytics[]            @relation("opportunity_bundle_analytics_lead_product_idTocustomer_products")
-  opportunity_candidate_items_opportunity_candidate_items_customer_product_idTocustomer_products  opportunity_candidate_items[]             @relation("opportunity_candidate_items_customer_product_idTocustomer_products")
-  opportunity_candidate_items_opportunity_candidate_items_parent_l2_product_idTocustomer_products opportunity_candidate_items[]             @relation("opportunity_candidate_items_parent_l2_product_idTocustomer_products")
-  opportunity_candidates_opportunity_candidates_lead_l2_product_idTocustomer_products             opportunity_candidates[]                  @relation("opportunity_candidates_lead_l2_product_idTocustomer_products")
-  opportunity_candidates_opportunity_candidates_lead_product_idTocustomer_products                opportunity_candidates[]                  @relation("opportunity_candidates_lead_product_idTocustomer_products")
-  product_rankings                                                                                product_rankings[]
-  product_scoring_results_product_scoring_results_customer_product_idTocustomer_products          product_scoring_results[]                 @relation("product_scoring_results_customer_product_idTocustomer_products")
-  product_scoring_results_product_scoring_results_parent_l2_product_idTocustomer_products         product_scoring_results[]                 @relation("product_scoring_results_parent_l2_product_idTocustomer_products")
-  product_shortlist_items                                                                         product_shortlist_items[]
-  research_run_product_scope                                                                      research_run_product_scope[]
+  id                                                                                                      BigInt                                    @id @default(autoincrement())
+  customer_id                                                                                             BigInt
+  name                                                                                                    String
+  description                                                                                             String?
+  is_active                                                                                               Boolean                                   @default(true)
+  meta                                                                                                    Json                                      @default("{}")
+  created_at                                                                                              DateTime                                  @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                              DateTime                                  @default(now()) @db.Timestamptz(6)
+  parent_id                                                                                               BigInt?
+  product_level                                                                                           customer_product_level_enum
+  customer_product_info_items                                                                             customer_product_info_items[]
+  customer_product_signal_links                                                                           customer_product_signal_links[]
+  customer_product_signal_query_overrides                                                                 customer_product_signal_query_overrides[]
+  customers                                                                                               customers                                 @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products                                                                                       customer_products?                        @relation("customer_productsTocustomer_products", fields: [parent_id], references: [id], onUpdate: NoAction, map: "fk_customer_products_parent")
+  other_customer_products                                                                                 customer_products[]                       @relation("customer_productsTocustomer_products")
+  opportunities_sales                                                                                     opportunities_sales[]
+  opportunity_bundle_analytics_opportunity_bundle_analytics_lead_l2_product_idTocustomer_products         opportunity_bundle_analytics[]            @relation("opportunity_bundle_analytics_lead_l2_product_idTocustomer_products")
+  opportunity_bundle_analytics_opportunity_bundle_analytics_lead_product_idTocustomer_products            opportunity_bundle_analytics[]            @relation("opportunity_bundle_analytics_lead_product_idTocustomer_products")
+  opportunity_candidate_evidence_refs                                                                     opportunity_candidate_evidence_refs[]
+  opportunity_candidate_items_opportunity_candidate_items_customer_product_idTocustomer_products          opportunity_candidate_items[]             @relation("opportunity_candidate_items_customer_product_idTocustomer_products")
+  opportunity_candidate_items_opportunity_candidate_items_parent_l2_product_idTocustomer_products         opportunity_candidate_items[]             @relation("opportunity_candidate_items_parent_l2_product_idTocustomer_products")
+  opportunity_candidates_opportunity_candidates_lead_l2_product_idTocustomer_products                     opportunity_candidates[]                  @relation("opportunity_candidates_lead_l2_product_idTocustomer_products")
+  opportunity_candidates_opportunity_candidates_lead_product_idTocustomer_products                        opportunity_candidates[]                  @relation("opportunity_candidates_lead_product_idTocustomer_products")
+  product_rankings                                                                                        product_rankings[]
+  product_scoring_results_product_scoring_results_customer_product_idTocustomer_products                  product_scoring_results[]                 @relation("product_scoring_results_customer_product_idTocustomer_products")
+  product_scoring_results_product_scoring_results_parent_l2_product_idTocustomer_products                 product_scoring_results[]                 @relation("product_scoring_results_parent_l2_product_idTocustomer_products")
+  product_scoring_signal_attributions                                                                     product_scoring_signal_attributions[]
+  product_shortlist_items                                                                                 product_shortlist_items[]
+  research_run_product_scope                                                                              research_run_product_scope[]
+  sm_customer_product_capability_map                                                                      sm_customer_product_capability_map[]
+  sm_l2_product_fit_context_items_sm_l2_product_fit_context_items_target_l2_product_idTocustomer_products sm_l2_product_fit_context_items[]         @relation("sm_l2_product_fit_context_items_target_l2_product_idTocustomer_products")
+  sm_l2_product_fit_context_items_sm_l2_product_fit_context_items_customer_product_idTocustomer_products  sm_l2_product_fit_context_items[]         @relation("sm_l2_product_fit_context_items_customer_product_idTocustomer_products")
+  sm_l2_product_fit_contexts                                                                              sm_l2_product_fit_contexts[]
 
   @@unique([customer_id, parent_id, name], map: "uq_customer_products_customer_parent_name")
   @@index([customer_id, is_active], map: "idx_customer_products_active")
@@ -1290,13 +1312,13 @@ model n8n_tasks {
   work_flow_url              String
   status                     String    @default("PENDING")
   execution_id               String?   @db.VarChar(255)
-  last_seen_execution_status String?   @db.VarChar(50)
-  last_checked_at            DateTime? @db.Timestamptz(6)
   metadata                   Json?
   report_id                  Int?
-  instance_index             Int?      @db.SmallInt
   created_at                 DateTime? @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime? @default(now()) @db.Timestamptz(6)
+  last_seen_execution_status String?   @db.VarChar(50)
+  last_checked_at            DateTime? @db.Timestamptz(6)
+  instance_index             Int?      @db.SmallInt
   reports                    reports?  @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
@@ -1423,27 +1445,28 @@ model opportunity_candidate_entities {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model opportunity_candidate_items {
-  id                                                                                    BigInt                      @id @default(autoincrement())
+  id                                                                                    BigInt                                @id @default(autoincrement())
   opportunity_candidate_id                                                              BigInt
   customer_product_id                                                                   BigInt
   product_scoring_result_id                                                             BigInt?
   product_level                                                                         customer_product_level_enum
   parent_l2_product_id                                                                  BigInt?
-  item_role                                                                             String                      @db.VarChar(50)
-  is_scored                                                                             Boolean                     @default(false)
-  is_primary                                                                            Boolean                     @default(false)
-  is_required_for_close                                                                 Boolean                     @default(false)
-  source_score                                                                          Decimal?                    @db.Decimal(10, 4)
-  source_confidence_score                                                               Decimal?                    @db.Decimal(10, 4)
-  sort_order                                                                            Int                         @default(1)
+  item_role                                                                             String                                @db.VarChar(50)
+  is_scored                                                                             Boolean                               @default(false)
+  is_primary                                                                            Boolean                               @default(false)
+  is_required_for_close                                                                 Boolean                               @default(false)
+  source_score                                                                          Decimal?                              @db.Decimal(10, 4)
+  source_confidence_score                                                               Decimal?                              @db.Decimal(10, 4)
+  sort_order                                                                            Int                                   @default(1)
   inclusion_reason                                                                      String?
-  meta                                                                                  Json                        @default("{}")
-  created_at                                                                            DateTime                    @default(now()) @db.Timestamptz(6)
-  updated_at                                                                            DateTime                    @default(now()) @db.Timestamptz(6)
-  customer_products_opportunity_candidate_items_customer_product_idTocustomer_products  customer_products           @relation("opportunity_candidate_items_customer_product_idTocustomer_products", fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  opportunity_candidates                                                                opportunity_candidates      @relation(fields: [opportunity_candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  customer_products_opportunity_candidate_items_parent_l2_product_idTocustomer_products customer_products?          @relation("opportunity_candidate_items_parent_l2_product_idTocustomer_products", fields: [parent_l2_product_id], references: [id], onUpdate: NoAction)
-  product_scoring_results                                                               product_scoring_results?    @relation(fields: [product_scoring_result_id], references: [id], onUpdate: NoAction)
+  meta                                                                                  Json                                  @default("{}")
+  created_at                                                                            DateTime                              @default(now()) @db.Timestamptz(6)
+  updated_at                                                                            DateTime                              @default(now()) @db.Timestamptz(6)
+  opportunity_candidate_evidence_refs                                                   opportunity_candidate_evidence_refs[]
+  customer_products_opportunity_candidate_items_customer_product_idTocustomer_products  customer_products                     @relation("opportunity_candidate_items_customer_product_idTocustomer_products", fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  opportunity_candidates                                                                opportunity_candidates                @relation(fields: [opportunity_candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_products_opportunity_candidate_items_parent_l2_product_idTocustomer_products customer_products?                    @relation("opportunity_candidate_items_parent_l2_product_idTocustomer_products", fields: [parent_l2_product_id], references: [id], onUpdate: NoAction)
+  product_scoring_results                                                               product_scoring_results?              @relation(fields: [product_scoring_result_id], references: [id], onUpdate: NoAction)
 
   @@unique([opportunity_candidate_id, customer_product_id], map: "opportunity_candidate_items_unique")
   @@index([opportunity_candidate_id, item_role, sort_order], map: "idx_opportunity_candidate_items_candidate_role")
@@ -1455,65 +1478,65 @@ model opportunity_candidate_items {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model opportunity_candidates {
-  id                                                                                                             BigInt                            @id @default(autoincrement())
+  id                                                                                                             BigInt                                @id @default(autoincrement())
   research_run_id                                                                                                BigInt
   company_id                                                                                                     Int
   title                                                                                                          String
   org_unit                                                                                                       String
-  motion_family                                                                                                  String                            @db.VarChar(30)
-  motion_wave                                                                                                    String?                           @db.VarChar(20)
+  motion_family                                                                                                  String                                @db.VarChar(30)
+  motion_wave                                                                                                    String?                               @db.VarChar(20)
   opportunity_space                                                                                              String?
   lead_l2_product_id                                                                                             BigInt?
   lead_product_id                                                                                                BigInt?
   lead_product_scoring_result_id                                                                                 BigInt?
-  stage                                                                                                          String                            @default("lead") @db.VarChar(50)
+  stage                                                                                                          String                                @default("lead") @db.VarChar(50)
   stage_detail                                                                                                   String?
-  status                                                                                                         String                            @default("candidate") @db.VarChar(30)
+  status                                                                                                         String                                @default("candidate") @db.VarChar(30)
   close_target_text                                                                                              String?
-  close_target_from                                                                                              DateTime?                         @db.Date
-  close_target_to                                                                                                DateTime?                         @db.Date
+  close_target_from                                                                                              DateTime?                             @db.Date
+  close_target_to                                                                                                DateTime?                             @db.Date
   owner_label                                                                                                    String?
-  owner_type                                                                                                     String?                           @db.VarChar(100)
+  owner_type                                                                                                     String?                               @db.VarChar(100)
   specialist_overlay                                                                                             String?
   amount_model_text                                                                                              String?
-  amount_type                                                                                                    String                            @default("unknown") @db.VarChar(20)
+  amount_type                                                                                                    String                                @default("unknown") @db.VarChar(20)
   depends_on_opportunity_id                                                                                      BigInt?
   relationship_anchor_opportunity_id                                                                             BigInt?
-  handoff_required                                                                                               Boolean                           @default(false)
+  handoff_required                                                                                               Boolean                               @default(false)
   handoff_to_org_unit                                                                                            String?
   crm_linking_note                                                                                               String?
   sequencing_note                                                                                                String?
-  score                                                                                                          Decimal                           @default(0) @db.Decimal(10, 4)
-  confidence_score                                                                                               Decimal                           @default(0) @db.Decimal(10, 4)
-  commercial_readiness_score                                                                                     Decimal                           @default(0) @db.Decimal(10, 4)
-  dependency_readiness_score                                                                                     Decimal                           @default(0) @db.Decimal(10, 4)
-  handoff_complexity_score                                                                                       Decimal                           @default(0) @db.Decimal(10, 4)
+  score                                                                                                          Decimal                               @default(0) @db.Decimal(10, 4)
+  confidence_score                                                                                               Decimal                               @default(0) @db.Decimal(10, 4)
+  commercial_readiness_score                                                                                     Decimal                               @default(0) @db.Decimal(10, 4)
+  dependency_readiness_score                                                                                     Decimal                               @default(0) @db.Decimal(10, 4)
+  handoff_complexity_score                                                                                       Decimal                               @default(0) @db.Decimal(10, 4)
   rank_position                                                                                                  Int?
-  is_top_10                                                                                                      Boolean                           @default(false)
-  ranking_version                                                                                                String                            @default("v1") @db.VarChar(50)
+  is_top_10                                                                                                      Boolean                               @default(false)
+  ranking_version                                                                                                String                                @default("v1") @db.VarChar(50)
   why_now                                                                                                        String?
   notes                                                                                                          String?
-  meta                                                                                                           Json                              @default("{}")
-  created_at                                                                                                     DateTime                          @default(now()) @db.Timestamptz(6)
-  updated_at                                                                                                     DateTime                          @default(now()) @db.Timestamptz(6)
+  meta                                                                                                           Json                                  @default("{}")
+  created_at                                                                                                     DateTime                              @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                                     DateTime                              @default(now()) @db.Timestamptz(6)
   primary_business_problem                                                                                       String?
   primary_buyer_persona                                                                                          String?
   primary_value_proposition                                                                                      String?
   solution_center                                                                                                String?
   commercial_model_hypothesis                                                                                    String?
   buyer_routing                                                                                                  Json?
-  horizon                                                                                                        String?                           @db.VarChar(20)
+  horizon                                                                                                        String?                               @db.VarChar(20)
   horizon_name                                                                                                   String?
   horizon_reasoning                                                                                              String?
-  horizon_confidence                                                                                             Decimal?                          @db.Decimal(10, 4)
-  horizon_version                                                                                                String?                           @db.VarChar(50)
-  horizon_assigned_at                                                                                            DateTime?                         @db.Timestamptz(6)
-  horizon_meta                                                                                                   Json                              @default("{}")
-  delivery_type                                                                                                  String?                           @db.VarChar(50)
+  horizon_confidence                                                                                             Decimal?                              @db.Decimal(10, 4)
+  horizon_version                                                                                                String?                               @db.VarChar(50)
+  horizon_assigned_at                                                                                            DateTime?                             @db.Timestamptz(6)
+  horizon_meta                                                                                                   Json                                  @default("{}")
+  delivery_type                                                                                                  String?                               @db.VarChar(50)
   track_1_entity                                                                                                 String?
-  track_2_entities                                                                                               Json                              @default("[]")
-  track_meta                                                                                                     Json                              @default("{}")
-  portfolio_priority_score                                                                                       Decimal?                          @db.Decimal(10, 4)
+  track_2_entities                                                                                               Json                                  @default("[]")
+  track_meta                                                                                                     Json                                  @default("{}")
+  portfolio_priority_score                                                                                       Decimal?                              @db.Decimal(10, 4)
   portfolio_priority_reason                                                                                      String?
   deal_size_general                                                                                              String?
   deal_size_horizon                                                                                              String?
@@ -1527,22 +1550,23 @@ model opportunity_candidates {
   time_tier_reasoning                                                                                            String?
   signal_strength_tier                                                                                           Int?
   signal_strength_tier_reasoning                                                                                 String?
-  signal_strength_score                                                                                          Decimal?                          @db.Decimal(10, 4)
+  signal_strength_score                                                                                          Decimal?                              @db.Decimal(10, 4)
   signal_strength_reasoning                                                                                      String?
-  is_selected_for_deep_dive                                                                                      Boolean?                          @default(false)
-  scope_type                                                                                                     String?                           @db.VarChar
+  is_selected_for_deep_dive                                                                                      Boolean?                              @default(false)
+  scope_type                                                                                                     String?                               @db.VarChar
   primary_scope_company_id                                                                                       Int?
   opportunity_candidate_entities                                                                                 opportunity_candidate_entities[]
+  opportunity_candidate_evidence_refs                                                                            opportunity_candidate_evidence_refs[]
   opportunity_candidate_items                                                                                    opportunity_candidate_items[]
-  companies                                                                                                      companies                         @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates                opportunity_candidates?           @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates", fields: [depends_on_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_depends_on_fkey")
-  other_opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates          opportunity_candidates[]          @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates")
-  customer_products_opportunity_candidates_lead_l2_product_idTocustomer_products                                 customer_products?                @relation("opportunity_candidates_lead_l2_product_idTocustomer_products", fields: [lead_l2_product_id], references: [id], onUpdate: NoAction)
-  customer_products_opportunity_candidates_lead_product_idTocustomer_products                                    customer_products?                @relation("opportunity_candidates_lead_product_idTocustomer_products", fields: [lead_product_id], references: [id], onUpdate: NoAction)
-  product_scoring_results                                                                                        product_scoring_results?          @relation(fields: [lead_product_scoring_result_id], references: [id], onUpdate: NoAction)
-  opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates       opportunity_candidates?           @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates", fields: [relationship_anchor_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_relationship_anchor_fkey")
-  other_opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates opportunity_candidates[]          @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates")
-  research_runs                                                                                                  research_runs                     @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  companies                                                                                                      companies                             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates                opportunity_candidates?               @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates", fields: [depends_on_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_depends_on_fkey")
+  other_opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates          opportunity_candidates[]              @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates")
+  customer_products_opportunity_candidates_lead_l2_product_idTocustomer_products                                 customer_products?                    @relation("opportunity_candidates_lead_l2_product_idTocustomer_products", fields: [lead_l2_product_id], references: [id], onUpdate: NoAction)
+  customer_products_opportunity_candidates_lead_product_idTocustomer_products                                    customer_products?                    @relation("opportunity_candidates_lead_product_idTocustomer_products", fields: [lead_product_id], references: [id], onUpdate: NoAction)
+  product_scoring_results                                                                                        product_scoring_results?              @relation(fields: [lead_product_scoring_result_id], references: [id], onUpdate: NoAction)
+  opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates       opportunity_candidates?               @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates", fields: [relationship_anchor_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_relationship_anchor_fkey")
+  other_opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates opportunity_candidates[]              @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates")
+  research_runs                                                                                                  research_runs                         @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   opportunity_candidates_deep_dive                                                                               opportunity_candidates_deep_dive?
   opportunity_company_contexts                                                                                   opportunity_company_contexts?
   opportunity_product_contexts                                                                                   opportunity_product_contexts?
@@ -1828,6 +1852,7 @@ model product_scoring_results {
   created_at                                                                        DateTime                               @default(now()) @db.Timestamptz(6)
   updated_at                                                                        DateTime                               @default(now()) @db.Timestamptz(6)
   opportunity_bundle_analytics                                                      opportunity_bundle_analytics[]
+  opportunity_candidate_evidence_refs                                               opportunity_candidate_evidence_refs[]
   opportunity_candidate_items                                                       opportunity_candidate_items[]
   opportunity_candidates                                                            opportunity_candidates[]
   product_ranking_items                                                             product_ranking_items[]
@@ -1839,6 +1864,7 @@ model product_scoring_results {
   product_scoring_results                                                           product_scoring_results?               @relation("product_scoring_resultsToproduct_scoring_results", fields: [source_parent_scoring_result_id], references: [id], onUpdate: NoAction)
   other_product_scoring_results                                                     product_scoring_results[]              @relation("product_scoring_resultsToproduct_scoring_results")
   company_signal_summaries                                                          company_signal_summaries?              @relation(fields: [source_summary_id], references: [id], onUpdate: NoAction)
+  product_scoring_signal_attributions                                               product_scoring_signal_attributions[]
   product_scoring_signal_contributions                                              product_scoring_signal_contributions[]
   product_shortlist_items                                                           product_shortlist_items[]
 
@@ -1934,32 +1960,38 @@ model research_run_product_scope {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model research_runs {
-  id                           BigInt                         @id @default(autoincrement())
-  company_id                   Int?
-  report_id                    Int?
-  run_type                     String                         @default("initial") @db.VarChar(50)
-  parent_run_id                BigInt?
-  window_from                  DateTime                       @db.Date
-  window_to                    DateTime                       @db.Date
-  status                       String                         @default("completed") @db.VarChar(50)
-  meta                         Json                           @default("{}")
-  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-  updated_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-  customer_id                  BigInt                         @default(2)
-  company_signal_summaries     company_signal_summaries[]
-  opportunity_bundle_analytics opportunity_bundle_analytics[]
-  opportunity_candidates       opportunity_candidates[]
-  product_rankings             product_rankings[]
-  product_scoring_results      product_scoring_results[]
-  product_shortlists           product_shortlists[]
-  research_run_product_scope   research_run_product_scope[]
-  companies                    companies?                     @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  customers                    customers                      @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
-  research_runs                research_runs?                 @relation("research_runsToresearch_runs", fields: [parent_run_id], references: [id], onUpdate: NoAction, map: "research_runs_parent_fkey")
-  other_research_runs          research_runs[]                @relation("research_runsToresearch_runs")
-  reports                      reports?                       @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  signal_confirmations         signal_confirmations[]
-  signal_search_tasks          signal_search_tasks[]
+  id                                     BigInt                                   @id @default(autoincrement())
+  company_id                             Int?
+  report_id                              Int?
+  run_type                               String                                   @default("initial") @db.VarChar(50)
+  parent_run_id                          BigInt?
+  window_from                            DateTime                                 @db.Date
+  window_to                              DateTime                                 @db.Date
+  status                                 String                                   @default("completed") @db.VarChar(50)
+  meta                                   Json                                     @default("{}")
+  created_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  updated_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  customer_id                            BigInt                                   @default(2)
+  company_signal_summaries               company_signal_summaries[]
+  opportunity_bundle_analytics           opportunity_bundle_analytics[]
+  opportunity_candidates                 opportunity_candidates[]
+  product_rankings                       product_rankings[]
+  product_scoring_results                product_scoring_results[]
+  product_scoring_signal_attributions    product_scoring_signal_attributions[]
+  product_shortlists                     product_shortlists[]
+  research_run_product_scope             research_run_product_scope[]
+  companies                              companies?                               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customers                              customers                                @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
+  research_runs                          research_runs?                           @relation("research_runsToresearch_runs", fields: [parent_run_id], references: [id], onUpdate: NoAction, map: "research_runs_parent_fkey")
+  other_research_runs                    research_runs[]                          @relation("research_runsToresearch_runs")
+  reports                                reports?                                 @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_confirmations                   signal_confirmations[]
+  signal_search_tasks                    signal_search_tasks[]
+  sm_additional_research_task_candidates sm_additional_research_task_candidates[]
+  sm_additional_research_task_results    sm_additional_research_task_results[]
+  sm_additional_research_tasks           sm_additional_research_tasks[]
+  sm_l2_product_fit_context_items        sm_l2_product_fit_context_items[]
+  sm_l2_product_fit_contexts             sm_l2_product_fit_contexts[]
 
   @@index([company_id], map: "idx_research_runs_company_id")
   @@index([customer_id], map: "idx_research_runs_customer_id")
@@ -2114,16 +2146,25 @@ model signal_candidates {
 }
 
 model signal_categories {
-  id                 BigInt               @id @default(autoincrement())
-  code               String               @unique(map: "signal_categories_code_unique") @db.VarChar(100)
-  name               String
-  description        String?
-  is_active          Boolean              @default(true)
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime             @default(now()) @db.Timestamptz(6)
-  signal_definitions signal_definitions[]
+  id                                                                            BigInt                               @id @default(autoincrement())
+  code                                                                          String                               @unique(map: "signal_categories_code_unique") @db.VarChar(100)
+  name                                                                          String
+  description                                                                   String?
+  is_active                                                                     Boolean                              @default(true)
+  created_at                                                                    DateTime                             @default(now()) @db.Timestamptz(6)
+  updated_at                                                                    DateTime                             @default(now()) @db.Timestamptz(6)
+  tier                                                                          Int?                                 @default(1)
+  parent_id                                                                     BigInt?
+  signal_definition_id                                                          BigInt?
+  is_gc                                                                         Boolean?                             @default(false)
+  signal_categories                                                             signal_categories?                   @relation("signal_categoriesTosignal_categories", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_signal_categories                                                       signal_categories[]                  @relation("signal_categoriesTosignal_categories")
+  signal_definitions_signal_categories_signal_definition_idTosignal_definitions signal_definitions?                  @relation("signal_categories_signal_definition_idTosignal_definitions", fields: [signal_definition_id], references: [id], onUpdate: NoAction)
+  signal_category_signal_definitions                                            signal_category_signal_definitions[]
+  signal_definitions                                                            signal_definitions[]
 
   @@index([is_active], map: "idx_signal_categories_is_active")
+  @@index([parent_id])
 }
 
 model signal_confirmations {
@@ -2178,37 +2219,42 @@ model signal_confirmations {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model signal_definitions {
-  id                                      BigInt                                    @id @default(autoincrement())
-  code                                    String                                    @unique(map: "signal_definitions_code_unique") @db.VarChar(100)
-  signal_type_id                          BigInt
-  category_id                             BigInt?
-  name                                    String
-  description                             String
-  scope                                   String                                    @default("company") @db.VarChar(50)
-  requires_company_binding                Boolean                                   @default(true)
-  merged_into_signal_id                   BigInt?
-  semantic_fingerprint                    String?
-  is_active                               Boolean                                   @default(true)
-  meta                                    Json                                      @default("{}")
-  created_at                              DateTime                                  @default(now()) @db.Timestamptz(6)
-  updated_at                              DateTime                                  @default(now()) @db.Timestamptz(6)
-  normalized_name                         String?
-  name_fp                                 String?
-  description_fp                          String?
-  embedding                               Float[]
-  search_level                            String                                    @default("entity") @db.VarChar(20)
-  company_signal_summary_items            company_signal_summary_items[]
-  customer_product_signal_links           customer_product_signal_links[]
-  customer_product_signal_query_overrides customer_product_signal_query_overrides[]
-  opportunity_seed_signal_facts           opportunity_seed_signal_facts[]
-  product_scoring_signal_contributions    product_scoring_signal_contributions[]
-  signal_confirmations                    signal_confirmations[]
-  signal_categories                       signal_categories?                        @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  signal_definitions                      signal_definitions?                       @relation("signal_definitionsTosignal_definitions", fields: [merged_into_signal_id], references: [id], onUpdate: NoAction)
-  other_signal_definitions                signal_definitions[]                      @relation("signal_definitionsTosignal_definitions")
-  signal_types                            signal_types                              @relation(fields: [signal_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  signal_search_phrases                   signal_search_phrases[]
-  signal_search_tasks                     signal_search_tasks[]
+  id                                                                           BigInt                                    @id @default(autoincrement())
+  code                                                                         String                                    @db.VarChar(100)
+  signal_type_id                                                               BigInt
+  category_id                                                                  BigInt?
+  name                                                                         String
+  description                                                                  String
+  scope                                                                        String                                    @default("company") @db.VarChar(50)
+  requires_company_binding                                                     Boolean                                   @default(true)
+  merged_into_signal_id                                                        BigInt?
+  semantic_fingerprint                                                         String?
+  is_active                                                                    Boolean                                   @default(true)
+  meta                                                                         Json                                      @default("{}")
+  created_at                                                                   DateTime                                  @default(now()) @db.Timestamptz(6)
+  updated_at                                                                   DateTime                                  @default(now()) @db.Timestamptz(6)
+  normalized_name                                                              String?
+  name_fp                                                                      String?
+  description_fp                                                               String?
+  embedding                                                                    Float[]
+  search_level                                                                 String                                    @default("entity") @db.VarChar(20)
+  company_signal_summary_items                                                 company_signal_summary_items[]
+  customer_product_signal_links                                                customer_product_signal_links[]
+  customer_product_signal_query_overrides                                      customer_product_signal_query_overrides[]
+  opportunity_seed_signal_facts                                                opportunity_seed_signal_facts[]
+  product_scoring_signal_attributions                                          product_scoring_signal_attributions[]
+  product_scoring_signal_contributions                                         product_scoring_signal_contributions[]
+  report_company_signal_scope                                                  report_company_signal_scope[]
+  signal_categories_signal_categories_signal_definition_idTosignal_definitions signal_categories[]                       @relation("signal_categories_signal_definition_idTosignal_definitions")
+  signal_category_signal_definitions                                           signal_category_signal_definitions[]
+  signal_confirmations                                                         signal_confirmations[]
+  signal_definition_gics_codes                                                 signal_definition_gics_codes[]
+  signal_categories                                                            signal_categories?                        @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  signal_definitions                                                           signal_definitions?                       @relation("signal_definitionsTosignal_definitions", fields: [merged_into_signal_id], references: [id], onUpdate: NoAction)
+  other_signal_definitions                                                     signal_definitions[]                      @relation("signal_definitionsTosignal_definitions")
+  signal_types                                                                 signal_types                              @relation(fields: [signal_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  signal_search_phrases                                                        signal_search_phrases[]
+  signal_search_tasks                                                          signal_search_tasks[]
 
   @@index([category_id], map: "idx_signal_definitions_category_id")
   @@index([description_fp], map: "idx_signal_definitions_description_fp")
@@ -2336,6 +2382,512 @@ model stakeholders_v2 {
   @@index([person_id], map: "idx_stakeholders_v2_person_id")
 }
 
+model countries {
+  id               String             @id @db.VarChar(2)
+  country_name     String             @db.VarChar(255)
+  settings         Json?              @db.Json
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?          @default(now()) @db.Timestamp(6)
+  report_countries report_countries[]
+}
+
+model report_countries {
+  report_id  Int
+  country_id String    @db.VarChar
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  countries  countries @relation(fields: [country_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_countries_country_id_fkey")
+  reports    reports   @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_countries_report_id_fkey")
+
+  @@id([report_id, country_id])
+  @@index([report_id], map: "idx_report_countries_report_id")
+  @@index([country_id], map: "idx_report_countries_country_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gics_codes {
+  code                         String                         @id @db.VarChar(8)
+  name                         String                         @db.VarChar(255)
+  level                        Int                            @db.SmallInt
+  parent_code                  String?                        @db.VarChar(8)
+  created_at                   DateTime                       @default(now()) @db.Timestamp(6)
+  companies                    companies[]
+  gics_codes                   gics_codes?                    @relation("gics_codesTogics_codes", fields: [parent_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  other_gics_codes             gics_codes[]                   @relation("gics_codesTogics_codes")
+  signal_definition_gics_codes signal_definition_gics_codes[]
+
+  @@index([level])
+  @@index([parent_code])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model opportunity_candidate_evidence_refs {
+  id                            BigInt                       @id @default(autoincrement())
+  opportunity_candidate_id      BigInt
+  opportunity_candidate_item_id BigInt?
+  evidence_scope                String                       @default("opportunity") @db.VarChar(20)
+  evidence_ref_id               String?                      @db.VarChar(80)
+  evidence_key                  String
+  customer_product_id           BigInt?
+  product_scoring_result_id     BigInt?
+  result_id                     BigInt?
+  task_id                       BigInt?
+  source_id                     BigInt?
+  url                           String?
+  title                         String?
+  publisher                     String?
+  published_at                  DateTime?                    @db.Date
+  is_official_source            Boolean                      @default(false)
+  used_for                      String?                      @db.VarChar(100)
+  claim_supported               String?
+  reason                        String?
+  support_status                String?                      @db.VarChar(80)
+  evidence_classification       String?                      @db.VarChar(80)
+  recommended_l3_action         String?                      @db.VarChar(80)
+  source_payload                Json                         @default("{}")
+  meta                          Json                         @default("{}")
+  created_at                    DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                     @default(now()) @db.Timestamptz(6)
+  opportunity_candidates        opportunity_candidates       @relation(fields: [opportunity_candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "opportunity_candidate_evidence_refs_candidate_fkey")
+  customer_products             customer_products?           @relation(fields: [customer_product_id], references: [id], onUpdate: NoAction, map: "opportunity_candidate_evidence_refs_customer_product_fkey")
+  opportunity_candidate_items   opportunity_candidate_items? @relation(fields: [opportunity_candidate_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "opportunity_candidate_evidence_refs_item_fkey")
+  product_scoring_results       product_scoring_results?     @relation(fields: [product_scoring_result_id], references: [id], onUpdate: NoAction, map: "opportunity_candidate_evidence_refs_product_scoring_fkey")
+
+  @@index([opportunity_candidate_id], map: "opportunity_candidate_evidence_refs_candidate_idx")
+  @@index([opportunity_candidate_item_id], map: "opportunity_candidate_evidence_refs_item_idx")
+  @@index([is_official_source], map: "opportunity_candidate_evidence_refs_official_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model product_scoring_signal_attributions {
+  id                             BigInt                        @id @default(autoincrement())
+  product_scoring_result_id      BigInt
+  research_run_id                BigInt
+  company_id                     Int
+  customer_product_id            BigInt
+  product_level                  customer_product_level_enum
+  signal_definition_id           BigInt?
+  company_signal_summary_item_id BigInt?
+  attribution_role               String                        @db.VarChar(50)
+  product_capability_link        String?
+  relevance_to_product           Decimal?                      @db.Decimal(10, 4)
+  evidence_directness            Decimal?                      @db.Decimal(10, 4)
+  contribution_score             Decimal?                      @db.Decimal(10, 4)
+  confidence_score               Decimal?                      @db.Decimal(10, 4)
+  evidence_refs                  Json                          @default("[]")
+  rationale                      String?
+  meta                           Json                          @default("{}")
+  created_at                     DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime                      @default(now()) @db.Timestamptz(6)
+  companies                      companies                     @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_scoring_signal_attributions_company_fkey")
+  customer_products              customer_products             @relation(fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_scoring_signal_attributions_product_fkey")
+  research_runs                  research_runs                 @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_scoring_signal_attributions_research_run_fkey")
+  product_scoring_results        product_scoring_results       @relation(fields: [product_scoring_result_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_scoring_signal_attributions_result_fkey")
+  signal_definitions             signal_definitions?           @relation(fields: [signal_definition_id], references: [id], onUpdate: NoAction, map: "product_scoring_signal_attributions_signal_fkey")
+  company_signal_summary_items   company_signal_summary_items? @relation(fields: [company_signal_summary_item_id], references: [id], onUpdate: NoAction, map: "product_scoring_signal_attributions_summary_item_fkey")
+
+  @@index([product_scoring_result_id, attribution_role, contribution_score(sort: Desc)], map: "product_scoring_signal_attributions_contribution_idx")
+  @@index([evidence_refs], map: "product_scoring_signal_attributions_evidence_refs_gin_idx", type: Gin)
+  @@index([meta], map: "product_scoring_signal_attributions_meta_gin_idx", type: Gin)
+  @@index([product_scoring_result_id], map: "product_scoring_signal_attributions_result_idx")
+  @@index([attribution_role], map: "product_scoring_signal_attributions_role_idx")
+  @@index([research_run_id, company_id, customer_product_id], map: "product_scoring_signal_attributions_run_company_product_idx")
+  @@index([signal_definition_id], map: "product_scoring_signal_attributions_signal_idx")
+  @@index([company_signal_summary_item_id], map: "product_scoring_signal_attributions_summary_item_idx")
+}
+
+model report_company_signal_scope {
+  id                   BigInt             @id @default(autoincrement())
+  report_id            Int
+  company_id           Int
+  signal_definition_id BigInt
+  is_active            Boolean            @default(true)
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime           @default(now()) @db.Timestamptz(6)
+  companies            companies          @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reports              reports            @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_definitions   signal_definitions @relation(fields: [signal_definition_id], references: [id], onUpdate: NoAction)
+
+  @@unique([report_id, company_id, signal_definition_id], map: "ux_report_company_signal_scope_active")
+  @@index([report_id, company_id], map: "idx_report_company_signal_scope_report_company")
+  @@index([signal_definition_id], map: "idx_report_company_signal_scope_signal_definition")
+}
+
+model report_validation_rules {
+  id                 Int              @id @default(autoincrement())
+  report_id          Int
+  validation_rule_id Int
+  execution_order    Int?
+  enabled            Boolean          @default(true)
+  created_at         DateTime         @default(now()) @db.Timestamp(6)
+  reports            reports          @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  validation_rules   validation_rules @relation(fields: [validation_rule_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([report_id, validation_rule_id], map: "report_validation_rules_unique")
+  @@index([report_id], map: "idx_report_validation_rules_report_id")
+  @@index([validation_rule_id], map: "idx_report_validation_rules_validation_rule_id")
+}
+
+model signal_category_signal_definitions {
+  id                   BigInt             @id @default(autoincrement())
+  signal_category_id   BigInt
+  signal_definition_id BigInt
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  code                 String             @default("") @db.VarChar(100)
+  signal_categories    signal_categories  @relation(fields: [signal_category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_definitions   signal_definitions @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([signal_category_id, signal_definition_id], map: "signal_category_signal_definitions_unique")
+  @@index([signal_category_id], map: "idx_scsd_signal_category_id")
+  @@index([signal_definition_id], map: "idx_scsd_signal_definition_id")
+}
+
+model signal_definition_gics_codes {
+  signal_definition_id BigInt
+  gics_code            String             @db.VarChar(8)
+  gics_codes           gics_codes         @relation(fields: [gics_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  signal_definitions   signal_definitions @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([signal_definition_id, gics_code])
+  @@index([gics_code])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_additional_research_generation_policies {
+  id                                             BigInt                                      @id @default(autoincrement())
+  mode                                           String                                      @unique @db.VarChar(50)
+  name                                           String                                      @db.VarChar(255)
+  description                                    String?
+  is_active                                      Boolean                                     @default(true)
+  max_candidate_tasks_per_company                Int                                         @default(8)
+  max_approved_tasks_per_company                 Int                                         @default(2)
+  max_tasks_per_uncertainty_type                 Int                                         @default(1)
+  max_tasks_per_task_type                        Int                                         @default(1)
+  max_high_cost_tasks_per_company                Int                                         @default(1)
+  require_uncertainty_type                       Boolean                                     @default(true)
+  require_task_type                              Boolean                                     @default(true)
+  require_evidence_gap                           Boolean                                     @default(true)
+  require_decision_impact                        Boolean                                     @default(true)
+  require_target_capability_match                Boolean                                     @default(true)
+  require_based_on_refs                          Boolean                                     @default(true)
+  min_evidence_refs_count                        Int                                         @default(2)
+  min_priority_score                             Decimal                                     @default(0.500) @db.Decimal(6, 3)
+  min_decision_impact_score                      Decimal                                     @default(0.500) @db.Decimal(6, 3)
+  min_capability_match_score                     Decimal                                     @default(0.500) @db.Decimal(6, 3)
+  allow_speculative_tasks                        Boolean                                     @default(false)
+  allow_tasks_without_trigger                    Boolean                                     @default(false)
+  allow_tasks_without_entity_scope               Boolean                                     @default(true)
+  allow_tasks_without_named_buyer                Boolean                                     @default(true)
+  dedupe_similarity_threshold                    Decimal                                     @default(0.850) @db.Decimal(6, 3)
+  suppress_if_same_topic_exists                  Boolean                                     @default(true)
+  suppress_if_recently_failed                    Boolean                                     @default(true)
+  suppress_if_no_new_evidence_since_last_attempt Boolean                                     @default(true)
+  max_total_attempts_per_task                    Int                                         @default(2)
+  max_external_research_tasks                    Int                                         @default(2)
+  max_estimated_cost_per_company                 Decimal                                     @default(0) @db.Decimal(12, 2)
+  meta                                           Json                                        @default("{}")
+  created_at                                     DateTime                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                     DateTime                                    @default(now()) @db.Timestamptz(6)
+  sm_additional_research_task_admission_log      sm_additional_research_task_admission_log[]
+
+  @@index([is_active], map: "idx_sm_additional_research_generation_policies_is_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_additional_research_task_admission_log {
+  id                                         BigInt                                      @id @default(autoincrement())
+  candidate_id                               BigInt
+  task_id                                    BigInt?
+  policy_id                                  BigInt?
+  check_name                                 String                                      @db.VarChar(150)
+  check_result                               String                                      @db.VarChar(30)
+  final_outcome                              String                                      @db.VarChar(30)
+  score_delta                                Decimal?                                    @db.Decimal(8, 3)
+  reason                                     String?
+  meta                                       Json                                        @default("{}")
+  created_at                                 DateTime                                    @default(now()) @db.Timestamptz(6)
+  sm_additional_research_task_candidates     sm_additional_research_task_candidates      @relation(fields: [candidate_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_task_admission_log_candidate_fk")
+  sm_additional_research_generation_policies sm_additional_research_generation_policies? @relation(fields: [policy_id], references: [id], onUpdate: NoAction, map: "sm_additional_research_task_admission_log_policy_fk")
+  sm_additional_research_tasks               sm_additional_research_tasks?               @relation(fields: [task_id], references: [id], onUpdate: NoAction, map: "sm_additional_research_task_admission_log_task_fk")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_additional_research_task_candidates {
+  id                                        BigInt                                      @id @default(autoincrement())
+  research_run_id                           BigInt
+  company_id                                Int?
+  customer_id                               Int
+  mode                                      String                                      @db.VarChar(50)
+  task_type_id                              BigInt
+  uncertainty_type_id                       BigInt
+  title                                     String                                      @db.VarChar(1000)
+  goal                                      String
+  evidence_gap                              String
+  decision_impact                           String
+  llm_priority_score                        Decimal?                                    @db.Decimal(6, 3)
+  llm_confidence                            Decimal?                                    @db.Decimal(6, 3)
+  decision_impact_score                     Decimal?                                    @db.Decimal(6, 3)
+  source_summary_id                         BigInt?
+  based_on_refs                             Json                                        @default("[]")
+  target_capability_tags                    Json                                        @default("[]")
+  target_entities                           Json                                        @default("[]")
+  target_signals                            Json                                        @default("[]")
+  status                                    String                                      @default("generated") @db.VarChar(30)
+  dedupe_key                                String?                                     @db.VarChar(500)
+  raw_output                                Json                                        @default("{}")
+  meta                                      Json                                        @default("{}")
+  created_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  sm_additional_research_task_admission_log sm_additional_research_task_admission_log[]
+  companies                                 companies?                                  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_task_candidates_company_fk")
+  research_runs                             research_runs                               @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_task_candidates_research_run_fk")
+  sm_additional_research_task_types         sm_additional_research_task_types           @relation(fields: [task_type_id], references: [id], onUpdate: NoAction, map: "sm_additional_research_task_candidates_task_type_fk")
+  sm_additional_research_uncertainty_types  sm_additional_research_uncertainty_types    @relation(fields: [uncertainty_type_id], references: [id], onUpdate: NoAction, map: "sm_additional_research_task_candidates_uncertainty_type_fk")
+  sm_additional_research_tasks              sm_additional_research_tasks[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_additional_research_task_results {
+  id                           BigInt                       @id @default(autoincrement())
+  task_id                      BigInt
+  research_run_id              BigInt
+  company_id                   Int?
+  customer_id                  Int
+  attempt_no                   Int                          @default(1)
+  outcome_status               String                       @db.VarChar(50)
+  evidence_strength            String                       @db.VarChar(50)
+  confidence                   Decimal?                     @db.Decimal(6, 3)
+  executive_answer             String?
+  remaining_gaps               Json                         @default("[]")
+  decision_implications        Json                         @default("{}")
+  recommended_next_step        String?
+  key_findings                 Json                         @default("[]")
+  sources                      Json                         @default("[]")
+  meta                         Json                         @default("{}")
+  raw_output                   Json                         @default("{}")
+  created_at                   DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime                     @default(now()) @db.Timestamptz(6)
+  companies                    companies?                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_task_results_company_fk")
+  research_runs                research_runs                @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_task_results_research_run_fk")
+  sm_additional_research_tasks sm_additional_research_tasks @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_task_results_task_fk")
+
+  @@unique([task_id, attempt_no], map: "sm_additional_research_task_results_attempt_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_additional_research_task_types {
+  id                                     BigInt                                   @id @default(autoincrement())
+  code                                   String                                   @unique @db.VarChar(100)
+  name                                   String                                   @db.VarChar(255)
+  description                            String?
+  purpose                                String?
+  is_active                              Boolean                                  @default(true)
+  sort_order                             Int                                      @default(0)
+  default_priority_weight                Decimal                                  @default(1.00) @db.Decimal(5, 2)
+  default_cost_tier                      String                                   @default("medium") @db.VarChar(20)
+  requires_external_research             Boolean                                  @default(true)
+  supports_entity_scoping                Boolean                                  @default(false)
+  supports_buyer_inference               Boolean                                  @default(false)
+  supports_product_fit_inference         Boolean                                  @default(false)
+  output_schema_version                  String                                   @default("v1") @db.VarChar(50)
+  default_output_schema                  Json                                     @default("{}")
+  meta                                   Json                                     @default("{}")
+  created_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  updated_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  sm_additional_research_task_candidates sm_additional_research_task_candidates[]
+  sm_additional_research_tasks           sm_additional_research_tasks[]
+
+  @@index([default_cost_tier], map: "idx_sm_additional_research_task_types_cost_tier")
+  @@index([is_active], map: "idx_sm_additional_research_task_types_is_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_additional_research_tasks {
+  id                                        BigInt                                      @id @default(autoincrement())
+  research_run_id                           BigInt
+  company_id                                Int?
+  customer_id                               Int
+  candidate_id                              BigInt?
+  mode                                      String                                      @db.VarChar(50)
+  task_type_id                              BigInt
+  uncertainty_type_id                       BigInt
+  title                                     String                                      @db.VarChar(1000)
+  goal                                      String
+  evidence_gap                              String
+  decision_impact                           String
+  priority_score                            Decimal?                                    @db.Decimal(6, 3)
+  decision_impact_score                     Decimal?                                    @db.Decimal(6, 3)
+  admission_status                          String                                      @default("approved") @db.VarChar(30)
+  execution_status                          String                                      @default("pending") @db.VarChar(30)
+  source_summary_id                         BigInt?
+  based_on_refs                             Json                                        @default("[]")
+  target_capability_tags                    Json                                        @default("[]")
+  target_entities                           Json                                        @default("[]")
+  target_signals                            Json                                        @default("[]")
+  dedupe_key                                String?                                     @db.VarChar(500)
+  attempt_count                             Int                                         @default(0)
+  approved_at                               DateTime?                                   @db.Timestamptz(6)
+  started_at                                DateTime?                                   @db.Timestamptz(6)
+  finished_at                               DateTime?                                   @db.Timestamptz(6)
+  meta                                      Json                                        @default("{}")
+  created_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  sm_additional_research_task_admission_log sm_additional_research_task_admission_log[]
+  sm_additional_research_task_results       sm_additional_research_task_results[]
+  sm_additional_research_task_candidates    sm_additional_research_task_candidates?     @relation(fields: [candidate_id], references: [id], onUpdate: NoAction, map: "sm_additional_research_tasks_candidate_fk")
+  companies                                 companies?                                  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_tasks_company_fk")
+  research_runs                             research_runs                               @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_additional_research_tasks_research_run_fk")
+  sm_additional_research_task_types         sm_additional_research_task_types           @relation(fields: [task_type_id], references: [id], onUpdate: NoAction, map: "sm_additional_research_tasks_task_type_fk")
+  sm_additional_research_uncertainty_types  sm_additional_research_uncertainty_types    @relation(fields: [uncertainty_type_id], references: [id], onUpdate: NoAction, map: "sm_additional_research_tasks_uncertainty_type_fk")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_additional_research_uncertainty_types {
+  id                                     BigInt                                   @id @default(autoincrement())
+  code                                   String                                   @unique @db.VarChar(100)
+  name                                   String                                   @db.VarChar(255)
+  description                            String?
+  is_active                              Boolean                                  @default(true)
+  sort_order                             Int                                      @default(0)
+  severity_default                       String                                   @default("medium") @db.VarChar(20)
+  requires_external_research_default     Boolean                                  @default(true)
+  meta                                   Json                                     @default("{}")
+  created_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  updated_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  sm_additional_research_task_candidates sm_additional_research_task_candidates[]
+  sm_additional_research_tasks           sm_additional_research_tasks[]
+
+  @@index([is_active], map: "idx_sm_additional_research_uncertainty_types_is_active")
+  @@index([severity_default], map: "idx_sm_additional_research_uncertainty_types_severity")
+}
+
+model sm_capability_tags {
+  id                                 BigInt                               @id @default(autoincrement())
+  code                               String                               @unique @db.VarChar(100)
+  name                               String                               @db.VarChar(255)
+  description                        String?
+  parent_id                          BigInt?
+  is_active                          Boolean                              @default(true)
+  sort_order                         Int                                  @default(0)
+  meta                               Json                                 @default("{}")
+  created_at                         DateTime                             @default(now()) @db.Timestamptz(6)
+  updated_at                         DateTime                             @default(now()) @db.Timestamptz(6)
+  sm_capability_tags                 sm_capability_tags?                  @relation("sm_capability_tagsTosm_capability_tags", fields: [parent_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  other_sm_capability_tags           sm_capability_tags[]                 @relation("sm_capability_tagsTosm_capability_tags")
+  sm_customer_product_capability_map sm_customer_product_capability_map[]
+
+  @@index([is_active], map: "idx_sm_capability_tags_is_active")
+  @@index([parent_id], map: "idx_sm_capability_tags_parent_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_customer_product_capability_map {
+  id                  BigInt             @id @default(autoincrement())
+  customer_id         Int
+  customer_product_id BigInt
+  capability_tag_id   BigInt
+  weight              Decimal            @default(1.000) @db.Decimal(6, 3)
+  role_type           String             @default("supporting") @db.VarChar(20)
+  confidence          Decimal            @default(1.000) @db.Decimal(6, 3)
+  is_active           Boolean            @default(true)
+  source              String             @default("manual") @db.VarChar(30)
+  notes               String?
+  version             String             @default("v1") @db.VarChar(50)
+  meta                Json               @default("{}")
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime           @default(now()) @db.Timestamptz(6)
+  sm_capability_tags  sm_capability_tags @relation(fields: [capability_tag_id], references: [id], onUpdate: NoAction, map: "sm_customer_product_capability_map_capability_tag_fk")
+  customer_products   customer_products  @relation(fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_customer_product_capability_map_customer_product_fk")
+
+  @@unique([customer_product_id, capability_tag_id], map: "sm_customer_product_capability_map_unique")
+  @@index([capability_tag_id], map: "idx_sm_customer_product_capability_map_capability_tag_id")
+  @@index([customer_id], map: "idx_sm_customer_product_capability_map_customer_id")
+  @@index([customer_product_id], map: "idx_sm_customer_product_capability_map_customer_product_id")
+  @@index([is_active], map: "idx_sm_customer_product_capability_map_is_active")
+  @@index([role_type], map: "idx_sm_customer_product_capability_map_role_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_l2_product_fit_context_items {
+  id                                                                                        BigInt                     @id @default(autoincrement())
+  context_id                                                                                BigInt
+  research_run_id                                                                           BigInt
+  company_id                                                                                Int
+  customer_id                                                                               Int
+  target_l2_product_id                                                                      BigInt
+  customer_product_id                                                                       BigInt
+  product_level                                                                             String                     @default("l3") @db.VarChar(20)
+  product_name                                                                              String
+  support_status                                                                            String                     @db.VarChar(40)
+  evidence_classification                                                                   String                     @db.VarChar(50)
+  recommended_l3_action                                                                     String                     @db.VarChar(50)
+  confidence                                                                                Decimal?                   @db.Decimal(6, 3)
+  direct_product_fit_evidence_found                                                         Boolean                    @default(false)
+  proxy_evidence_found                                                                      Boolean                    @default(false)
+  disqualifying_evidence_found                                                              Boolean                    @default(false)
+  conflicting_evidence_found                                                                Boolean                    @default(false)
+  evidence_summary                                                                          String
+  remaining_gaps                                                                            Json                       @default("[]")
+  guardrails_for_l3_scoring                                                                 Json                       @default("[]")
+  guardrails_for_opportunity_assembly                                                       Json                       @default("[]")
+  supporting_task_ids                                                                       Json                       @default("[]")
+  supporting_result_ids                                                                     Json                       @default("[]")
+  supporting_source_ids                                                                     Json                       @default("[]")
+  source_refs                                                                               Json                       @default("[]")
+  item_json                                                                                 Json                       @default("{}")
+  meta                                                                                      Json                       @default("{}")
+  created_at                                                                                DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                DateTime                   @default(now()) @db.Timestamptz(6)
+  companies                                                                                 companies                  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_context_items_company_fk")
+  sm_l2_product_fit_contexts                                                                sm_l2_product_fit_contexts @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_context_items_context_fk")
+  customer_products_sm_l2_product_fit_context_items_target_l2_product_idTocustomer_products customer_products          @relation("sm_l2_product_fit_context_items_target_l2_product_idTocustomer_products", fields: [target_l2_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_context_items_l2_product_fk")
+  customer_products_sm_l2_product_fit_context_items_customer_product_idTocustomer_products  customer_products          @relation("sm_l2_product_fit_context_items_customer_product_idTocustomer_products", fields: [customer_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_context_items_product_fk")
+  research_runs                                                                             research_runs              @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_context_items_research_run_fk")
+
+  @@unique([context_id, customer_product_id], map: "sm_l2_product_fit_context_items_unique")
+  @@index([recommended_l3_action], map: "sm_l2_product_fit_context_items_action_idx")
+  @@index([context_id], map: "sm_l2_product_fit_context_items_context_idx")
+  @@index([target_l2_product_id], map: "sm_l2_product_fit_context_items_l2_idx")
+  @@index([customer_product_id], map: "sm_l2_product_fit_context_items_product_idx")
+  @@index([research_run_id, company_id], map: "sm_l2_product_fit_context_items_run_company_idx")
+  @@index([support_status], map: "sm_l2_product_fit_context_items_support_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sm_l2_product_fit_contexts {
+  id                              BigInt                            @id @default(autoincrement())
+  research_run_id                 BigInt
+  company_id                      Int
+  customer_id                     Int
+  source_summary_id               BigInt?
+  target_l2_product_id            BigInt
+  context_version                 String                            @default("l2_product_fit_context_v1") @db.VarChar(50)
+  overall_support_status          String                            @db.VarChar(40)
+  overall_summary                 String
+  remaining_l2_gaps               Json                              @default("[]")
+  recommended_downstream_usage    Json                              @default("{}")
+  source_task_ids                 Json                              @default("[]")
+  source_result_ids               Json                              @default("[]")
+  source_candidate_ids            Json                              @default("[]")
+  warnings                        Json                              @default("[]")
+  context_json                    Json                              @default("{}")
+  request_meta                    Json                              @default("{}")
+  raw_llm_output                  Json                              @default("{}")
+  meta                            Json                              @default("{}")
+  created_at                      DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime                          @default(now()) @db.Timestamptz(6)
+  sm_l2_product_fit_context_items sm_l2_product_fit_context_items[]
+  companies                       companies                         @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_contexts_company_fk")
+  customer_products               customer_products                 @relation(fields: [target_l2_product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_contexts_l2_product_fk")
+  research_runs                   research_runs                     @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_l2_product_fit_contexts_research_run_fk")
+  company_signal_summaries        company_signal_summaries?         @relation(fields: [source_summary_id], references: [id], onUpdate: NoAction, map: "sm_l2_product_fit_contexts_source_summary_fk")
+
+  @@unique([research_run_id, company_id, target_l2_product_id, context_version], map: "sm_l2_product_fit_contexts_unique")
+  @@index([target_l2_product_id], map: "sm_l2_product_fit_contexts_l2_idx")
+  @@index([research_run_id, company_id], map: "sm_l2_product_fit_contexts_run_company_idx")
+  @@index([overall_support_status], map: "sm_l2_product_fit_contexts_support_idx")
+}
+
 enum report_generation_step_dependency_enum {
   rdp
   kpi
@@ -2353,27 +2905,8 @@ enum report_status_enum {
 enum validation_rule_level {
   driver
   category
-}
-
-model countries {
-  id               String             @id @db.VarChar
-  country_name     String             @db.VarChar
-  settings         Json?
-  created_at       DateTime?          @default(now()) @db.Timestamp(6)
-  updated_at       DateTime?          @default(now()) @db.Timestamp(6)
-  report_countries report_countries[]
-}
-
-model report_countries {
-  report_id  Int
-  country_id String    @db.VarChar
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  reports    reports   @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_countries_report_id_fkey")
-  countries  countries @relation(fields: [country_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_countries_country_id_fkey")
-
-  @@id([report_id, country_id], map: "report_countries_pkey")
-  @@index([report_id], map: "idx_report_countries_report_id")
-  @@index([country_id], map: "idx_report_countries_country_id")
+  raw_data_point
+  kpi_category
 }
 
 enum validation_status {
