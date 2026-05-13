@@ -70,6 +70,7 @@ const SAMPLE_STEP_STATUSES = [
 const SAMPLE_KPI_RESULTS = [
 	{
 		id: 1,
+		company_id: 173,
 		data_point_id: "kpi_category_innovation",
 		value: "4.2",
 		manualValue: null,
