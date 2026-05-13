@@ -2,22 +2,17 @@
 import type { validation_status } from "../../../../../generated/prisma";
 import prisma from "../../../../../lib/prisma";
 import type {
+	AvailableValidationRuleRow,
+	ConfiguredValidationRuleRow,
 	ValidationManualUpdatePayload,
 	ValidationRulePayload,
+	ValidationSummaryByCompanyRow,
+	ValidationSummaryByRuleRow,
 } from "./validation.types";
 
 export class ValidationRepository {
 	static async getValidationSummary(reportId: number) {
-		return prisma.$queryRaw<
-			{
-				company_id: number;
-				company_name: string;
-				total: bigint;
-				pass: bigint;
-				warn: bigint;
-				failed: bigint;
-			}[]
-		>`
+		return prisma.$queryRaw<ValidationSummaryByCompanyRow[]>`
       SELECT
         c.id   AS company_id,
         c.name AS company_name,
@@ -35,17 +30,7 @@ export class ValidationRepository {
 	}
 
 	static async getValidationByRule(reportId: number) {
-		return prisma.$queryRaw<
-			{
-				rule_name: string;
-				rule_label: string;
-				rule_level: string;
-				total: bigint;
-				pass: bigint;
-				warn: bigint;
-				failed: bigint;
-			}[]
-		>`
+		return prisma.$queryRaw<ValidationSummaryByRuleRow[]>`
       SELECT
         vr.name  AS rule_name,
         vr.label AS rule_label,
@@ -64,29 +49,18 @@ export class ValidationRepository {
 	}
 
 	static async getConfiguredValidationRules(reportId: number) {
-		return prisma.$queryRaw<
-			{
-				id: number;
-				validation_rule_id: number;
-				execution_order: number | null;
-				enabled: boolean;
-				rule_name: string;
-				rule_label: string | null;
-				rule_level: string;
-				rule_description: string | null;
-				rule_criteria: unknown;
-			}[]
-		>`
+		return prisma.$queryRaw<ConfiguredValidationRuleRow[]>`
       SELECT
         rvr.id,
         rvr.validation_rule_id,
         rvr.execution_order,
         rvr.enabled,
-        vr.name        AS rule_name,
-        vr.label       AS rule_label,
-        vr.level       AS rule_level,
-        vr.description AS rule_description,
-        vr.criteria    AS rule_criteria
+        vr.name             AS rule_name,
+        vr.label            AS rule_label,
+        vr.level            AS rule_level,
+        vr.data_point_level AS rule_data_point_level,
+        vr.description      AS rule_description,
+        vr.criteria         AS rule_criteria
       FROM report_validation_rules rvr
       JOIN validation_rules vr ON vr.id = rvr.validation_rule_id
       WHERE rvr.report_id = ${reportId}
@@ -95,17 +69,8 @@ export class ValidationRepository {
 	}
 
 	static async getAvailableValidationRules(reportId: number) {
-		return prisma.$queryRaw<
-			{
-				id: number;
-				name: string;
-				label: string | null;
-				level: string;
-				description: string | null;
-				criteria: unknown;
-			}[]
-		>`
-      SELECT vr.id, vr.name, vr.label, vr.level, vr.description, vr.criteria
+		return prisma.$queryRaw<AvailableValidationRuleRow[]>`
+      SELECT vr.id, vr.name, vr.label, vr.level, vr.data_point_level, vr.description, vr.criteria
       FROM validation_rules vr
       WHERE vr.enabled = true
         AND vr.id NOT IN (
@@ -138,20 +103,21 @@ export class ValidationRepository {
 		await prisma.$executeRaw`
       UPDATE validation_rules
       SET
-        name        = ${params.name},
-        label       = ${params.label},
-        level       = ${params.level}::"validation_rule_level",
-        enabled     = ${params.enabled},
-        description = ${params.description},
-        criteria    = ${JSON.stringify(params.criteria)}::jsonb,
-        updated_at  = NOW()
+        name             = ${params.name},
+        label            = ${params.label},
+        level            = ${params.level}::"validation_rule_level",
+        enabled          = ${params.enabled},
+        description      = ${params.description},
+        criteria         = ${JSON.stringify(params.criteria)}::jsonb,
+        data_point_level = ${params.data_point_level},
+        updated_at       = NOW()
       WHERE id = ${id}
     `;
 	}
 
 	static async createValidationRule(params: ValidationRulePayload) {
 		const result = await prisma.$queryRaw<{ id: number }[]>`
-      INSERT INTO validation_rules (name, label, level, enabled, description, criteria, created_at, updated_at)
+      INSERT INTO validation_rules (name, label, level, enabled, description, criteria, data_point_level, created_at, updated_at)
       VALUES (
         ${params.name},
         ${params.label},
@@ -159,6 +125,7 @@ export class ValidationRepository {
         ${params.enabled},
         ${params.description},
         ${JSON.stringify(params.criteria)}::jsonb,
+        ${params.data_point_level},
         NOW(),
         NOW()
       )

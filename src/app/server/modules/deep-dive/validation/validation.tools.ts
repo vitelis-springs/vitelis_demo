@@ -1,7 +1,13 @@
+import {
+	VALIDATION_DATA_POINT_LEVELS,
+	VALIDATION_RULE_LEVELS,
+} from "../../../../../shared/deep-dive-contract.types";
 import type {
 	ValidationCompanyItem,
+	ValidationDataPointLevel,
 	ValidationManualUpdatePayload,
 	ValidationRuleCriteria,
+	ValidationRuleLevel,
 	ValidationRulePayload,
 	ValidationStatus,
 } from "./validation.types";
@@ -11,6 +17,27 @@ const STATUS_ORDER: Record<string, number> = {
 	warn: 1,
 	pass: 2,
 };
+
+export function bigintToNumber(value: bigint): number {
+	return Number(value);
+}
+
+function parseValidationRuleLevel(value: unknown): ValidationRuleLevel | null {
+	return typeof value === "string" &&
+		(VALIDATION_RULE_LEVELS as readonly string[]).includes(value)
+		? (value as ValidationRuleLevel)
+		: null;
+}
+
+function parseValidationDataPointLevel(
+	value: unknown,
+): ValidationDataPointLevel | null {
+	if (typeof value !== "string") return null;
+	const trimmed = value.trim();
+	return (VALIDATION_DATA_POINT_LEVELS as readonly string[]).includes(trimmed)
+		? (trimmed as ValidationDataPointLevel)
+		: null;
+}
 
 export function parseValidationStatus(
 	value: string | null,
@@ -53,9 +80,9 @@ export function parseValidationRulePayload(
 	const name = typeof body.name === "string" ? body.name.trim() : "";
 	if (!name) return { error: "Name is required" };
 
-	const level = typeof body.level === "string" ? body.level : "";
-	if (level !== "driver" && level !== "category") {
-		return { error: "Level must be driver or category" };
+	const level = parseValidationRuleLevel(body.level);
+	if (!level) {
+		return { error: "Level must be single or group" };
 	}
 
 	return {
@@ -71,6 +98,7 @@ export function parseValidationRulePayload(
 				? body.description.trim()
 				: null,
 		criteria: parseValidationCriteria(body.criteria),
+		data_point_level: parseValidationDataPointLevel(body.data_point_level),
 	};
 }
 

@@ -8,9 +8,9 @@ import {
 	Col,
 	Drawer,
 	Empty,
+	Flex,
 	Form,
 	Input,
-	List,
 	Modal,
 	Row,
 	Select,
@@ -35,6 +35,28 @@ import {
 	useRemoveReportValidationRule,
 	useUpdateValidationRule,
 } from "../../hooks/api/useDeepDiveService";
+import {
+	VALIDATION_DATA_POINT_LEVELS,
+	VALIDATION_RULE_LEVELS,
+	type ValidationDataPointLevel,
+	type ValidationRuleLevel,
+} from "../../shared/deep-dive-contract.types";
+
+const RULE_LEVEL_OPTIONS = VALIDATION_RULE_LEVELS.map((value) => ({
+	value,
+	label: value === "single" ? "Single" : "Group",
+}));
+
+const DATA_POINT_LEVEL_LABELS: Record<ValidationDataPointLevel, string> = {
+	rdp: "Raw data point",
+	driver: "Driver",
+	kpi_category: "KPI category",
+};
+
+const DATA_POINT_LEVEL_OPTIONS = VALIDATION_DATA_POINT_LEVELS.map((value) => ({
+	value,
+	label: DATA_POINT_LEVEL_LABELS[value],
+}));
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -53,8 +75,13 @@ const MODAL_STYLES = {
 	mask: { background: "rgba(0,0,0,0.7)" },
 };
 
-function levelTag(level: string) {
-	return <Tag color={level === "driver" ? "blue" : "gold"}>{level}</Tag>;
+function levelTag(level: ValidationRuleLevel) {
+	return <Tag color={level === "single" ? "blue" : "gold"}>{level}</Tag>;
+}
+
+function dataPointLevelTag(level: ValidationDataPointLevel | null) {
+	if (!level) return null;
+	return <Tag color="purple">{DATA_POINT_LEVEL_LABELS[level]}</Tag>;
 }
 
 interface Props {
@@ -66,7 +93,8 @@ interface Props {
 interface RuleFormValues {
 	name: string;
 	label: string;
-	level: "driver" | "category";
+	level: ValidationRuleLevel;
+	dataPointLevel: ValidationDataPointLevel | null;
 	enabled: boolean;
 	description: string;
 	criteriaPass: string;
@@ -78,7 +106,8 @@ type EditTarget = {
 	id: number;
 	name: string;
 	label: string | null;
-	level: string;
+	level: ValidationRuleLevel;
+	dataPointLevel: ValidationDataPointLevel | null;
 	enabled: boolean;
 	description: string | null;
 	criteria: { pass: string; warn: string; fail: string };
@@ -89,7 +118,8 @@ function ruleFormFields(rule: EditTarget): Partial<RuleFormValues> {
 	return {
 		name: rule.name,
 		label: rule.label ?? "",
-		level: rule.level as "driver" | "category",
+		level: rule.level,
+		dataPointLevel: rule.dataPointLevel,
 		enabled: rule.enabled,
 		description: rule.description ?? "",
 		criteriaPass: rule.criteria.pass,
@@ -109,7 +139,7 @@ function RuleForm({
 		<Form
 			form={form}
 			layout="vertical"
-			initialValues={{ level: "driver", enabled: true }}
+			initialValues={{ level: "single", dataPointLevel: null, enabled: true }}
 			onFinish={onFinish}
 			style={{ marginTop: 16 }}
 		>
@@ -132,12 +162,7 @@ function RuleForm({
 						label={<Text style={{ color: "#d9d9d9" }}>Level</Text>}
 						rules={[{ required: true }]}
 					>
-						<Select
-							options={[
-								{ value: "driver", label: "Driver" },
-								{ value: "category", label: "Category" },
-							]}
-						/>
+						<Select options={RULE_LEVEL_OPTIONS} />
 					</Form.Item>
 				</Col>
 			</Row>
@@ -153,6 +178,21 @@ function RuleForm({
 						<Input placeholder="e.g. Score is 1–5" style={DARK_INPUT} />
 					</Form.Item>
 				</Col>
+				<Col span={8}>
+					<Form.Item
+						name="dataPointLevel"
+						label={<Text style={{ color: "#d9d9d9" }}>Data point level</Text>}
+					>
+						<Select
+							allowClear
+							placeholder="Optional"
+							options={DATA_POINT_LEVEL_OPTIONS}
+						/>
+					</Form.Item>
+				</Col>
+			</Row>
+
+			<Row gutter={16}>
 				<Col span={8}>
 					<Form.Item
 						name="enabled"
@@ -200,6 +240,7 @@ function buildPayload(values: RuleFormValues): CreateValidationRulePayload {
 		name: values.name.trim(),
 		label: values.label?.trim() ?? "",
 		level: values.level,
+		data_point_level: values.dataPointLevel ?? null,
 		enabled: values.enabled ?? true,
 		description: values.description?.trim() ?? "",
 		criteria: {
@@ -299,6 +340,7 @@ export default function ValidationRulesConfigDrawer({
 			name: rule.name,
 			label: rule.label ?? null,
 			level: rule.level,
+			dataPointLevel: rule.dataPointLevel ?? null,
 			enabled: "enabled" in rule ? rule.enabled : true,
 			description: rule.description ?? null,
 			criteria: rule.criteria,
@@ -361,21 +403,24 @@ export default function ValidationRulesConfigDrawer({
 		isConfigured: boolean;
 	}) {
 		return (
-			<List.Item actions={ruleActions(rule, isConfigured)}>
-				<List.Item.Meta
-					title={
-						<Space size={4}>
-							<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
-								{rule.label ?? rule.name}
-							</Text>
-							{levelTag(rule.level)}
-						</Space>
-					}
-					description={
-						<Text style={{ color: "#595959", fontSize: 11 }}>{rule.name}</Text>
-					}
-				/>
-			</List.Item>
+			<Flex
+				align="center"
+				justify="space-between"
+				gap={12}
+				style={{ padding: "12px 0", borderBottom: "1px solid #303030" }}
+			>
+				<Flex vertical gap={2} style={{ minWidth: 0, flex: 1 }}>
+					<Space size={4} wrap>
+						<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
+							{rule.label ?? rule.name}
+						</Text>
+						{levelTag(rule.level)}
+						{dataPointLevelTag(rule.dataPointLevel)}
+					</Space>
+					<Text style={{ color: "#595959", fontSize: 11 }}>{rule.name}</Text>
+				</Flex>
+				<Space size={4}>{ruleActions(rule, isConfigured)}</Space>
+			</Flex>
 		);
 	}
 
@@ -418,12 +463,9 @@ export default function ValidationRulesConfigDrawer({
 										}
 									/>
 								) : (
-									<List
-										dataSource={configured}
-										renderItem={(rule) => (
-											<RuleListItem rule={rule} isConfigured />
-										)}
-									/>
+									configured.map((rule) => (
+										<RuleListItem key={rule.ruleId} rule={rule} isConfigured />
+									))
 								)}
 							</div>
 						</Card>
@@ -458,12 +500,13 @@ export default function ValidationRulesConfigDrawer({
 										}
 									/>
 								) : (
-									<List
-										dataSource={available}
-										renderItem={(rule) => (
-											<RuleListItem rule={rule} isConfigured={false} />
-										)}
-									/>
+									available.map((rule) => (
+										<RuleListItem
+											key={rule.id}
+											rule={rule}
+											isConfigured={false}
+										/>
+									))
 								)}
 							</div>
 						</Card>

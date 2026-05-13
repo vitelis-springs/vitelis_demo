@@ -1,10 +1,15 @@
 /** biome-ignore-all lint/complexity/noStaticOnlyClass: Service methods are grouped statically to match existing module conventions. */
 import type { validation_status } from "../../../../../generated/prisma";
 import { DeepDiveRepository } from "../deep-dive.repository";
+import {
+	mapAvailableValidationRule,
+	mapConfiguredValidationRule,
+	mapValidationSummaryByCompany,
+	mapValidationSummaryByRule,
+} from "./validation.mappers";
 import { ValidationRepository } from "./validation.repository";
 import {
 	getString,
-	parseValidationCriteria,
 	sortValidationCompanyItems,
 	toDataRecord,
 } from "./validation.tools";
@@ -21,26 +26,9 @@ export class ValidationService {
 			ValidationRepository.getValidationByRule(reportId),
 		]);
 
-		const toNum = (value: bigint) => Number(value);
-
 		return {
-			byCompany: byCompany.map((row) => ({
-				companyId: row.company_id,
-				companyName: row.company_name,
-				total: toNum(row.total),
-				pass: toNum(row.pass),
-				warn: toNum(row.warn),
-				failed: toNum(row.failed),
-			})),
-			byRule: byRule.map((row) => ({
-				ruleName: row.rule_name,
-				ruleLabel: row.rule_label,
-				ruleLevel: row.rule_level,
-				total: toNum(row.total),
-				pass: toNum(row.pass),
-				warn: toNum(row.warn),
-				failed: toNum(row.failed),
-			})),
+			byCompany: byCompany.map(mapValidationSummaryByCompany),
+			byRule: byRule.map(mapValidationSummaryByRule),
 		};
 	}
 
@@ -51,25 +39,8 @@ export class ValidationService {
 		]);
 
 		return {
-			configured: configured.map((row) => ({
-				id: row.id,
-				ruleId: row.validation_rule_id,
-				order: row.execution_order,
-				enabled: row.enabled,
-				name: row.rule_name,
-				label: row.rule_label,
-				level: row.rule_level,
-				description: row.rule_description,
-				criteria: parseValidationCriteria(row.rule_criteria),
-			})),
-			available: available.map((row) => ({
-				id: row.id,
-				name: row.name,
-				label: row.label,
-				level: row.level,
-				description: row.description,
-				criteria: parseValidationCriteria(row.criteria),
-			})),
+			configured: configured.map(mapConfiguredValidationRule),
+			available: available.map(mapAvailableValidationRule),
 		};
 	}
 
