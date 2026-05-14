@@ -302,6 +302,52 @@ describe("E2E: GET /api/deep-dive/[id]/companies", () => {
 				},
 			},
 		]);
+		mockReportDataPointResultsFindMany.mockResolvedValueOnce([
+			{
+				company_id: 100,
+				data_point_id: "kpi_category_execution",
+				value: "3.0",
+				data: { "KPI Category": "Execution", "KPI Score": "3.0" },
+				data_points: {
+					type: "kpi_category",
+					name: "Execution",
+					settings: { "KPI Category": "Execution" },
+				},
+			},
+			{
+				company_id: 100,
+				data_point_id: "kpi_driver_a",
+				value: "3 Medium",
+				data: { "KPI Category": "Execution", Score: "3 Medium" },
+				data_points: {
+					type: "kpi_driver",
+					name: "Driver A",
+					settings: { "KPI Category": "Execution" },
+				},
+			},
+			{
+				company_id: 200,
+				data_point_id: "kpi_category_execution",
+				value: "2.0",
+				data: { "KPI Category": "Execution", "KPI Score": "2.0" },
+				data_points: {
+					type: "kpi_category",
+					name: "Execution",
+					settings: { "KPI Category": "Execution" },
+				},
+			},
+			{
+				company_id: 200,
+				data_point_id: "kpi_driver_a",
+				value: "4 Medium-High",
+				data: { "KPI Category": "Execution", Score: "4 Medium-High" },
+				data_points: {
+					type: "kpi_driver",
+					name: "Driver A",
+					settings: { "KPI Category": "Execution" },
+				},
+			},
+		]);
 
 		mockStatusesGroupBy.mockResolvedValueOnce([
 			{ company_id: 100, status: "PROCESSING", _count: { _all: 2 } },
@@ -310,9 +356,19 @@ describe("E2E: GET /api/deep-dive/[id]/companies", () => {
 		]);
 
 		mockReportStepsCount.mockResolvedValueOnce(5);
-		mockQueryRaw.mockResolvedValueOnce([
-			{ company_id: 100, files_count: BigInt(2) },
-		]);
+		mockQueryRaw
+			.mockResolvedValueOnce([{ company_id: 100, files_count: BigInt(2) }])
+			.mockResolvedValueOnce([
+				{
+					company_id: 200,
+					missing_count: 3,
+					missing_data_point_ids: [
+						"raw_data_point_1",
+						"raw_data_point_2",
+						"raw_data_point_3",
+					],
+				},
+			]);
 
 		const res = await callCompanies("35");
 		const body = await res.json();
@@ -328,6 +384,14 @@ describe("E2E: GET /api/deep-dive/[id]/companies", () => {
 		expect(acme.companyLevelReportFilesCount).toBe(2);
 		expect(acme.stepsDone).toBe(3);
 		expect(acme.stepsTotal).toBe(5);
+		expect(acme.staticValidation).toEqual({
+			categoryMathOk: true,
+			categoryMathMismatchCount: 0,
+			categoryMathDetails: [],
+			missingReportDataPointsCount: 0,
+			missingReportDataPointIds: [],
+			hasMissingReportDataPoints: false,
+		});
 
 		const beta = body.data.companies.find((c: { id: number }) => c.id === 200);
 		expect(beta.status).toBe("DONE");
@@ -335,6 +399,25 @@ describe("E2E: GET /api/deep-dive/[id]/companies", () => {
 		expect(beta.companyLevelReportFilesCount).toBe(0);
 		expect(beta.stepsDone).toBe(5);
 		expect(beta.stepsTotal).toBe(5);
+		expect(beta.staticValidation).toEqual({
+			categoryMathOk: false,
+			categoryMathMismatchCount: 1,
+			categoryMathDetails: [
+				{
+					category: "Execution",
+					currentValue: 2,
+					expectedCalculatedValue: 4,
+					delta: -2,
+				},
+			],
+			missingReportDataPointsCount: 3,
+			missingReportDataPointIds: [
+				"raw_data_point_1",
+				"raw_data_point_2",
+				"raw_data_point_3",
+			],
+			hasMissingReportDataPoints: true,
+		});
 	});
 
 	it("returns 404 when report not found", async () => {

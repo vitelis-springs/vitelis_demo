@@ -1,7 +1,15 @@
 import type { validation_status } from "../../../../../generated/prisma";
-import type { ValidationStatus } from "../../../../../shared/deep-dive-contract.types";
+import type {
+	ValidationDataPointLevel,
+	ValidationRuleLevel,
+	ValidationStatus,
+} from "../../../../../shared/deep-dive-contract.types";
 
-export type { ValidationStatus } from "../../../../../shared/deep-dive-contract.types";
+export type {
+	ValidationDataPointLevel,
+	ValidationRuleLevel,
+	ValidationStatus,
+} from "../../../../../shared/deep-dive-contract.types";
 
 export type ValidationDbStatus = validation_status;
 
@@ -14,10 +22,53 @@ export interface ValidationRuleCriteria {
 export interface ValidationRulePayload {
 	name: string;
 	label: string | null;
-	level: string;
+	level: ValidationRuleLevel;
 	enabled: boolean;
 	description: string | null;
 	criteria: ValidationRuleCriteria;
+	data_point_level: ValidationDataPointLevel | null;
+}
+
+export interface ValidationSummaryByCompanyRow {
+	company_id: number;
+	company_name: string;
+	total: bigint;
+	pass: bigint;
+	warn: bigint;
+	failed: bigint;
+}
+
+export interface ValidationSummaryByRuleRow {
+	rule_name: string;
+	rule_label: string;
+	rule_level: string;
+	total: bigint;
+	pass: bigint;
+	warn: bigint;
+	failed: bigint;
+}
+
+export interface ConfiguredValidationRuleRow {
+	id: number;
+	validation_rule_id: number;
+	execution_order: number | null;
+	enabled: boolean;
+	rule_name: string;
+	rule_label: string | null;
+	rule_level: ValidationRuleLevel;
+	rule_data_point_level: ValidationDataPointLevel | null;
+	rule_description: string | null;
+	rule_criteria: unknown;
+}
+
+export interface AvailableValidationRuleRow {
+	id: number;
+	name: string;
+	label: string | null;
+	level: ValidationRuleLevel;
+	data_point_level: ValidationDataPointLevel | null;
+	description: string | null;
+	criteria: unknown;
 }
 
 export interface ValidationManualUpdatePayload {

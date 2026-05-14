@@ -12,31 +12,32 @@ import {
 } from "../../../../shared/kpi-score";
 import { ReportStepsRepository } from "../report-steps/report-steps.repository";
 import { DeepDiveRepository } from "./deep-dive.repository";
-import type {
-	CompanyDataPointResultUpdateData,
-	CreateCompanyDataPointPayload,
-	CreateReportModelItemPayload,
-	DeepDiveListParams,
-	DeepDiveMetricKey,
-	ImportedModelDataPoint,
-	KpiDriverResultData,
-	RawDataPointResultData,
-	ReportDataPointSourcesRow,
-	ReportModelImportRow,
-	ReportModelUpdateRow,
-	ReportWithRelations,
-	ScrapeCandidatesParams,
-	SourceCountingContext,
-	SourceFilterParams,
-	SourcesAnalyticsParams,
-	UpdateCompanyDataPointPayload,
-	UpdateDeepDiveSettingsPayload,
-	UpdateReportModelItemPayload,
+import {
+	type CompanyCategoryMathDetail,
+	type CompanyDataPointResultUpdateData,
+	type CompanyKpiResultRow,
+	type CreateCompanyDataPointPayload,
+	type CreateReportModelItemPayload,
+	DEFAULT_STATIC_VALIDATION,
+	DEFAULT_STATUS_COUNTS,
+	type DeepDiveListParams,
+	type DeepDiveMetricKey,
+	type ImportedModelDataPoint,
+	type ManualDataPointResultBuilder,
+	type MissingReportDataPointsRow,
+	type ReportDataPointSourcesRow,
+	type ReportModelImportRow,
+	type ReportModelUpdateRow,
+	type ReportWithRelations,
+	type ScrapeCandidatesParams,
+	type SourceCountingContext,
+	type SourceFilterParams,
+	type SourcesAnalyticsParams,
+	type StaticValidationSummary,
+	type UpdateCompanyDataPointPayload,
+	type UpdateDeepDiveSettingsPayload,
+	type UpdateReportModelItemPayload,
 } from "./deep-dive.types";
-
-type ManualDataPointResultBuilder = KpiDriverResultData &
-	RawDataPointResultData &
-	Record<string, unknown>;
 
 import { ValidationService } from "./validation/validation.service";
 import type {
@@ -44,13 +45,6 @@ import type {
 	ValidationRulePayload,
 	ValidationStatus,
 } from "./validation/validation.types";
-
-const DEFAULT_STATUS_COUNTS = {
-	PENDING: 0,
-	PROCESSING: 0,
-	DONE: 0,
-	ERROR: 0,
-};
 
 function asSettingsRecord(value: unknown): Record<string, unknown> | null {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -192,6 +186,175 @@ export class DeepDiveService {
 			textValue: normalized,
 			numericValue: Number.isFinite(parsedNumber) ? parsedNumber : null,
 		};
+	}
+
+	private static parseNumericPrefix(value: unknown): number | null {
+		if (typeof value === "number") {
+			return Number.isFinite(value) ? value : null;
+		}
+
+		if (typeof value !== "string") {
+			return null;
+		}
+
+		const normalized = value.trim();
+		if (!normalized) return null;
+
+		const match = normalized.match(/^([0-9]+(?:\.[0-9]+)?)/);
+		if (!match?.[1]) return null;
+
+		const parsedNumber = Number(match[1]);
+		return Number.isFinite(parsedNumber) ? parsedNumber : null;
+	}
+
+	private static roundToOneDecimal(value: number): number {
+		return Math.round(value * 10) / 10;
+	}
+
+	private static getKpiResultCategoryName(
+		result: CompanyKpiResultRow,
+	): string | null {
+		const data = DeepDiveService.isJsonObject(result.data) ? result.data : null;
+		const dataCategory =
+			typeof data?.["KPI Category"] === "string"
+				? DeepDiveService.normalizeTextInput(data["KPI Category"])
+				: null;
+		if (dataCategory) return dataCategory;
+
+		const settings = asSettingsRecord(result.data_points?.settings);
+		const settingsCategory =
+			typeof settings?.["KPI Category"] === "string"
+				? DeepDiveService.normalizeTextInput(settings["KPI Category"])
+				: null;
+		if (settingsCategory) return settingsCategory;
+
+		return DeepDiveService.normalizeTextInput(
+			result.data_points?.name ?? result.data_point_id ?? null,
+		);
+	}
+
+	private static getKpiResultScore(result: CompanyKpiResultRow): number | null {
+		const data = DeepDiveService.isJsonObject(result.data) ? result.data : null;
+		const type = result.data_points?.type ?? "";
+		const dataPointId = result.data_point_id ?? "";
+		const isCategory =
+			type === "kpi_category" || dataPointId.startsWith("kpi_category");
+		const isDriver =
+			type === "kpi_driver" || dataPointId.startsWith("kpi_driver");
+
+		if (isCategory) {
+			return DeepDiveService.parseNumericPrefix(
+				result.value ?? data?.["KPI Score"] ?? null,
+			);
+		}
+
+		if (isDriver) {
+			return DeepDiveService.parseNumericPrefix(
+				result.value ?? data?.Score ?? null,
+			);
+		}
+
+		return null;
+	}
+
+	private static buildCategoryMathValidationFromKpiResults(
+		kpiResults: CompanyKpiResultRow[],
+	): {
+		summaryByCompany: Map<number, StaticValidationSummary>;
+		detailsByCompany: Map<number, CompanyCategoryMathDetail[]>;
+	} {
+		const perCompanyCategories = new Map<number, Map<string, number>>();
+		const perCompanyDrivers = new Map<number, Map<string, number[]>>();
+
+		for (const result of kpiResults) {
+			const companyId = result.company_id;
+
+			if (typeof companyId !== "number") {
+				throw new Error(`Invalid company_id in KPI result: ${companyId}`);
+			}
+
+			const type = result.data_points?.type ?? "";
+			const dataPointId = result.data_point_id ?? "";
+			const isCategory =
+				type === "kpi_category" || dataPointId.startsWith("kpi_category");
+			const isDriver =
+				type === "kpi_driver" || dataPointId.startsWith("kpi_driver");
+			if (!isCategory && !isDriver) continue;
+
+			const categoryName = DeepDiveService.getKpiResultCategoryName(result);
+			if (!categoryName) continue;
+
+			const score = DeepDiveService.getKpiResultScore(result);
+			if (score === null) continue;
+
+			if (isCategory) {
+				const categoryScores =
+					perCompanyCategories.get(companyId) ?? new Map<string, number>();
+				if (!categoryScores.has(categoryName)) {
+					categoryScores.set(categoryName, score);
+				}
+				perCompanyCategories.set(companyId, categoryScores);
+				continue;
+			}
+
+			const driverScoresByCategory =
+				perCompanyDrivers.get(companyId) ?? new Map<string, number[]>();
+			const existingScores = driverScoresByCategory.get(categoryName) ?? [];
+			existingScores.push(score);
+			driverScoresByCategory.set(categoryName, existingScores);
+			perCompanyDrivers.set(companyId, driverScoresByCategory);
+		}
+
+		const summaryByCompany = new Map<number, StaticValidationSummary>();
+		const detailsByCompany = new Map<number, CompanyCategoryMathDetail[]>();
+
+		perCompanyCategories.forEach((categoryScores, companyId) => {
+			const driverScoresByCategory =
+				perCompanyDrivers.get(companyId) ?? new Map();
+
+			const mismatches: CompanyCategoryMathDetail[] = [];
+
+			categoryScores.forEach((currentValue, category) => {
+				const driverScores = driverScoresByCategory.get(category) ?? [];
+				if (driverScores.length === 0) {
+					mismatches.push({
+						category,
+						currentValue,
+						expectedCalculatedValue: null,
+						delta: null,
+					});
+					return;
+				}
+
+				const expectedCalculatedValue =
+					driverScores.reduce((sum: number, score: number) => sum + score, 0) /
+					driverScores.length;
+				const delta = currentValue - expectedCalculatedValue;
+				if (
+					DeepDiveService.roundToOneDecimal(currentValue) ===
+					DeepDiveService.roundToOneDecimal(expectedCalculatedValue)
+				) {
+					return;
+				}
+
+				mismatches.push({
+					category,
+					currentValue,
+					expectedCalculatedValue,
+					delta,
+				});
+			});
+
+			summaryByCompany.set(companyId, {
+				...DEFAULT_STATIC_VALIDATION,
+				categoryMathOk: mismatches.length === 0,
+				categoryMathMismatchCount: mismatches.length,
+				categoryMathDetails: mismatches,
+			});
+			detailsByCompany.set(companyId, mismatches);
+		});
+
+		return { summaryByCompany, detailsByCompany };
 	}
 
 	private static applySourcesUpdate(
@@ -1108,6 +1271,102 @@ export class DeepDiveService {
 		return report_status_enum.DONE;
 	}
 
+	private static buildStatusByCompany(
+		rows: Array<{
+			company_id: number;
+			status: report_status_enum;
+			_count: { _all: number };
+		}>,
+	): Map<number, Record<report_status_enum, number>> {
+		const statusByCompany = new Map<
+			number,
+			Record<report_status_enum, number>
+		>();
+
+		rows.forEach((row) => {
+			const current = statusByCompany.get(row.company_id) ?? {
+				...DEFAULT_STATUS_COUNTS,
+			};
+			current[row.status] = row._count._all;
+			statusByCompany.set(row.company_id, current);
+		});
+
+		return statusByCompany;
+	}
+
+	private static buildStaticValidationMap(
+		categoryMathByCompany: Map<number, StaticValidationSummary>,
+		missingRows: MissingReportDataPointsRow[],
+	): Map<number, StaticValidationSummary> {
+		const validations = new Map<number, StaticValidationSummary>();
+
+		categoryMathByCompany.forEach((summary, companyId) => {
+			validations.set(companyId, { ...summary });
+		});
+
+		missingRows.forEach((row) => {
+			const current = validations.get(row.company_id) ?? {
+				...DEFAULT_STATIC_VALIDATION,
+			};
+			current.missingReportDataPointsCount = row.missing_count;
+			current.missingReportDataPointIds = row.missing_data_point_ids;
+			current.hasMissingReportDataPoints = row.missing_count > 0;
+			validations.set(row.company_id, current);
+		});
+
+		return validations;
+	}
+
+	private static buildDeepDiveCompanyRows({
+		companies,
+		statusByCompany,
+		totalStepsCount,
+		sourcesMap,
+		validSourcesMap,
+		usedSourcesMap,
+		companyLevelReportFilesMap,
+		staticValidationMap,
+	}: {
+		companies: Awaited<
+			ReturnType<typeof DeepDiveRepository.getReportCompanies>
+		>;
+		statusByCompany: Map<number, Record<report_status_enum, number>>;
+		totalStepsCount: number;
+		sourcesMap: Map<number, number>;
+		validSourcesMap?: Map<number, number>;
+		usedSourcesMap?: Map<number, number>;
+		companyLevelReportFilesMap: Map<number, number>;
+		staticValidationMap?: Map<number, StaticValidationSummary>;
+	}) {
+		return companies
+			.filter((row) => row.companies !== null)
+			.map((row) => {
+				const company = row.companies!;
+				const counts = statusByCompany.get(company.id) ?? {
+					...DEFAULT_STATUS_COUNTS,
+				};
+				const doneSteps = counts.DONE;
+
+				return {
+					id: company.id,
+					name: company.name,
+					countryCode: company.country_code,
+					url: company.url,
+					status: DeepDiveService.deriveDominantStatus(counts, totalStepsCount),
+					sourcesCount: sourcesMap.get(company.id) ?? 0,
+					validSourcesCount: validSourcesMap?.get(company.id) ?? 0,
+					usedSourcesCount: usedSourcesMap?.get(company.id) ?? 0,
+					candidatesCount: 0,
+					companyLevelReportFilesCount:
+						companyLevelReportFilesMap.get(company.id) ?? 0,
+					stepsDone: doneSteps,
+					stepsTotal: totalStepsCount,
+					staticValidation:
+						staticValidationMap?.get(company.id) ?? DEFAULT_STATIC_VALIDATION,
+				};
+			});
+	}
+
 	static async getReportCloneData(reportId: number) {
 		const report = await prisma.reports.findUnique({
 			where: { id: reportId },
@@ -1356,24 +1615,22 @@ export class DeepDiveService {
 			reportDataPointSources,
 			totalStepsCount,
 			companyLevelReportFileCounts,
+			companyKpiResults,
+			missingReportDataPoints,
 		] = await Promise.all([
 			DeepDiveRepository.getCompanyStepStatusSummary(reportId, companyIds),
 			DeepDiveRepository.getReportDataPointSources(reportId),
 			DeepDiveRepository.getReportStepsCount(reportId),
 			DeepDiveRepository.getCompanyLevelReportFileCounts(reportId),
+			DeepDiveRepository.getCompaniesKpiResults(reportId, companyIds),
+			DeepDiveRepository.getMissingReportDataPointsByCompany(
+				reportId,
+				companyIds,
+			),
 		]);
 
-		const statusByCompany = new Map<
-			number,
-			Record<report_status_enum, number>
-		>();
-		companyStatusRaw.forEach((row) => {
-			const current = statusByCompany.get(row.company_id) ?? {
-				...DEFAULT_STATUS_COUNTS,
-			};
-			current[row.status] = row._count._all;
-			statusByCompany.set(row.company_id, current);
-		});
+		const statusByCompany =
+			DeepDiveService.buildStatusByCompany(companyStatusRaw);
 
 		const sourcesMap = DeepDiveService.buildSourcesCountByCompany(
 			reportDataPointSources,
@@ -1384,39 +1641,27 @@ export class DeepDiveService {
 				Number(row.files_count),
 			]),
 		);
+		const { summaryByCompany: categoryMathByCompany } =
+			DeepDiveService.buildCategoryMathValidationFromKpiResults(
+				companyKpiResults,
+			);
+		const staticValidationMap = DeepDiveService.buildStaticValidationMap(
+			categoryMathByCompany,
+			missingReportDataPoints,
+		);
 
 		return {
 			success: true,
 			data: {
 				reportId,
-				companies: companies
-					.filter((row) => row.companies !== null)
-					.map((row) => {
-						const company = row.companies!;
-						const counts = statusByCompany.get(company.id) ?? {
-							...DEFAULT_STATUS_COUNTS,
-						};
-						const doneSteps = counts.DONE;
-
-						return {
-							id: company.id,
-							name: company.name,
-							countryCode: company.country_code,
-							url: company.url,
-							status: DeepDiveService.deriveDominantStatus(
-								counts,
-								totalStepsCount,
-							),
-							sourcesCount: sourcesMap.get(company.id) ?? 0,
-							validSourcesCount: 0,
-							usedSourcesCount: 0,
-							candidatesCount: 0,
-							companyLevelReportFilesCount:
-								companyLevelReportFilesMap.get(company.id) ?? 0,
-							stepsDone: doneSteps,
-							stepsTotal: totalStepsCount,
-						};
-					}),
+				companies: DeepDiveService.buildDeepDiveCompanyRows({
+					companies,
+					statusByCompany,
+					totalStepsCount,
+					sourcesMap,
+					companyLevelReportFilesMap,
+					staticValidationMap,
+				}),
 			},
 		};
 	}
@@ -1443,6 +1688,8 @@ export class DeepDiveService {
 			perCompanySources,
 			perCompanyUsedSources,
 			companyLevelReportFileCounts,
+			companyKpiResults,
+			missingReportDataPoints,
 		] = await Promise.all([
 			DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
 			DeepDiveRepository.getReportSourcesCount(reportId, sourceCountingContext),
@@ -1462,6 +1709,11 @@ export class DeepDiveService {
 				sourceCountingContext,
 			),
 			DeepDiveRepository.getCompanyLevelReportFileCounts(reportId),
+			DeepDiveRepository.getCompaniesKpiResults(reportId, companyIds),
+			DeepDiveRepository.getMissingReportDataPointsByCompany(
+				reportId,
+				companyIds,
+			),
 		]);
 		const totalUsedSources = DeepDiveService.countUniqueReportDataPointSources(
 			reportDataPointSourcesForSummary,
@@ -1488,17 +1740,8 @@ export class DeepDiveService {
 		const kpiChart = Array.from(chartMap.values());
 
 		// Derive per-company dominant status
-		const statusByCompany = new Map<
-			number,
-			Record<report_status_enum, number>
-		>();
-		companyStatusRaw.forEach((row) => {
-			const current = statusByCompany.get(row.company_id) ?? {
-				...DEFAULT_STATUS_COUNTS,
-			};
-			current[row.status] = row._count._all;
-			statusByCompany.set(row.company_id, current);
-		});
+		const statusByCompany =
+			DeepDiveService.buildStatusByCompany(companyStatusRaw);
 
 		const totalSteps = await DeepDiveRepository.getReportSteps(reportId);
 		const totalStepsCount = totalSteps.length;
@@ -1520,20 +1763,13 @@ export class DeepDiveService {
 				Number(row.files_count),
 			]),
 		);
+		const staticValidationMap = DeepDiveService.buildStaticValidationMap(
+			DeepDiveService.buildCategoryMathValidationFromKpiResults(
+				companyKpiResults,
+			).summaryByCompany,
 
-		function deriveDominantStatus(
-			counts: Record<report_status_enum, number>,
-		): report_status_enum {
-			const total =
-				counts.PENDING + counts.PROCESSING + counts.DONE + counts.ERROR;
-			if (counts.ERROR > 0) return report_status_enum.ERROR;
-			if (counts.PROCESSING > 0) return report_status_enum.PROCESSING;
-			if (counts.PENDING > 0) return report_status_enum.PENDING;
-			// No statuses recorded or fewer than total steps (without active processing/error) -> PENDING
-			if (total === 0 || total < totalStepsCount)
-				return report_status_enum.PENDING;
-			return report_status_enum.DONE;
-		}
+			missingReportDataPoints,
+		);
 
 		return {
 			success: true,
@@ -1567,29 +1803,16 @@ export class DeepDiveService {
 				},
 				categories,
 				kpiChart,
-				companies: companies
-					.filter((row) => row.companies !== null)
-					.map((row) => {
-						const company = row.companies!;
-						const counts = statusByCompany.get(company.id) ?? {
-							...DEFAULT_STATUS_COUNTS,
-						};
-						const doneSteps = counts.DONE;
-						return {
-							id: company.id,
-							name: company.name,
-							countryCode: company.country_code,
-							url: company.url,
-							status: deriveDominantStatus(counts),
-							sourcesCount: sourcesMap.get(company.id) ?? 0,
-							validSourcesCount: validSourcesMap.get(company.id) ?? 0,
-							usedSourcesCount: usedSourcesMap.get(company.id) ?? 0,
-							companyLevelReportFilesCount:
-								companyLevelReportFilesMap.get(company.id) ?? 0,
-							stepsDone: doneSteps,
-							stepsTotal: totalStepsCount,
-						};
-					}),
+				companies: DeepDiveService.buildDeepDiveCompanyRows({
+					companies,
+					statusByCompany,
+					totalStepsCount,
+					sourcesMap,
+					validSourcesMap,
+					usedSourcesMap,
+					companyLevelReportFilesMap,
+					staticValidationMap,
+				}),
 			},
 		};
 	}
@@ -1718,6 +1941,9 @@ export class DeepDiveService {
 			DeepDiveRepository.getKpiCategoryScoresByCompany(reportId),
 			DeepDiveRepository.getManualReportModelItems(reportId),
 		]);
+		const { detailsByCompany: categoryMathDetailsByCompany } =
+			DeepDiveService.buildCategoryMathValidationFromKpiResults(kpiResults);
+		const categoryMathDebug = categoryMathDetailsByCompany.get(companyId) ?? [];
 
 		const statusByStepId = new Map<number, (typeof stepStatuses)[number]>();
 		stepStatuses.forEach((row) => {
@@ -1843,6 +2069,14 @@ export class DeepDiveService {
 					status: result.status,
 					updatedAt: result.updates_at,
 				})),
+				staticValidationDebug: {
+					categoryMath: categoryMathDebug.map((row) => ({
+						category: row.category,
+						currentValue: row.currentValue,
+						expectedCalculatedValue: row.expectedCalculatedValue,
+						delta: row.delta,
+					})),
+				},
 				manualDataPoints: manualModelItems
 					.filter((row) =>
 						DeepDiveService.isManualCompanyDataPointShape(

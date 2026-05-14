@@ -118,6 +118,53 @@ const SAMPLE_KPI_SCORES = [
 	},
 ];
 
+const SAMPLE_COMPANY_KPI_RESULTS = [
+	{
+		company_id: 100,
+		data_point_id: "kpi_category_innovation",
+		value: "4.0",
+		data: { "KPI Category": "Innovation", "KPI Score": "4.0" },
+		data_points: {
+			type: "kpi_category",
+			name: "Innovation",
+			settings: { "KPI Category": "Innovation" },
+		},
+	},
+	{
+		company_id: 100,
+		data_point_id: "kpi_driver_innovation",
+		value: "4 Medium-High",
+		data: { "KPI Category": "Innovation", Score: "4 Medium-High" },
+		data_points: {
+			type: "kpi_driver",
+			name: "Innovation driver",
+			settings: { "KPI Category": "Innovation" },
+		},
+	},
+	{
+		company_id: 200,
+		data_point_id: "kpi_category_innovation",
+		value: "2.0",
+		data: { "KPI Category": "Innovation", "KPI Score": "2.0" },
+		data_points: {
+			type: "kpi_category",
+			name: "Innovation",
+			settings: { "KPI Category": "Innovation" },
+		},
+	},
+	{
+		company_id: 200,
+		data_point_id: "kpi_driver_innovation",
+		value: "4 Medium-High",
+		data: { "KPI Category": "Innovation", Score: "4 Medium-High" },
+		data_points: {
+			type: "kpi_driver",
+			name: "Innovation driver",
+			settings: { "KPI Category": "Innovation" },
+		},
+	},
+];
+
 const SAMPLE_STATUS_SUMMARY = [
 	{ company_id: 100, status: "DONE", _count: { _all: 5 } },
 	{ company_id: 100, status: "PROCESSING", _count: { _all: 2 } },
@@ -144,6 +191,9 @@ function setupDetailMocks(report = SAMPLE_REPORT) {
 		{ company_id: 100, data: { sources: ["https://a.com", "https://b.com/"] } },
 		{ company_id: 200, data: { Sources: "1. https://a.com\nhttps://c.com" } },
 	]);
+	mockReportDataPointResultsFindMany.mockResolvedValueOnce(
+		SAMPLE_COMPANY_KPI_RESULTS,
+	);
 	// First $queryRaw: getSourceCountingContext, then KPI/count queries
 	mockQueryRaw
 		.mockResolvedValueOnce([
@@ -160,7 +210,18 @@ function setupDetailMocks(report = SAMPLE_REPORT) {
 			{ company_id: 100, total: 2 },
 			{ company_id: 200, total: 1 },
 		])
-		.mockResolvedValueOnce([{ company_id: 100, files_count: BigInt(2) }]);
+		.mockResolvedValueOnce([{ company_id: 100, files_count: BigInt(2) }])
+		.mockResolvedValueOnce([
+			{
+				company_id: 200,
+				missing_count: 3,
+				missing_data_point_ids: [
+					"raw_data_point_1",
+					"raw_data_point_2",
+					"raw_data_point_3",
+				],
+			},
+		]);
 	mockCount.mockResolvedValueOnce(8); // getReportQueriesCount
 	mockGroupBy.mockResolvedValueOnce(SAMPLE_STATUS_SUMMARY);
 }
@@ -237,11 +298,38 @@ describe("E2E: GET /api/deep-dive/[id]", () => {
 		);
 		expect(acme.status).toBe("PROCESSING"); // has PROCESSING steps → dominant status
 		expect(acme.companyLevelReportFilesCount).toBe(2);
+		expect(acme.staticValidation).toEqual({
+			categoryMathOk: true,
+			categoryMathMismatchCount: 0,
+			categoryMathDetails: [],
+			missingReportDataPointsCount: 0,
+			missingReportDataPointIds: [],
+			hasMissingReportDataPoints: false,
+		});
 		const beta = body.data.companies.find(
 			(c: { name: string }) => c.name === "Beta Inc",
 		);
 		expect(beta.status).toBe("DONE"); // only DONE steps
 		expect(beta.companyLevelReportFilesCount).toBe(0);
+		expect(beta.staticValidation).toEqual({
+			categoryMathOk: false,
+			categoryMathMismatchCount: 1,
+			categoryMathDetails: [
+				{
+					category: "Innovation",
+					currentValue: 2,
+					expectedCalculatedValue: 4,
+					delta: -2,
+				},
+			],
+			missingReportDataPointsCount: 3,
+			missingReportDataPointIds: [
+				"raw_data_point_1",
+				"raw_data_point_2",
+				"raw_data_point_3",
+			],
+			hasMissingReportDataPoints: true,
+		});
 	});
 
 	it("derives PENDING status when report has no orchestrator", async () => {

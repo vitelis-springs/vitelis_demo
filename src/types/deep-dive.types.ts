@@ -8,6 +8,8 @@ import type {
 	DeepDiveSortParams,
 	ScrapeCandidatesBaseParams,
 	SourcesAnalyticsFilterParams,
+	ValidationDataPointLevel,
+	ValidationRuleLevel,
 	ValidationStatus,
 } from "../shared/deep-dive-contract.types";
 
@@ -21,7 +23,13 @@ export type {
 	UpdateCompanyDataPointPayload,
 	UpdateDeepDiveSettingsPayload,
 	UpdateReportModelItemPayload,
+	ValidationDataPointLevel,
+	ValidationRuleLevel,
 	ValidationStatus,
+} from "../shared/deep-dive-contract.types";
+export {
+	VALIDATION_DATA_POINT_LEVELS,
+	VALIDATION_RULE_LEVELS,
 } from "../shared/deep-dive-contract.types";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
@@ -85,6 +93,20 @@ export interface KpiChartItem {
 	[category: string]: string | number | null;
 }
 
+export interface DeepDiveStaticValidation {
+	categoryMathOk: boolean;
+	categoryMathMismatchCount: number;
+	categoryMathDetails: Array<{
+		category: string;
+		currentValue: number | null;
+		expectedCalculatedValue: number | null;
+		delta: number | null;
+	}>;
+	missingReportDataPointsCount: number;
+	missingReportDataPointIds: string[];
+	hasMissingReportDataPoints: boolean;
+}
+
 export interface DeepDiveCompanyRow {
 	id: number;
 	name: string;
@@ -98,6 +120,7 @@ export interface DeepDiveCompanyRow {
 	companyLevelReportFilesCount: number;
 	stepsDone: number;
 	stepsTotal: number;
+	staticValidation: DeepDiveStaticValidation;
 }
 
 export interface DeepDiveDetailResponse {
@@ -283,6 +306,14 @@ export interface DeepDiveCompanyResponse {
 			status?: boolean | null;
 			updatedAt?: string | null;
 		}>;
+		staticValidationDebug?: {
+			categoryMath: Array<{
+				category: string;
+				currentValue: number | null;
+				expectedCalculatedValue: number | null;
+				delta: number | null;
+			}>;
+		} | null;
 		manualDataPoints: Array<{
 			dataPointId: string;
 			name?: string | null;
@@ -863,7 +894,8 @@ export interface ConfiguredValidationRule {
 	enabled: boolean;
 	name: string;
 	label: string | null;
-	level: string;
+	level: ValidationRuleLevel;
+	dataPointLevel: ValidationDataPointLevel | null;
 	description: string | null;
 	criteria: ValidationRuleCriteria;
 }
@@ -872,7 +904,8 @@ export interface AvailableValidationRule {
 	id: number;
 	name: string;
 	label: string | null;
-	level: string;
+	level: ValidationRuleLevel;
+	dataPointLevel: ValidationDataPointLevel | null;
 	description: string | null;
 	criteria: ValidationRuleCriteria;
 }
@@ -888,7 +921,8 @@ export interface ReportValidationRulesResponse {
 export interface CreateValidationRulePayload {
 	name: string;
 	label: string;
-	level: "driver" | "category";
+	level: ValidationRuleLevel;
+	data_point_level: ValidationDataPointLevel | null;
 	enabled: boolean;
 	description: string;
 	criteria: ValidationRuleCriteria;
