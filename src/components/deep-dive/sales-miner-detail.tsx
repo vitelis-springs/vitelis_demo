@@ -18,6 +18,7 @@ import {
 	Typography,
 } from "antd";
 import {
+	AppstoreOutlined,
 	DownloadOutlined,
 	PlusOutlined,
 	QuestionCircleOutlined,
@@ -809,6 +810,14 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 									}
 								>
 									Settings
+								</Button>
+								<Button
+									icon={<AppstoreOutlined />}
+									onClick={() =>
+										router.push(`/sales-miner/${reportId}/signal-catalog`)
+									}
+								>
+									Signal Catalog
 								</Button>
 							</div>
 							{report?.description && (

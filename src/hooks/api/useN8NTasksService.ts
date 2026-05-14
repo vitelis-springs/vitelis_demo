@@ -29,8 +29,12 @@ export interface CreateN8NTaskPayload {
 const n8nTasksApi = {
 	async list(
 		reportId?: number,
+		q?: string,
 	): Promise<{ success: boolean; data: N8NTask[] }> {
-		const suffix = reportId !== undefined ? `?reportId=${reportId}` : "";
+		const params = new URLSearchParams();
+		if (reportId !== undefined) params.set("reportId", String(reportId));
+		if (q?.trim()) params.set("q", q.trim());
+		const suffix = params.size > 0 ? `?${params.toString()}` : "";
 		const response = await api.get(`/n8n-tasks${suffix}`);
 		return response.data;
 	},
@@ -70,11 +74,11 @@ const n8nTasksApi = {
 
 export const useGetN8NTasks = (
 	reportId?: number,
-	options?: { enabled?: boolean },
+	options?: { enabled?: boolean; q?: string },
 ) => {
 	return useQuery({
-		queryKey: ["n8n-tasks", reportId ?? "all"],
-		queryFn: () => n8nTasksApi.list(reportId),
+		queryKey: ["n8n-tasks", reportId ?? "all", options?.q ?? ""],
+		queryFn: () => n8nTasksApi.list(reportId, options?.q),
 		enabled: options?.enabled ?? true,
 		refetchInterval: (query) => {
 			const tasks = query.state.data?.data ?? [];
@@ -142,6 +146,30 @@ export const useUpdateN8NTaskStatus = (reportId?: number) => {
 			void queryClient.invalidateQueries({
 				queryKey: ["n8n-tasks", reportId ?? "all"],
 			});
+		},
+	});
+};
+
+export const useUpdateN8NTaskMetadata = (reportId?: number) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({
+			id,
+			targetCompany,
+			competitors,
+		}: {
+			id: number;
+			targetCompany: number;
+			competitors: number[];
+		}) => api.patch(`/n8n-tasks/${id}`, { targetCompany, competitors }),
+		onSuccess: () => {
+			queryClient
+				.invalidateQueries({
+					queryKey: ["n8n-tasks", reportId ?? "all"],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };

@@ -13,8 +13,11 @@ export class N8NTasksController {
 			const reportIdParam = searchParams.get("reportId");
 
 			const reportId = reportIdParam ? Number(reportIdParam) : undefined;
+			const q = searchParams.get("q")?.trim() || undefined;
 
-			const tasks = await N8NTasksService.list(reportId);
+			const tasks = q
+				? await N8NTasksService.search(q, reportId)
+				: await N8NTasksService.list(reportId);
 
 			return NextResponse.json({ success: true, data: tasks });
 		} catch (error: unknown) {
@@ -110,7 +113,30 @@ export class N8NTasksController {
 			if (!auth.success) return auth.response;
 
 			const body = (await request.json()) as Record<string, unknown>;
-			const { status } = body;
+			const { status, targetCompany, competitors } = body;
+
+			if (targetCompany !== undefined || competitors !== undefined) {
+				if (
+					typeof targetCompany !== "number" ||
+					!Array.isArray(competitors) ||
+					!competitors.every((c) => typeof c === "number")
+				) {
+					return NextResponse.json(
+						{
+							success: false,
+							error:
+								"targetCompany (number) and competitors (number[]) are required",
+						},
+						{ status: 400 },
+					);
+				}
+				const task = await N8NTasksService.updateMetadata(
+					Number(id),
+					targetCompany,
+					competitors as number[],
+				);
+				return NextResponse.json({ success: true, data: task });
+			}
 
 			if (
 				typeof status !== "string" ||
