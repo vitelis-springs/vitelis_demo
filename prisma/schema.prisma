@@ -2114,14 +2114,22 @@ model signal_candidates {
 }
 
 model signal_categories {
-  id                 BigInt               @id @default(autoincrement())
-  code               String               @unique(map: "signal_categories_code_unique") @db.VarChar(100)
-  name               String
-  description        String?
-  is_active          Boolean              @default(true)
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime             @default(now()) @db.Timestamptz(6)
-  signal_definitions signal_definitions[]
+  id                                                                 BigInt               @id @default(autoincrement())
+  code                                                               String               @unique(map: "signal_categories_code_unique") @db.VarChar(100)
+  name                                                               String
+  description                                                        String?
+  is_active                                                          Boolean              @default(true)
+  created_at                                                         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                                                         DateTime             @default(now()) @db.Timestamptz(6)
+  tier                                                               Int?                 @default(1)
+  parent_id                                                          BigInt?
+  signal_definition_id                                               BigInt?
+  is_gc                                                              Boolean?             @default(false)
+  signal_definitions                                                 signal_definitions[]
+  signal_categories                                                  signal_categories?   @relation("signal_categories_parent_idTosignal_categories", fields: [parent_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  other_signal_categories                                            signal_categories[]  @relation("signal_categories_parent_idTosignal_categories")
+  signal_definitions_signal_categories_signal_definition_idTosignal_definitions signal_definitions? @relation("signal_categories_signal_definition_idTosignal_definitions", fields: [signal_definition_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  signal_category_signal_definitions                                             signal_category_signal_definitions[]
 
   @@index([is_active], map: "idx_signal_categories_is_active")
 }
@@ -2179,7 +2187,7 @@ model signal_confirmations {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model signal_definitions {
   id                                      BigInt                                    @id @default(autoincrement())
-  code                                    String                                    @unique(map: "signal_definitions_code_unique") @db.VarChar(100)
+  code                                    String                                    @db.VarChar(100)
   signal_type_id                          BigInt
   category_id                             BigInt?
   name                                    String
@@ -2204,11 +2212,14 @@ model signal_definitions {
   product_scoring_signal_contributions    product_scoring_signal_contributions[]
   signal_confirmations                    signal_confirmations[]
   signal_categories                       signal_categories?                        @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  signal_categories_signal_categories_signal_definition_idTosignal_definitions signal_categories[] @relation("signal_categories_signal_definition_idTosignal_definitions")
   signal_definitions                      signal_definitions?                       @relation("signal_definitionsTosignal_definitions", fields: [merged_into_signal_id], references: [id], onUpdate: NoAction)
   other_signal_definitions                signal_definitions[]                      @relation("signal_definitionsTosignal_definitions")
   signal_types                            signal_types                              @relation(fields: [signal_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   signal_search_phrases                   signal_search_phrases[]
   signal_search_tasks                     signal_search_tasks[]
+  signal_definition_gics_codes            signal_definition_gics_codes[]
+  signal_category_signal_definitions      signal_category_signal_definitions[]
 
   @@index([category_id], map: "idx_signal_definitions_category_id")
   @@index([description_fp], map: "idx_signal_definitions_description_fp")
@@ -2374,6 +2385,42 @@ model report_countries {
   @@id([report_id, country_id], map: "report_countries_pkey")
   @@index([report_id], map: "idx_report_countries_report_id")
   @@index([country_id], map: "idx_report_countries_country_id")
+}
+
+model gics_codes {
+  code        String   @id @db.VarChar(20)
+  name        String
+  level       Int      @db.SmallInt
+  parent_code String?  @db.VarChar(20)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+
+  parent                       gics_codes?                    @relation("gics_parent", fields: [parent_code], references: [code], onDelete: SetNull, onUpdate: NoAction)
+  children                     gics_codes[]                   @relation("gics_parent")
+  signal_definition_gics_codes signal_definition_gics_codes[]
+}
+
+model signal_definition_gics_codes {
+  signal_definition_id BigInt
+  gics_code            String             @db.VarChar(20)
+
+  signal_definitions signal_definitions @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  gics_codes         gics_codes         @relation(fields: [gics_code], references: [code], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([signal_definition_id, gics_code])
+}
+
+model signal_category_signal_definitions {
+  id                   BigInt   @id @default(autoincrement())
+  signal_category_id   BigInt
+  signal_definition_id BigInt
+  code                 String   @db.VarChar(100)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+
+  signal_categories  signal_categories  @relation(fields: [signal_category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_definitions signal_definitions @relation(fields: [signal_definition_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([signal_category_id, signal_definition_id], map: "signal_category_signal_definitions_unique")
+  @@unique([signal_category_id, code], map: "signal_category_signal_definitions_category_code_unique")
 }
 
 enum validation_status {
