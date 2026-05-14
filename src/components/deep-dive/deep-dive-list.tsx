@@ -1,6 +1,6 @@
 "use client";
 
-import { FileExcelOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, FileExcelOutlined } from "@ant-design/icons";
 import {
 	Button,
 	Card,
@@ -402,9 +402,17 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 								</>
 							)}
 							{fixedReportType === "sales_miner" && (
-								<Button onClick={() => router.push("/sales-miner/customers")}>
-									Customers
-								</Button>
+								<>
+									<Button
+										icon={<AppstoreOutlined />}
+										onClick={() => router.push("/sales-miner/signal-catalog")}
+									>
+										Signal Catalog
+									</Button>
+									<Button onClick={() => router.push("/sales-miner/customers")}>
+										Customers
+									</Button>
+								</>
 							)}
 							<CreateReportModal
 								reportType={fixedReportType}

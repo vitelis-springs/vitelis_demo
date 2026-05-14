@@ -26,6 +26,11 @@ export class N8NTasksService {
 		return N8NTasksRepository.findAll(reportId);
 	}
 
+	static async search(q: string, reportId?: number) {
+		await N8NTasksService.syncProcessingTasks(reportId);
+		return N8NTasksRepository.searchByCompany(q, reportId);
+	}
+
 	static async runCycle(reportId?: number) {
 		await N8NTasksService.syncProcessingTasks(reportId);
 		await N8NTasksService.runAutoGenCycle(reportId);
@@ -83,6 +88,29 @@ export class N8NTasksService {
 			lastSeenExecutionStatus: "canceled",
 			lastCheckedAt: new Date(),
 		});
+	}
+
+	static async updateMetadata(
+		id: number,
+		targetCompany: number,
+		competitors: number[],
+	) {
+		const task = await N8NTasksRepository.findById(id);
+		if (!task) throw new Error(`Task ${id} not found`);
+		const existing = (task.metadata as Record<string, unknown>) ?? {};
+		await N8NTasksRepository.updateMetadata(id, {
+			...existing,
+			target_company: targetCompany,
+			competitors,
+		});
+		await N8NTasksRepository.updateSyncState(id, {
+			status: "PENDING",
+			executionId: null,
+			instanceIndex: null,
+			lastSeenExecutionStatus: null,
+			lastCheckedAt: null,
+		});
+		return N8NTasksRepository.findById(id);
 	}
 
 	static async delete(id: number) {

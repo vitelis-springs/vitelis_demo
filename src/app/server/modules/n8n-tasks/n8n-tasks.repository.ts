@@ -111,6 +111,42 @@ export class N8NTasksRepository {
 		});
 	}
 
+	static async searchByCompany(q: string, reportId?: number) {
+		const matchingCompanies = await prisma.companies.findMany({
+			where: {
+				OR: [
+					{ name: { contains: q, mode: "insensitive" } },
+					...(q.match(/^\d+$/) ? [{ id: Number(q) }] : []),
+				],
+			},
+			select: { id: true },
+		});
+
+		if (matchingCompanies.length === 0) return [];
+
+		const companyIds = matchingCompanies.map((c) => c.id);
+
+		return prisma.n8n_tasks.findMany({
+			where: {
+				...(reportId !== undefined ? { report_id: reportId } : {}),
+				OR: companyIds.map((id) => ({
+					metadata: { path: ["target_company"], equals: id },
+				})),
+			},
+			orderBy: { created_at: "desc" },
+		});
+	}
+
+	static async updateMetadata(id: number, metadata: Record<string, unknown>) {
+		return prisma.n8n_tasks.update({
+			where: { id },
+			data: {
+				metadata: metadata as Prisma.InputJsonValue,
+				updated_at: new Date(),
+			},
+		});
+	}
+
 	static async delete(id: number) {
 		return prisma.n8n_tasks.delete({ where: { id } });
 	}

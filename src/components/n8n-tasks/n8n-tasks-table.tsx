@@ -5,13 +5,16 @@ import {
 	CopyOutlined,
 	DeleteOutlined,
 	DownloadOutlined,
+	EditOutlined,
 	PlusOutlined,
+	SearchOutlined,
 	StopOutlined,
 } from "@ant-design/icons";
 import {
 	App,
 	Button,
 	Form,
+	Input,
 	Popconfirm,
 	Segmented,
 	Select,
@@ -19,7 +22,7 @@ import {
 	Tooltip,
 	Typography,
 } from "antd";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useGetDeepDiveCompanies } from "../../hooks/api/useDeepDiveService";
 import { api } from "../../lib/api-client";
@@ -32,6 +35,7 @@ import {
 	useGetN8NTasks,
 	useStartN8NTask,
 	useStopN8NTask,
+	useUpdateN8NTaskMetadata,
 	useUpdateN8NTaskStatus,
 } from "../../hooks/api/useN8NTasksService";
 import { FormModalShell } from "../shared/modal";
@@ -204,6 +208,144 @@ export function CreateTaskModal({
 	);
 }
 
+interface EditTaskModalProps {
+	task: N8NTask | null;
+	onClose: () => void;
+}
+
+function EditTaskModal({ task, onClose }: EditTaskModalProps) {
+	const [form] = Form.useForm<CreateTaskFormValues>();
+	const { message } = App.useApp();
+	const updateMetadata = useUpdateN8NTaskMetadata(task?.report_id ?? undefined);
+	const { data: companiesData } = useGetDeepDiveCompanies(
+		task?.report_id ?? null,
+	);
+	const selectedTargetCompany = Form.useWatch("targetCompany", form);
+
+	const companies = useMemo(
+		() => companiesData?.data.companies ?? [],
+		[companiesData],
+	);
+
+	const companyOptions = useMemo(
+		() =>
+			companies.map((c) => ({ label: `${c.name} (#${c.id})`, value: c.id })),
+		[companies],
+	);
+
+	const competitorOptions = useMemo(
+		() =>
+			selectedTargetCompany === undefined
+				? companyOptions
+				: companyOptions.filter((o) => o.value !== selectedTargetCompany),
+		[companyOptions, selectedTargetCompany],
+	);
+
+	const filterByNameOrId = (
+		input: string,
+		option?: { label: string; value: number },
+	) => {
+		if (!option) return false;
+		return (
+			option.label.toLowerCase().includes(input.toLowerCase()) ||
+			String(option.value).includes(input)
+		);
+	};
+
+	const handleOpen = () => {
+		const meta = task?.metadata as Record<string, unknown> | null;
+		form.setFieldsValue({
+			targetCompany: meta?.target_company as number | undefined,
+			competitors: (meta?.competitors as number[]) ?? [],
+		});
+	};
+
+	const handleSubmit = async (values: CreateTaskFormValues) => {
+		if (!task) return;
+		try {
+			await updateMetadata.mutateAsync({
+				id: task.id,
+				targetCompany: values.targetCompany,
+				competitors: values.competitors,
+			});
+			message.success("Task updated, status reset to PENDING");
+			onClose();
+		} catch {
+			message.error("Failed to update task");
+		}
+	};
+
+	return (
+		<FormModalShell
+			title={`Edit Task #${task?.id}`}
+			open={task !== null}
+			width={720}
+			onCancel={onClose}
+			onSubmit={() => form.submit()}
+			confirmLoading={updateMetadata.isPending}
+			okText="Save"
+			cancelText="Cancel"
+			afterOpenChange={(open) => {
+				if (open) handleOpen();
+			}}
+		>
+			<Form form={form} layout="vertical" onFinish={handleSubmit}>
+				<Form.Item
+					name="targetCompany"
+					label="Target Company"
+					rules={[{ required: true, message: "Select a target company" }]}
+				>
+					<Select
+						showSearch
+						filterOption={filterByNameOrId}
+						options={companyOptions}
+						placeholder="Search by name or ID"
+						onChange={(value) => {
+							const competitors = form.getFieldValue("competitors") ?? [];
+							form.setFieldsValue({
+								targetCompany: value,
+								competitors: competitors.filter((id: number) => id !== value),
+							});
+						}}
+					/>
+				</Form.Item>
+				<Form.Item
+					name="competitors"
+					label="Competitors"
+					rules={[
+						{ required: true, message: "Select at least one competitor" },
+						({ getFieldValue }) => ({
+							validator(_, value: number[] | undefined) {
+								const targetCompany = getFieldValue("targetCompany");
+								if (
+									targetCompany === undefined ||
+									!Array.isArray(value) ||
+									!value.includes(targetCompany)
+								) {
+									return Promise.resolve();
+								}
+								return Promise.reject(
+									new Error(
+										"Target company cannot be selected as a competitor",
+									),
+								);
+							},
+						}),
+					]}
+				>
+					<Select
+						mode="multiple"
+						showSearch
+						filterOption={filterByNameOrId}
+						options={competitorOptions}
+						placeholder="Search by name or ID"
+					/>
+				</Form.Item>
+			</Form>
+		</FormModalShell>
+	);
+}
+
 function sanitizeFilePart(value: string): string {
 	return value
 		.replace(/[^a-zA-Z0-9а-яА-ЯёЁ\-_]/g, "_")
@@ -220,9 +362,19 @@ export default function N8NTasksTable({
 }) {
 	const { message } = App.useApp();
 	const [createOpen, setCreateOpen] = useState(false);
+	const [editingTask, setEditingTask] = useState<N8NTask | null>(null);
 	const [downloadingIds, setDownloadingIds] = useState<Set<number>>(new Set());
+	const [companySearch, setCompanySearch] = useState("");
+	const [debouncedSearch, setDebouncedSearch] = useState("");
 
-	const { data, isLoading } = useGetN8NTasks(reportId);
+	useEffect(() => {
+		const t = setTimeout(() => setDebouncedSearch(companySearch.trim()), 400);
+		return () => clearTimeout(t);
+	}, [companySearch]);
+
+	const { data, isLoading } = useGetN8NTasks(reportId, {
+		q: debouncedSearch || undefined,
+	});
 	const startTask = useStartN8NTask(reportId);
 	const stopTask = useStopN8NTask(reportId);
 	const deleteTask = useDeleteN8NTask(reportId);
@@ -639,6 +791,12 @@ export default function N8NTasksTable({
 								Download
 							</Button>
 						)}
+						<Button
+							size="small"
+							icon={<EditOutlined />}
+							type="text"
+							onClick={() => setEditingTask(record)}
+						/>
 						<Popconfirm
 							title="Delete this task?"
 							onConfirm={() => handleDelete(record.id)}
@@ -664,6 +822,7 @@ export default function N8NTasksTable({
 			handleStart,
 			handleStop,
 			message,
+			setEditingTask,
 			startTask.isPending,
 			stopTask.isPending,
 			updateStatus,
@@ -693,6 +852,14 @@ export default function N8NTasksTable({
 						})),
 					]}
 				/>
+				<Input
+					allowClear
+					prefix={<SearchOutlined />}
+					placeholder="Search by company name or ID"
+					value={companySearch}
+					onChange={(e) => setCompanySearch(e.target.value)}
+					style={{ width: 260 }}
+				/>
 				<Button
 					type="primary"
 					icon={<PlusOutlined />}
@@ -721,6 +888,7 @@ export default function N8NTasksTable({
 					onClose={() => setCreateOpen(false)}
 				/>
 			)}
+			<EditTaskModal task={editingTask} onClose={() => setEditingTask(null)} />
 		</>
 	);
 }
