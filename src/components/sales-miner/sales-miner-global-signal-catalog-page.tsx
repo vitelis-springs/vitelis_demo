@@ -944,7 +944,7 @@ export default function SalesMinerGlobalSignalCatalogPage() {
 					</div>
 
 					<Tabs
-						defaultActiveKey="v1"
+						defaultActiveKey="v2"
 						items={[
 							{
 								key: "v1",
