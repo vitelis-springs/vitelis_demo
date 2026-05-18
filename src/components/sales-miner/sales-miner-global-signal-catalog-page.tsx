@@ -14,6 +14,7 @@ import {
 	Space,
 	Switch,
 	Table,
+	Tabs,
 	Tag,
 	Tooltip,
 	TreeSelect,
@@ -23,16 +24,22 @@ import type { ColumnsType } from "antd/es/table";
 import {
 	ArrowLeftOutlined,
 	DeleteOutlined,
+	DownloadOutlined,
 	EditOutlined,
 	EyeOutlined,
 	PlusOutlined,
 	SearchOutlined,
 	StarOutlined,
+	UploadOutlined,
 } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import DeepDiveBreadcrumbs from "../deep-dive/breadcrumbs";
+import SignalModelImport, {
+	type SignalModelImportHandle,
+} from "./signal-model-import";
+import SmSignalModelView from "./sm-signal-model-view";
 import {
 	type CurrentSignalRow,
 	type GicsCodeRow,
@@ -51,6 +58,7 @@ import {
 	useSubcategoryCurrentSignals,
 	useToggleSignalCategoryActive,
 	useUpdateSignalCategory,
+	useExportSignalModel,
 } from "../../hooks/api/useSalesMinerSignalCatalogService";
 
 const { Content } = Layout;
@@ -606,6 +614,7 @@ function SubcategoriesTable({
 export default function SalesMinerGlobalSignalCatalogPage() {
 	const router = useRouter();
 	const { message } = App.useApp();
+	const importRef = useRef<SignalModelImportHandle>(null);
 	const [categorySearch, setCategorySearch] = useState("");
 	const [categoryPage, setCategoryPage] = useState(1);
 	const [categoryPageSize, setCategoryPageSize] = useState(20);
@@ -642,6 +651,7 @@ export default function SalesMinerGlobalSignalCatalogPage() {
 	const createCategory = useCreateSignalCategory();
 	const updateCategory = useUpdateSignalCategory();
 	const createSignal = useCreateSignalDefinition();
+	const exportSignalModel = useExportSignalModel();
 
 	const parentCategories = useMemo(
 		() => categoriesQuery.data?.data.items ?? [],
@@ -853,7 +863,7 @@ export default function SalesMinerGlobalSignalCatalogPage() {
 			title: "Category",
 			dataIndex: "name",
 			render: (name: string, row) => (
-				<Space direction="vertical" size={1}>
+				<Space orientation="vertical" size={1}>
 					<Text style={{ color: "#d9d9d9" }}>{name}</Text>
 					<Text code style={{ color: "#595959", fontSize: 11 }}>
 						{row.code}
@@ -933,66 +943,117 @@ export default function SalesMinerGlobalSignalCatalogPage() {
 						</Space>
 					</div>
 
-					<Card style={DARK_CARD_STYLE}>
-						<Space direction="vertical" size="middle" style={{ width: "100%" }}>
-							{categoriesQuery.error ? (
-								<Text type="danger">
-									{categoriesQuery.error instanceof Error
-										? categoriesQuery.error.message
-										: "Failed to load categories"}
-								</Text>
-							) : null}
-							<Space wrap>
-								<Input
-									prefix={<SearchOutlined />}
-									value={categorySearch}
-									onChange={(e) => {
-										setCategoryPage(1);
-										setCategorySearch(e.target.value);
-									}}
-									placeholder="Search categories"
-									style={{ width: 320 }}
-									allowClear
-								/>
-								<Button
-									type="primary"
-									icon={<PlusOutlined />}
-									onClick={openCreateCategory}
-								>
-									Add Category
-								</Button>
-							</Space>
-							<Table<SignalCategoryRow>
-								rowKey="id"
-								columns={categoryColumns}
-								dataSource={parentCategories}
-								loading={categoriesQuery.isLoading}
-								expandable={{
-									expandedRowRender: (row) => (
-										<SubcategoriesTable
-											parentId={row.id}
-											onNewVersion={openCreateSignalVersion}
-											onAddSignal={openCreateSignalForSubcat}
-											onEditSubcat={openEditSubcat}
+					<Tabs
+						defaultActiveKey="v1"
+						items={[
+							{
+								key: "v1",
+								label: "V1",
+								children: (
+									<Card style={DARK_CARD_STYLE}>
+										<Space
+											orientation="vertical"
+											size="middle"
+											style={{ width: "100%" }}
+										>
+											{categoriesQuery.error ? (
+												<Text type="danger">
+													{categoriesQuery.error instanceof Error
+														? categoriesQuery.error.message
+														: "Failed to load categories"}
+												</Text>
+											) : null}
+											<Space wrap>
+												<Input
+													prefix={<SearchOutlined />}
+													value={categorySearch}
+													onChange={(e) => {
+														setCategoryPage(1);
+														setCategorySearch(e.target.value);
+													}}
+													placeholder="Search categories"
+													style={{ width: 320 }}
+													allowClear
+												/>
+												<Button
+													type="primary"
+													icon={<PlusOutlined />}
+													onClick={openCreateCategory}
+												>
+													Add Category
+												</Button>
+											</Space>
+											<Table<SignalCategoryRow>
+												rowKey="id"
+												columns={categoryColumns}
+												dataSource={parentCategories}
+												loading={categoriesQuery.isLoading}
+												expandable={{
+													expandedRowRender: (row) => (
+														<SubcategoriesTable
+															parentId={row.id}
+															onNewVersion={openCreateSignalVersion}
+															onAddSignal={openCreateSignalForSubcat}
+															onEditSubcat={openEditSubcat}
+														/>
+													),
+													rowExpandable: (row) => row.child_count > 0,
+												}}
+												pagination={{
+													current: categoryPage,
+													pageSize: categoryPageSize,
+													total: categoriesQuery.data?.data.total ?? 0,
+													showSizeChanger: true,
+													pageSizeOptions: ["10", "20", "50", "100"],
+													showTotal: (total) => `${total} categories`,
+												}}
+												onChange={(pagination) => {
+													setCategoryPage(pagination.current ?? 1);
+													setCategoryPageSize(pagination.pageSize ?? 20);
+												}}
+											/>
+										</Space>
+									</Card>
+								),
+							},
+							{
+								key: "v2",
+								label: "V2",
+								children: (
+									<Space
+										orientation="vertical"
+										size="middle"
+										style={{ width: "100%" }}
+									>
+										<Space>
+											<Button
+												icon={<UploadOutlined />}
+												onClick={() => importRef.current?.openFileDialog()}
+											>
+												Import XLSX
+											</Button>
+											<Button
+												icon={<DownloadOutlined />}
+												onClick={() => {
+													exportSignalModel.mutate(undefined, {
+														onError: () => void message.error("Export failed"),
+													});
+												}}
+												loading={exportSignalModel.isPending}
+											>
+												Export XLSX
+											</Button>
+										</Space>
+										<SignalModelImport
+											ref={importRef}
+											onImported={() => void categoriesQuery.refetch()}
 										/>
-									),
-									rowExpandable: (row) => row.child_count > 0,
-								}}
-								pagination={{
-									current: categoryPage,
-									pageSize: categoryPageSize,
-									total: categoriesQuery.data?.data.total ?? 0,
-									showSizeChanger: true,
-									pageSizeOptions: ["10", "20", "50", "100"],
-									showTotal: (total) => `${total} categories`,
-								}}
-								onChange={(pagination) => {
-									setCategoryPage(pagination.current ?? 1);
-									setCategoryPageSize(pagination.pageSize ?? 20);
-								}}
-							/>
-						</Space>
-					</Card>
+										<SmSignalModelView />
+									</Space>
+								),
+							},
+						]}
+					/>
 				</div>
 
 				{/* Category create/edit modal */}

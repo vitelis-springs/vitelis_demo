@@ -396,3 +396,222 @@ export function useCreateSignalDefinition() {
 		},
 	});
 }
+
+export interface GicsRowDataPayload {
+	gicsCode: string;
+	instruction: string | null;
+	status: boolean;
+}
+
+export interface ImportRowPayload {
+	rowNumber: number;
+	catCode: string;
+	catName: string;
+	tier: number;
+	subCode: string;
+	signalClass: string;
+	signalName: string;
+	description: string;
+	backbonePrompt: string | null;
+	gicsData: GicsRowDataPayload[];
+}
+
+export interface ImportSignalModelPayload {
+	rows: ImportRowPayload[];
+}
+
+export interface ImportSignalModelResult {
+	categoriesCreated: number;
+	categoriesUpdated: number;
+	categoriesDeactivated: number;
+	subcategoriesCreated: number;
+	subcategoriesUpdated: number;
+	subcategoriesDeactivated: number;
+	versionsCreated: number;
+	versionsSetCurrent: number;
+	industriesCreated: number;
+	instructionsCreated: number;
+}
+
+export type CatAction = "create" | "update" | "activate" | "none";
+export type SubAction = "create" | "update" | "activate" | "none";
+export type VersionAction = "create" | "set_current" | "none";
+
+export interface RowAction {
+	rowNumber: number;
+	catAction: CatAction;
+	subAction: SubAction;
+	versionAction: VersionAction;
+	industryChanges: number;
+	notes: string[];
+}
+
+export interface AnalysisSummary {
+	categories: {
+		create: number;
+		update: number;
+		activate: number;
+		deactivate: number;
+		deactivateList: { external_id: string; name: string }[];
+	};
+	subcategories: {
+		create: number;
+		update: number;
+		activate: number;
+		deactivate: number;
+	};
+	versions: { create: number; setCurrent: number };
+	industries: {
+		create: number;
+		updateInstruction: number;
+		updateStatus: number;
+	};
+}
+
+export interface AnalysisResult {
+	rowActions: RowAction[];
+	summary: AnalysisSummary;
+}
+
+export function useAnalyzeSignalModel() {
+	return useMutation({
+		mutationFn: async (payload: { rows: ImportRowPayload[] }) => {
+			const res = await api.post(
+				"/sales-miner/signal-catalog/analyze",
+				payload,
+			);
+			return res.data as { success: boolean; data: AnalysisResult };
+		},
+	});
+}
+
+export interface SmCategoryRow {
+	id: string;
+	external_id: string;
+	name: string;
+	tier: number | null;
+	is_active: boolean;
+	created_at: string | null;
+	updated_at: string | null;
+	_count: { subcategories: number };
+}
+
+export interface SmSubcategoryRow {
+	id: string;
+	external_id: string;
+	name: string;
+	signal_class: string;
+	is_active: boolean;
+	created_at: string | null;
+	updated_at: string | null;
+	current_version: {
+		id: string;
+		definition: string;
+		prompt: string;
+	} | null;
+	_count: { versions: number; industries: number };
+}
+
+export function useSmSignalCategories(params: {
+	q: string;
+	page: number;
+	limit: number;
+}) {
+	return useQuery({
+		queryKey: [
+			...baseKey,
+			"sm-categories",
+			params.q,
+			params.page,
+			params.limit,
+		],
+		queryFn: async () => {
+			const sp = new URLSearchParams();
+			sp.set("page", String(params.page));
+			sp.set("limit", String(params.limit));
+			if (params.q.trim()) sp.set("q", params.q.trim());
+			const res = await api.get(
+				`/sales-miner/signal-catalog/sm-categories?${sp.toString()}`,
+			);
+			return res.data as {
+				success: boolean;
+				data: {
+					items: SmCategoryRow[];
+					total: number;
+					page: number;
+					limit: number;
+				};
+			};
+		},
+	});
+}
+
+export interface SmIndustryRow {
+	id: string;
+	gics_code: string | null;
+	status: boolean | null;
+	current_instruction: { id: string; instruction: string } | null;
+}
+
+export function useSmSignalSubcategories(categoryId: string | null) {
+	return useQuery({
+		queryKey: [...baseKey, "sm-subcategories", categoryId],
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/signal-catalog/sm-subcategories?categoryId=${categoryId}`,
+			);
+			return res.data as { success: boolean; data: SmSubcategoryRow[] };
+		},
+		enabled: categoryId !== null,
+	});
+}
+
+export function useSmSignalIndustries(subcategoryId: string | null) {
+	return useQuery({
+		queryKey: [...baseKey, "sm-industries", subcategoryId],
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/signal-catalog/sm-industries?subcategoryId=${subcategoryId}`,
+			);
+			return res.data as { success: boolean; data: SmIndustryRow[] };
+		},
+		enabled: subcategoryId !== null,
+	});
+}
+
+export function useExportSignalModel() {
+	return useMutation({
+		mutationFn: async () => {
+			const res = await api.get("/sales-miner/signal-catalog/export", {
+				responseType: "blob",
+			});
+			const url = URL.createObjectURL(res.data as Blob);
+			const a = document.createElement("a");
+			a.href = url;
+			const ts = new Date()
+				.toISOString()
+				.slice(0, 16)
+				.replace("T", "_")
+				.replace(":", "-");
+			a.download = `Signal-Framework-${ts}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+		},
+	});
+}
+
+export function useImportSignalModel() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (payload: ImportSignalModelPayload) => {
+			const res = await api.post("/sales-miner/signal-catalog/import", payload);
+			return res.data as {
+				success: boolean;
+				data: ImportSignalModelResult;
+			};
+		},
+		onSuccess: () => {
+			void qc.invalidateQueries({ queryKey: baseKey });
+		},
+	});
+}
