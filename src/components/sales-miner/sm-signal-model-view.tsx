@@ -228,7 +228,7 @@ export default function SmSignalModelView() {
 
 	return (
 		<div style={{ ...DARK_CARD_STYLE, padding: 16 }}>
-			<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+			<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 				{error ? (
 					<Text type="danger">
 						{error instanceof Error ? error.message : "Failed to load"}

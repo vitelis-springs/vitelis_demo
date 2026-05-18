@@ -367,28 +367,32 @@ export async function POST(request: NextRequest) {
 					: [];
 			versionsCreated = createdVersions.length;
 
-			// 6. Set current_version_id on subcategories
-			// Group subIds by versionId to use one updateMany per unique version
-			const subsByVersionId = new Map<bigint, bigint[]>();
+			// 6. Set current_version_id on subcategories — single batch UPDATE
+			const versionPairs: Array<{ subId: bigint; versionId: bigint }> = [];
 			for (const v of createdVersions) {
-				if (!v.sm_signal_subcategory_id) continue;
-				const list = subsByVersionId.get(v.id) ?? [];
-				list.push(v.sm_signal_subcategory_id);
-				subsByVersionId.set(v.id, list);
+				if (v.sm_signal_subcategory_id)
+					versionPairs.push({
+						subId: v.sm_signal_subcategory_id,
+						versionId: v.id,
+					});
 			}
 			for (const { subCode, versionId } of versionsToSetCurrent) {
 				const subId = subIdMap.get(subCode);
-				if (!subId) continue;
-				const list = subsByVersionId.get(versionId) ?? [];
-				list.push(subId);
-				subsByVersionId.set(versionId, list);
-				versionsSetCurrent++;
+				if (subId) {
+					versionPairs.push({ subId, versionId });
+					versionsSetCurrent++;
+				}
 			}
-			for (const [versionId, subIds] of Array.from(subsByVersionId)) {
-				await tx.smSignalSubcategory.updateMany({
-					where: { id: { in: subIds } },
-					data: { sm_signal_subcategories_current_version_id: versionId },
-				});
+			if (versionPairs.length > 0) {
+				const vals = versionPairs
+					.map((p) => `(${p.subId}::bigint,${p.versionId}::bigint)`)
+					.join(",");
+				await tx.$executeRawUnsafe(`
+					UPDATE sm_signal_subcategories AS t
+					SET sm_signal_subcategories_current_version_id = v.ver_id
+					FROM (VALUES ${vals}) AS v(sub_id, ver_id)
+					WHERE t.id = v.sub_id
+				`);
 			}
 
 			// 7. Create new industries (batch)
@@ -469,31 +473,32 @@ export async function POST(request: NextRequest) {
 					: [];
 			instructionsCreated = createdInstrs.length;
 
-			// 11. Update instruction FK on industries
-			// Group industryIds by instructionId to use one updateMany per unique instruction
-			const industriesByInstrId = new Map<bigint, bigint[]>();
+			// 11. Update instruction FK on industries — single batch UPDATE
+			const instrPairs: Array<{ industryId: bigint; instrId: bigint }> = [];
 			for (const instr of createdInstrs) {
-				if (!instr.sm_signal_subcategories_industry_id) continue;
-				const list = industriesByInstrId.get(instr.id) ?? [];
-				list.push(instr.sm_signal_subcategories_industry_id);
-				industriesByInstrId.set(instr.id, list);
+				if (instr.sm_signal_subcategories_industry_id)
+					instrPairs.push({
+						industryId: instr.sm_signal_subcategories_industry_id,
+						instrId: instr.id,
+					});
 			}
 			for (const {
 				industryId,
 				instructionId,
 			} of existingIndustryInstrFkUpdates) {
-				const list = industriesByInstrId.get(instructionId) ?? [];
-				list.push(industryId);
-				industriesByInstrId.set(instructionId, list);
+				instrPairs.push({ industryId, instrId: instructionId });
 			}
-			for (const [instrId, industryIds] of Array.from(industriesByInstrId)) {
-				await tx.smSignalSubcategoryIndustry.updateMany({
-					where: { id: { in: industryIds } },
-					data: {
-						sm_signal_subcategories_industry_instruction_id: instrId,
-						updated_at: new Date(),
-					},
-				});
+			if (instrPairs.length > 0) {
+				const vals = instrPairs
+					.map((p) => `(${p.industryId}::bigint,${p.instrId}::bigint)`)
+					.join(",");
+				await tx.$executeRawUnsafe(`
+					UPDATE sm_signal_subcategories_industries AS t
+					SET sm_signal_subcategories_industry_instruction_id = v.instr_id,
+					    updated_at = NOW()
+					FROM (VALUES ${vals}) AS v(ind_id, instr_id)
+					WHERE t.id = v.ind_id
+				`);
 			}
 
 			// 12. Deactivate categories and subcategories absent from this import
@@ -515,7 +520,7 @@ export async function POST(request: NextRequest) {
 			});
 			subcategoriesDeactivated = deactivatedSubs.count;
 		},
-		{ timeout: 60000 },
+		{ timeout: 120000 },
 	);
 
 	return NextResponse.json({

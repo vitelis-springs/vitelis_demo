@@ -10,7 +10,6 @@ import {
 	Alert,
 	App,
 	Button,
-	Card,
 	Modal,
 	Space,
 	Spin,
@@ -181,7 +180,7 @@ function buildColumns(
 		{
 			title: makeFixedHeader(2, EXPECTED_FIXED_HEADERS[2], mismatchMap),
 			dataIndex: "tier",
-			width: 50,
+			width: 70,
 			render: (v: number) => <Tag>{v}</Tag>,
 		},
 		{
@@ -404,6 +403,7 @@ const SignalModelImport = forwardRef<SignalModelImportHandle, Props>(
 		);
 		const [isAnalyzing, setIsAnalyzing] = useState(false);
 		const [showConfirmModal, setShowConfirmModal] = useState(false);
+		const [pageSize, setPageSize] = useState(10);
 
 		const importMutation = useImportSignalModel();
 		const analyzeMutation = useAnalyzeSignalModel();
@@ -540,6 +540,26 @@ const SignalModelImport = forwardRef<SignalModelImportHandle, Props>(
 		const cellErrors: CellError[] = workbook?.cellErrors ?? [];
 		const hasCellErrors = cellErrors.length > 0;
 
+		const hasNoChanges = (() => {
+			const s = analysisResult?.summary;
+			if (!s) return false;
+			return (
+				s.categories.create === 0 &&
+				s.categories.update === 0 &&
+				s.categories.activate === 0 &&
+				s.categories.deactivate === 0 &&
+				s.subcategories.create === 0 &&
+				s.subcategories.update === 0 &&
+				s.subcategories.activate === 0 &&
+				s.subcategories.deactivate === 0 &&
+				s.versions.create === 0 &&
+				s.versions.setCurrent === 0 &&
+				s.industries.create === 0 &&
+				s.industries.updateInstruction === 0 &&
+				s.industries.updateStatus === 0
+			);
+		})();
+
 		const columns = useMemo(
 			() =>
 				buildColumns(
@@ -552,7 +572,7 @@ const SignalModelImport = forwardRef<SignalModelImportHandle, Props>(
 		);
 
 		const totalWidth = useMemo(() => {
-			const fixedWidth = 80 + 180 + 50 + 80 + 110 + 240 + 260 + 130 + 220;
+			const fixedWidth = 80 + 180 + 70 + 80 + 110 + 240 + 260 + 130 + 220;
 			const gicsWidth = (workbook?.gicsColumns ?? []).reduce(
 				(sum, col) => sum + (col.type === "status" ? 90 : 200),
 				0,
@@ -622,7 +642,7 @@ const SignalModelImport = forwardRef<SignalModelImportHandle, Props>(
 					]}
 				>
 					{s && (
-						<Space direction="vertical" size={12} style={{ width: "100%" }}>
+						<Space orientation="vertical" size={12} style={{ width: "100%" }}>
 							<Text style={{ color: "#8c8c8c" }}>
 								The following changes will be applied to the database:
 							</Text>
@@ -740,50 +760,73 @@ const SignalModelImport = forwardRef<SignalModelImportHandle, Props>(
 					)}
 				</Modal>
 
-				<Card
-					title="Import Signal Model from XLSX"
-					style={{ ...DARK_CARD_STYLE, marginBottom: 16 }}
-					extra={
-						<Space>
+				<Modal
+					title={
+						<Space size={8}>
+							<span>Import Signal Model from XLSX</span>
 							{fileName && (
-								<Text style={{ color: "#8c8c8c" }}>
-									File: <Text style={{ color: "#d9d9d9" }}>{fileName}</Text>
+								<Text
+									style={{ color: "#8c8c8c", fontWeight: 400, fontSize: 13 }}
+								>
+									— {fileName}
 								</Text>
 							)}
-							<Tooltip
-								title={
-									hasColumnErrors
-										? "Fix column mismatches before importing"
-										: hasCellErrors
-											? "Fix empty ID cells before importing"
-											: isAnalyzing
-												? "Waiting for analysis…"
-												: undefined
-								}
-							>
-								<Button
-									type="primary"
-									icon={<UploadOutlined />}
-									loading={importMutation.isPending}
-									disabled={hasColumnErrors || hasCellErrors || isAnalyzing}
-									onClick={() => setShowConfirmModal(true)}
-								>
-									Import all ({rows.length})
-								</Button>
-							</Tooltip>
-							<Button
-								onClick={() => {
-									setWorkbook(null);
-									setFileName(null);
-									setAnalysisResult(null);
-								}}
-							>
-								Cancel
-							</Button>
 						</Space>
 					}
+					open={true}
+					width="95vw"
+					style={{ top: "10vh" }}
+					styles={{
+						body: { maxHeight: "calc(80vh - 130px)", overflowY: "auto" },
+					}}
+					onCancel={() => {
+						setWorkbook(null);
+						setFileName(null);
+						setAnalysisResult(null);
+					}}
+					footer={[
+						<Button
+							key="cancel"
+							onClick={() => {
+								setWorkbook(null);
+								setFileName(null);
+								setAnalysisResult(null);
+							}}
+						>
+							Cancel
+						</Button>,
+						<Tooltip
+							key="import"
+							title={
+								hasColumnErrors
+									? "Fix column mismatches before importing"
+									: hasCellErrors
+										? "Fix empty ID cells before importing"
+										: isAnalyzing
+											? "Waiting for analysis…"
+											: hasNoChanges
+												? "Nothing to import — database is up to date"
+												: undefined
+							}
+						>
+							<Button
+								type="primary"
+								icon={<UploadOutlined />}
+								loading={importMutation.isPending}
+								disabled={
+									hasColumnErrors ||
+									hasCellErrors ||
+									isAnalyzing ||
+									hasNoChanges
+								}
+								onClick={() => setShowConfirmModal(true)}
+							>
+								Import all ({rows.length})
+							</Button>
+						</Tooltip>,
+					]}
 				>
-					<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+					<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 						<Space wrap>
 							<Tag color="blue">{rows.length} signals</Tag>
 							<Tag>{uniqueCats} categories</Tag>
@@ -929,10 +972,15 @@ const SignalModelImport = forwardRef<SignalModelImportHandle, Props>(
 							columns={columns}
 							size="small"
 							scroll={{ x: totalWidth }}
-							pagination={{ pageSize: 20, showSizeChanger: false }}
+							pagination={{
+								pageSize,
+								showSizeChanger: true,
+								pageSizeOptions: ["5", "10", "20", "50"],
+								onShowSizeChange: (_, size) => setPageSize(size),
+							}}
 						/>
 					</Space>
-				</Card>
+				</Modal>
 			</>
 		);
 	},
