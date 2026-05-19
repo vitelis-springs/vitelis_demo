@@ -600,6 +600,155 @@ export function useExportSignalModel() {
 	});
 }
 
+export interface AccountSignalRow {
+	companyId: number;
+	account: string;
+	tier: number | null;
+	signalCount: number;
+	totalSignalCount: number;
+}
+
+export interface AccountSignalDetail {
+	scopeId: string;
+	signalId: string;
+	signalCode: string;
+	signalName: string;
+	isActive: boolean;
+	categoryId: string;
+	categoryCode: string;
+	categoryName: string;
+}
+
+export function useAccountSignals(reportId: number) {
+	return useQuery({
+		queryKey: [...baseKey, "account-signals", reportId],
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/signal-catalog/account-signals?reportId=${reportId}`,
+			);
+			return res.data as { data: AccountSignalRow[] };
+		},
+	});
+}
+
+export interface ResetToDefaultResult {
+	sourceRowsCount: number;
+	insertedCount: number;
+	reactivatedCount: number;
+	deactivatedCount: number;
+}
+
+export function useResetToDefaultSignals() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (reportId: number) => {
+			const res = await api.post(
+				"/sales-miner/signal-catalog/account-signals/reset",
+				{ reportId },
+			);
+			return res.data as { data: ResetToDefaultResult };
+		},
+		onSuccess: () => {
+			void qc.invalidateQueries({ queryKey: [...baseKey, "account-signals"] });
+			void qc.invalidateQueries({
+				queryKey: [...baseKey, "account-signal-details"],
+			});
+		},
+	});
+}
+
+export type ToggleSignalPayload =
+	| { type: "signal"; scopeId: string; isActive: boolean }
+	| {
+			type: "tier";
+			reportId: number;
+			companyId: number;
+			tier: number;
+			activate: boolean;
+	  };
+
+export function useToggleAccountSignal() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (payload: ToggleSignalPayload) => {
+			await api.patch(
+				"/sales-miner/signal-catalog/account-signals/toggle",
+				payload,
+			);
+		},
+		onMutate: async (payload) => {
+			if (payload.type === "signal") {
+				// Optimistically update details cache
+				await qc.cancelQueries({
+					queryKey: [...baseKey, "account-signal-details"],
+				});
+				qc.setQueriesData<{ data: AccountSignalDetail[] }>(
+					{ queryKey: [...baseKey, "account-signal-details"] },
+					(old) => {
+						if (!old) return old;
+						return {
+							data: old.data.map((d) =>
+								d.scopeId === payload.scopeId
+									? { ...d, isActive: payload.isActive }
+									: d,
+							),
+						};
+					},
+				);
+			}
+		},
+		onSuccess: () => {
+			void qc.invalidateQueries({ queryKey: [...baseKey, "account-signals"] });
+			void qc.invalidateQueries({
+				queryKey: [...baseKey, "account-signal-details"],
+			});
+		},
+	});
+}
+
+export function useAccountSignalDetails(
+	reportId: number,
+	companyId: number,
+	tier: number,
+	enabled: boolean,
+) {
+	return useQuery({
+		queryKey: [...baseKey, "account-signal-details", reportId, companyId, tier],
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/signal-catalog/account-signals/details?reportId=${reportId}&companyId=${companyId}&tier=${tier}`,
+			);
+			return res.data as { data: AccountSignalDetail[] };
+		},
+		enabled,
+	});
+}
+
+export interface CostForecastStep {
+	stepId: number;
+	name: string;
+	avgCost: number;
+}
+
+export interface CostForecastResult {
+	fixedCostPerCompany: number;
+	avgCostPerSignal: number;
+	steps: CostForecastStep[];
+}
+
+export function useCostForecast(reportId: number) {
+	return useQuery({
+		queryKey: [...baseKey, "cost-forecast", reportId],
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/signal-catalog/cost-forecast?reportId=${reportId}`,
+			);
+			return res.data as { data: CostForecastResult };
+		},
+		staleTime: 5 * 60 * 1000,
+	});
+}
+
 export function useImportSignalModel() {
 	const qc = useQueryClient();
 	return useMutation({
