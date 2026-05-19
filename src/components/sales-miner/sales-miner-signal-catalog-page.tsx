@@ -1,9 +1,10 @@
 "use client";
 
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { Button, Layout, Space, Typography } from "antd";
+import { Button, Layout, Space, Tabs, Typography } from "antd";
 import { useRouter } from "next/navigation";
 import { useGetDeepDiveOverview } from "../../hooks/api/useDeepDiveService";
+import AccountSignalsTable from "./account-signals-table";
 import DeepDiveBreadcrumbs from "../deep-dive/breadcrumbs";
 import SignalStatsTable from "../deep-dive/signal-stats-table";
 
@@ -26,7 +27,7 @@ export default function SalesMinerSignalCatalogPage({
 		<Layout style={{ minHeight: "100vh", background: BG }}>
 			<Content style={{ padding: 24, background: BG, minHeight: "100vh" }}>
 				<div style={{ maxWidth: 1400, width: "100%" }}>
-					<div style={{ marginBottom: 24 }}>
+					<div style={{ marginBottom: 16 }}>
 						<DeepDiveBreadcrumbs
 							items={[
 								{ label: "Sales Miner", href: "/sales-miner" },
@@ -47,7 +48,21 @@ export default function SalesMinerSignalCatalogPage({
 						</Space>
 					</div>
 
-					<SignalStatsTable reportId={reportId} />
+					<Tabs
+						defaultActiveKey="signals"
+						items={[
+							{
+								key: "signals",
+								label: "Signals",
+								children: <AccountSignalsTable reportId={reportId} />,
+							},
+							{
+								key: "statistics",
+								label: "Statistics",
+								children: <SignalStatsTable reportId={reportId} />,
+							},
+						]}
+					/>
 				</div>
 			</Content>
 		</Layout>
