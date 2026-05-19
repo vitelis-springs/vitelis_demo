@@ -119,12 +119,14 @@ function CompaniesTable({
 	showSignals,
 	title,
 	basePath = "/sales-miner",
+	customerId,
 }: {
 	companies: SalesMinerReportCompanyRow[];
 	reportId: number;
 	showSignals: boolean;
 	title: string;
 	basePath?: string;
+	customerId?: number | null;
 }) {
 	const { message } = App.useApp();
 	const router = useRouter();
@@ -412,6 +414,8 @@ function CompaniesTable({
 				reportId={reportId}
 				open={addModalOpen}
 				onClose={() => setAddModalOpen(false)}
+				customerId={customerId ?? undefined}
+				existingCompanyIds={companies.map((c) => c.id)}
 			/>
 		</Card>
 	);
@@ -447,7 +451,7 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 	}
 
 	if (data.data.level !== "entity") return null;
-	const { signalSummary, oppSummary, topCompanies } = data.data;
+	const { signalSummary, oppSummary, topCompanies, customerId } = data.data;
 
 	const totalSignals = signalSummary.reduce((s, r) => s + r.signalCount, 0);
 	const totalOpps = oppSummary.reduce((s, r) => s + r.count, 0);
@@ -544,6 +548,7 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 								reportId={reportId}
 								showSignals
 								title={`Companies by Priority (${topCompanies.length})`}
+								customerId={customerId}
 							/>
 						),
 					},
@@ -585,7 +590,8 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 	}
 
 	if (data.data.level !== "account") return null;
-	const { oppSummary, companies, relatedReportId, accountVersion } = data.data;
+	const { oppSummary, companies, relatedReportId, accountVersion, customerId } =
+		data.data;
 	const isV2 = accountVersion === "2";
 
 	const totalOpps = oppSummary.reduce((s, r) => s + r.count, 0);
@@ -724,6 +730,7 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 								reportId={reportId}
 								showSignals={isV2}
 								title={`Account Companies (${companies.length})`}
+								customerId={customerId}
 							/>
 						),
 					},

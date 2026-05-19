@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
 	App,
 	Button,
+	Checkbox,
 	Form,
 	Input,
 	InputNumber,
@@ -11,6 +12,7 @@ import {
 	Segmented,
 	Select,
 	Space,
+	Spin,
 	Switch,
 	Tabs,
 	Tooltip,
@@ -29,6 +31,7 @@ import {
 	useSearchCompanies,
 	type CompanySearchResult,
 } from "../../hooks/api/useDeepDiveService";
+import { useCustomerCompanies } from "../../hooks/api/useSalesMinerReportsService";
 import JsonEditor from "./json-editor";
 
 const { Text } = Typography;
@@ -52,6 +55,8 @@ interface Props {
 	reportId: number;
 	open: boolean;
 	onClose: () => void;
+	customerId?: number;
+	existingCompanyIds?: number[];
 }
 
 interface NewCompanyFormValues {
@@ -675,12 +680,149 @@ function ExistingCompanyTab({
 	);
 }
 
-export default function AddCompanyModal({ reportId, open, onClose }: Props) {
-	const [activeTab, setActiveTab] = useState("new");
+function CustomerCompaniesTab({
+	reportId,
+	customerId,
+	existingCompanyIds,
+	onSuccess,
+}: {
+	reportId: number;
+	customerId: number;
+	existingCompanyIds: number[];
+	onSuccess: () => void;
+}) {
+	const { message } = App.useApp();
+	const [selectedIds, setSelectedIds] = useState<number[]>([]);
+	const [adding, setAdding] = useState(false);
+	const addCompany = useAddCompanyToReport(reportId);
+	const { data: companiesData, isLoading } = useCustomerCompanies(customerId);
+	const allCompanies = companiesData?.data ?? [];
+	const available = allCompanies.filter(
+		(c) => !existingCompanyIds.includes(c.companyId),
+	);
+
+	const handleToggle = (companyId: number) => {
+		setSelectedIds((prev) =>
+			prev.includes(companyId)
+				? prev.filter((id) => id !== companyId)
+				: [...prev, companyId],
+		);
+	};
+
+	const handleSelectAll = () =>
+		setSelectedIds(available.map((c) => c.companyId));
+	const handleDeselectAll = () => setSelectedIds([]);
+
+	const handleAdd = async () => {
+		if (selectedIds.length === 0) return;
+		setAdding(true);
+		try {
+			for (const companyId of selectedIds) {
+				await addCompany.mutateAsync({ mode: "existing", companyId });
+			}
+			message.success(
+				`${selectedIds.length} ${selectedIds.length === 1 ? "company" : "companies"} added`,
+			);
+			setSelectedIds([]);
+			onSuccess();
+		} catch {
+			message.error("Failed to add companies");
+		} finally {
+			setAdding(false);
+		}
+	};
+
+	if (isLoading) {
+		return (
+			<div style={{ textAlign: "center", padding: 40 }}>
+				<Spin size="small" />
+			</div>
+		);
+	}
+
+	if (available.length === 0) {
+		return (
+			<Text type="secondary" style={{ display: "block", padding: "16px 0" }}>
+				{allCompanies.length === 0
+					? "No companies found for this customer"
+					: "All customer companies are already added to this report"}
+			</Text>
+		);
+	}
+
+	return (
+		<div style={{ paddingTop: 8 }}>
+			<div
+				style={{
+					display: "flex",
+					gap: 8,
+					marginBottom: 8,
+					alignItems: "center",
+				}}
+			>
+				<Button size="small" onClick={handleSelectAll}>
+					Select all
+				</Button>
+				<Button size="small" onClick={handleDeselectAll}>
+					Deselect all
+				</Button>
+				<Text type="secondary" style={{ fontSize: 12, marginLeft: "auto" }}>
+					{selectedIds.length} / {available.length} selected
+				</Text>
+			</div>
+			<div
+				style={{
+					maxHeight: 360,
+					overflowY: "auto",
+					border: "1px solid #303030",
+					borderRadius: 6,
+					padding: "4px 0",
+					marginBottom: 16,
+				}}
+			>
+				{available.map((c) => (
+					<div
+						key={c.companyId}
+						style={{ padding: "4px 12px", cursor: "pointer" }}
+						onClick={() => handleToggle(c.companyId)}
+					>
+						<Checkbox
+							checked={selectedIds.includes(c.companyId)}
+							style={{ pointerEvents: "none" }}
+						>
+							<Text style={{ fontSize: 13 }}>{c.name}</Text>
+						</Checkbox>
+					</div>
+				))}
+			</div>
+			<div style={{ textAlign: "right" }}>
+				<Button
+					type="primary"
+					icon={<PlusOutlined />}
+					disabled={selectedIds.length === 0}
+					loading={adding}
+					onClick={handleAdd}
+				>
+					Add {selectedIds.length > 0 ? selectedIds.length : ""}{" "}
+					{selectedIds.length === 1 ? "Company" : "Companies"}
+				</Button>
+			</div>
+		</div>
+	);
+}
+
+export default function AddCompanyModal({
+	reportId,
+	open,
+	onClose,
+	customerId,
+	existingCompanyIds = [],
+}: Props) {
+	const [activeTab, setActiveTab] = useState(customerId ? "existing" : "new");
 
 	useEffect(() => {
-		if (!open) setActiveTab("new");
-	}, [open]);
+		if (!open) setActiveTab(customerId ? "existing" : "new");
+	}, [open, customerId]);
 
 	return (
 		<Modal
@@ -705,7 +847,14 @@ export default function AddCompanyModal({ reportId, open, onClose }: Props) {
 					{
 						key: "existing",
 						label: "Add Existing",
-						children: (
+						children: customerId ? (
+							<CustomerCompaniesTab
+								reportId={reportId}
+								customerId={customerId}
+								existingCompanyIds={existingCompanyIds}
+								onSuccess={onClose}
+							/>
+						) : (
 							<ExistingCompanyTab reportId={reportId} onSuccess={onClose} />
 						),
 					},

@@ -683,6 +683,7 @@ export type SalesMinerReportOverviewResponse =
 			data: {
 				level: "entity";
 				reportId: number;
+				customerId: number | null;
 				signalSummary: SalesMinerSignalSummaryRow[];
 				oppSummary: SalesMinerOppSummaryRow[];
 				topCompanies: SalesMinerReportCompanyRow[];
@@ -693,6 +694,7 @@ export type SalesMinerReportOverviewResponse =
 			data: {
 				level: "account";
 				reportId: number;
+				customerId: number | null;
 				relatedReportId: number | null;
 				oppSummary: SalesMinerOppSummaryRow[];
 				companies: SalesMinerReportCompanyRow[];
