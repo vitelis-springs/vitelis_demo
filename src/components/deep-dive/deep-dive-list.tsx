@@ -24,6 +24,7 @@ import {
 import useServerSortedTable from "../../hooks/useServerSortedTable";
 import { ReportCostModal } from "../report-steps/ReportCostModal";
 import CreateReportModal, { CloneReportButton } from "./create-report-modal";
+import CreateSMReportModal from "../sales-miner/create-sm-report-modal";
 import ExportXlsxModal from "./export-xlsx-modal";
 import PageHeader from "./shared/page-header";
 import DeepDivePageLayout from "./shared/page-layout";
@@ -414,10 +415,14 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 									</Button>
 								</>
 							)}
-							<CreateReportModal
-								reportType={fixedReportType}
-								useCases={useCasesForModal}
-							/>
+							{fixedReportType === "sales_miner" ? (
+								<CreateSMReportModal />
+							) : (
+								<CreateReportModal
+									reportType={fixedReportType}
+									useCases={useCasesForModal}
+								/>
+							)}
 							{cloneFromId !== null && (
 								<CreateReportModal
 									reportType={fixedReportType}

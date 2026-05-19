@@ -2333,6 +2333,11 @@ export class DeepDiveService {
 				? settings.related_report_id
 				: null;
 
+		const customerId =
+			isRecord(settings) && typeof settings.customer_id === "number"
+				? settings.customer_id
+				: null;
+
 		const entityReportId =
 			typeLevel === "account" ? (relatedReportId ?? reportId) : reportId;
 
@@ -2355,6 +2360,7 @@ export class DeepDiveService {
 					level: "account" as const,
 					reportId,
 					relatedReportId,
+					customerId,
 					oppSummary: oppSummary.map((r) => ({
 						motionFamily: r.motion_family,
 						horizon: r.horizon,
@@ -2386,6 +2392,7 @@ export class DeepDiveService {
 			data: {
 				level: "entity" as const,
 				reportId,
+				customerId,
 				signalSummary: signalSummary.map((r) => ({
 					themeCode: r.theme_code,
 					signalCount: Number(r.signal_count),
