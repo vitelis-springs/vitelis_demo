@@ -2263,7 +2263,9 @@ ORDER BY b.account, b.version, b.portfolio_priority_score DESC NULLS LAST, b.ent
 			);
 
 			if (!result.success) {
-				return NextResponse.json(result, { status: 404 });
+				const status =
+					result.error === "Company not found in this report" ? 404 : 400;
+				return NextResponse.json(result, { status });
 			}
 			return NextResponse.json(result);
 		} catch (error: unknown) {

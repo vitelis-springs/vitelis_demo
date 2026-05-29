@@ -42,6 +42,7 @@ import DeepDiveStatusTag from "./status-tag";
 import SummaryCards from "./summary-cards";
 import AddCompanyModal from "./add-company-modal";
 import SignalStatsTable from "./signal-stats-table";
+import CompanyListedTag from "./company-listed-tag";
 import {
 	DARK_CARD_STYLE,
 	DARK_CARD_HEADER_STYLE,
@@ -229,8 +230,11 @@ function CompaniesTable({
 					a: SalesMinerReportCompanyRow,
 					b: SalesMinerReportCompanyRow,
 				) => a.name.localeCompare(b.name),
-				render: (v: string) => (
-					<Text style={{ color: "#e0e0e0", fontWeight: 600 }}>{v}</Text>
+				render: (v: string, record: SalesMinerReportCompanyRow) => (
+					<Space size={6} wrap>
+						<Text style={{ color: "#e0e0e0", fontWeight: 600 }}>{v}</Text>
+						<CompanyListedTag listed={record.listed} />
+					</Space>
 				),
 			},
 			{

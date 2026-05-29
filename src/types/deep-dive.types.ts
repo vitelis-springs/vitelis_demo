@@ -110,6 +110,7 @@ export interface DeepDiveStaticValidation {
 export interface DeepDiveCompanyRow {
 	id: number;
 	name: string;
+	listed?: boolean | null;
 	countryCode?: string | null;
 	url?: string | null;
 	status: DeepDiveStatus;
@@ -271,6 +272,7 @@ export interface DeepDiveCompanyResponse {
 		company: {
 			id: number;
 			name: string;
+			listed?: boolean | null;
 			countryCode?: string | null;
 			url?: string | null;
 			industryId?: number | null;
@@ -670,6 +672,7 @@ export interface SalesMinerSignalSummaryRow {
 export interface SalesMinerReportCompanyRow {
 	id: number;
 	name: string;
+	listed?: boolean | null;
 	oppCount: number;
 	avgPriority: number | null;
 	signalCount: number;
@@ -703,6 +706,7 @@ export type SalesMinerReportOverviewResponse =
 
 export interface CompanyUpdatePayload {
 	name?: string;
+	listed?: boolean | null;
 	url?: string | null;
 	countryCode?: string | null;
 	industryId?: number | null;
@@ -716,6 +720,7 @@ export interface CompanyUpdatePayload {
 export interface CompanySearchResult {
 	id: number;
 	name: string;
+	listed?: boolean | null;
 	countryCode?: string | null;
 	url?: string | null;
 }
@@ -725,6 +730,7 @@ export type AddCompanyPayload =
 	| {
 			mode: "new";
 			name: string;
+			listed: boolean;
 			url?: string | null;
 			countryCode?: string | null;
 			industryId?: number | null;

@@ -102,6 +102,7 @@ model companies {
   slug                                                                                                        String?                                    @unique(map: "companies_slug_unique") @db.VarChar(255)
   report_role                                                                                                 String?                                    @db.VarChar
   gics_code                                                                                                   String?                                    @db.VarChar(8)
+  listed                                                                                                      Boolean?
   alixpartner_reports                                                                                         alixpartner_reports[]
   bizminer_reports                                                                                            bizminer_reports[]
   companies                                                                                                   companies?                                 @relation("companies_parent_company_fk", fields: [parent_company], references: [id], onUpdate: NoAction, map: "companies__parent_company_fk")

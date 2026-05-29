@@ -817,6 +817,7 @@ export class DeepDiveRepository {
 		reportId: number,
 		data: {
 			name: string;
+			listed: boolean;
 			url?: string | null;
 			countryCode?: string | null;
 			industryId?: number | null;
@@ -832,6 +833,7 @@ export class DeepDiveRepository {
 			const company = await tx.companies.create({
 				data: {
 					name: data.name,
+					listed: data.listed,
 					url: data.url ?? null,
 					country_code: data.countryCode ?? null,
 					...(data.industryId != null
@@ -872,6 +874,7 @@ export class DeepDiveRepository {
 		companyId: number,
 		data: {
 			name?: string;
+			listed?: boolean | null;
 			url?: string | null;
 			countryCode?: string | null;
 			industryId?: number | null;
@@ -886,6 +889,7 @@ export class DeepDiveRepository {
 			where: { id: companyId },
 			data: {
 				...(data.name !== undefined ? { name: data.name } : {}),
+				...(data.listed !== undefined ? { listed: data.listed } : {}),
 				...(data.url !== undefined ? { url: data.url } : {}),
 				...(data.countryCode !== undefined
 					? { country_code: data.countryCode }
@@ -926,7 +930,13 @@ export class DeepDiveRepository {
 					...(isId ? [{ id: numericId }] : []),
 				],
 			},
-			select: { id: true, name: true, country_code: true, url: true },
+			select: {
+				id: true,
+				name: true,
+				listed: true,
+				country_code: true,
+				url: true,
+			},
 			orderBy: { name: "asc" },
 			take: limit,
 		});
@@ -3188,6 +3198,7 @@ export class DeepDiveRepository {
 			Array<{
 				id: number;
 				name: string;
+				listed: boolean | null;
 				opp_count: bigint;
 				avg_priority: number | null;
 				signal_count: bigint;
@@ -3197,6 +3208,7 @@ export class DeepDiveRepository {
       SELECT
         c.id,
         c.name,
+        c.listed,
         count(DISTINCT oc.id) AS opp_count,
         round(avg(oc.portfolio_priority_score)::numeric, 1) AS avg_priority,
         count(DISTINCT cssi.id) AS signal_count,
@@ -3208,7 +3220,7 @@ export class DeepDiveRepository {
       LEFT JOIN company_signal_summaries css ON css.research_run_id = rr.id
       LEFT JOIN company_signal_summary_items cssi ON cssi.company_signal_summary_id = css.id
       WHERE rc.report_id = ${reportId}
-      GROUP BY c.id, c.name
+      GROUP BY c.id, c.name, c.listed
       ORDER BY avg_priority DESC NULLS LAST
     `;
 	}
@@ -3221,6 +3233,7 @@ export class DeepDiveRepository {
 			Array<{
 				id: number;
 				name: string;
+				listed: boolean | null;
 				opp_count: bigint;
 				avg_priority: number | null;
 				signal_count: bigint;
@@ -3230,6 +3243,7 @@ export class DeepDiveRepository {
       SELECT
         c.id,
         c.name,
+        c.listed,
         (
           SELECT count(DISTINCT oc.id)
           FROM research_runs rr

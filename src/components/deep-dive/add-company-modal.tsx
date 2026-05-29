@@ -32,6 +32,13 @@ import {
 	type CompanySearchResult,
 } from "../../hooks/api/useDeepDiveService";
 import { useCustomerCompanies } from "../../hooks/api/useSalesMinerReportsService";
+import {
+	COMPANY_LISTING_FIELD_LABEL,
+	COMPANY_LISTING_REQUIRED_OPTIONS,
+	getCompanyListingLabel,
+	toListedBoolean,
+	type CompanyListingValue,
+} from "./company-listed-tag";
 import JsonEditor from "./json-editor";
 
 const { Text } = Typography;
@@ -61,7 +68,9 @@ interface Props {
 
 interface NewCompanyFormValues {
 	name: string;
+	listed: Exclude<CompanyListingValue, "unknown">;
 	url?: string;
+	companyComment?: string;
 	countryCode?: string;
 	industryId: number;
 	slug: string;
@@ -124,6 +133,7 @@ function NewCompanyTab({
 					body: JSON.stringify({
 						name: values.name || null,
 						url: values.url || null,
+						company_comment: values.companyComment?.trim() || null,
 						invest_portal: values.investPortal || null,
 						career_portal: values.careerPortal || null,
 					}),
@@ -174,9 +184,16 @@ function NewCompanyTab({
 			}
 
 			try {
+				const listed = toListedBoolean(values.listed);
+				if (listed === null) {
+					message.error("Listing status is required");
+					return;
+				}
+
 				await addCompany.mutateAsync({
 					mode: "new",
 					name: values.name,
+					listed,
 					url: values.url || null,
 					countryCode: values.countryCode || null,
 					industryId: values.industryId ?? null,
@@ -270,6 +287,23 @@ function NewCompanyTab({
 						]}
 					>
 						<Input placeholder="https://acme.com" />
+					</Form.Item>
+
+					<Form.Item name="companyComment" label="Company Comment">
+						<Input.TextArea
+							autoSize={{ minRows: 2, maxRows: 5 }}
+							placeholder="Market context, aliases, ownership notes..."
+						/>
+					</Form.Item>
+
+					<Form.Item
+						name="listed"
+						label={COMPANY_LISTING_FIELD_LABEL}
+						rules={[{ required: true, message: "Listing status is required" }]}
+					>
+						<Segmented<Exclude<CompanyListingValue, "unknown">>
+							options={COMPANY_LISTING_REQUIRED_OPTIONS}
+						/>
 					</Form.Item>
 
 					<Form.Item
@@ -626,6 +660,11 @@ function ExistingCompanyTab({
 					label: (
 						<div>
 							<Text style={{ fontWeight: 600 }}>{c.name}</Text>
+							{c.listed !== null && c.listed !== undefined && (
+								<Text type="secondary" style={{ marginLeft: 8 }}>
+									{getCompanyListingLabel(c.listed)}
+								</Text>
+							)}
 							{c.countryCode && (
 								<Text type="secondary" style={{ marginLeft: 8 }}>
 									{c.countryCode}
@@ -649,8 +688,13 @@ function ExistingCompanyTab({
 					<Text style={{ fontWeight: 600, display: "block" }}>
 						{selectedCompany.name}
 					</Text>
+					<Text type="secondary">
+						{getCompanyListingLabel(selectedCompany.listed)}
+					</Text>
 					{selectedCompany.countryCode && (
-						<Text type="secondary">{selectedCompany.countryCode}</Text>
+						<Text type="secondary" style={{ marginLeft: 8 }}>
+							{selectedCompany.countryCode}
+						</Text>
 					)}
 					{selectedCompany.url && (
 						<div>
