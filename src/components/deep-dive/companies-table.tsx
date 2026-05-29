@@ -31,6 +31,7 @@ import type {
 	DeepDiveStatus,
 } from "../../hooks/api/useDeepDiveService";
 import AddCompanyModal from "./add-company-modal";
+import CompanyListedTag from "./company-listed-tag";
 import DeepDiveStatusTag from "./status-tag";
 
 const { Text } = Typography;
@@ -53,7 +54,10 @@ const columns: ColumnsType<DeepDiveCompanyRow> = [
 		sorter: (a, b) => a.name.localeCompare(b.name),
 		render: (value: string, record) => (
 			<Space orientation="vertical" size={2}>
-				<Text style={{ color: "#fff", fontWeight: 600 }}>{value}</Text>
+				<Space size={6} wrap>
+					<Text style={{ color: "#fff", fontWeight: 600 }}>{value}</Text>
+					<CompanyListedTag listed={record.listed} />
+				</Space>
 				{record.countryCode && (
 					<Text style={{ color: "#8c8c8c" }}>{record.countryCode}</Text>
 				)}

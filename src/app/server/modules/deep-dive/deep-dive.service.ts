@@ -1350,6 +1350,7 @@ export class DeepDiveService {
 				return {
 					id: company.id,
 					name: company.name,
+					listed: company.listed,
 					countryCode: company.country_code,
 					url: company.url,
 					status: DeepDiveService.deriveDominantStatus(counts, totalStepsCount),
@@ -2039,6 +2040,7 @@ export class DeepDiveService {
 				company: {
 					id: company.id,
 					name: company.name,
+					listed: company.listed,
 					countryCode: company.country_code,
 					url: company.url,
 					industryId: company.industry_id,
@@ -2371,6 +2373,7 @@ export class DeepDiveService {
 					companies: accountCompanies.map((c) => ({
 						id: c.id,
 						name: c.name,
+						listed: c.listed,
 						oppCount: Number(c.opp_count),
 						avgPriority: c.avg_priority ? Number(c.avg_priority) : null,
 						signalCount: Number(c.signal_count),
@@ -2409,6 +2412,7 @@ export class DeepDiveService {
 				topCompanies: topCompanies.map((c) => ({
 					id: c.id,
 					name: c.name,
+					listed: c.listed,
 					oppCount: Number(c.opp_count),
 					avgPriority: c.avg_priority ? Number(c.avg_priority) : null,
 					signalCount: Number(c.signal_count),
@@ -2425,6 +2429,7 @@ export class DeepDiveService {
 			| {
 					mode: "new";
 					name: string;
+					listed: boolean;
 					url?: string | null;
 					countryCode?: string | null;
 					industryId?: number | null;
@@ -2441,8 +2446,13 @@ export class DeepDiveService {
 			return { success: true };
 		}
 
+		if (typeof payload.listed !== "boolean") {
+			return { success: false, error: "listed is required" };
+		}
+
 		const company = await DeepDiveRepository.createCompanyAndLink(reportId, {
 			name: payload.name,
+			listed: payload.listed,
 			url: payload.url,
 			countryCode: payload.countryCode,
 			industryId: payload.industryId,
@@ -2462,6 +2472,7 @@ export class DeepDiveService {
 		companyId: number,
 		data: {
 			name?: string;
+			listed?: boolean | null;
 			url?: string | null;
 			countryCode?: string | null;
 			industryId?: number | null;
@@ -2475,6 +2486,13 @@ export class DeepDiveService {
 		const company = await DeepDiveRepository.getCompany(reportId, companyId);
 		if (!company)
 			return { success: false, error: "Company not found in this report" };
+		if (
+			data.listed !== undefined &&
+			data.listed !== null &&
+			typeof data.listed !== "boolean"
+		) {
+			return { success: false, error: "listed must be true, false, or null" };
+		}
 
 		await DeepDiveRepository.updateCompany(companyId, data);
 		return { success: true };
@@ -2487,6 +2505,7 @@ export class DeepDiveService {
 			data: companies.map((c) => ({
 				id: c.id,
 				name: c.name,
+				listed: c.listed,
 				countryCode: c.country_code,
 				url: c.url,
 			})),

@@ -27,6 +27,13 @@ import {
 	useUpdateCompany,
 	type CompanyUpdatePayload,
 } from "../../hooks/api/useDeepDiveService";
+import {
+	COMPANY_LISTING_FIELD_LABEL,
+	COMPANY_LISTING_OPTIONS,
+	toCompanyListingValue,
+	toListedBoolean,
+	type CompanyListingValue,
+} from "./company-listed-tag";
 import JsonEditor from "./json-editor";
 
 const { Text } = Typography;
@@ -49,6 +56,7 @@ function stringifyAdditionalData(value: Record<string, unknown>): string {
 interface CompanyData {
 	id: number;
 	name: string;
+	listed?: boolean | null;
 	countryCode?: string | null;
 	url?: string | null;
 	industryId?: number | null;
@@ -68,8 +76,10 @@ interface Props {
 
 interface FormValues {
 	name: string;
+	listed: CompanyListingValue;
 	slug: string;
 	url?: string;
+	companyComment?: string;
 	countryCode?: string;
 	industryId?: number;
 	investPortal?: string;
@@ -124,6 +134,7 @@ export default function EditCompanyModal({
 					body: JSON.stringify({
 						name: values.name || company.name,
 						url: values.url || null,
+						company_comment: values.companyComment?.trim() || null,
 						invest_portal: values.investPortal || null,
 						career_portal: values.careerPortal || null,
 					}),
@@ -149,6 +160,7 @@ export default function EditCompanyModal({
 			slugManuallyEdited.current = false;
 			form.setFieldsValue({
 				name: company.name,
+				listed: toCompanyListingValue(company.listed),
 				slug: company.slug ?? "",
 				url: company.url ?? "",
 				countryCode: company.countryCode ?? "",
@@ -201,6 +213,7 @@ export default function EditCompanyModal({
 
 			const payload: CompanyUpdatePayload = {
 				name: values.name,
+				listed: toListedBoolean(values.listed),
 				slug: values.slug || null,
 				url: values.url || null,
 				countryCode: values.countryCode || null,
@@ -303,6 +316,19 @@ export default function EditCompanyModal({
 							]}
 						>
 							<Input placeholder="https://acme.com" />
+						</Form.Item>
+
+						<Form.Item name="companyComment" label="Company Comment">
+							<Input.TextArea
+								autoSize={{ minRows: 2, maxRows: 5 }}
+								placeholder="Market context, aliases, ownership notes..."
+							/>
+						</Form.Item>
+
+						<Form.Item name="listed" label={COMPANY_LISTING_FIELD_LABEL}>
+							<Segmented<CompanyListingValue>
+								options={COMPANY_LISTING_OPTIONS}
+							/>
 						</Form.Item>
 
 						<Form.Item

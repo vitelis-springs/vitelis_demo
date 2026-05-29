@@ -909,6 +909,9 @@ export const useUpdateCompany = (reportId: number, companyId: number) => {
 			queryClient.invalidateQueries({
 				queryKey: ["deep-dive", "companies", reportId],
 			});
+			queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "sales-miner-overview", reportId],
+			});
 		},
 	});
 };
@@ -933,6 +936,9 @@ export const useAddCompanyToReport = (reportId: number) => {
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["deep-dive", "summary", reportId],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "sales-miner-overview", reportId],
 			});
 		},
 	});

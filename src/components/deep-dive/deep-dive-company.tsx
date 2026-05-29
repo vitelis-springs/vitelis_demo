@@ -46,6 +46,9 @@ import {
 import { parseKpiScoreSelection } from "../../shared/kpi-score";
 import { ChartLegend, ChartTooltip } from "../charts/recharts-theme";
 import DatapointEditModal from "./datapoint-edit-modal";
+import CompanyListedTag, {
+	COMPANY_LISTING_FIELD_LABEL,
+} from "./company-listed-tag";
 import type {
 	CategoryRow,
 	DataRecord,
@@ -883,6 +886,10 @@ export default function DeepDiveCompany({
 				}
 			/>
 			<Space size="middle" wrap style={{ marginBottom: 24 }}>
+				<Text style={{ color: "#8c8c8c" }}>
+					{COMPANY_LISTING_FIELD_LABEL}:{" "}
+					<CompanyListedTag listed={payload?.company.listed} />
+				</Text>
 				<Text style={{ color: "#8c8c8c" }}>
 					Country:{" "}
 					<Text style={{ color: "#d9d9d9" }}>
