@@ -356,8 +356,45 @@ export class ReportStepsService {
 	}
 
 	static async triggerEngineTick(reportId: number, instance: number) {
+		const instanceBaseUrls: Record<number, string | undefined> = {
+			1: process.env.N8N_SALESMINER_URL,
+			2: process.env.N8N_BIZMINER_URL,
+		};
+
+		const baseUrl = instanceBaseUrls[instance];
+
+		if (baseUrl) {
+			const webhookUrl = `${baseUrl.replace(/\/$/, "")}/webhook/orchestrator_v2_tick`;
+
+			console.log(
+				`[triggerEngineTick] instance=${instance} → POST ${webhookUrl}`,
+				JSON.stringify({ report_id: reportId }),
+			);
+
+			const response = await fetch(webhookUrl, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ report_id: reportId }),
+			});
+
+			const responseText = await response.text();
+
+			console.log(
+				`[triggerEngineTick] instance=${instance} ← ${response.status} ${response.statusText}`,
+				responseText,
+			);
+
+			if (!response.ok) {
+				console.error(
+					`[triggerEngineTick] Webhook responded ${response.status} for report ${reportId}, instance ${instance}`,
+				);
+			}
+
+			return { success: response.ok, instance };
+		}
+
 		await ReportStepsRepository.notifyEngineTick(reportId, instance);
-		return { success: true };
+		return { success: true, instance };
 	}
 
 	static async updateOrchestrator(
