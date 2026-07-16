@@ -48,6 +48,19 @@ export function asBool(value: unknown): boolean | null {
 	return null;
 }
 
+export function stripCitationArtifacts(value: string): string {
+	const stripped = value
+		.replace(/\uE200cite(?:\uE202[^\uE200-\uE202\s.,;:!?)]*)+\uE201?/g, "")
+		.replace(/\\ue200cite(?:\\ue202[^\\\s.,;:!?)]*)+(?:\\ue201)?/gi, "");
+
+	if (stripped === value) return value;
+
+	return stripped
+		.replace(/[ \t]{2,}/g, " ")
+		.replace(/\s+([,.;:!?])/g, "$1")
+		.trim();
+}
+
 export function cellValue(value: unknown): CellValue {
 	if (value === null || value === undefined) return null;
 	if (typeof value === "bigint") {
@@ -67,9 +80,9 @@ export function cellValue(value: unknown): CellValue {
 		typeof value === "number" ||
 		typeof value === "boolean"
 	) {
-		return value;
+		return typeof value === "string" ? stripCitationArtifacts(value) : value;
 	}
-	return String(value);
+	return stripCitationArtifacts(String(value));
 }
 
 /** Flatten jsonb for Excel: unwrap scalars, pretty-print objects/arrays. */
@@ -88,10 +101,10 @@ export function formatJsonbForExcel(
 			try {
 				parsed = JSON.parse(trimmed);
 			} catch {
-				return value;
+				return stripCitationArtifacts(value);
 			}
 		} else {
-			return value;
+			return stripCitationArtifacts(value);
 		}
 	}
 	if (
@@ -99,12 +112,12 @@ export function formatJsonbForExcel(
 		typeof parsed === "number" ||
 		typeof parsed === "boolean"
 	) {
-		return parsed;
+		return typeof parsed === "string" ? stripCitationArtifacts(parsed) : parsed;
 	}
 	try {
-		return JSON.stringify(parsed, null, 2);
+		return stripCitationArtifacts(JSON.stringify(parsed, null, 2));
 	} catch {
-		return String(parsed);
+		return stripCitationArtifacts(String(parsed));
 	}
 }
 

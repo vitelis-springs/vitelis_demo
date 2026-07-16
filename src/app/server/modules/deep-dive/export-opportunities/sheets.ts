@@ -79,10 +79,26 @@ function pick(
 	return out;
 }
 
+function meaningfulText(value: unknown): string | null {
+	const text = asString(value)?.trim();
+	if (!text || text.toLowerCase() === "n/a") return null;
+	return text;
+}
+
 function countBy(rows: RawRow[], field: string): Array<[string, CellValue]> {
+	return countByFirst(rows, [field]);
+}
+
+function countByFirst(
+	rows: RawRow[],
+	fields: string[],
+): Array<[string, CellValue]> {
 	const map = new Map<string, number>();
 	for (const row of rows) {
-		const raw = asString(getField(row, field))?.trim() || "(blank)";
+		const raw =
+			fields
+				.map((field) => meaningfulText(getField(row, field)))
+				.find(Boolean) ?? "(blank)";
 		map.set(raw, (map.get(raw) ?? 0) + 1);
 	}
 	return Array.from(map.entries())
@@ -792,7 +808,21 @@ export function buildOverview(rows: RawRow[]): SheetData {
 					return Object.entries(bands) as Array<[string, CellValue]>;
 				})(),
 			},
-			{ title: "Opportunities by horizon", rows: countBy(rows, "horizon") },
+			{
+				title: "Opportunities by horizon",
+				rows: countByFirst(rows, [
+					"horizon_name",
+					"time_label_general",
+					"horizon",
+				]),
+			},
+			{
+				title: "Opportunities by deal size",
+				rows: countByFirst(rows, [
+					"deal_size_general",
+					"indicative_deal_size_range",
+				]),
+			},
 			{
 				title: "Opportunities by delivery type",
 				rows: countBy(rows, "delivery_type"),
