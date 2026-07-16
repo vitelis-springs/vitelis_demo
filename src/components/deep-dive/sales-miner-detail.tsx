@@ -427,7 +427,13 @@ function CompaniesTable({
 
 /* ─── Entity level view ─── */
 
-function EntityLevelView({ reportId }: { reportId: number }) {
+function EntityLevelView({
+	reportId,
+	reportName,
+}: {
+	reportId: number;
+	reportName?: string | null;
+}) {
 	const { message } = App.useApp();
 	const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
 	const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
@@ -438,7 +444,7 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 	const handleExport = async () => {
 		setExportPending(true);
 		try {
-			await exportOpportunitiesXlsx(reportId);
+			await exportOpportunitiesXlsx({ reportId, reportName });
 		} catch {
 			message.error("Failed to export XLSX");
 		} finally {
@@ -577,7 +583,13 @@ function EntityLevelView({ reportId }: { reportId: number }) {
 
 /* ─── Account level view ─── */
 
-function AccountLevelView({ reportId }: { reportId: number }) {
+function AccountLevelView({
+	reportId,
+	reportName,
+}: {
+	reportId: number;
+	reportName?: string | null;
+}) {
 	const { message } = App.useApp();
 	const { data, isLoading } = useGetSalesMinerReportOverview(reportId);
 	const { data: signalStatsData } = useGetSalesMinerSignalStats(reportId);
@@ -607,7 +619,10 @@ function AccountLevelView({ reportId }: { reportId: number }) {
 	const handleExport = async () => {
 		setExportPending(true);
 		try {
-			await exportOpportunitiesXlsx(exportReportId);
+			await exportOpportunitiesXlsx({
+				reportId: exportReportId,
+				reportName,
+			});
 		} catch {
 			message.error("Failed to export XLSX");
 		} finally {
@@ -857,9 +872,9 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 							<Spin size="large" />
 						</div>
 					) : typeLevel === "entity" ? (
-						<EntityLevelView reportId={reportId} />
+						<EntityLevelView reportId={reportId} reportName={report?.name} />
 					) : typeLevel === "account" ? (
-						<AccountLevelView reportId={reportId} />
+						<AccountLevelView reportId={reportId} reportName={report?.name} />
 					) : (
 						<Text style={{ color: "#8c8c8c" }}>
 							No sales miner data available
