@@ -15,6 +15,10 @@ const nextConfig = {
     "/api/export/docx": ["./src/config/docx/assets/**/*"],
     // Include Aptos fonts for radar chart generation in all API routes that might use it
     "/api/**/*": ["./src/config/docx/assets/Aptos.ttf", "./src/config/docx/assets/Aptos-Bold.ttf"],
+    // Opportunities XLSX export SQL (bundled in TS as well; keep for local/dev fallbacks)
+    "/api/deep-dive/[id]/export-opportunities-xlsx": [
+      "./src/app/server/modules/deep-dive/export-opportunities/OPPS_QUERY.sql",
+    ],
   },
   typescript: {
     ignoreBuildErrors: true,

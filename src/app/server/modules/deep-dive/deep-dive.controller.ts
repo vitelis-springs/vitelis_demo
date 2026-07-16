@@ -1902,8 +1902,12 @@ export class DeepDiveController {
 			});
 		} catch (error) {
 			console.error("❌ DeepDiveController.exportOpportunitiesXlsx:", error);
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to export opportunities";
 			return NextResponse.json(
-				{ success: false, error: "Failed to export opportunities" },
+				{ success: false, error: message },
 				{ status: 500 },
 			);
 		}
