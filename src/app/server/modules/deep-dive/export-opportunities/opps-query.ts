@@ -1,6 +1,4 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
+import { OPPS_QUERY_SQL } from "./opps-query-sql";
 import type { RawRow } from "./types";
 
 type QueryClient = {
@@ -9,21 +7,6 @@ type QueryClient = {
 		...values: unknown[]
 	) => Promise<T>;
 };
-
-const SQL_PATH = join(
-	process.cwd(),
-	"src/app/server/modules/deep-dive/export-opportunities/OPPS_QUERY.sql",
-);
-
-let cachedSqlTemplate: string | null = null;
-
-function loadSqlTemplate(): string {
-	if (cachedSqlTemplate) return cachedSqlTemplate;
-	const raw = readFileSync(SQL_PATH, "utf8");
-	const withIdx = raw.indexOf("WITH params AS");
-	cachedSqlTemplate = withIdx >= 0 ? raw.slice(withIdx) : raw;
-	return cachedSqlTemplate;
-}
 
 function sqlIntArray(values: number[]): string {
 	if (values.length === 0) return "";
@@ -68,7 +51,7 @@ export type LoadRawExportOptions = {
 
 /**
  * Loads the full OPPS_QUERY result for a report.
- * Business logic in OPPS_QUERY.sql is unchanged; only params are injected.
+ * SQL is bundled via opps-query-sql.ts (Vercel-safe); params are injected below.
  */
 export async function loadRawExport(
 	prisma: QueryClient,
@@ -80,9 +63,7 @@ export async function loadRawExport(
 			? options.rankingVersion
 			: await resolveRankingVersion(prisma, reportId);
 
-	const template = loadSqlTemplate();
-	const sql = template
-		.replace("{{REPORT_IDS}}", sqlIntArray([reportId]))
+	const sql = OPPS_QUERY_SQL.replace("{{REPORT_IDS}}", sqlIntArray([reportId]))
 		.replace("{{COMPANY_IDS}}", sqlIntArray(options.companyIds ?? []))
 		.replace("{{RESEARCH_RUN_IDS}}", sqlIntArray(options.researchRunIds ?? []))
 		.replace("{{RANKING_VERSION}}", sqlTextOrNull(rankingVersion));

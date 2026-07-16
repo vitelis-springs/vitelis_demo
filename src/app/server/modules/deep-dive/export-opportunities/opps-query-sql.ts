@@ -1,57 +1,8 @@
-/*
-Node/Task: Excel opportunity line items export with Stakeholders + Competitive / Incumbent Awareness + Quality Assessment
-Type: Postgres query for Excel export
-NOTE: Runtime uses the bundled copy in opps-query-sql.ts (required for Vercel).
-      After editing this file, regenerate opps-query-sql.ts from it.
-Purpose:
-  Export final opportunity_candidates line items for one or more reports/research runs,
-  including revalidated stakeholders, Competitive / incumbent awareness,
-  and detailed Quality Assessment columns.
-Inputs from n8n JSON:
-  {
-    "report_ids": [154],
-    "company_ids": [2887, 2888, 2889],
-    "research_run_ids": [310, 311, 312],
-    "ranking_version": "motion_first_portfolio_refinement"
-  }
-Outputs:
-  One row per opportunity_candidate_id for spreadsheet export.
-Patch note:
-  Added account-signal lineage and audit columns after Opportunity Title:
-  - Seed ID: originating opportunity seed, when available.
-  - Account Signals - Trigger Lineage: compact view of the signal path that led to the opportunity.
-  - Signal-to-Product Evidence Basis: short bridge from account signal evidence to product/opportunity fit.
-  - Account Signals - Audit Fact Count: number of source facts used for the lineage audit block.
-  - Account Signals - Audit Facts: readable source-fact summaries; use to inspect why the signal is grounded.
-  - Account Signals - Signal Confirmation Count: number of linked signal confirmations pulled into the audit.
-  - Account Signals - Signal Confirmations: linked confirmation summaries with IDs, dates, sources, and snippets when available.
-  Added stakeholder columns after Primary Buyer Persona:
-  - Stakeholders - Count: number of stakeholder assignments for the opportunity.
-  - Stakeholders: readable role, person, title, entity, and LinkedIn summary.
-  - Stakeholders - Revalidation: selection rationale retained from the stakeholder revalidation flow.
-  - Stakeholders - Missing Person Count: assignments whose person record is missing or incomplete.
-  - Stakeholders - Email Count: stakeholders with a generated first-touch email.
-  - Stakeholders cell now embeds each stakeholder's contact email addresses (email: from
-    persons.contacts->emails) and the generated message (email_subject / email_body) from
-    opportunity_stakeholder_messages, latest message per stakeholder when regenerated.
-  Resilience patch (account signals):
-  - Account Signals audit + confirmations now fall back to meta.trigger_signal_lineage when the
-    originating seed_id is not present in opportunity_seed_signal_facts (observed for late/last
-    seeds such as FM4 / FM04), so the audit block no longer goes blank for a valid candidate.
-  - New column "Account Signals - Audit Source" reports whether a candidate's signals came from
-    seed_fact, trigger_lineage, or both.
-How to read:
-  Use Trigger Lineage first to understand the opportunity's signal logic, then Evidence Basis
-  to see the product-fit bridge. Use Audit Facts and Signal Confirmations for QA/debugging;
-  empty counts mean no linked audit records were available for that candidate, not necessarily
-  that the opportunity has no rationale.
-  Stakeholders are aggregated into multiline cells so the export remains one row per opportunity.
-Notes:
-  - competitive_awareness is populated by [PE] Competitive / Incumbent Awareness Enrichment flow.
-  - Quality Assessment is read from opportunity_candidates.meta.quality and opportunity_candidates.meta.diagnostics.
-  - This query does not change any opportunity data.
-*/
-WITH params AS (
+/**
+ * Bundled OPPS_QUERY SQL for serverless (Vercel) — do not read from filesystem.
+ * Source mirror: OPPS_QUERY.sql (keep both in sync when editing the query).
+ */
+export const OPPS_QUERY_SQL = `WITH params AS (
   SELECT
     ARRAY[{{REPORT_IDS}}]::integer[] AS report_ids,
     ARRAY[{{COMPANY_IDS}}]::integer[] AS company_ids,
@@ -117,7 +68,7 @@ NULLIF(oc.entity_attribution_json->>'needs_human_review', '')::boolean AS entity
 CASE
   WHEN jsonb_typeof(oc.entity_attribution_json->'secondary_entities') = 'array'
     THEN (
-      SELECT string_agg(se.value, E'\n' ORDER BY se.ordinality)
+      SELECT string_agg(se.value, E'\\n' ORDER BY se.ordinality)
       FROM jsonb_array_elements_text(oc.entity_attribution_json->'secondary_entities') WITH ORDINALITY AS se(value, ordinality)
     )
   ELSE ''
@@ -150,7 +101,7 @@ END AS entity_secondary_entities,
         THEN (
           SELECT string_agg(
             concat_ws(
-              E'\n   ',
+              E'\\n   ',
               concat(
                 lpad(ts.ordinality::text, 2, '0'),
                 ' | signal_definition_id=',
@@ -173,7 +124,7 @@ END AS entity_secondary_entities,
                 ELSE NULL
               END
             ),
-            E'\n'
+            E'\\n'
             ORDER BY ts.ordinality
           )
           FROM jsonb_array_elements(oc.meta_json->'trigger_signal_lineage') WITH ORDINALITY AS ts(signal_item, ordinality)
@@ -181,35 +132,35 @@ END AS entity_secondary_entities,
       ELSE ''
     END AS trigger_signal_lineage_summary,
     concat_ws(
-      E'\n\n',
+      E'\\n\\n',
       CASE
         WHEN jsonb_typeof(oc.meta_json#>'{evidence_basis,confirmed_evidence}') = 'array'
-          THEN 'confirmed_evidence:' || E'\n' || (
-            SELECT string_agg(lpad(ce.ordinality::text, 2, '0') || ' | ' || ce.evidence, E'\n' ORDER BY ce.ordinality)
+          THEN 'confirmed_evidence:' || E'\\n' || (
+            SELECT string_agg(lpad(ce.ordinality::text, 2, '0') || ' | ' || ce.evidence, E'\\n' ORDER BY ce.ordinality)
             FROM jsonb_array_elements_text(oc.meta_json#>'{evidence_basis,confirmed_evidence}') WITH ORDINALITY AS ce(evidence, ordinality)
           )
         ELSE NULL
       END,
       CASE
         WHEN jsonb_typeof(oc.meta_json#>'{evidence_basis,commercial_inference}') = 'array'
-          THEN 'commercial_inference:' || E'\n' || (
-            SELECT string_agg(lpad(ci.ordinality::text, 2, '0') || ' | ' || ci.inference, E'\n' ORDER BY ci.ordinality)
+          THEN 'commercial_inference:' || E'\\n' || (
+            SELECT string_agg(lpad(ci.ordinality::text, 2, '0') || ' | ' || ci.inference, E'\\n' ORDER BY ci.ordinality)
             FROM jsonb_array_elements_text(oc.meta_json#>'{evidence_basis,commercial_inference}') WITH ORDINALITY AS ci(inference, ordinality)
           )
         ELSE NULL
       END,
       CASE
         WHEN jsonb_typeof(oc.meta_json#>'{evidence_basis,product_fit_basis}') = 'array'
-          THEN 'product_fit_basis:' || E'\n' || (
-            SELECT string_agg(lpad(pfb.ordinality::text, 2, '0') || ' | ' || pfb.basis, E'\n' ORDER BY pfb.ordinality)
+          THEN 'product_fit_basis:' || E'\\n' || (
+            SELECT string_agg(lpad(pfb.ordinality::text, 2, '0') || ' | ' || pfb.basis, E'\\n' ORDER BY pfb.ordinality)
             FROM jsonb_array_elements_text(oc.meta_json#>'{evidence_basis,product_fit_basis}') WITH ORDINALITY AS pfb(basis, ordinality)
           )
         ELSE NULL
       END,
       CASE
         WHEN jsonb_typeof(oc.meta_json#>'{evidence_basis,evidence_limitations}') = 'array'
-          THEN 'evidence_limitations:' || E'\n' || (
-            SELECT string_agg(lpad(el.ordinality::text, 2, '0') || ' | ' || el.limitation, E'\n' ORDER BY el.ordinality)
+          THEN 'evidence_limitations:' || E'\\n' || (
+            SELECT string_agg(lpad(el.ordinality::text, 2, '0') || ' | ' || el.limitation, E'\\n' ORDER BY el.ordinality)
             FROM jsonb_array_elements_text(oc.meta_json#>'{evidence_basis,evidence_limitations}') WITH ORDINALITY AS el(limitation, ordinality)
           )
         ELSE NULL
@@ -239,7 +190,7 @@ END AS entity_secondary_entities,
               NULLIF(v.vendor->>'role', ''),
               NULLIF(v.vendor->>'evidence_strength', '')
             ),
-            E'\n'
+            E'\\n'
             ORDER BY v.ordinality
           )
           FROM jsonb_array_elements(oc.competitive_awareness->'vendors') WITH ORDINALITY AS v(vendor, ordinality)
@@ -251,7 +202,7 @@ END AS entity_secondary_entities,
         THEN (
           SELECT string_agg(
             concat_ws(
-              E'\n   ',
+              E'\\n   ',
               concat(lpad(s.ordinality::text, 2, '0'), ' | ', COALESCE(NULLIF(s.source->>'title', ''), '[untitled source]')),
               NULLIF(s.source->>'url', ''),
               CASE
@@ -260,7 +211,7 @@ END AS entity_secondary_entities,
                 ELSE NULL
               END
             ),
-            E'\n'
+            E'\\n'
             ORDER BY s.ordinality
           )
           FROM jsonb_array_elements(oc.competitive_awareness->'sources') WITH ORDINALITY AS s(source, ordinality)
@@ -275,7 +226,7 @@ END AS entity_secondary_entities,
     oc.quality_json,
     oc.diagnostics_json,
     concat_ws(
-      E'\n',
+      E'\\n',
       'Grounding: ' || COALESCE(oc.quality_json#>>'{grounding,grounding_status}', 'missing') || ' / ' || COALESCE(oc.quality_json#>>'{grounding,grounding_score}', 'n/a'),
       'Traceability: ' || COALESCE(oc.quality_json#>>'{traceability,traceability_status}', 'missing') || ' / ' || COALESCE(oc.quality_json#>>'{traceability,traceability_score}', 'n/a'),
       'Company Binding: ' || COALESCE(oc.quality_json#>>'{company_binding,company_binding_status}', 'missing') || ' / ' || COALESCE(oc.quality_json#>>'{company_binding,company_binding_score}', 'n/a'),
@@ -283,7 +234,7 @@ END AS entity_secondary_entities,
       'Commercial Logic: ' || COALESCE(oc.quality_json#>>'{commercial_logic,commercial_logic_status}', 'missing') || ' / ' || COALESCE(oc.quality_json#>>'{commercial_logic,commercial_logic_score}', 'n/a')
     ) AS quality_assessment_summary,
     concat_ws(
-      E'\n',
+      E'\\n',
       'Grounding: ' || COALESCE(oc.quality_json#>>'{grounding,short_explanation}', oc.quality_json#>>'{grounding,reasoning}', ''),
       'Traceability: ' || COALESCE(oc.quality_json#>>'{traceability,short_explanation}', ''),
       'Company Binding: ' || COALESCE(oc.quality_json#>>'{company_binding,short_explanation}', ''),
@@ -306,7 +257,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{grounding,grounding_warnings}') = 'array'
         THEN (
-          SELECT string_agg(lpad(gw.ordinality::text, 2, '0') || ' | ' || gw.warning, E'\n' ORDER BY gw.ordinality)
+          SELECT string_agg(lpad(gw.ordinality::text, 2, '0') || ' | ' || gw.warning, E'\\n' ORDER BY gw.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{grounding,grounding_warnings}') WITH ORDINALITY AS gw(warning, ordinality)
         )
       ELSE ''
@@ -314,7 +265,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{grounding,supported_claims}') = 'array'
         THEN (
-          SELECT string_agg(lpad(sc.ordinality::text, 2, '0') || ' | ' || sc.claim, E'\n' ORDER BY sc.ordinality)
+          SELECT string_agg(lpad(sc.ordinality::text, 2, '0') || ' | ' || sc.claim, E'\\n' ORDER BY sc.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{grounding,supported_claims}') WITH ORDINALITY AS sc(claim, ordinality)
         )
       ELSE ''
@@ -322,7 +273,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{grounding,inferred_claims}') = 'array'
         THEN (
-          SELECT string_agg(lpad(ic.ordinality::text, 2, '0') || ' | ' || ic.claim, E'\n' ORDER BY ic.ordinality)
+          SELECT string_agg(lpad(ic.ordinality::text, 2, '0') || ' | ' || ic.claim, E'\\n' ORDER BY ic.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{grounding,inferred_claims}') WITH ORDINALITY AS ic(claim, ordinality)
         )
       ELSE ''
@@ -330,7 +281,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{grounding,unsupported_claims}') = 'array'
         THEN (
-          SELECT string_agg(lpad(uc.ordinality::text, 2, '0') || ' | ' || COALESCE(uc.claim::text, ''), E'\n' ORDER BY uc.ordinality)
+          SELECT string_agg(lpad(uc.ordinality::text, 2, '0') || ' | ' || COALESCE(uc.claim::text, ''), E'\\n' ORDER BY uc.ordinality)
           FROM jsonb_array_elements(oc.quality_json#>'{grounding,unsupported_claims}') WITH ORDINALITY AS uc(claim, ordinality)
         )
       ELSE ''
@@ -338,7 +289,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{grounding,overstated_claims}') = 'array'
         THEN (
-          SELECT string_agg(lpad(oclaim.ordinality::text, 2, '0') || ' | ' || COALESCE(oclaim.claim::text, ''), E'\n' ORDER BY oclaim.ordinality)
+          SELECT string_agg(lpad(oclaim.ordinality::text, 2, '0') || ' | ' || COALESCE(oclaim.claim::text, ''), E'\\n' ORDER BY oclaim.ordinality)
           FROM jsonb_array_elements(oc.quality_json#>'{grounding,overstated_claims}') WITH ORDINALITY AS oclaim(claim, ordinality)
         )
       ELSE ''
@@ -363,7 +314,7 @@ END AS entity_secondary_entities,
         THEN (
           SELECT string_agg(
             concat_ws(
-              E'\n   ',
+              E'\\n   ',
               concat(lpad(sr.ordinality::text, 2, '0'), ' | ', COALESCE(sr.source_ref->>'ref_type', 'source'), ' | ', COALESCE(sr.source_ref->>'product_role', '')),
               COALESCE(sr.source_ref->>'title', '[untitled source]'),
               COALESCE(sr.source_ref->>'url', ''),
@@ -371,7 +322,7 @@ END AS entity_secondary_entities,
               CASE WHEN NULLIF(sr.source_ref->>'published_at', '') IS NOT NULL THEN 'published_at: ' || (sr.source_ref->>'published_at') ELSE NULL END,
               CASE WHEN NULLIF(sr.source_ref->>'ref_strength', '') IS NOT NULL THEN 'strength: ' || (sr.source_ref->>'ref_strength') ELSE NULL END
             ),
-            E'\n'
+            E'\\n'
             ORDER BY sr.ordinality
           )
           FROM jsonb_array_elements(oc.quality_json#>'{traceability,source_refs}') WITH ORDINALITY AS sr(source_ref, ordinality)
@@ -381,7 +332,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{traceability,traceability_warnings}') = 'array'
         THEN (
-          SELECT string_agg(lpad(tw.ordinality::text, 2, '0') || ' | ' || tw.warning, E'\n' ORDER BY tw.ordinality)
+          SELECT string_agg(lpad(tw.ordinality::text, 2, '0') || ' | ' || tw.warning, E'\\n' ORDER BY tw.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{traceability,traceability_warnings}') WITH ORDINALITY AS tw(warning, ordinality)
         )
       ELSE ''
@@ -389,7 +340,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{traceability,missing_trace_layers}') = 'array'
         THEN (
-          SELECT string_agg(lpad(mt.ordinality::text, 2, '0') || ' | ' || mt.layer, E'\n' ORDER BY mt.ordinality)
+          SELECT string_agg(lpad(mt.ordinality::text, 2, '0') || ' | ' || mt.layer, E'\\n' ORDER BY mt.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{traceability,missing_trace_layers}') WITH ORDINALITY AS mt(layer, ordinality)
         )
       ELSE ''
@@ -416,7 +367,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{company_binding,binding_warnings}') = 'array'
         THEN (
-          SELECT string_agg(lpad(bw.ordinality::text, 2, '0') || ' | ' || bw.warning, E'\n' ORDER BY bw.ordinality)
+          SELECT string_agg(lpad(bw.ordinality::text, 2, '0') || ' | ' || bw.warning, E'\\n' ORDER BY bw.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{company_binding,binding_warnings}') WITH ORDINALITY AS bw(warning, ordinality)
         )
       ELSE ''
@@ -426,7 +377,7 @@ END AS entity_secondary_entities,
         THEN (
           SELECT string_agg(
             concat_ws(
-              E'\n   ',
+              E'\\n   ',
               concat(lpad(br.ordinality::text, 2, '0'), ' | ', COALESCE(br.review->>'binding_strength', 'unknown'), ' | ', COALESCE(br.review->>'binding_role', '')),
               COALESCE(br.review->>'url', ''),
               CASE WHEN NULLIF(br.review->>'entity_mentioned', '') IS NOT NULL THEN 'entity: ' || (br.review->>'entity_mentioned') ELSE NULL END,
@@ -434,7 +385,7 @@ END AS entity_secondary_entities,
               CASE WHEN NULLIF(br.review->>'geo_scope_fit', '') IS NOT NULL THEN 'geo_scope_fit: ' || (br.review->>'geo_scope_fit') ELSE NULL END,
               CASE WHEN NULLIF(br.review->>'reason', '') IS NOT NULL THEN 'reason: ' || (br.review->>'reason') ELSE NULL END
             ),
-            E'\n'
+            E'\\n'
             ORDER BY br.ordinality
           )
           FROM jsonb_array_elements(oc.quality_json#>'{company_binding,source_binding_reviews}') WITH ORDINALITY AS br(review, ordinality)
@@ -469,7 +420,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{customer_relevance,cap_diagnostics,cap_reasons}') = 'array'
         THEN (
-          SELECT string_agg(lpad(cr.ordinality::text, 2, '0') || ' | ' || cr.reason, E'\n' ORDER BY cr.ordinality)
+          SELECT string_agg(lpad(cr.ordinality::text, 2, '0') || ' | ' || cr.reason, E'\\n' ORDER BY cr.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{customer_relevance,cap_diagnostics,cap_reasons}') WITH ORDINALITY AS cr(reason, ordinality)
         )
       ELSE ''
@@ -477,7 +428,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{customer_relevance,relevance_warnings}') = 'array'
         THEN (
-          SELECT string_agg(lpad(rw.ordinality::text, 2, '0') || ' | ' || rw.warning, E'\n' ORDER BY rw.ordinality)
+          SELECT string_agg(lpad(rw.ordinality::text, 2, '0') || ' | ' || rw.warning, E'\\n' ORDER BY rw.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{customer_relevance,relevance_warnings}') WITH ORDINALITY AS rw(warning, ordinality)
         )
       ELSE ''
@@ -487,14 +438,14 @@ END AS entity_secondary_entities,
         THEN (
           SELECT string_agg(
             concat_ws(
-              E'\n   ',
+              E'\\n   ',
               concat(lpad(pr.ordinality::text, 2, '0'), ' | ', COALESCE(pr.review->>'bundle_role', ''), ' | ', COALESCE(pr.review->>'product_name', '[unknown product]')),
               'status: ' || COALESCE(pr.review->>'product_relevance_status', ''),
               'seller_posture: ' || COALESCE(pr.review->>'seller_posture', ''),
               CASE WHEN jsonb_typeof(pr.review->'risk_flags') = 'array' THEN 'risk_flags: ' || (SELECT string_agg(rf.value, ', ' ORDER BY rf.ordinality) FROM jsonb_array_elements_text(pr.review->'risk_flags') WITH ORDINALITY AS rf(value, ordinality)) ELSE NULL END,
               CASE WHEN NULLIF(pr.review->>'reason', '') IS NOT NULL THEN 'reason: ' || (pr.review->>'reason') ELSE NULL END
             ),
-            E'\n'
+            E'\\n'
             ORDER BY pr.ordinality
           )
           FROM jsonb_array_elements(oc.quality_json#>'{customer_relevance,product_relevance_reviews}') WITH ORDINALITY AS pr(review, ordinality)
@@ -531,7 +482,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{commercial_logic,cap_diagnostics,cap_reasons}') = 'array'
         THEN (
-          SELECT string_agg(lpad(cr.ordinality::text, 2, '0') || ' | ' || cr.reason, E'\n' ORDER BY cr.ordinality)
+          SELECT string_agg(lpad(cr.ordinality::text, 2, '0') || ' | ' || cr.reason, E'\\n' ORDER BY cr.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{commercial_logic,cap_diagnostics,cap_reasons}') WITH ORDINALITY AS cr(reason, ordinality)
         )
       ELSE ''
@@ -539,7 +490,7 @@ END AS entity_secondary_entities,
     CASE
       WHEN jsonb_typeof(oc.quality_json#>'{commercial_logic,commercial_logic_warnings}') = 'array'
         THEN (
-          SELECT string_agg(lpad(cw.ordinality::text, 2, '0') || ' | ' || cw.warning, E'\n' ORDER BY cw.ordinality)
+          SELECT string_agg(lpad(cw.ordinality::text, 2, '0') || ' | ' || cw.warning, E'\\n' ORDER BY cw.ordinality)
           FROM jsonb_array_elements_text(oc.quality_json#>'{commercial_logic,commercial_logic_warnings}') WITH ORDINALITY AS cw(warning, ordinality)
         )
       ELSE ''
@@ -549,13 +500,13 @@ END AS entity_secondary_entities,
         THEN (
           SELECT string_agg(
             concat_ws(
-              E'\n   ',
+              E'\\n   ',
               concat(lpad(clr.ordinality::text, 2, '0'), ' | ', COALESCE(clr.review->>'review_area', ''), ' | ', COALESCE(clr.review->>'status', '')),
               CASE WHEN jsonb_typeof(clr.review->'risk_flags') = 'array' THEN 'risk_flags: ' || (SELECT string_agg(rf.value, ', ' ORDER BY rf.ordinality) FROM jsonb_array_elements_text(clr.review->'risk_flags') WITH ORDINALITY AS rf(value, ordinality)) ELSE NULL END,
               CASE WHEN NULLIF(clr.review->>'reason', '') IS NOT NULL THEN 'reason: ' || (clr.review->>'reason') ELSE NULL END,
               CASE WHEN jsonb_typeof(clr.review->'required_fix_or_validation') = 'array' THEN 'required_validation: ' || (SELECT string_agg(rv.value, ' | ' ORDER BY rv.ordinality) FROM jsonb_array_elements_text(clr.review->'required_fix_or_validation') WITH ORDINALITY AS rv(value, ordinality)) ELSE NULL END
             ),
-            E'\n'
+            E'\\n'
             ORDER BY clr.ordinality
           )
           FROM jsonb_array_elements(oc.quality_json#>'{commercial_logic,commercial_logic_reviews}') WITH ORDINALITY AS clr(review, ordinality)
@@ -615,7 +566,7 @@ products AS (
           ELSE ''
         END
       ),
-      E'\n' ORDER BY ir.rn
+      E'\\n' ORDER BY ir.rn
     ) AS products_summary
   FROM item_rows ir
   GROUP BY ir.opportunity_candidate_id
@@ -664,21 +615,21 @@ conditional_attach AS (
         END,
         CASE
           WHEN NULLIF((car.attach_item->>'attach_trigger'), '') IS NOT NULL
-            THEN E'\n   trigger: ' || (car.attach_item->>'attach_trigger')
+            THEN E'\\n   trigger: ' || (car.attach_item->>'attach_trigger')
           ELSE ''
         END,
         CASE
           WHEN NULLIF((car.attach_item->>'why_not_in_current_bundle'), '') IS NOT NULL
-            THEN E'\n   why_not_in_current_bundle: ' || (car.attach_item->>'why_not_in_current_bundle')
+            THEN E'\\n   why_not_in_current_bundle: ' || (car.attach_item->>'why_not_in_current_bundle')
           ELSE ''
         END,
         CASE
           WHEN NULLIF((car.attach_item->>'guardrail_note'), '') IS NOT NULL
-            THEN E'\n   guardrail: ' || (car.attach_item->>'guardrail_note')
+            THEN E'\\n   guardrail: ' || (car.attach_item->>'guardrail_note')
           ELSE ''
         END
       ),
-      E'\n' ORDER BY car.rn
+      E'\\n' ORDER BY car.rn
     ) AS conditional_attach_candidates_summary
   FROM conditional_attach_rows car
   GROUP BY car.opportunity_candidate_id
@@ -743,7 +694,7 @@ stakeholders AS (
     ) AS missing_person_count,
     string_agg(
       concat_ws(
-        E'\n   ',
+        E'\\n   ',
         concat(
           lpad(sr.rn::text, 2, '0'),
           ' | ',
@@ -788,11 +739,11 @@ stakeholders AS (
         END,
         CASE
           WHEN NULLIF(sr.message_body, '') IS NOT NULL
-            THEN 'email_body:' || E'\n' || sr.message_body
+            THEN 'email_body:' || E'\\n' || sr.message_body
           ELSE NULL
         END
       ),
-      E'\n\n'
+      E'\\n\\n'
       ORDER BY sr.rn
     ) AS stakeholders_summary,
     COUNT(*) FILTER (
@@ -800,7 +751,7 @@ stakeholders AS (
     ) AS stakeholder_email_count,
     string_agg(
       concat_ws(
-        E'\n   ',
+        E'\\n   ',
         concat(
           lpad(sr.rn::text, 2, '0'),
           ' | ',
@@ -816,7 +767,7 @@ stakeholders AS (
           ELSE 'rationale: [not available]'
         END
       ),
-      E'\n\n'
+      E'\\n\\n'
       ORDER BY sr.rn
     ) AS stakeholder_revalidation_summary
   FROM stakeholder_rows sr
@@ -914,7 +865,7 @@ account_signal_facts AS (
     string_agg(DISTINCT asfr.source_layer, ',') AS account_signal_source_layers,
     string_agg(
       concat_ws(
-        E'\n   ',
+        E'\\n   ',
         concat(
           lpad(asfr.rn::text, 2, '0'),
           ' | source=',
@@ -945,7 +896,7 @@ account_signal_facts AS (
           ELSE NULL
         END
       ),
-      E'\n'
+      E'\\n'
       ORDER BY asfr.rn
     ) AS account_signal_facts_summary
   FROM account_signal_fact_rows asfr
@@ -989,7 +940,7 @@ signal_confirmations AS (
     COUNT(*) AS signal_confirmation_count,
     string_agg(
       concat_ws(
-        E'\n ',
+        E'\\n ',
         concat(
           lpad(scr.signal_rn::text, 2, '0'),
           '.',
@@ -1026,7 +977,7 @@ signal_confirmations AS (
           ELSE NULL
         END
       ),
-      E'\n\n'
+      E'\\n\\n'
       ORDER BY
         scr.signal_rn,
         scr.confirmation_rn
@@ -1219,3 +1170,4 @@ ORDER BY
   b.entity,
   b.rank_position NULLS LAST,
   b.opportunity_candidate_id;
+`;
