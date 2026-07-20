@@ -3002,7 +3002,7 @@ export class DeepDiveRepository {
         sv.id,
         sv.gate_role,
         sv.gate_role_type,
-        sv.role_title,
+        p.job_title AS role_title,
         sv.entity_name,
         sv.entity_level,
         sv.rationale,

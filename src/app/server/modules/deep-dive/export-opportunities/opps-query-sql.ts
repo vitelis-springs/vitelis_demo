@@ -653,7 +653,7 @@ stakeholder_rows AS (
     s.id AS stakeholder_id,
     s.gate_role,
     s.gate_role_type,
-    s.role_title,
+    p.job_title AS role_title,
     s.entity_name,
     s.entity_level,
     s.rationale,
