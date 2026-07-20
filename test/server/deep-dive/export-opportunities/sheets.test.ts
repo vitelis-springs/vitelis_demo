@@ -5,6 +5,7 @@ import {
 	buildDeepDiveNarrative,
 	buildOverview,
 } from "../../../../src/app/server/modules/deep-dive/export-opportunities/sheets";
+import { priorityLabel } from "../../../../src/app/server/modules/deep-dive/export-opportunities/parsers";
 import type { RawRow } from "../../../../src/app/server/modules/deep-dive/export-opportunities/types";
 
 describe("opportunity export sheets", () => {
@@ -52,5 +53,19 @@ describe("opportunity export sheets", () => {
 
 		expect(horizonBlock?.rows).toEqual([["Near-term", 13]]);
 		expect(dealSizeBlock?.rows).toEqual([["Enterprise", 13]]);
+	});
+
+	it("labels portfolio priority scores consistently across 0-1 and 0-100 scales", () => {
+		expect(priorityLabel(89)).toBe("High");
+		expect(priorityLabel(84)).toBe("High");
+		expect(priorityLabel(74)).toBe("Medium");
+		expect(priorityLabel(67)).toBe("Medium");
+		expect(priorityLabel(57)).toBe("Medium");
+		expect(priorityLabel(49)).toBe("Low");
+		expect(priorityLabel(35)).toBe("Low");
+
+		expect(priorityLabel(0.89)).toBe("High");
+		expect(priorityLabel(0.74)).toBe("Medium");
+		expect(priorityLabel(0.49)).toBe("Low");
 	});
 });

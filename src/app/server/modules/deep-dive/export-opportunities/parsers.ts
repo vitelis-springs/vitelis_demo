@@ -592,8 +592,9 @@ export function countNonEmptyLines(value: unknown): number {
 export function priorityLabel(score: unknown): string | null {
 	const n = asNumber(score);
 	if (n === null) return null;
-	if (n >= 0.8) return "High";
-	if (n >= 0.5) return "Medium";
+	const normalized = n > 1 ? n / 100 : n;
+	if (normalized >= 0.8) return "High";
+	if (normalized >= 0.5) return "Medium";
 	return "Low";
 }
 
