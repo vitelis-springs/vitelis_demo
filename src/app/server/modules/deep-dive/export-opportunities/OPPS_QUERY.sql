@@ -1196,6 +1196,7 @@ SELECT
   b.competitive_seller_implication,
   b.competitive_applicability,
   b.competitive_confidence,
+  b.competitive_awareness,
   b.competitive_vendors_summary,
   b.competitive_sources_summary,
   COALESCE(p.products_summary, '') AS products_summary,
