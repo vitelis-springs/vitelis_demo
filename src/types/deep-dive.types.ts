@@ -58,6 +58,9 @@ export interface DeepDiveListItem {
 		companies: number;
 		steps: number;
 	};
+	dopExportEligible?: boolean;
+	dopExportHasStarted?: boolean;
+	completedCompaniesCount?: number;
 	cost: {
 		totalCost: number;
 		callsWithoutPricing: number;
@@ -157,6 +160,9 @@ export interface DeepDiveOverviewResponse {
 			reportType?: string | null;
 			useCase?: { id: number; name: string } | null;
 			settings?: { id: number; name: string } | null;
+			dopExportEligible?: boolean;
+			dopExportHasStarted?: boolean;
+			completedCompaniesCount?: number;
 		};
 	};
 }

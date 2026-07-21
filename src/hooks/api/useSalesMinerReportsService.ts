@@ -23,6 +23,17 @@ export interface CreateSMReportPayload {
 	companyIds: number[];
 }
 
+export interface SalesMinerDopExportResult {
+	execution_id?: string | number;
+	status?: string;
+}
+
+export interface SendSalesMinerReportsToDopResponse {
+	success: boolean;
+	report_ids: number[];
+	n8n?: SalesMinerDopExportResult;
+}
+
 export function useCustomerCompanies(customerId: number | null) {
 	return useQuery({
 		queryKey: ["sales-miner", "customer-companies", customerId],
@@ -33,6 +44,17 @@ export function useCustomerCompanies(customerId: number | null) {
 			return res.data as { data: CustomerCompany[] };
 		},
 		enabled: customerId !== null,
+	});
+}
+
+export function useSendSalesMinerReportsToDop() {
+	return useMutation({
+		mutationFn: async (reportIds: number[]) => {
+			const res = await api.post("/sales-miner/reports/send-to-dop", {
+				report_ids: reportIds,
+			});
+			return res.data as SendSalesMinerReportsToDopResponse;
+		},
 	});
 }
 

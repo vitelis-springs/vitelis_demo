@@ -948,6 +948,85 @@ export class DeepDiveRepository {
 		});
 	}
 
+	static async getSalesMinerDopExportStats(reportIds: number[]) {
+		if (reportIds.length === 0) return [];
+
+		// A company is complete for DOP export only when every report step is DONE
+		// and no step remains pending, processing, or errored for that company.
+		return prisma.$queryRaw<
+			Array<{
+				report_id: number;
+				report_type: string | null;
+				has_started: boolean;
+				completed_companies_count: number;
+			}>
+		>`
+      WITH step_counts AS (
+        SELECT report_id, COUNT(*)::int AS total_steps
+        FROM report_steps
+        WHERE report_id = ANY(${reportIds}::int[])
+        GROUP BY report_id
+      ),
+      started_reports AS (
+        SELECT
+          report_id,
+          BOOL_OR(status <> 'PENDING'::report_status_enum) AS has_started
+        FROM report_step_statuses
+        WHERE report_id = ANY(${reportIds}::int[])
+        GROUP BY report_id
+      ),
+      company_status_counts AS (
+        SELECT
+          rc.report_id,
+          rc.company_id,
+          COALESCE(sc.total_steps, 0) AS total_steps,
+          COUNT(rss.*)::int AS total_status_count,
+          COUNT(rss.*) FILTER (WHERE rss.status = 'DONE'::report_status_enum)::int AS done_count,
+          COUNT(rss.*) FILTER (WHERE rss.status = 'PENDING'::report_status_enum)::int AS pending_count,
+          COUNT(rss.*) FILTER (WHERE rss.status = 'PROCESSING'::report_status_enum)::int AS processing_count,
+          COUNT(rss.*) FILTER (WHERE rss.status = 'ERROR'::report_status_enum)::int AS error_count
+        FROM report_companies rc
+        LEFT JOIN step_counts sc
+          ON sc.report_id = rc.report_id
+        LEFT JOIN report_step_statuses rss
+          ON rss.report_id = rc.report_id
+         AND rss.company_id = rc.company_id
+        WHERE rc.report_id = ANY(${reportIds}::int[])
+        GROUP BY rc.report_id, rc.company_id, sc.total_steps
+      ),
+      completed_companies AS (
+        SELECT
+          report_id,
+          COUNT(*) FILTER (
+            WHERE total_steps > 0
+              AND total_status_count >= total_steps
+              AND done_count >= total_steps
+              AND pending_count = 0
+              AND processing_count = 0
+              AND error_count = 0
+          )::int AS completed_companies_count
+        FROM company_status_counts
+        GROUP BY report_id
+      )
+      SELECT
+        r.id AS report_id,
+        r.report_type,
+        (
+          COALESCE(sr.has_started, false)
+          OR COALESCE(ro.status, 'PENDING'::report_status_enum) <> 'PENDING'::report_status_enum
+        ) AS has_started,
+        COALESCE(cc.completed_companies_count, 0)::int AS completed_companies_count
+      FROM reports r
+      LEFT JOIN report_orhestrator ro
+        ON ro.report_id = r.id
+      LEFT JOIN started_reports sr
+        ON sr.report_id = r.id
+      LEFT JOIN completed_companies cc
+        ON cc.report_id = r.id
+      WHERE r.id = ANY(${reportIds}::int[])
+    `;
+	}
+
 	static async getReportStepStatusSummary(reportId: number) {
 		return prisma.report_step_statuses.groupBy({
 			by: ["status"],

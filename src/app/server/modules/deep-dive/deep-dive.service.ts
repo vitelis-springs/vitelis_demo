@@ -60,6 +60,14 @@ function asInputJsonObject(
 	return value as Prisma.InputJsonValue;
 }
 
+type DopExportStatsRow = {
+	report_type: string | null;
+	has_started: boolean;
+	completed_companies_count: number;
+};
+
+type DopEligibility = { eligible: true } | { eligible: false; reason: string };
+
 export class DeepDiveService {
 	private static isJsonObject(
 		value: unknown,
@@ -1223,6 +1231,56 @@ export class DeepDiveService {
 		};
 	}
 
+	private static evaluateDopEligibility(
+		stats: DopExportStatsRow | undefined,
+	): DopEligibility {
+		if (!stats) return { eligible: false, reason: "Report does not exist." };
+		if (stats.report_type !== "sales_miner") {
+			return { eligible: false, reason: "Report is not SalesMiner." };
+		}
+		if (!stats.has_started) {
+			return { eligible: false, reason: "Report has not started." };
+		}
+		if (stats.completed_companies_count < 1) {
+			return {
+				eligible: false,
+				reason: "Report has no completed companies.",
+			};
+		}
+		return { eligible: true };
+	}
+
+	private static buildDopExportStatus(stats: DopExportStatsRow | undefined) {
+		const completedCompaniesCount = stats?.completed_companies_count ?? 0;
+		const hasStarted = stats?.has_started ?? false;
+		const eligibility = DeepDiveService.evaluateDopEligibility(stats);
+		return {
+			dopExportEligible: eligibility.eligible,
+			dopExportHasStarted: hasStarted,
+			completedCompaniesCount,
+		};
+	}
+
+	static async getSalesMinerDopExportValidation(reportIds: number[]) {
+		const stats =
+			await DeepDiveRepository.getSalesMinerDopExportStats(reportIds);
+		const statsByReport = new Map(stats.map((row) => [row.report_id, row]));
+		const invalidReports: Array<{ report_id: number; reason: string }> = [];
+
+		for (const reportId of reportIds) {
+			const row = statsByReport.get(reportId);
+			const eligibility = DeepDiveService.evaluateDopEligibility(row);
+			if (!eligibility.eligible) {
+				invalidReports.push({
+					report_id: reportId,
+					reason: eligibility.reason,
+				});
+			}
+		}
+
+		return { invalidReports };
+	}
+
 	private static buildKpiChart(
 		kpiRaw: Array<{
 			company_id: number;
@@ -1460,8 +1518,11 @@ export class DeepDiveService {
 		]);
 
 		const reportIds = items.map((report) => report.id);
-		const costRows =
-			await ReportStepsRepository.getReportCostSummaryBatch(reportIds);
+		const [costRows, dopExportStatsRows] = await Promise.all([
+			ReportStepsRepository.getReportCostSummaryBatch(reportIds),
+			DeepDiveRepository.getSalesMinerDopExportStats(reportIds),
+		]);
+		const dopExportStats = dopExportStatsRows ?? [];
 		const costByReport = new Map(
 			costRows.map((row) => [
 				row.report_id,
@@ -1470,6 +1531,9 @@ export class DeepDiveService {
 					callsWithoutPricing: Number(row.calls_without_pricing),
 				},
 			]),
+		);
+		const dopExportByReport = new Map(
+			dopExportStats.map((row) => [row.report_id, row]),
 		);
 
 		return {
@@ -1507,6 +1571,9 @@ export class DeepDiveService {
 							companies: report._count.report_companies,
 							steps: report._count.report_steps,
 						},
+						...DeepDiveService.buildDopExportStatus(
+							dopExportByReport.get(report.id),
+						),
 						cost: costByReport.get(report.id) ?? null,
 					};
 				}),
@@ -1522,10 +1589,16 @@ export class DeepDiveService {
 		const report = await DeepDiveRepository.getReportById(reportId);
 		if (!report) return null;
 
+		const dopExportStats =
+			(await DeepDiveRepository.getSalesMinerDopExportStats([reportId])) ?? [];
+
 		return {
 			success: true,
 			data: {
-				report: DeepDiveService.mapOverviewReport(report),
+				report: {
+					...DeepDiveService.mapOverviewReport(report),
+					...DeepDiveService.buildDopExportStatus(dopExportStats[0]),
+				},
 			},
 		};
 	}
