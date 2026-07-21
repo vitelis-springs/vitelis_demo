@@ -35,9 +35,16 @@ interface VitelisSalesWorkflowData {
 	industry_id: number;
 }
 
+interface SalesMinerDopExportResult {
+	execution_id?: string | number;
+	status?: string;
+}
+
 const BIZMINER_PATH_V2_ALLIANZ = "webhook/v2/bizminer/allianz";
 const BIZMINER_PATH_V2_DEFAULT = "webhook/v2/bizminer/default";
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer";
+// Intentional test-mode endpoint for the current DOP export rollout.
+const SALESMINER_DOP_EXPORT_PATH_V2_TEST = "webhook/v2/export-to-dop";
 const VITELIS_SALES_PATH_V1 = "webhook/v1/vitelis_sales_intelligence";
 
 export class N8NService {
@@ -226,6 +233,40 @@ export class N8NService {
 		}
 
 		return result;
+	}
+
+	static async sendSalesMinerReportsToDop(data: {
+		report_ids: number[];
+	}): Promise<SalesMinerDopExportResult> {
+		const config = N8NService.getSalesMinerConfig();
+		const triggerUrl = new URL(SALESMINER_DOP_EXPORT_PATH_V2_TEST, config.url);
+		console.log(
+			"🌐 N8NService: Sending SalesMiner reports to DOP via:",
+			triggerUrl.toString(),
+		);
+
+		const response = await N8NService.fetchWithTimeout(
+			triggerUrl.toString(),
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-N8N-API-KEY": config.apiKey,
+				},
+				body: JSON.stringify(data),
+			},
+			60000,
+		);
+
+		if (!response.ok) {
+			const errorText = await response.text().catch(() => "");
+			throw new Error(
+				errorText ||
+					`N8N DOP export request failed with status ${response.status}`,
+			);
+		}
+
+		return response.json();
 	}
 
 	static async startVitelisSalesWorkflow(
