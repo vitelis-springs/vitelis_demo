@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AppstoreOutlined } from "@ant-design/icons";
 import { Button, Result, Spin, Tabs } from "antd";
@@ -13,7 +13,31 @@ import PageHeader from "../../../components/deep-dive/shared/page-header";
 const VALID_TABS = ["customers", "reports"] as const;
 type SalesMinerTab = (typeof VALID_TABS)[number];
 
+function LoadingScreen() {
+	return (
+		<div
+			style={{
+				minHeight: "100vh",
+				background: "#141414",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+			}}
+		>
+			<Spin size="large" />
+		</div>
+	);
+}
+
 export default function SalesMinerPage() {
+	return (
+		<Suspense fallback={<LoadingScreen />}>
+			<SalesMinerPageContent />
+		</Suspense>
+	);
+}
+
+function SalesMinerPageContent() {
 	const { isLoggedIn, isAdmin } = useAuth();
 	const router = useRouter();
 	const pathname = usePathname();
@@ -47,19 +71,7 @@ export default function SalesMinerPage() {
 	}, [isLoggedIn, router, isLoading]);
 
 	if (isLoading) {
-		return (
-			<div
-				style={{
-					minHeight: "100vh",
-					background: "#141414",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-				}}
-			>
-				<Spin size="large" />
-			</div>
-		);
+		return <LoadingScreen />;
 	}
 
 	if (!isLoggedIn) return null;
