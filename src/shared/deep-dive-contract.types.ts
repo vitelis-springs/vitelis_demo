@@ -20,6 +20,7 @@ export interface DeepDiveListFilterParams extends DeepDiveSortParams {
 	useCaseId?: number;
 	industryId?: number;
 	reportType?: string;
+	customerId?: number;
 }
 
 export interface SourcesAnalyticsFilterParams

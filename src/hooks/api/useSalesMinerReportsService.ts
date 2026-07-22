@@ -10,6 +10,7 @@ export interface ReportStepTemplate {
 export interface CustomerCompany {
 	companyId: number;
 	name: string;
+	verified: boolean;
 }
 
 export interface CreateSMReportPayload {
@@ -21,6 +22,7 @@ export interface CreateSMReportPayload {
 	windowTo: string;
 	maxOpportunityCount: number;
 	companyIds: number[];
+	settings?: Record<string, unknown>;
 }
 
 export interface SalesMinerDopExportResult {

@@ -38,7 +38,7 @@ export interface SalesMinerCustomerDetail {
 		is_active: boolean;
 		created_at: string;
 		updated_at: string;
-		companies: { id: number; name: string };
+		companies: { id: number; name: string; verified: boolean };
 		customer_account_subsidiaries: Array<{
 			id: string;
 			customer_account_id: string;
@@ -215,5 +215,34 @@ export function useUpdateSalesMinerSubsidiary(customerId: string) {
 			void qc.invalidateQueries({ queryKey: listKey });
 			void qc.invalidateQueries({ queryKey: detailKey(customerId) });
 		},
+	});
+}
+
+export interface CustomerProductRow {
+	id: string;
+	customer_id: string;
+	parent_id: string | null;
+	product_level: "l2" | "l3";
+	name: string;
+	description: string;
+	meta: unknown;
+	is_active: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+export function useCustomerProducts(
+	customerId: string,
+	options?: { refetchInterval?: number | false },
+) {
+	return useQuery({
+		queryKey: ["sales-miner", "customer-products", customerId],
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/customers/${customerId}/products`,
+			);
+			return res.data as { success: boolean; data: CustomerProductRow[] };
+		},
+		refetchInterval: options?.refetchInterval,
 	});
 }

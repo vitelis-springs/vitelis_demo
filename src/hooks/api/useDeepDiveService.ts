@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
 import type {
 	AddCompanyPayload,
+	CompanyDetail,
 	CompanySearchResult,
 	CompanyUpdatePayload,
 	CreateCompanyDataPointPayload,
 	CreateCompanyDataPointResponse,
+	CreateCompanyPayload,
 	CreateReportModelItemPayload,
 	CreateReportPayload,
 	CreateValidationRulePayload,
@@ -38,6 +40,7 @@ import type {
 	TryQueryResult,
 	UpdateCompanyDataPointPayload,
 	UpdateCompanyDataPointResponse,
+	UpdateCompanyGenericPayload,
 	UpdateDeepDiveSettingsPayload,
 	UpdateQueryPayload,
 	UpdateReportModelItemPayload,
@@ -69,6 +72,8 @@ export const deepDiveApi = {
 			searchParams.set("useCaseId", String(params.useCaseId));
 		if (params.industryId !== undefined)
 			searchParams.set("industryId", String(params.industryId));
+		if (params.customerId !== undefined)
+			searchParams.set("customerId", String(params.customerId));
 		if (params.reportType) searchParams.set("reportType", params.reportType);
 		if (params.sortBy) searchParams.set("sortBy", params.sortBy);
 		if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
@@ -259,6 +264,7 @@ export const useGetDeepDives = (
 			params.status ?? "",
 			params.useCaseId ?? "",
 			params.industryId ?? "",
+			params.customerId ?? "",
 			params.reportType ?? "",
 			params.sortBy ?? "",
 			params.sortOrder ?? "",
@@ -946,6 +952,78 @@ export const useAddCompanyToReport = (reportId: number) => {
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["deep-dive", "sales-miner-overview", reportId],
+			});
+		},
+	});
+};
+
+export const useCreateCompany = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (payload: CreateCompanyPayload) => {
+			const response = await api.post("/companies", payload);
+			return response.data as {
+				success: boolean;
+				error?: string;
+				data?: {
+					companyId: number;
+					name: string;
+					listed: boolean | null;
+					countryCode: string | null;
+					url: string | null;
+					logoUrl: string | null;
+					gicsCode: string | null;
+					verified: boolean;
+				};
+			};
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["companies", "search"] });
+		},
+	});
+};
+
+export const useGetCompany = (companyId: number | null) => {
+	return useQuery({
+		queryKey: ["companies", "detail", companyId],
+		queryFn: async () => {
+			const response = await api.get(`/companies/${companyId}`);
+			return response.data as { success: boolean; data: CompanyDetail };
+		},
+		enabled: companyId != null && Number.isFinite(companyId),
+		staleTime: 30_000,
+	});
+};
+
+export const useUpdateCompanyGeneric = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async ({
+			companyId,
+			...payload
+		}: UpdateCompanyGenericPayload & { companyId: number }) => {
+			const response = await api.patch(`/companies/${companyId}`, payload);
+			return response.data as {
+				success: boolean;
+				error?: string;
+				data?: {
+					companyId: number;
+					name: string;
+					listed: boolean | null;
+					countryCode: string | null;
+					url: string | null;
+					logoUrl: string | null;
+					gicsCode: string | null;
+					verified: boolean;
+				};
+			};
+		},
+		onSuccess: (_data, variables) => {
+			queryClient.invalidateQueries({ queryKey: ["companies", "search"] });
+			queryClient.invalidateQueries({
+				queryKey: ["companies", "detail", variables.companyId],
 			});
 		},
 	});

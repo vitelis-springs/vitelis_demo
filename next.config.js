@@ -23,6 +23,22 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  async redirects() {
+    return [
+      // Sales Miner report route moved under /sales-miner/reports to avoid
+      // clashing with /sales-miner/customers and /sales-miner/signal-catalog.
+      {
+        source: "/sales-miner/:id(\\d+)",
+        destination: "/sales-miner/reports/:id",
+        permanent: true,
+      },
+      {
+        source: "/sales-miner/:id(\\d+)/:path*",
+        destination: "/sales-miner/reports/:id/:path*",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

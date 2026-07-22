@@ -95,6 +95,7 @@ model companies {
   updated_at                                                                                                  DateTime?                                  @default(now()) @db.Timestamp(6)
   country_code                                                                                                String?                                    @db.VarChar(50)
   url                                                                                                         String?
+  logo_url                                                                                                    String?
   additional_data                                                                                             Json?                                      @db.Json
   invest_portal                                                                                               String?                                    @db.VarChar(255)
   career_portal                                                                                               String?                                    @db.VarChar(255)
@@ -103,6 +104,7 @@ model companies {
   report_role                                                                                                 String?                                    @db.VarChar
   gics_code                                                                                                   String?                                    @db.VarChar(8)
   listed                                                                                                      Boolean?
+  verified                                                                                                    Boolean                                    @default(true)
   alixpartner_reports                                                                                         alixpartner_reports[]
   bizminer_reports                                                                                            bizminer_reports[]
   companies                                                                                                   companies?                                 @relation("companies_parent_company_fk", fields: [parent_company], references: [id], onUpdate: NoAction, map: "companies__parent_company_fk")

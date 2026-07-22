@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import prisma from "../../../../lib/prisma";
+import { resetToDefaultSignalScope } from "../../../../lib/sm-reset-default-signals";
 
 export async function POST(request: NextRequest) {
 	const admin = await extractAdminFromRequest(request);
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
 		windowTo: string;
 		maxOpportunityCount: number;
 		companyIds: number[];
+		settings?: Record<string, unknown>;
 	};
 
 	const {
@@ -27,6 +29,7 @@ export async function POST(request: NextRequest) {
 		windowTo,
 		maxOpportunityCount,
 		companyIds,
+		settings: extraSettings,
 	} = body;
 
 	if (!name?.trim()) {
@@ -49,9 +52,7 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: "Template not found" }, { status: 404 });
 	}
 
-	// Extract numeric version from template name, e.g. "SM V4.1" → "4.1"
-	const versionMatch = template.name.match(/v?(\d+\.\d+)/i);
-	const version = versionMatch ? versionMatch[1] : template.code;
+	const version = "3.1";
 
 	// Generate IDs manually to avoid stale sequence issues
 	const [maxRs, maxReport, maxRc] = await Promise.all([
@@ -71,6 +72,9 @@ export async function POST(request: NextRequest) {
 			master_file_id: "",
 			settings: {
 				language: "en",
+				...(extraSettings && typeof extraSettings === "object"
+					? extraSettings
+					: {}),
 				window_from: windowFrom,
 				window_to: windowTo,
 				customer_id: customerId,
@@ -112,6 +116,11 @@ export async function POST(request: NextRequest) {
 				company_id: companyId,
 			})),
 		});
+
+		// Seed the default signal scope (per company GICS code) so the report
+		// starts wired up the same way "Reset to default" on the signal-catalog
+		// page would leave it.
+		await resetToDefaultSignalScope(report.id);
 	}
 
 	return NextResponse.json(

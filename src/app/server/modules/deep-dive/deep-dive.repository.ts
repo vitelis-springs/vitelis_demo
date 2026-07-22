@@ -243,6 +243,15 @@ export class DeepDiveRepository {
 			where.report_type = params.reportType;
 		}
 
+		if (params.customerId) {
+			where.report_settings = {
+				settings: {
+					path: ["customer_id"],
+					equals: params.customerId,
+				},
+			};
+		}
+
 		if (params.createdFrom || params.createdTo) {
 			where.created_at = {
 				...(params.createdFrom && { gte: params.createdFrom }),
@@ -814,19 +823,22 @@ export class DeepDiveRepository {
 	}
 
 	static async createCompanyAndLink(
-		reportId: number,
+		reportId: number | null,
 		data: {
 			name: string;
 			listed: boolean;
 			url?: string | null;
+			logoUrl?: string | null;
 			countryCode?: string | null;
 			industryId?: number | null;
+			gicsCode?: string | null;
 			investPortal?: string | null;
 			careerPortal?: string | null;
 			slug?: string | null;
 			reportRole?: string | null;
 			additionalData?: unknown;
 			parentCompanyId?: number | null;
+			verified?: boolean;
 		},
 	) {
 		return prisma.$transaction(async (tx) => {
@@ -835,9 +847,13 @@ export class DeepDiveRepository {
 					name: data.name,
 					listed: data.listed,
 					url: data.url ?? null,
+					logo_url: data.logoUrl ?? null,
 					country_code: data.countryCode ?? null,
 					...(data.industryId != null
 						? { industries: { connect: { id: data.industryId } } }
+						: {}),
+					...(data.gicsCode != null
+						? { gics_codes: { connect: { code: data.gicsCode } } }
 						: {}),
 					invest_portal: data.investPortal ?? null,
 					career_portal: data.careerPortal ?? null,
@@ -853,12 +869,15 @@ export class DeepDiveRepository {
 								>[0]["data"]["additional_data"],
 							}
 						: {}),
+					...(data.verified != null ? { verified: data.verified } : {}),
 				},
 			});
 
-			await tx.report_companies.create({
-				data: { report_id: reportId, company_id: company.id },
-			});
+			if (reportId != null) {
+				await tx.report_companies.create({
+					data: { report_id: reportId, company_id: company.id },
+				});
+			}
 
 			return company;
 		});
@@ -868,6 +887,10 @@ export class DeepDiveRepository {
 		return prisma.report_companies.create({
 			data: { report_id: reportId, company_id: companyId },
 		});
+	}
+
+	static async getCompanyByIdGeneric(companyId: number) {
+		return prisma.companies.findUnique({ where: { id: companyId } });
 	}
 
 	static async updateCompany(
@@ -936,9 +959,74 @@ export class DeepDiveRepository {
 				listed: true,
 				country_code: true,
 				url: true,
+				verified: true,
 			},
 			orderBy: { name: "asc" },
 			take: limit,
+		});
+	}
+
+	static async updateCompanyGeneric(
+		companyId: number,
+		data: {
+			name?: string;
+			listed?: boolean | null;
+			url?: string | null;
+			logoUrl?: string | null;
+			countryCode?: string | null;
+			industryId?: number | null;
+			gicsCode?: string | null;
+			investPortal?: string | null;
+			careerPortal?: string | null;
+			slug?: string | null;
+			reportRole?: string | null;
+			additionalData?: unknown;
+			parentCompanyId?: number | null;
+			verified?: boolean;
+		},
+	) {
+		return prisma.companies.update({
+			where: { id: companyId },
+			data: {
+				...(data.name !== undefined && { name: data.name }),
+				...(data.listed !== undefined && { listed: data.listed }),
+				...(data.url !== undefined && { url: data.url }),
+				...(data.logoUrl !== undefined && { logo_url: data.logoUrl }),
+				...(data.countryCode !== undefined && {
+					country_code: data.countryCode,
+				}),
+				...(data.industryId !== undefined && {
+					industries: data.industryId
+						? { connect: { id: data.industryId } }
+						: { disconnect: true },
+				}),
+				...(data.gicsCode !== undefined && {
+					gics_codes: data.gicsCode
+						? { connect: { code: data.gicsCode } }
+						: { disconnect: true },
+				}),
+				...(data.investPortal !== undefined && {
+					invest_portal: data.investPortal,
+				}),
+				...(data.careerPortal !== undefined && {
+					career_portal: data.careerPortal,
+				}),
+				...(data.slug !== undefined && { slug: data.slug }),
+				...(data.reportRole !== undefined && { report_role: data.reportRole }),
+				...(data.additionalData !== undefined
+					? {
+							additional_data: data.additionalData as Parameters<
+								typeof prisma.companies.update
+							>[0]["data"]["additional_data"],
+						}
+					: {}),
+				...(data.parentCompanyId !== undefined && {
+					companies: data.parentCompanyId
+						? { connect: { id: data.parentCompanyId } }
+						: { disconnect: true },
+				}),
+				...(data.verified !== undefined && { verified: data.verified }),
+			},
 		});
 	}
 

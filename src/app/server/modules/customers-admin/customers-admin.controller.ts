@@ -262,4 +262,52 @@ export class CustomersAdminController {
 			return jsonError("Internal server error", 500);
 		}
 	}
+
+	static async listProducts(
+		request: NextRequest,
+		customerIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const customerId = CustomersAdminService.parseId(customerIdParam);
+			if (customerId === null) return jsonError("Invalid customer id", 400);
+
+			const products = await CustomersAdminService.listProducts(customerId);
+			return jsonSuccess(products);
+		} catch (error) {
+			if (error instanceof CustomersAdminValidationError) {
+				return jsonError(error.message, error.status);
+			}
+			console.error("CustomersAdminController.listProducts:", error);
+			return jsonError("Internal server error", 500);
+		}
+	}
+
+	static async importProducts(
+		request: NextRequest,
+		customerIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const customerId = CustomersAdminService.parseId(customerIdParam);
+			if (customerId === null) return jsonError("Invalid customer id", 400);
+
+			const body = (await request.json()) as { products?: unknown };
+			const result = await CustomersAdminService.importProducts(
+				customerId,
+				body,
+			);
+			return jsonSuccess(result);
+		} catch (error) {
+			if (error instanceof CustomersAdminValidationError) {
+				return jsonError(error.message, error.status);
+			}
+			console.error("CustomersAdminController.importProducts:", error);
+			return jsonError("Internal server error", 500);
+		}
+	}
 }

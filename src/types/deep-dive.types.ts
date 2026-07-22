@@ -729,6 +729,24 @@ export interface CompanySearchResult {
 	listed?: boolean | null;
 	countryCode?: string | null;
 	url?: string | null;
+	verified?: boolean;
+}
+
+export interface UpdateCompanyGenericPayload {
+	name?: string;
+	listed?: boolean | null;
+	url?: string | null;
+	logoUrl?: string | null;
+	countryCode?: string | null;
+	industryId?: number | null;
+	gicsCode?: string | null;
+	investPortal?: string | null;
+	careerPortal?: string | null;
+	slug?: string | null;
+	reportRole?: string | null;
+	additionalData?: unknown;
+	parentCompanyId?: number | null;
+	verified?: boolean;
 }
 
 export type AddCompanyPayload =
@@ -747,6 +765,42 @@ export type AddCompanyPayload =
 			additionalData?: unknown;
 			parentCompanyId?: number | null;
 	  };
+
+export interface CreateCompanyPayload {
+	name: string;
+	listed: boolean;
+	url?: string | null;
+	logoUrl?: string | null;
+	countryCode?: string | null;
+	industryId?: number | null;
+	gicsCode?: string | null;
+	investPortal?: string | null;
+	careerPortal?: string | null;
+	slug?: string | null;
+	reportRole?: string | null;
+	additionalData?: unknown;
+	parentCompanyId?: number | null;
+	reportId?: number | null;
+	verified?: boolean;
+}
+
+export interface CompanyDetail {
+	id: number;
+	name: string;
+	listed: boolean | null;
+	url: string | null;
+	logoUrl: string | null;
+	countryCode: string | null;
+	industryId: number | null;
+	gicsCode: string | null;
+	investPortal: string | null;
+	careerPortal: string | null;
+	slug: string | null;
+	reportRole: string | null;
+	additionalData: unknown;
+	parentCompanyId: number | null;
+	verified: boolean;
+}
 
 export interface ReportCostTask {
 	id: string;

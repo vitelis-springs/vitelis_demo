@@ -1,5 +1,8 @@
 import { Prisma } from "../../../../generated/prisma";
-import { CustomersAdminRepository } from "./customers-admin.repository";
+import {
+	CustomersAdminRepository,
+	type ProductImportItem,
+} from "./customers-admin.repository";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -14,6 +17,14 @@ export class CustomersAdminService {
 		} catch {
 			return null;
 		}
+	}
+
+	static async listProducts(customerId: bigint) {
+		const customer = await CustomersAdminRepository.findById(customerId);
+		if (!customer) {
+			throw new CustomersAdminValidationError("Customer not found", 404);
+		}
+		return CustomersAdminRepository.listProducts(customerId);
 	}
 
 	static async list(params: { page: number; limit: number; q?: string }) {
@@ -225,6 +236,81 @@ export class CustomersAdminService {
 			throw new CustomersAdminValidationError("No fields to update");
 		}
 		return CustomersAdminRepository.updateSubsidiary(subsidiaryId, data);
+	}
+
+	static async importProducts(
+		customerId: bigint,
+		body: { products?: unknown },
+	) {
+		const customer = await CustomersAdminRepository.findById(customerId);
+		if (!customer) {
+			throw new CustomersAdminValidationError("Customer not found", 404);
+		}
+		if (!Array.isArray(body.products) || body.products.length === 0) {
+			throw new CustomersAdminValidationError(
+				"products must be a non-empty array",
+			);
+		}
+
+		const missingGroup: number[] = [];
+		const missingName: number[] = [];
+		const items: ProductImportItem[] = body.products.map((raw, index) => {
+			if (!isRecord(raw)) {
+				throw new CustomersAdminValidationError(
+					`products[${index}] must be an object`,
+				);
+			}
+			const group =
+				typeof raw.groupCategory === "string" ? raw.groupCategory.trim() : "";
+			const name =
+				typeof raw.productName === "string" ? raw.productName.trim() : "";
+			if (!group) missingGroup.push(index);
+			if (!name) missingName.push(index);
+
+			const description =
+				(typeof raw.internalDescription === "string" &&
+					raw.internalDescription.trim()) ||
+				(typeof raw.valueProposition === "string" &&
+					raw.valueProposition.trim()) ||
+				"";
+
+			const meta = {
+				additional_data: {
+					org_unit: raw.orgUnit ?? null,
+					sub_category: raw.subCategory ?? null,
+					value_proposition: raw.valueProposition ?? null,
+					pain_point: raw.painPoint ?? null,
+					markets: raw.markets ?? null,
+					geographies: raw.geographies ?? null,
+					price: raw.price ?? null,
+					buying_trigger_signals: raw.buyingTriggerSignals ?? null,
+					land_anchor: raw.landAnchor ?? null,
+					expand_anchor: raw.expandAnchor ?? null,
+					scale_anchor: raw.scaleAnchor ?? null,
+					cross_portfolio_connection: raw.crossPortfolioConnection ?? null,
+				},
+			};
+
+			return {
+				group,
+				name,
+				description,
+				meta: meta as Prisma.InputJsonValue,
+			};
+		});
+
+		if (missingGroup.length > 0) {
+			throw new CustomersAdminValidationError(
+				`products missing groupCategory at rows: ${missingGroup.join(", ")}`,
+			);
+		}
+		if (missingName.length > 0) {
+			throw new CustomersAdminValidationError(
+				`products missing productName at rows: ${missingName.join(", ")}`,
+			);
+		}
+
+		return CustomersAdminRepository.importProductsL2L3(customerId, items);
 	}
 }
 
