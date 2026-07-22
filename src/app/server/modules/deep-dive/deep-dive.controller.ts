@@ -2205,4 +2205,45 @@ export class DeepDiveController {
 			);
 		}
 	}
+
+	static async updateOpportunityCandidateApproval(
+		request: NextRequest,
+		opportunityIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const opportunityId = Number(opportunityIdParam);
+			if (!Number.isFinite(opportunityId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid opportunity id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json()) as { isApproved?: boolean };
+			if (typeof body.isApproved !== "boolean") {
+				return NextResponse.json(
+					{ success: false, error: "isApproved must be a boolean" },
+					{ status: 400 },
+				);
+			}
+
+			await DeepDiveService.setOpportunityCandidateApproval(
+				opportunityId,
+				body.isApproved,
+			);
+			return NextResponse.json({ success: true });
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.updateOpportunityCandidateApproval:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to update opportunity approval" },
+				{ status: 500 },
+			);
+		}
+	}
 }

@@ -254,6 +254,19 @@ export const deepDiveApi = {
 		);
 		return response.data;
 	},
+
+	async setOpportunityCandidateApproval(
+		reportId: number,
+		companyId: number,
+		opportunityId: string,
+		isApproved: boolean,
+	): Promise<{ success: boolean; error?: string }> {
+		const response = await api.patch(
+			`/deep-dive/${reportId}/companies/${companyId}/opportunity-cards/${opportunityId}`,
+			{ isApproved },
+		);
+		return response.data;
+	},
 };
 
 export const useGetDeepDives = (
@@ -924,6 +937,34 @@ export const useGetCompanyOpportunityCards = (
 				: reportId !== null && companyId !== null,
 		staleTime: 60_000,
 		refetchOnWindowFocus: false,
+	});
+};
+
+export const useSetOpportunityCandidateApproval = (
+	reportId: number,
+	companyId: number,
+) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			opportunityId,
+			isApproved,
+		}: {
+			opportunityId: string;
+			isApproved: boolean;
+		}) =>
+			deepDiveApi.setOpportunityCandidateApproval(
+				reportId,
+				companyId,
+				opportunityId,
+				isApproved,
+			),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "opportunity-cards", reportId, companyId],
+			});
+		},
 	});
 };
 

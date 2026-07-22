@@ -3,7 +3,9 @@
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import {
 	Alert,
+	App,
 	Button,
+	Checkbox,
 	Descriptions,
 	Drawer,
 	Empty,
@@ -12,11 +14,16 @@ import {
 	Tag,
 	Typography,
 } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useGetCompanyOpportunityCards } from "../../../hooks/api/useDeepDiveService";
+import {
+	useGetCompanyOpportunityCards,
+	useSetOpportunityCandidateApproval,
+} from "../../../hooks/api/useDeepDiveService";
 import type {
 	OpportunityCard as OpportunityCardData,
+	OpportunityCardsResponse,
 	OpportunityCardTier,
 } from "../../../types/deep-dive.types";
 import OpportunityCard from "./opportunity-card";
@@ -37,6 +44,7 @@ const TIER_TAG_COLOR: Record<OpportunityCardTier, string> = {
 
 type SortKey = "rank" | "score";
 type TierFilter = "all" | OpportunityCardTier;
+type ApprovalFilter = "all" | "approved" | "unapproved";
 
 function crestMonogram(name: string | null | undefined): string {
 	if (!name) return "—";
@@ -60,28 +68,92 @@ export default function OpportunityCardsGrid({
 	companyId,
 }: OpportunityCardsGridProps) {
 	const router = useRouter();
+	const { message } = App.useApp();
+	const queryClient = useQueryClient();
 	const { data, isLoading, isError, error } = useGetCompanyOpportunityCards(
+		reportId,
+		companyId,
+	);
+	const { mutate: setApproval } = useSetOpportunityCandidateApproval(
 		reportId,
 		companyId,
 	);
 	const [sortKey, setSortKey] = useState<SortKey>("rank");
 	const [tierFilter, setTierFilter] = useState<TierFilter>("all");
+	const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
 	const [selected, setSelected] = useState<OpportunityCardData | null>(null);
+
+	const opportunityCardsQueryKey = [
+		"deep-dive",
+		"opportunity-cards",
+		reportId,
+		companyId,
+	] as const;
+
+	const handleToggleApproval = (opportunityId: string, checked: boolean) => {
+		queryClient.setQueryData<OpportunityCardsResponse>(
+			opportunityCardsQueryKey,
+			(old) =>
+				old && {
+					...old,
+					data: {
+						...old.data,
+						cards: old.data.cards.map((c) =>
+							c.id === opportunityId ? { ...c, isApproved: checked } : c,
+						),
+					},
+				},
+		);
+		setSelected((prev) =>
+			prev && prev.id === opportunityId
+				? { ...prev, isApproved: checked }
+				: prev,
+		);
+		setApproval(
+			{ opportunityId, isApproved: checked },
+			{
+				onError: () => {
+					queryClient.setQueryData<OpportunityCardsResponse>(
+						opportunityCardsQueryKey,
+						(old) =>
+							old && {
+								...old,
+								data: {
+									...old.data,
+									cards: old.data.cards.map((c) =>
+										c.id === opportunityId ? { ...c, isApproved: !checked } : c,
+									),
+								},
+							},
+					);
+					setSelected((prev) =>
+						prev && prev.id === opportunityId
+							? { ...prev, isApproved: !checked }
+							: prev,
+					);
+					message.error("Failed to update approval status");
+				},
+			},
+		);
+	};
 
 	const allCards = useMemo(() => data?.data.cards ?? [], [data]);
 	const companyName = data?.data.companyName;
 
 	const visibleCards = useMemo(() => {
-		const filtered =
-			tierFilter === "all"
-				? allCards
-				: allCards.filter((c) => c.tier === tierFilter);
+		const filtered = allCards
+			.filter((c) => tierFilter === "all" || c.tier === tierFilter)
+			.filter(
+				(c) =>
+					approvalFilter === "all" ||
+					(approvalFilter === "approved" ? c.isApproved : !c.isApproved),
+			);
 		const sorted = [...filtered].sort((a, b) => {
 			if (sortKey === "score") return b.overall - a.overall;
 			return (a.rankPosition ?? 1e9) - (b.rankPosition ?? 1e9);
 		});
 		return sorted;
-	}, [allCards, tierFilter, sortKey]);
+	}, [allCards, tierFilter, approvalFilter, sortKey]);
 
 	if (isLoading) {
 		return (
@@ -96,7 +168,7 @@ export default function OpportunityCardsGrid({
 			<Alert
 				type="error"
 				showIcon
-				message="Failed to load opportunities"
+				title="Failed to load opportunities"
 				description={error instanceof Error ? error.message : undefined}
 			/>
 		);
@@ -171,6 +243,15 @@ export default function OpportunityCardsGrid({
 								{ label: "🥉 Bronze", value: "bronze" },
 							]}
 						/>
+						<Segmented<ApprovalFilter>
+							value={approvalFilter}
+							onChange={(v) => setApprovalFilter(v)}
+							options={[
+								{ label: "All", value: "all" },
+								{ label: "Approved", value: "approved" },
+								{ label: "Not approved", value: "unapproved" },
+							]}
+						/>
 					</div>
 				</div>
 			</div>
@@ -187,7 +268,12 @@ export default function OpportunityCardsGrid({
 					}}
 				>
 					{visibleCards.map((card) => (
-						<OpportunityCard key={card.id} card={card} onOpen={setSelected} />
+						<OpportunityCard
+							key={card.id}
+							card={card}
+							onOpen={setSelected}
+							onToggleApproval={handleToggleApproval}
+						/>
 					))}
 				</div>
 			)}
@@ -210,6 +296,15 @@ export default function OpportunityCardsGrid({
 							</Text>
 							<Text type="secondary">overall priority</Text>
 						</div>
+
+						<Checkbox
+							checked={selected.isApproved}
+							onChange={(e) =>
+								handleToggleApproval(selected.id, e.target.checked)
+							}
+						>
+							Approved
+						</Checkbox>
 
 						<Descriptions
 							column={1}
@@ -287,7 +382,7 @@ export default function OpportunityCardsGrid({
 						<Alert
 							type="info"
 							showIcon
-							message="Full deep-dive (Overview / Intelligence / Validate / Winning strategy / Actions) coming next."
+							title="Full deep-dive (Overview / Intelligence / Validate / Winning strategy / Actions) coming next."
 						/>
 					</div>
 				)}

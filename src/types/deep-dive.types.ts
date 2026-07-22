@@ -974,6 +974,7 @@ export interface OpportunityCard {
 	stats: OpportunityCardStat[];
 	stakeholderCount: number;
 	productCount: number;
+	isApproved: boolean;
 }
 
 export interface OpportunityCardsResponse {

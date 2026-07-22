@@ -1,6 +1,6 @@
 "use client";
 
-import { Tooltip } from "antd";
+import { Checkbox, Tooltip } from "antd";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type {
 	OpportunityCard as OpportunityCardData,
@@ -46,11 +46,13 @@ function statDisplay(stat: OpportunityCardStat): string {
 interface OpportunityCardProps {
 	card: OpportunityCardData;
 	onOpen?: (card: OpportunityCardData) => void;
+	onToggleApproval?: (opportunityId: string, checked: boolean) => void;
 }
 
 export default function OpportunityCard({
 	card,
 	onOpen,
+	onToggleApproval,
 }: OpportunityCardProps) {
 	const position = (card.motionFamily ?? "OPP").toUpperCase();
 
@@ -87,7 +89,11 @@ export default function OpportunityCard({
 			}}
 			title={card.title}
 		>
-			<div className={`${styles.card} ${TIER_CLASS[card.tier]}`}>
+			<div
+				className={`${styles.card} ${TIER_CLASS[card.tier]} ${
+					card.isApproved ? "" : styles.unapproved
+				}`}
+			>
 				<div className={styles.content}>
 					<div className={styles.header}>
 						<div className={styles.ratingBlock}>
@@ -96,6 +102,22 @@ export default function OpportunityCard({
 							<span className={styles.tierBadge}>{TIER_LABEL[card.tier]}</span>
 						</div>
 						<div className={styles.rightCol}>
+							{onToggleApproval && (
+								<Tooltip title="Approved">
+									<span
+										className={styles.approveToggle}
+										onClick={(e) => e.stopPropagation()}
+										onKeyDown={(e) => e.stopPropagation()}
+									>
+										<Checkbox
+											checked={card.isApproved}
+											onChange={(e) =>
+												onToggleApproval(card.id, e.target.checked)
+											}
+										/>
+									</span>
+								</Tooltip>
+							)}
 							{card.rankPosition != null && (
 								<span className={styles.rank}>#{card.rankPosition}</span>
 							)}

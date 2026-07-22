@@ -1578,6 +1578,7 @@ model opportunity_candidates {
   primary_scope_company_id                                                                                       Int?
   competitive_awareness                                                                                          Json?
   entity_attribution                                                                                             Json?
+  is_approved                                                                                                    Boolean?                                     @default(false)
   opportunity_candidate_entities                                                                                 opportunity_candidate_entities[]
   opportunity_candidate_evidence_refs                                                                            opportunity_candidate_evidence_refs[]
   opportunity_candidate_items                                                                                    opportunity_candidate_items[]

@@ -1047,6 +1047,7 @@ export class DeepDiveRepository {
 				product_count: number;
 				deep_dive_property_count: number;
 				company_name: string | null;
+				is_approved: boolean | null;
 			}>
 		>`
       WITH latest_run AS (
@@ -1075,11 +1076,23 @@ export class DeepDiveRepository {
         (SELECT COUNT(DISTINCT pv.property_key)::int
            FROM public.opportunity_deep_dive_property_values pv
            WHERE pv.opportunity_id = oc.id) AS deep_dive_property_count,
-        c.name AS company_name
+        c.name AS company_name,
+        oc.is_approved AS is_approved
       FROM public.opportunity_candidates oc
       JOIN public.companies c ON c.id = oc.company_id
       WHERE oc.research_run_id = (SELECT id FROM latest_run)
       ORDER BY oc.rank_position NULLS LAST, oc.id
+    `;
+	}
+
+	static async setOpportunityCandidateApproval(
+		opportunityId: number,
+		isApproved: boolean,
+	): Promise<void> {
+		await prisma.$executeRaw`
+      UPDATE public.opportunity_candidates
+      SET is_approved = ${isApproved}, updated_at = NOW()
+      WHERE id = ${opportunityId}
     `;
 	}
 

@@ -2733,6 +2733,7 @@ export class DeepDiveService {
 		product_count: number;
 		deep_dive_property_count: number;
 		company_name: string | null;
+		is_approved: boolean | null;
 	}): OpportunityCard {
 		const overall = DeepDiveService.clampStat(row.priority_score);
 		const confidencePct = Math.round((row.confidence_score ?? 0) * 100);
@@ -2802,7 +2803,18 @@ export class DeepDiveService {
 			stats,
 			stakeholderCount: row.stakeholder_count,
 			productCount: row.product_count,
+			isApproved: row.is_approved ?? false,
 		};
+	}
+
+	static async setOpportunityCandidateApproval(
+		opportunityId: number,
+		isApproved: boolean,
+	): Promise<void> {
+		await DeepDiveRepository.setOpportunityCandidateApproval(
+			opportunityId,
+			isApproved,
+		);
 	}
 
 	static async getCompanyOpportunityCards(
