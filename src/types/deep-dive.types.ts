@@ -941,3 +941,47 @@ export interface CreateValidationRulePayload {
 	description: string;
 	criteria: ValidationRuleCriteria;
 }
+
+// --- Opportunity FIFA-style cards (read-only company opportunities list) ---
+
+export type OpportunityCardTier = "gold" | "silver" | "bronze";
+
+export interface OpportunityCardStat {
+	key: string;
+	/** Short FIFA-style label, e.g. "CNF", "CMT". */
+	label: string;
+	/** Full human label for tooltip/aria, e.g. "Confidence". */
+	title: string;
+	/** Normalised 0–99 stat value. */
+	value: number;
+	/** Raw underlying value for reference (count, band label, %). */
+	raw: string | number | null;
+}
+
+export interface OpportunityCard {
+	id: string;
+	title: string;
+	rankPosition: number | null;
+	companyName: string | null;
+	motionFamily: string | null;
+	stage: string | null;
+	status: string | null;
+	dealSize: string | null;
+	horizonName: string | null;
+	/** Big FIFA "overall" number (priority score, 0–99). */
+	overall: number;
+	tier: OpportunityCardTier;
+	stats: OpportunityCardStat[];
+	stakeholderCount: number;
+	productCount: number;
+}
+
+export interface OpportunityCardsResponse {
+	success: boolean;
+	data: {
+		reportId: number;
+		companyId: number;
+		companyName: string | null;
+		cards: OpportunityCard[];
+	};
+}

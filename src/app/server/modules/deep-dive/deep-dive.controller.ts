@@ -2173,4 +2173,36 @@ export class DeepDiveController {
 			companyIdParam,
 		);
 	}
+
+	static async getCompanyOpportunityCards(
+		request: NextRequest,
+		reportIdParam: string,
+		companyIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			const companyId = Number(companyIdParam);
+			if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report or company id" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await DeepDiveService.getCompanyOpportunityCards(
+				reportId,
+				companyId,
+			);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ DeepDiveController.getCompanyOpportunityCards:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch opportunity cards" },
+				{ status: 500 },
+			);
+		}
+	}
 }

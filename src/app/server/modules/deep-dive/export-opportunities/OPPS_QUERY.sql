@@ -97,7 +97,7 @@ candidate_source AS (
    AND oc.company_id = rr.company_id
   WHERE (p.ranking_version IS NULL OR oc.ranking_version = p.ranking_version)
     AND COALESCE((oc.meta::jsonb->>'include_in_final_pack')::boolean, true) = true
-    AND oc.is_approved IS TRUE
+    AND oc.is_approved = TRUE
 ),
 base AS (
   SELECT

@@ -88,27 +88,29 @@ model checkpoints {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model companies {
-  id                                                                                                          Int                                        @id @default(autoincrement())
-  name                                                                                                        String                                     @db.VarChar(255)
+  id                                                                                                          Int                                               @id @default(autoincrement())
+  name                                                                                                        String                                            @db.VarChar(255)
   industry_id                                                                                                 Int?
-  created_at                                                                                                  DateTime?                                  @default(now()) @db.Timestamp(6)
-  updated_at                                                                                                  DateTime?                                  @default(now()) @db.Timestamp(6)
-  country_code                                                                                                String?                                    @db.VarChar(50)
+  created_at                                                                                                  DateTime?                                         @default(now()) @db.Timestamp(6)
+  updated_at                                                                                                  DateTime?                                         @default(now()) @db.Timestamp(6)
+  country_code                                                                                                String?                                           @db.VarChar(50)
   url                                                                                                         String?
-  additional_data                                                                                             Json?                                      @db.Json
-  invest_portal                                                                                               String?                                    @db.VarChar(255)
-  career_portal                                                                                               String?                                    @db.VarChar(255)
+  additional_data                                                                                             Json?                                             @db.Json
+  invest_portal                                                                                               String?                                           @db.VarChar(255)
+  career_portal                                                                                               String?                                           @db.VarChar(255)
   parent_company                                                                                              Int?
-  slug                                                                                                        String?                                    @unique(map: "companies_slug_unique") @db.VarChar(255)
-  report_role                                                                                                 String?                                    @db.VarChar
-  gics_code                                                                                                   String?                                    @db.VarChar(8)
+  slug                                                                                                        String?                                           @unique(map: "companies_slug_unique") @db.VarChar(255)
+  report_role                                                                                                 String?                                           @db.VarChar
+  gics_code                                                                                                   String?                                           @db.VarChar(8)
   listed                                                                                                      Boolean?
+  logo_url                                                                                                    String?
+  verified                                                                                                    Boolean                                           @default(true)
   alixpartner_reports                                                                                         alixpartner_reports[]
   bizminer_reports                                                                                            bizminer_reports[]
-  companies                                                                                                   companies?                                 @relation("companies_parent_company_fk", fields: [parent_company], references: [id], onUpdate: NoAction, map: "companies__parent_company_fk")
-  other_companies                                                                                             companies[]                                @relation("companies_parent_company_fk")
-  gics_codes                                                                                                  gics_codes?                                @relation(fields: [gics_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
-  industries                                                                                                  industries?                                @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  companies                                                                                                   companies?                                        @relation("companies_parent_company_fk", fields: [parent_company], references: [id], onUpdate: NoAction, map: "companies__parent_company_fk")
+  other_companies                                                                                             companies[]                                       @relation("companies_parent_company_fk")
+  gics_codes                                                                                                  gics_codes?                                       @relation(fields: [gics_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  industries                                                                                                  industries?                                       @relation(fields: [industry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   company_data_points                                                                                         company_data_points[]
   company_info_items                                                                                          company_info_items[]
   company_level_report_state                                                                                  company_level_report_state[]
@@ -132,11 +134,12 @@ model companies {
   report_data_collection_query_completions                                                                    report_data_collection_query_completions[]
   report_data_point_results                                                                                   report_data_point_results[]
   report_results                                                                                              report_results[]
+  report_source_enriched                                                                                      report_source_enriched[]
   report_step_statuses                                                                                        report_step_statuses[]
   report_url_candidates                                                                                       report_url_candidates[]
   research_runs                                                                                               research_runs[]
-  sales_report_step_intermediate_results_sales_report_step_intermediate_results_account_company_idTocompanies sales_report_step_intermediate_results[]   @relation("sales_report_step_intermediate_results_account_company_idTocompanies")
-  sales_report_step_intermediate_results_sales_report_step_intermediate_results_company_idTocompanies         sales_report_step_intermediate_results[]   @relation("sales_report_step_intermediate_results_company_idTocompanies")
+  sales_report_step_intermediate_results_sales_report_step_intermediate_results_account_company_idTocompanies sales_report_step_intermediate_results[]          @relation("sales_report_step_intermediate_results_account_company_idTocompanies")
+  sales_report_step_intermediate_results_sales_report_step_intermediate_results_company_idTocompanies         sales_report_step_intermediate_results[]          @relation("sales_report_step_intermediate_results_company_idTocompanies")
   scape_url_candidates                                                                                        scape_url_candidates[]
   signal_confirmations                                                                                        signal_confirmations[]
   signal_search_tasks                                                                                         signal_search_tasks[]
@@ -145,6 +148,12 @@ model companies {
   sm_additional_research_tasks                                                                                sm_additional_research_tasks[]
   sm_l2_product_fit_context_items                                                                             sm_l2_product_fit_context_items[]
   sm_l2_product_fit_contexts                                                                                  sm_l2_product_fit_contexts[]
+  sm_m_company_monitoring_runs                                                                                sm_m_company_monitoring_runs[]
+  sm_m_company_monitoring_state                                                                               sm_m_company_monitoring_state?
+  sm_m_monitoring_cycle_runs_deprecated                                                                       sm_m_monitoring_cycle_runs_deprecated[]
+  sm_m_monitoring_report_company_state_deprecated                                                             sm_m_monitoring_report_company_state_deprecated[]
+  sm_m_monitoring_report_targets                                                                              sm_m_monitoring_report_targets[]
+  source_kpi_links                                                                                            source_kpi_links[]
   source_metadata                                                                                             source_metadata[]
   sources                                                                                                     sources[]
   sources_indexed                                                                                             sources_indexed[]
@@ -489,15 +498,15 @@ model report_data_points {
 }
 
 model report_generation_steps {
-  id                   Int                                     @id @default(autoincrement())
-  name                 String
-  url                  String
-  settings             Json?
-  dependency           report_generation_step_dependency_enum?
-  report_type          String?
-  report_step_statuses      report_step_statuses[]
-  report_steps              report_steps[]
+  id                         Int                                     @id @default(autoincrement())
+  name                       String
+  url                        String
+  settings                   Json?
+  dependency                 report_generation_step_dependency_enum?
+  report_type                String?
+  report_step_statuses       report_step_statuses[]
   report_step_template_steps report_step_template_steps[]
+  report_steps               report_steps[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -561,38 +570,44 @@ model report_steps {
 }
 
 model reports {
-  id                                       Int                                        @id(map: "reports_pkey1") @default(autoincrement())
-  use_case_id                              Int?
-  name                                     String?                                    @db.VarChar
-  description                              String?
-  created_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
-  updates_at                               DateTime?                                  @default(now()) @db.Timestamp(6)
-  report_settings_id                       Int?
-  source_validation_settings_id            Int?
-  report_type                              String?                                    @db.VarChar(100)
-  company_level_report_state               company_level_report_state[]
-  generated_company_reports                generated_company_reports[]
-  n8n_tasks                                n8n_tasks[]
-  opportunities_sales                      opportunities_sales[]
-  report_companies                         report_companies[]
-  report_company_signal_scope              report_company_signal_scope[]
-  report_countries                         report_countries[]
-  report_data_collection_queries           report_data_collection_queries[]
-  report_data_collection_query_completions report_data_collection_query_completions[]
-  report_data_point_results                report_data_point_results[]
-  report_data_points                       report_data_points[]
-  report_orhestrator                       report_orhestrator?
-  report_results                           report_results[]
-  report_step_statuses                     report_step_statuses[]
-  report_steps                             report_steps[]
-  report_url_candidates                    report_url_candidates[]
-  report_validation_rules                  report_validation_rules[]
-  report_settings                          report_settings?                           @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  source_validation_settings               source_validation_settings?                @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  use_cases                                use_cases?                                 @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  research_runs                            research_runs[]
-  sales_report_step_intermediate_results   sales_report_step_intermediate_results[]
-  temp_resolved_data_points_result         temp_resolved_data_points_result[]
+  id                                              Int                                               @id(map: "reports_pkey1") @default(autoincrement())
+  use_case_id                                     Int?
+  name                                            String?                                           @db.VarChar
+  description                                     String?
+  created_at                                      DateTime?                                         @default(now()) @db.Timestamp(6)
+  updates_at                                      DateTime?                                         @default(now()) @db.Timestamp(6)
+  report_settings_id                              Int?
+  source_validation_settings_id                   Int?
+  report_type                                     String?                                           @db.VarChar(100)
+  company_level_report_state                      company_level_report_state[]
+  generated_company_reports                       generated_company_reports[]
+  n8n_tasks                                       n8n_tasks[]
+  opportunities_sales                             opportunities_sales[]
+  report_companies                                report_companies[]
+  report_company_signal_scope                     report_company_signal_scope[]
+  report_countries                                report_countries[]
+  report_data_collection_queries                  report_data_collection_queries[]
+  report_data_collection_query_completions        report_data_collection_query_completions[]
+  report_data_point_results                       report_data_point_results[]
+  report_data_points                              report_data_points[]
+  report_orhestrator                              report_orhestrator?
+  report_results                                  report_results[]
+  report_signal_definitions                       report_signal_definitions[]
+  report_source_enriched                          report_source_enriched[]
+  report_step_statuses                            report_step_statuses[]
+  report_steps                                    report_steps[]
+  report_url_candidates                           report_url_candidates[]
+  report_validation_rules                         report_validation_rules[]
+  report_settings                                 report_settings?                                  @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source_validation_settings                      source_validation_settings?                       @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  use_cases                                       use_cases?                                        @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  research_runs                                   research_runs[]
+  sales_report_step_intermediate_results          sales_report_step_intermediate_results[]
+  sm_m_monitoring_cycle_runs_deprecated           sm_m_monitoring_cycle_runs_deprecated[]
+  sm_m_monitoring_report_company_state_deprecated sm_m_monitoring_report_company_state_deprecated[]
+  sm_m_monitoring_report_configs                  sm_m_monitoring_report_configs?
+  source_kpi_links                                source_kpi_links[]
+  temp_resolved_data_points_result                temp_resolved_data_points_result[]
 
   @@index([source_validation_settings_id], map: "idx_reports_source_validation_settings_id")
 }
@@ -868,15 +883,17 @@ model source_validation_settings {
 }
 
 model sources_new {
-  id              BigInt            @id @default(autoincrement())
-  url             String            @unique
-  content         String
-  title           String?
-  created_at      DateTime          @default(now()) @db.Timestamp(6)
-  updated_at      DateTime          @default(now()) @db.Timestamp(6)
-  scrapped_at     DateTime?         @db.Timestamp(6)
-  isVectorized    Boolean           @default(false)
-  source_metadata source_metadata[]
+  id                     BigInt                   @id @default(autoincrement())
+  url                    String                   @unique
+  content                String
+  title                  String?
+  created_at             DateTime                 @default(now()) @db.Timestamp(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamp(6)
+  scrapped_at            DateTime?                @db.Timestamp(6)
+  isVectorized           Boolean                  @default(false)
+  report_source_enriched report_source_enriched[]
+  source_kpi_links       source_kpi_links[]
+  source_metadata        source_metadata[]
 
   @@index([url(ops: raw("gin_trgm_ops"))], map: "idx_sources_new_url_trgm", type: Gin)
 }
@@ -1235,11 +1252,13 @@ model customer_products {
   product_scoring_results_product_scoring_results_parent_l2_product_idTocustomer_products                 product_scoring_results[]                 @relation("product_scoring_results_parent_l2_product_idTocustomer_products")
   product_scoring_signal_attributions                                                                     product_scoring_signal_attributions[]
   product_shortlist_items                                                                                 product_shortlist_items[]
+  report_signal_definitions                                                                               report_signal_definitions[]
   research_run_product_scope                                                                              research_run_product_scope[]
   sm_customer_product_capability_map                                                                      sm_customer_product_capability_map[]
   sm_l2_product_fit_context_items_sm_l2_product_fit_context_items_target_l2_product_idTocustomer_products sm_l2_product_fit_context_items[]         @relation("sm_l2_product_fit_context_items_target_l2_product_idTocustomer_products")
   sm_l2_product_fit_context_items_sm_l2_product_fit_context_items_customer_product_idTocustomer_products  sm_l2_product_fit_context_items[]         @relation("sm_l2_product_fit_context_items_customer_product_idTocustomer_products")
   sm_l2_product_fit_contexts                                                                              sm_l2_product_fit_contexts[]
+  sm_m_opportunity_impact_proposal_links                                                                  sm_m_opportunity_impact_proposal_links[]
 
   @@unique([customer_id, parent_id, name], map: "uq_customer_products_customer_parent_name")
   @@index([customer_id, is_active], map: "idx_customer_products_active")
@@ -1480,65 +1499,65 @@ model opportunity_candidate_items {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model opportunity_candidates {
-  id                                                                                                             BigInt                                @id @default(autoincrement())
+  id                                                                                                             BigInt                                       @id @default(autoincrement())
   research_run_id                                                                                                BigInt
   company_id                                                                                                     Int
   title                                                                                                          String
   org_unit                                                                                                       String
-  motion_family                                                                                                  String                                @db.VarChar(30)
-  motion_wave                                                                                                    String?                               @db.VarChar(20)
+  motion_family                                                                                                  String                                       @db.VarChar(30)
+  motion_wave                                                                                                    String?                                      @db.VarChar(20)
   opportunity_space                                                                                              String?
   lead_l2_product_id                                                                                             BigInt?
   lead_product_id                                                                                                BigInt?
   lead_product_scoring_result_id                                                                                 BigInt?
-  stage                                                                                                          String                                @default("lead") @db.VarChar(50)
+  stage                                                                                                          String                                       @default("lead") @db.VarChar(50)
   stage_detail                                                                                                   String?
-  status                                                                                                         String                                @default("candidate") @db.VarChar(30)
+  status                                                                                                         String                                       @default("candidate") @db.VarChar(30)
   close_target_text                                                                                              String?
-  close_target_from                                                                                              DateTime?                             @db.Date
-  close_target_to                                                                                                DateTime?                             @db.Date
+  close_target_from                                                                                              DateTime?                                    @db.Date
+  close_target_to                                                                                                DateTime?                                    @db.Date
   owner_label                                                                                                    String?
-  owner_type                                                                                                     String?                               @db.VarChar(100)
+  owner_type                                                                                                     String?                                      @db.VarChar(100)
   specialist_overlay                                                                                             String?
   amount_model_text                                                                                              String?
-  amount_type                                                                                                    String                                @default("unknown") @db.VarChar(20)
+  amount_type                                                                                                    String                                       @default("unknown") @db.VarChar(20)
   depends_on_opportunity_id                                                                                      BigInt?
   relationship_anchor_opportunity_id                                                                             BigInt?
-  handoff_required                                                                                               Boolean                               @default(false)
+  handoff_required                                                                                               Boolean                                      @default(false)
   handoff_to_org_unit                                                                                            String?
   crm_linking_note                                                                                               String?
   sequencing_note                                                                                                String?
-  score                                                                                                          Decimal                               @default(0) @db.Decimal(10, 4)
-  confidence_score                                                                                               Decimal                               @default(0) @db.Decimal(10, 4)
-  commercial_readiness_score                                                                                     Decimal                               @default(0) @db.Decimal(10, 4)
-  dependency_readiness_score                                                                                     Decimal                               @default(0) @db.Decimal(10, 4)
-  handoff_complexity_score                                                                                       Decimal                               @default(0) @db.Decimal(10, 4)
+  score                                                                                                          Decimal                                      @default(0) @db.Decimal(10, 4)
+  confidence_score                                                                                               Decimal                                      @default(0) @db.Decimal(10, 4)
+  commercial_readiness_score                                                                                     Decimal                                      @default(0) @db.Decimal(10, 4)
+  dependency_readiness_score                                                                                     Decimal                                      @default(0) @db.Decimal(10, 4)
+  handoff_complexity_score                                                                                       Decimal                                      @default(0) @db.Decimal(10, 4)
   rank_position                                                                                                  Int?
-  is_top_10                                                                                                      Boolean                               @default(false)
-  ranking_version                                                                                                String                                @default("v1") @db.VarChar(50)
+  is_top_10                                                                                                      Boolean                                      @default(false)
+  ranking_version                                                                                                String                                       @default("v1") @db.VarChar(50)
   why_now                                                                                                        String?
   notes                                                                                                          String?
-  meta                                                                                                           Json                                  @default("{}")
-  created_at                                                                                                     DateTime                              @default(now()) @db.Timestamptz(6)
-  updated_at                                                                                                     DateTime                              @default(now()) @db.Timestamptz(6)
+  meta                                                                                                           Json                                         @default("{}")
+  created_at                                                                                                     DateTime                                     @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                                     DateTime                                     @default(now()) @db.Timestamptz(6)
   primary_business_problem                                                                                       String?
   primary_buyer_persona                                                                                          String?
   primary_value_proposition                                                                                      String?
   solution_center                                                                                                String?
   commercial_model_hypothesis                                                                                    String?
   buyer_routing                                                                                                  Json?
-  horizon                                                                                                        String?                               @db.VarChar(20)
+  horizon                                                                                                        String?                                      @db.VarChar(20)
   horizon_name                                                                                                   String?
   horizon_reasoning                                                                                              String?
-  horizon_confidence                                                                                             Decimal?                              @db.Decimal(10, 4)
-  horizon_version                                                                                                String?                               @db.VarChar(50)
-  horizon_assigned_at                                                                                            DateTime?                             @db.Timestamptz(6)
-  horizon_meta                                                                                                   Json                                  @default("{}")
-  delivery_type                                                                                                  String?                               @db.VarChar(50)
+  horizon_confidence                                                                                             Decimal?                                     @db.Decimal(10, 4)
+  horizon_version                                                                                                String?                                      @db.VarChar(50)
+  horizon_assigned_at                                                                                            DateTime?                                    @db.Timestamptz(6)
+  horizon_meta                                                                                                   Json                                         @default("{}")
+  delivery_type                                                                                                  String?                                      @db.VarChar(50)
   track_1_entity                                                                                                 String?
-  track_2_entities                                                                                               Json                                  @default("[]")
-  track_meta                                                                                                     Json                                  @default("{}")
-  portfolio_priority_score                                                                                       Decimal?                              @db.Decimal(10, 4)
+  track_2_entities                                                                                               Json                                         @default("[]")
+  track_meta                                                                                                     Json                                         @default("{}")
+  portfolio_priority_score                                                                                       Decimal?                                     @db.Decimal(10, 4)
   portfolio_priority_reason                                                                                      String?
   deal_size_general                                                                                              String?
   deal_size_horizon                                                                                              String?
@@ -1552,26 +1571,33 @@ model opportunity_candidates {
   time_tier_reasoning                                                                                            String?
   signal_strength_tier                                                                                           Int?
   signal_strength_tier_reasoning                                                                                 String?
-  signal_strength_score                                                                                          Decimal?                              @db.Decimal(10, 4)
+  signal_strength_score                                                                                          Decimal?                                     @db.Decimal(10, 4)
   signal_strength_reasoning                                                                                      String?
-  is_selected_for_deep_dive                                                                                      Boolean?                              @default(false)
-  scope_type                                                                                                     String?                               @db.VarChar
+  is_selected_for_deep_dive                                                                                      Boolean?                                     @default(false)
+  scope_type                                                                                                     String?                                      @db.VarChar
   primary_scope_company_id                                                                                       Int?
+  competitive_awareness                                                                                          Json?
+  entity_attribution                                                                                             Json?
   opportunity_candidate_entities                                                                                 opportunity_candidate_entities[]
   opportunity_candidate_evidence_refs                                                                            opportunity_candidate_evidence_refs[]
   opportunity_candidate_items                                                                                    opportunity_candidate_items[]
-  companies                                                                                                      companies                             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates                opportunity_candidates?               @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates", fields: [depends_on_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_depends_on_fkey")
-  other_opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates          opportunity_candidates[]              @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates")
-  customer_products_opportunity_candidates_lead_l2_product_idTocustomer_products                                 customer_products?                    @relation("opportunity_candidates_lead_l2_product_idTocustomer_products", fields: [lead_l2_product_id], references: [id], onUpdate: NoAction)
-  customer_products_opportunity_candidates_lead_product_idTocustomer_products                                    customer_products?                    @relation("opportunity_candidates_lead_product_idTocustomer_products", fields: [lead_product_id], references: [id], onUpdate: NoAction)
-  product_scoring_results                                                                                        product_scoring_results?              @relation(fields: [lead_product_scoring_result_id], references: [id], onUpdate: NoAction)
-  opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates       opportunity_candidates?               @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates", fields: [relationship_anchor_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_relationship_anchor_fkey")
-  other_opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates opportunity_candidates[]              @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates")
-  research_runs                                                                                                  research_runs                         @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  companies                                                                                                      companies                                    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates                opportunity_candidates?                      @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates", fields: [depends_on_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_depends_on_fkey")
+  other_opportunity_candidates_opportunity_candidates_depends_on_opportunity_idToopportunity_candidates          opportunity_candidates[]                     @relation("opportunity_candidates_depends_on_opportunity_idToopportunity_candidates")
+  customer_products_opportunity_candidates_lead_l2_product_idTocustomer_products                                 customer_products?                           @relation("opportunity_candidates_lead_l2_product_idTocustomer_products", fields: [lead_l2_product_id], references: [id], onUpdate: NoAction)
+  customer_products_opportunity_candidates_lead_product_idTocustomer_products                                    customer_products?                           @relation("opportunity_candidates_lead_product_idTocustomer_products", fields: [lead_product_id], references: [id], onUpdate: NoAction)
+  product_scoring_results                                                                                        product_scoring_results?                     @relation(fields: [lead_product_scoring_result_id], references: [id], onUpdate: NoAction)
+  opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates       opportunity_candidates?                      @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates", fields: [relationship_anchor_opportunity_id], references: [id], onUpdate: NoAction, map: "opportunity_candidates_relationship_anchor_fkey")
+  other_opportunity_candidates_opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates opportunity_candidates[]                     @relation("opportunity_candidates_relationship_anchor_opportunity_idToopportunity_candidates")
+  research_runs                                                                                                  research_runs                                @relation(fields: [research_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   opportunity_candidates_deep_dive                                                                               opportunity_candidates_deep_dive?
   opportunity_company_contexts                                                                                   opportunity_company_contexts?
+  opportunity_deep_dive_property_values                                                                          opportunity_deep_dive_property_values[]
   opportunity_product_contexts                                                                                   opportunity_product_contexts?
+  opportunity_stakeholder_messages                                                                               opportunity_stakeholder_messages[]
+  sm_m_opportunity_impact_proposal_decisions                                                                     sm_m_opportunity_impact_proposal_decisions[]
+  sm_m_opportunity_impact_proposal_links                                                                         sm_m_opportunity_impact_proposal_links[]
+  sm_m_opportunity_impact_proposals                                                                              sm_m_opportunity_impact_proposals[]
   stakeholders_v2                                                                                                stakeholders_v2[]
 
   @@unique([research_run_id, company_id, ranking_version, rank_position], map: "opportunity_candidates_unique_rank")
@@ -1585,7 +1611,7 @@ model opportunity_candidates {
 
 model opportunity_candidates_deep_dive {
   id                     Int                    @id @default(autoincrement())
-  opportunity_id         BigInt                 @unique(map: "opportunity_candidates_deep_dive_unique")
+  opportunity_id         Int                    @unique(map: "opportunity_candidates_deep_dive_unique")
   data                   Json?
   created_at             DateTime               @default(now()) @db.Timestamp(6)
   updated_at             DateTime               @default(now()) @db.Timestamp(6)
@@ -1629,7 +1655,7 @@ model opportunity_seed_signal_facts {
   seed_id                              String
   seed_type                            String?                          @db.VarChar(50)
   signal_definition_id                 BigInt
-  signal_type_name                     String?                          @db.VarChar(100)
+  signal_type_name                     String?
   selected_opportunity_space           String?
   include_in_bundle_assembly           Boolean?
   viability_label                      String?                          @db.VarChar(50)
@@ -1746,6 +1772,7 @@ model persons {
   created_at                                          DateTime?         @default(now()) @db.Timestamp(6)
   updated_at                                          DateTime?         @default(now()) @db.Timestamp(6)
   contacts                                            Json?
+  job_title                                           String?
   stakeholders_stakeholders_person_idTopersons        stakeholders[]    @relation("stakeholders_person_idTopersons")
   stakeholders_stakeholders_reports_toTopersons       stakeholders[]    @relation("stakeholders_reports_toTopersons")
   stakeholders_v2_stakeholders_v2_person_idTopersons  stakeholders_v2[] @relation("stakeholders_v2_person_idTopersons")
@@ -2240,6 +2267,13 @@ model signal_definitions {
   description_fp                                                               String?
   embedding                                                                    Float[]
   search_level                                                                 String                                    @default("entity") @db.VarChar(20)
+  definition                                                                   String?
+  prompt                                                                       String?
+  instruction                                                                  String?
+  sm_signal_subcategory_id                                                     BigInt?
+  definition_hash                                                              String?                                   @default(dbgenerated("md5(definition)"))
+  prompt_hash                                                                  String?                                   @default(dbgenerated("md5(prompt)"))
+  instruction_hash                                                             String?                                   @default(dbgenerated("md5(instruction)"))
   company_signal_summary_items                                                 company_signal_summary_items[]
   customer_product_signal_links                                                customer_product_signal_links[]
   customer_product_signal_query_overrides                                      customer_product_signal_query_overrides[]
@@ -2247,6 +2281,7 @@ model signal_definitions {
   product_scoring_signal_attributions                                          product_scoring_signal_attributions[]
   product_scoring_signal_contributions                                         product_scoring_signal_contributions[]
   report_company_signal_scope                                                  report_company_signal_scope[]
+  report_signal_definitions                                                    report_signal_definitions[]
   signal_categories_signal_categories_signal_definition_idTosignal_definitions signal_categories[]                       @relation("signal_categories_signal_definition_idTosignal_definitions")
   signal_category_signal_definitions                                           signal_category_signal_definitions[]
   signal_confirmations                                                         signal_confirmations[]
@@ -2255,8 +2290,12 @@ model signal_definitions {
   signal_definitions                                                           signal_definitions?                       @relation("signal_definitionsTosignal_definitions", fields: [merged_into_signal_id], references: [id], onUpdate: NoAction)
   other_signal_definitions                                                     signal_definitions[]                      @relation("signal_definitionsTosignal_definitions")
   signal_types                                                                 signal_types                              @relation(fields: [signal_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sm_signal_subcategories                                                      SmSignalSubcategory?                      @relation(fields: [sm_signal_subcategory_id], references: [id], onUpdate: NoAction)
   signal_search_phrases                                                        signal_search_phrases[]
   signal_search_tasks                                                          signal_search_tasks[]
+  sm_signal_subcategories_industries                                           SmSignalSubcategoryIndustry[]
+  sm_signal_subcategories_industry_instructions                                SmSignalSubcategoryIndustryInstruction[]
+  sm_signal_subcategories_versions                                             SmSignalSubcategoryVersion[]
 
   @@index([category_id], map: "idx_signal_definitions_category_id")
   @@index([description_fp], map: "idx_signal_definitions_description_fp")
@@ -2266,6 +2305,9 @@ model signal_definitions {
   @@index([scope], map: "idx_signal_definitions_scope")
   @@index([semantic_fingerprint], map: "idx_signal_definitions_semantic_fingerprint")
   @@index([signal_type_id], map: "idx_signal_definitions_signal_type_id")
+  @@index([definition], map: "idx_signal_definitions_definition")
+  @@index([prompt], map: "idx_signal_definitions_prompt")
+  @@index([sm_signal_subcategory_id], map: "idx_signal_definitions_sm_signal_subcategory_id")
 }
 
 model signal_search_phrases {
@@ -2362,21 +2404,22 @@ model stakeholders {
 }
 
 model stakeholders_v2 {
-  id                                          Int                     @id @default(autoincrement())
+  id                                          Int                                @id @default(autoincrement())
   person_id                                   Int
   company_id                                  Int
-  opportunity_id                              BigInt?
+  opportunity_id                              Int?
   gate_role                                   String
   gate_role_type                              String?
   role_title                                  String?
   entity_name                                 String?
   entity_level                                String?
   rationale                                   String?
-  created_at                                  DateTime?               @default(now()) @db.Timestamp(6)
+  created_at                                  DateTime?                          @default(now()) @db.Timestamp(6)
   reports_to                                  Int?
-  opportunity_candidates                      opportunity_candidates? @relation(fields: [opportunity_id], references: [id], onUpdate: NoAction, map: "fk_stakeholders_v2_opportunity")
-  persons_stakeholders_v2_person_idTopersons  persons                 @relation("stakeholders_v2_person_idTopersons", fields: [person_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  persons_stakeholders_v2_reports_toTopersons persons?                @relation("stakeholders_v2_reports_toTopersons", fields: [reports_to], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  opportunity_stakeholder_messages            opportunity_stakeholder_messages[]
+  opportunity_candidates                      opportunity_candidates?            @relation(fields: [opportunity_id], references: [id], onUpdate: NoAction, map: "fk_stakeholders_v2_opportunity")
+  persons_stakeholders_v2_person_idTopersons  persons                            @relation("stakeholders_v2_person_idTopersons", fields: [person_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  persons_stakeholders_v2_reports_toTopersons persons?                           @relation("stakeholders_v2_reports_toTopersons", fields: [reports_to], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([person_id, company_id, opportunity_id, gate_role], map: "stakeholders_v2_person_id_company_id_opportunity_id_gate_role_k")
   @@index([company_id], map: "idx_stakeholders_v2_company_id")
@@ -2500,7 +2543,7 @@ model product_scoring_signal_attributions {
 
 model report_company_signal_scope {
   id                   BigInt             @id @default(autoincrement())
-  report_id            Int
+  report_id            BigInt
   company_id           Int
   signal_definition_id BigInt
   is_active            Boolean            @default(true)
@@ -2890,6 +2933,1102 @@ model sm_l2_product_fit_contexts {
   @@index([overall_support_status], map: "sm_l2_product_fit_contexts_support_idx")
 }
 
+model SmSignalCategory {
+  id                                         BigInt                                       @id @default(autoincrement())
+  external_id                                String                                       @db.VarChar(255)
+  name                                       String                                       @db.VarChar(255)
+  tier                                       Int?
+  parent_id                                  BigInt?
+  created_at                                 DateTime?                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime?                                    @default(now()) @db.Timestamptz(6)
+  is_active                                  Boolean                                      @default(true)
+  sm_m_monitoring_event_frame_signal_matches sm_m_monitoring_event_frame_signal_matches[]
+  sm_m_monitoring_event_frames               sm_m_monitoring_event_frames[]
+  sm_m_monitoring_event_threads              sm_m_monitoring_event_threads[]
+  parent                                     SmSignalCategory?                            @relation("SmSignalCategoryParent", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children                                   SmSignalCategory[]                           @relation("SmSignalCategoryParent")
+  subcategories                              SmSignalSubcategory[]
+
+  @@map("sm_signal_categories")
+}
+
+model SmSignalSubcategory {
+  id                                         BigInt                                       @id @default(autoincrement())
+  sm_signal_category_id                      BigInt?
+  external_id                                String                                       @db.VarChar(255)
+  name                                       String                                       @db.VarChar(255)
+  signal_class                               String                                       @db.VarChar(255)
+  sm_signal_subcategories_current_version_id BigInt?
+  created_at                                 DateTime?                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime?                                    @default(now()) @db.Timestamptz(6)
+  is_active                                  Boolean                                      @default(true)
+  signal_definitions                         signal_definitions[]
+  sm_m_monitoring_event_frame_signal_matches sm_m_monitoring_event_frame_signal_matches[]
+  sm_m_monitoring_event_frames               sm_m_monitoring_event_frames[]
+  sm_m_monitoring_event_threads              sm_m_monitoring_event_threads[]
+  category                                   SmSignalCategory?                            @relation(fields: [sm_signal_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  current_version                            SmSignalSubcategoryVersion?                  @relation("SmSubCurrentVersion", fields: [sm_signal_subcategories_current_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  industries                                 SmSignalSubcategoryIndustry[]
+  versions                                   SmSignalSubcategoryVersion[]                 @relation("SmSubAllVersions")
+
+  @@map("sm_signal_subcategories")
+}
+
+model SmSignalSubcategoryVersion {
+  id                        BigInt                @id @default(autoincrement())
+  sm_signal_subcategory_id  BigInt?
+  definition                String
+  prompt                    String
+  signal_definition_id      BigInt?
+  created_at                DateTime?             @default(now()) @db.Timestamptz(6)
+  current_for_subcategories SmSignalSubcategory[] @relation("SmSubCurrentVersion")
+  signal_definitions        signal_definitions?   @relation(fields: [signal_definition_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subcategory               SmSignalSubcategory?  @relation("SmSubAllVersions", fields: [sm_signal_subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([sm_signal_subcategory_id, definition, prompt], map: "sm_signal_subcategories_versions_subcategory_definition_prompt_")
+  @@map("sm_signal_subcategories_versions")
+}
+
+model SmSignalSubcategoryIndustry {
+  id                                              BigInt                                   @id @default(autoincrement())
+  sm_signal_subcategory_id                        BigInt?
+  gics_code                                       String?                                  @db.VarChar(8)
+  sm_signal_subcategories_industry_instruction_id BigInt?
+  signal_definition_id                            BigInt?
+  status                                          Boolean?
+  created_at                                      DateTime?                                @default(now()) @db.Timestamptz(6)
+  updated_at                                      DateTime?                                @default(now()) @db.Timestamptz(6)
+  current_instruction                             SmSignalSubcategoryIndustryInstruction?  @relation("SmIndustryCurrentInstruction", fields: [sm_signal_subcategories_industry_instruction_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "sm_signal_subcategories_indus_sm_signal_subcategories_indu_fkey")
+  subcategory                                     SmSignalSubcategory?                     @relation(fields: [sm_signal_subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "sm_signal_subcategories_industrie_sm_signal_subcategory_id_fkey")
+  signal_definitions                              signal_definitions?                      @relation(fields: [signal_definition_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  instructions                                    SmSignalSubcategoryIndustryInstruction[] @relation("SmIndustryAllInstructions")
+
+  @@map("sm_signal_subcategories_industries")
+}
+
+model SmSignalSubcategoryIndustryInstruction {
+  id                                  BigInt                        @id @default(autoincrement())
+  sm_signal_subcategories_industry_id BigInt?
+  instruction                         String
+  signal_definition_id                BigInt?
+  created_at                          DateTime?                     @default(now()) @db.Timestamptz(6)
+  instruction_hash                    String?                       @default(dbgenerated("md5(instruction)"))
+  current_for_industries              SmSignalSubcategoryIndustry[] @relation("SmIndustryCurrentInstruction")
+  industry                            SmSignalSubcategoryIndustry?  @relation("SmIndustryAllInstructions", fields: [sm_signal_subcategories_industry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "sm_signal_subcategories_indu_sm_signal_subcategories_indu_fkey1")
+  signal_definitions                  signal_definitions?           @relation(fields: [signal_definition_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "sm_signal_subcategories_industry_inst_signal_definition_id_fkey")
+
+  @@unique([sm_signal_subcategories_industry_id, instruction_hash], map: "sm_signal_subcategories_industry_instructions_industry_hash_uid")
+  @@map("sm_signal_subcategories_industry_instructions")
+}
+
+model report_step_templates {
+  id          BigInt                       @id @default(autoincrement())
+  code        String                       @unique(map: "report_step_templates_code_uniq") @db.VarChar(100)
+  name        String
+  description String?
+  is_active   Boolean                      @default(true)
+  meta        Json                         @default("{}")
+  created_at  DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime                     @default(now()) @db.Timestamptz(6)
+  steps       report_step_template_steps[]
+}
+
+model report_step_template_steps {
+  id          BigInt                  @id @default(autoincrement())
+  template_id BigInt
+  step_id     Int
+  step_order  Int
+  is_active   Boolean                 @default(true)
+  meta        Json                    @default("{}")
+  created_at  DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime                @default(now()) @db.Timestamptz(6)
+  step        report_generation_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_template_steps_step_fk")
+  template    report_step_templates   @relation(fields: [template_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_step_template_steps_template_fk")
+
+  @@unique([template_id, step_order], map: "report_step_template_steps_template_order_uniq")
+  @@unique([template_id, step_id], map: "report_step_template_steps_template_step_uniq")
+}
+
+model external_search_result_items {
+  id                    BigInt    @id @default(autoincrement())
+  provider_code         String    @db.VarChar(50)
+  source_tool_name      String    @db.VarChar(150)
+  search_id             String?
+  session_id            String?
+  report_id             Int?
+  company_id            Int?
+  company_name          String?
+  research_run_id       BigInt?
+  signal_search_task_id BigInt?
+  query_string          String?
+  queries               Json      @default("[]")
+  title                 String?
+  url                   String?
+  url_hash              String?
+  publisher             String?
+  source_domain         String?
+  publish_date          DateTime? @db.Date
+  excerpts              Json      @default("[]")
+  content_text          String?
+  meta                  Json      @default("{}")
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([company_id], map: "idx_external_search_result_items_company")
+  @@index([provider_code], map: "idx_external_search_result_items_provider")
+  @@index([research_run_id], map: "idx_external_search_result_items_research_run")
+  @@index([signal_search_task_id], map: "idx_external_search_result_items_signal_task")
+  @@index([url_hash], map: "idx_external_search_result_items_url_hash")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model opportunity_assembly_artifacts {
+  id              BigInt   @id @default(autoincrement())
+  research_run_id BigInt
+  stage           String
+  artifact_type   String
+  entity_key      String   @default("__shared__")
+  payload         Json
+  payload_version String   @default("generate_motions_v1")
+  input_order     Int      @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([research_run_id, stage, artifact_type, entity_key], map: "opportunity_assembly_artifacts_unique_entity")
+  @@index([research_run_id, stage], map: "idx_opportunity_assembly_artifacts_run_stage")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model opportunity_deep_dive_properties {
+  id                                    BigInt                                  @id @default(autoincrement())
+  property_key                          String                                  @unique(map: "opportunity_deep_dive_properties_key_uq")
+  path                                  String?
+  kind                                  String
+  value_type                            Json
+  description                           String
+  prompt                                String
+  requires_tools                        Boolean                                 @default(false)
+  fill_mode                             String
+  structure                             Json?
+  item_structure                        Json?
+  assemble_order                        Int                                     @default(100)
+  property_group                        String?
+  preferred_shape                       String?
+  notes                                 String?
+  is_active                             Boolean                                 @default(true)
+  schema_version                        Int                                     @default(2)
+  created_at                            DateTime                                @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime                                @default(now()) @db.Timestamptz(6)
+  opportunity_deep_dive_property_values opportunity_deep_dive_property_values[]
+
+  @@index([is_active, assemble_order, property_key], map: "idx_opportunity_deep_dive_properties_active_order")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model opportunity_deep_dive_property_values {
+  id                               BigInt                           @id @default(autoincrement())
+  opportunity_id                   BigInt
+  property_id                      BigInt
+  property_key                     String
+  value_json                       Json
+  status                           String                           @default("pending")
+  error_message                    String?
+  model                            String?
+  requires_tools_used              Boolean                          @default(false)
+  prompt_snapshot                  String?
+  structure_snapshot               Json?
+  meta                             Json                             @default("{}")
+  generated_at                     DateTime?                        @db.Timestamptz(6)
+  created_at                       DateTime                         @default(now()) @db.Timestamptz(6)
+  updated_at                       DateTime                         @default(now()) @db.Timestamptz(6)
+  opportunity_candidates           opportunity_candidates           @relation(fields: [opportunity_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "opportunity_deep_dive_property_values_opportunity_fk")
+  opportunity_deep_dive_properties opportunity_deep_dive_properties @relation(fields: [property_id], references: [id], onUpdate: NoAction, map: "opportunity_deep_dive_property_values_property_fk")
+
+  @@unique([opportunity_id, property_id], map: "opportunity_deep_dive_property_values_opp_property_uq")
+  @@index([opportunity_id, property_key], map: "idx_opportunity_deep_dive_property_values_opp_key")
+  @@index([opportunity_id], map: "idx_opportunity_deep_dive_property_values_opportunity")
+  @@index([property_id], map: "idx_opportunity_deep_dive_property_values_property")
+  @@index([status], map: "idx_opportunity_deep_dive_property_values_status")
+}
+
+model opportunity_stakeholder_messages {
+  id                     BigInt                 @id @default(autoincrement())
+  opportunity_id         BigInt
+  stakeholder_id         Int
+  message_subject        String
+  message_body           String
+  created_at             DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime               @default(now()) @db.Timestamptz(6)
+  opportunity_candidates opportunity_candidates @relation(fields: [opportunity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stakeholders_v2        stakeholders_v2        @relation(fields: [stakeholder_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([opportunity_id, stakeholder_id], map: "opportunity_stakeholder_messa_opportunity_id_stakeholder_id_key")
+  @@index([opportunity_id], map: "idx_opportunity_stakeholder_messages_opportunity")
+  @@index([stakeholder_id], map: "idx_opportunity_stakeholder_messages_stakeholder")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model report_signal_definitions {
+  id                       BigInt             @id @default(autoincrement())
+  report_id                Int
+  signal_definition_id     BigInt
+  customer_product_id      BigInt
+  source_type              String             @default("product_generated") @db.VarChar(50)
+  generation_batch_id      String             @db.Uuid
+  is_active                Boolean            @default(true)
+  rationale                String?
+  product_context_snapshot Json               @default("{}")
+  meta                     Json               @default("{}")
+  created_at               DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime           @default(now()) @db.Timestamptz(6)
+  customer_products        customer_products  @relation(fields: [customer_product_id], references: [id], onUpdate: NoAction)
+  reports                  reports            @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  signal_definitions       signal_definitions @relation(fields: [signal_definition_id], references: [id], onUpdate: NoAction)
+
+  @@unique([report_id, signal_definition_id, customer_product_id], map: "report_signal_definitions_unique_mapping")
+  @@index([generation_batch_id], map: "idx_report_signal_definitions_batch")
+  @@index([customer_product_id], map: "idx_report_signal_definitions_product")
+  @@index([report_id, is_active], map: "idx_report_signal_definitions_report_active")
+  @@index([signal_definition_id], map: "idx_report_signal_definitions_signal")
+}
+
+model report_source_enriched {
+  id          Int         @id @default(autoincrement())
+  source_id   BigInt
+  report_id   Int
+  company_id  Int
+  data        Json        @default("{}")
+  updated_at  DateTime    @default(now()) @db.Timestamp(6)
+  enriched    Boolean     @default(false)
+  created_at  DateTime    @default(now()) @db.Timestamp(6)
+  companies   companies   @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports     reports     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sources_new sources_new @relation(fields: [source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([source_id, report_id, company_id])
+  @@index([report_id, company_id], map: "idx_report_source_enriched_report")
+  @@index([source_id], map: "idx_report_source_enriched_source")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_company_monitoring_run_consumers {
+  id                             BigInt                         @id @default(autoincrement())
+  company_monitoring_run_id      BigInt
+  monitoring_report_target_id    BigInt
+  projection_status              String                         @default("pending") @db.VarChar(50)
+  created_at                     DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime                       @default(now()) @db.Timestamptz(6)
+  sm_m_monitoring_report_targets sm_m_monitoring_report_targets @relation(fields: [monitoring_report_target_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_company_monitoring_run_co_monitoring_report_target_id_fkey")
+  sm_m_company_monitoring_runs   sm_m_company_monitoring_runs   @relation(fields: [company_monitoring_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_company_monitoring_run_cons_company_monitoring_run_id_fkey")
+
+  @@unique([company_monitoring_run_id, monitoring_report_target_id], map: "uq_sm_co_cons_run_tgt")
+  @@index([projection_status], map: "idx_sm_co_cons_prj_stat")
+  @@index([company_monitoring_run_id], map: "idx_sm_co_cons_run")
+  @@index([monitoring_report_target_id], map: "idx_sm_co_cons_tgt")
+}
+
+model sm_m_company_monitoring_run_steps {
+  id                           BigInt                       @id @default(autoincrement())
+  company_monitoring_run_id    BigInt
+  step_code                    String                       @db.VarChar(100)
+  workflow_name                String?
+  status                       String                       @default("running") @db.VarChar(50)
+  input_payload                Json                         @default("{}")
+  output_payload               Json                         @default("{}")
+  stats                        Json                         @default("{}")
+  warnings                     Json                         @default("[]")
+  errors                       Json                         @default("[]")
+  started_at                   DateTime                     @default(now()) @db.Timestamptz(6)
+  finished_at                  DateTime?                    @db.Timestamptz(6)
+  created_at                   DateTime                     @default(now()) @db.Timestamptz(6)
+  sm_m_company_monitoring_runs sm_m_company_monitoring_runs @relation(fields: [company_monitoring_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_company_monitoring_run_step_company_monitoring_run_id_fkey")
+
+  @@index([company_monitoring_run_id, step_code], map: "idx_sm_m_company_monitoring_run_steps_run_code")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model sm_m_company_monitoring_runs {
+  id                                         BigInt                                       @id @default(autoincrement())
+  request_id                                 String                                       @unique(map: "uq_sm_co_mon_runs_req")
+  company_id                                 Int
+  run_status                                 String                                       @default("running") @db.VarChar(50)
+  run_reason                                 String                                       @default("scheduled") @db.VarChar(50)
+  window_from                                DateTime                                     @db.Timestamptz(6)
+  window_to                                  DateTime                                     @db.Timestamptz(6)
+  overlap_from                               DateTime?                                    @db.Timestamptz(6)
+  provider_profile_key                       String?                                      @db.VarChar(100)
+  signal_model_version_id                    BigInt?
+  content_fetch_version                      String                                       @default("content_fetch_v1") @db.VarChar(50)
+  article_triage_version                     String                                       @default("article_triage_v1") @db.VarChar(50)
+  event_extraction_version                   String                                       @default("event_frame_v2") @db.VarChar(50)
+  event_thread_matching_version              String                                       @default("event_thread_matching_v2") @db.VarChar(50)
+  started_at                                 DateTime                                     @default(now()) @db.Timestamptz(6)
+  finished_at                                DateTime?                                    @db.Timestamptz(6)
+  stats                                      Json                                         @default("{}")
+  warnings                                   Json                                         @default("[]")
+  errors                                     Json                                         @default("[]")
+  created_at                                 DateTime                                     @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime                                     @default(now()) @db.Timestamptz(6)
+  sm_m_company_monitoring_run_consumers      sm_m_company_monitoring_run_consumers[]
+  sm_m_company_monitoring_run_steps          sm_m_company_monitoring_run_steps[]
+  companies                                  companies                                    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_company_monitoring_state              sm_m_company_monitoring_state[]
+  sm_m_customer_event_projection_runs        sm_m_customer_event_projection_runs[]
+  sm_m_external_content_fetch_runs           sm_m_external_content_fetch_runs[]
+  sm_m_external_content_item_matches         sm_m_external_content_item_matches[]
+  sm_m_monitoring_event_extraction_attempts  sm_m_monitoring_event_extraction_attempts[]
+  sm_m_monitoring_event_frame_signal_matches sm_m_monitoring_event_frame_signal_matches[]
+  sm_m_monitoring_event_frames               sm_m_monitoring_event_frames[]
+  sm_m_monitoring_event_thread_frames        sm_m_monitoring_event_thread_frames[]
+  sm_m_opportunity_impact_proposals          sm_m_opportunity_impact_proposals[]
+
+  @@index([company_id, run_status], map: "idx_sm_cm_run_co_status")
+  @@index([company_id, window_from, window_to], map: "idx_sm_cm_run_co_win")
+  @@index([window_from, window_to], map: "idx_sm_cm_run_window")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_company_monitoring_state {
+  company_id                                Int                           @id
+  is_active                                 Boolean                       @default(true)
+  last_successful_company_monitoring_run_id BigInt?
+  next_run_at                               DateTime?                     @db.Timestamptz(6)
+  settings                                  Json                          @default("{}")
+  created_at                                DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime                      @default(now()) @db.Timestamptz(6)
+  companies                                 companies                     @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_company_monitoring_runs              sm_m_company_monitoring_runs? @relation(fields: [last_successful_company_monitoring_run_id], references: [id], onUpdate: NoAction, map: "sm_m_company_monitoring_state_last_run_fkey")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_customer_event_projection_runs {
+  id                                  BigInt                                @id @default(autoincrement())
+  request_id                          String                                @unique(map: "uq_sm_cepr_req")
+  company_monitoring_run_id           BigInt
+  monitoring_report_target_id         BigInt
+  lens_id                             BigInt?
+  projection_version                  String                                @default("customer_event_projection_v1") @db.VarChar(50)
+  status                              String                                @default("running") @db.VarChar(50)
+  started_at                          DateTime                              @default(now()) @db.Timestamptz(6)
+  finished_at                         DateTime?                             @db.Timestamptz(6)
+  stats                               Json                                  @default("{}")
+  warnings                            Json                                  @default("[]")
+  errors                              Json                                  @default("[]")
+  created_at                          DateTime                              @default(now()) @db.Timestamptz(6)
+  updated_at                          DateTime                              @default(now()) @db.Timestamptz(6)
+  sm_m_monitoring_report_targets      sm_m_monitoring_report_targets        @relation(fields: [monitoring_report_target_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_customer_event_projection_monitoring_report_target_id_fkey")
+  sm_m_company_monitoring_runs        sm_m_company_monitoring_runs          @relation(fields: [company_monitoring_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_customer_event_projection_r_company_monitoring_run_id_fkey")
+  sm_m_customer_monitoring_lenses     sm_m_customer_monitoring_lenses?      @relation(fields: [lens_id], references: [id], onUpdate: NoAction)
+  sm_m_event_customer_interpretations sm_m_event_customer_interpretations[]
+  sm_m_opportunity_impact_proposals   sm_m_opportunity_impact_proposals[]
+
+  @@unique([company_monitoring_run_id, monitoring_report_target_id, projection_version], map: "uq_sm_cepr_run_tgt_ver")
+  @@index([status], map: "idx_sm_m_customer_event_projection_runs_status")
+}
+
+model sm_m_customer_monitoring_lens_categories {
+  id                                  BigInt                          @id @default(autoincrement())
+  lens_id                             BigInt
+  category_code                       String                          @db.VarChar(100)
+  category_name                       String
+  description                         String
+  mapped_l2_product_ids               Json                            @default("[]")
+  mapped_l3_product_ids               Json                            @default("[]")
+  relevant_event_classes              Json                            @default("[]")
+  relevant_value_chain_positions      Json                            @default("[]")
+  relevant_business_impact_directions Json                            @default("[]")
+  positive_indicators                 Json                            @default("[]")
+  negative_indicators                 Json                            @default("[]")
+  validation_questions                Json                            @default("[]")
+  priority_score                      Decimal?                        @db.Decimal
+  raw_category                        Json                            @default("{}")
+  created_at                          DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                          DateTime                        @default(now()) @db.Timestamptz(6)
+  sm_m_customer_monitoring_lenses     sm_m_customer_monitoring_lenses @relation(fields: [lens_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([lens_id, category_code], map: "sm_m_customer_monitoring_lens_categor_lens_id_category_code_key")
+  @@index([category_code], map: "idx_sm_m_lens_categories_code")
+  @@index([lens_id], map: "idx_sm_m_lens_categories_lens")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model sm_m_customer_monitoring_lenses {
+  id                                       BigInt                                     @id @default(autoincrement())
+  customer_id                              Int
+  report_id                                Int?
+  lens_version                             String                                     @default("customer_monitoring_lens_v1") @db.VarChar(50)
+  status                                   String                                     @default("active") @db.VarChar(30)
+  source_summary                           String?
+  llm_model                                String?
+  llm_usage                                Json                                       @default("{}")
+  raw_output                               Json                                       @default("{}")
+  created_at                               DateTime                                   @default(now()) @db.Timestamptz(6)
+  updated_at                               DateTime                                   @default(now()) @db.Timestamptz(6)
+  sm_m_customer_event_projection_runs      sm_m_customer_event_projection_runs[]
+  sm_m_customer_monitoring_lens_categories sm_m_customer_monitoring_lens_categories[]
+  sm_m_event_customer_interpretations      sm_m_event_customer_interpretations[]
+  sm_m_monitoring_report_configs           sm_m_monitoring_report_configs[]
+
+  @@unique([customer_id, report_id, lens_version], map: "sm_m_customer_monitoring_lens_customer_id_report_id_lens_ve_key")
+  @@index([customer_id, status], map: "idx_sm_m_customer_monitoring_lenses_customer")
+  @@index([report_id], map: "idx_sm_m_customer_monitoring_lenses_report")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_event_customer_interpretations {
+  id                                  BigInt                              @id @default(autoincrement())
+  event_thread_id                     BigInt
+  lens_id                             BigInt?
+  interpretation_version              String                              @default("customer_event_interpretation_v1") @db.VarChar(50)
+  customer_relevance_label            String                              @db.VarChar(50)
+  portfolio_relevance_score           Decimal?                            @db.Decimal
+  matched_lens_categories             Json                                @default("[]")
+  mapped_l2_product_ids               Json                                @default("[]")
+  mapped_l3_product_ids               Json                                @default("[]")
+  commercial_inferences               Json                                @default("[]")
+  validation_gates                    Json                                @default("[]")
+  not_supported_for_customer          Json                                @default("[]")
+  recommended_next_action             String?                             @db.VarChar(100)
+  confidence_score                    Decimal?                            @db.Decimal
+  reasoning                           String?
+  llm_model                           String?
+  llm_usage                           Json                                @default("{}")
+  raw_output                          Json                                @default("{}")
+  created_at                          DateTime                            @default(now()) @db.Timestamptz(6)
+  updated_at                          DateTime                            @default(now()) @db.Timestamptz(6)
+  customer_event_projection_run_id    BigInt
+  supporting_signal_subcategory_ids   Json                                @default("[]")
+  signal_to_lens_reason               String?
+  company_monitoring_run_id           BigInt?
+  customer_id                         Int?
+  report_id                           Int?
+  company_id                          Int?
+  interpretation_status               String                              @default("interpreted") @db.VarChar(50)
+  relevance_class                     String?                             @db.VarChar(80)
+  impact_type                         String?                             @db.VarChar(100)
+  impact_strength                     String?                             @db.VarChar(50)
+  novelty_class                       String                              @default("new_signal") @db.VarChar(80)
+  target_opportunity_candidate_ids    Json                                @default("[]")
+  related_customer_product_ids        Json                                @default("[]")
+  interpretation_title                String?
+  interpretation_summary              String?
+  rationale                           String?
+  recommended_action                  String?                             @db.VarChar(100)
+  evidence_refs                       Json                                @default("[]")
+  risks_and_caveats                   Json                                @default("[]")
+  prior_interpretation_ids            Json                                @default("[]")
+  prior_proposal_ids                  Json                                @default("[]")
+  prior_opportunity_candidate_ids     Json                                @default("[]")
+  delta_summary                       String?
+  history_assessment                  Json                                @default("{}")
+  raw_llm_output                      Json                                @default("{}")
+  meta                                Json                                @default("{}")
+  sm_m_monitoring_event_threads       sm_m_monitoring_event_threads       @relation(fields: [event_thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_customer_monitoring_lenses     sm_m_customer_monitoring_lenses?    @relation(fields: [lens_id], references: [id], onUpdate: NoAction)
+  sm_m_customer_event_projection_runs sm_m_customer_event_projection_runs @relation(fields: [customer_event_projection_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_event_customer_interpretations_projection_run_fkey")
+  sm_m_opportunity_impact_proposals   sm_m_opportunity_impact_proposals[]
+
+  @@unique([customer_event_projection_run_id, event_thread_id, interpretation_version], map: "sm_m_event_customer_interpretations_uniq")
+  @@unique([customer_event_projection_run_id, event_thread_id, interpretation_version], map: "uq_sm_eci_prj_thread_ver")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_eci_company_run")
+  @@index([customer_id, report_id, company_id], map: "idx_sm_m_eci_customer_report_company")
+  @@index([event_thread_id], map: "idx_sm_m_eci_event_thread")
+  @@index([impact_type], map: "idx_sm_m_eci_impact_type")
+  @@index([customer_event_projection_run_id], map: "idx_sm_m_eci_projection_run")
+  @@index([recommended_action], map: "idx_sm_m_eci_recommended_action")
+  @@index([lens_id], map: "idx_sm_m_event_customer_interpretations_lens")
+  @@index([customer_event_projection_run_id], map: "idx_sm_m_event_customer_interpretations_projection_run")
+  @@index([event_thread_id], map: "idx_sm_m_event_customer_interpretations_thread")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_external_content_fetch_runs {
+  id                                     BigInt                                   @id @default(autoincrement())
+  request_id                             String
+  provider_code                          String                                   @db.VarChar(50)
+  window_from                            DateTime                                 @db.Timestamptz(6)
+  window_to                              DateTime                                 @db.Timestamptz(6)
+  fetch_mode                             String                                   @db.VarChar(100)
+  status                                 String                                   @default("running") @db.VarChar(50)
+  limit_per_page                         Int?
+  max_pages                              Int?
+  current_page                           Int?                                     @default(1)
+  raw_result_count                       Int?                                     @default(0)
+  unique_item_count                      Int?                                     @default(0)
+  request_count                          Int?                                     @default(0)
+  error_count                            Int?                                     @default(0)
+  warnings                               Json                                     @default("[]")
+  errors                                 Json                                     @default("[]")
+  input_payload                          Json?
+  started_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  finished_at                            DateTime?                                @db.Timestamptz(6)
+  created_at                             DateTime                                 @default(now()) @db.Timestamptz(6)
+  company_monitoring_run_id              BigInt?
+  fetch_scope                            String                                   @default("company_run") @db.VarChar(30)
+  sm_m_company_monitoring_runs           sm_m_company_monitoring_runs?            @relation(fields: [company_monitoring_run_id], references: [id], onUpdate: NoAction, map: "sm_m_external_content_fetch_runs_company_run_fkey")
+  sm_m_external_content_providers        sm_m_external_content_providers          @relation(fields: [provider_code], references: [provider_code], onDelete: NoAction, onUpdate: NoAction)
+  sm_m_external_content_item_matches     sm_m_external_content_item_matches[]
+  sm_m_external_content_query_executions sm_m_external_content_query_executions[]
+
+  @@index([request_id], map: "idx_fetch_runs_request_id")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_external_content_fetch_runs_company_run")
+  @@index([provider_code, window_from, window_to], map: "idx_sm_m_external_content_fetch_runs_provider_window")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_external_content_item_analyses {
+  id                                        BigInt                                      @id @default(autoincrement())
+  content_item_id                           BigInt
+  company_id                                Int
+  analysis_version                          String                                      @default("article_triage_v1")
+  target_company_relevance                  String
+  target_company_confidence                 Decimal?                                    @db.Decimal
+  is_business_relevant                      Boolean                                     @default(false)
+  has_extractable_event                     Boolean                                     @default(false)
+  article_type                              String?
+  main_topics                               Json                                        @default("[]")
+  event_type_candidates                     Json                                        @default("[]")
+  rejection_reason                          String?
+  summary                                   String?
+  llm_model                                 String?
+  llm_usage                                 Json                                        @default("{}")
+  raw_output                                Json                                        @default("{}")
+  created_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  sm_m_external_content_items               sm_m_external_content_items                 @relation(fields: [content_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_monitoring_event_extraction_attempts sm_m_monitoring_event_extraction_attempts[]
+  sm_m_monitoring_event_frames              sm_m_monitoring_event_frames[]
+
+  @@unique([content_item_id, company_id, analysis_version], map: "sm_m_external_content_item_analyses_unique")
+  @@index([content_item_id], map: "idx_sm_m_content_item_analyses_content_item_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_external_content_item_matches {
+  id                                     BigInt                                  @id @default(autoincrement())
+  content_item_id                        BigInt
+  fetch_run_id                           BigInt
+  query_execution_id                     BigInt?
+  provider_code                          String                                  @db.VarChar(50)
+  query_string                           String
+  page_number                            Int
+  rank_position                          Int?
+  provider_relevance_score               Decimal?                                @db.Decimal
+  matching_keywords                      Json                                    @default("[]")
+  raw_match_metadata                     Json                                    @default("{}")
+  matched_at                             DateTime                                @default(now()) @db.Timestamptz(6)
+  company_id                             BigInt
+  company_monitoring_run_id              BigInt?
+  sm_m_company_monitoring_runs           sm_m_company_monitoring_runs?           @relation(fields: [company_monitoring_run_id], references: [id], onUpdate: NoAction, map: "sm_m_external_content_item_matches_company_run_fkey")
+  sm_m_external_content_items            sm_m_external_content_items             @relation(fields: [content_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sm_m_external_content_fetch_runs       sm_m_external_content_fetch_runs        @relation(fields: [fetch_run_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sm_m_external_content_query_executions sm_m_external_content_query_executions? @relation(fields: [query_execution_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([content_item_id], map: "idx_item_matches_content_item")
+  @@index([fetch_run_id], map: "idx_item_matches_fetch_run")
+  @@index([company_id, content_item_id], map: "idx_sm_m_external_content_item_matches_company_item")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_external_content_item_matches_company_run")
+}
+
+model sm_m_external_content_items {
+  id                                        BigInt                                      @id @default(autoincrement())
+  provider_code                             String                                      @db.VarChar(50)
+  provider_article_id                       String
+  provider_sequence_id                      String?
+  duplicate_group_id                        String?
+  title                                     String?
+  url                                       String?
+  url_hash                                  String?
+  content_hash                              String
+  dedupe_key                                String?                                     @unique @default(dbgenerated("COALESCE(NULLIF(url_hash, ''::text), (((provider_code)::text || ':'::text) || provider_article_id), content_hash)"))
+  source_name                               String?
+  source_domain                             String?
+  publisher                                 String?
+  author_name                               String?
+  language_code                             String?                                     @db.VarChar(16)
+  source_country                            String?                                     @db.VarChar(16)
+  published_at                              DateTime?                                   @db.Timestamptz(6)
+  harvested_at                              DateTime?                                   @db.Timestamptz(6)
+  discovered_at                             DateTime                                    @default(now()) @db.Timestamptz(6)
+  excerpt                                   String?
+  content                                   String?
+  relevance_score                           Decimal?                                    @db.Decimal
+  matching_keywords                         Json                                        @default("[]")
+  provider_raw                              Json                                        @default("{}")
+  created_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime                                    @default(now()) @db.Timestamptz(6)
+  sm_m_external_content_item_analyses       sm_m_external_content_item_analyses[]
+  sm_m_external_content_item_matches        sm_m_external_content_item_matches[]
+  sm_m_monitoring_event_extraction_attempts sm_m_monitoring_event_extraction_attempts[]
+  sm_m_monitoring_event_frames              sm_m_monitoring_event_frames[]
+}
+
+model sm_m_external_content_providers {
+  id                               Int                                @id @default(autoincrement())
+  provider_code                    String                             @unique @db.VarChar(50)
+  display_name                     String                             @db.VarChar(255)
+  api_version                      String?                            @db.VarChar(50)
+  is_active                        Boolean                            @default(true)
+  config                           Json                               @default("{}")
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  updated_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  sm_m_external_content_fetch_runs sm_m_external_content_fetch_runs[]
+}
+
+model sm_m_external_content_query_executions {
+  id                                 BigInt                               @id @default(autoincrement())
+  fetch_run_id                       BigInt
+  provider_code                      String                               @db.VarChar(50)
+  query_string                       String
+  page_number                        Int                                  @default(1)
+  sequence_id                        String?
+  window_from                        DateTime?                            @db.Timestamptz(6)
+  window_to                          DateTime?                            @db.Timestamptz(6)
+  http_method                        String?                              @db.VarChar(10)
+  http_url                           String?
+  http_query                         Json?
+  status                             String?                              @default("executed") @db.VarChar(50)
+  executed_at                        DateTime                             @default(now()) @db.Timestamptz(6)
+  sm_m_external_content_item_matches sm_m_external_content_item_matches[]
+  sm_m_external_content_fetch_runs   sm_m_external_content_fetch_runs     @relation(fields: [fetch_run_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sm_m_monitoring_cycle_runs_deprecated {
+  id                                              BigInt                                            @id(map: "sm_m_monitoring_cycle_runs_pkey") @default(autoincrement())
+  request_id                                      String                                            @unique(map: "sm_m_monitoring_cycle_runs_request_unique")
+  report_id                                       Int
+  company_id                                      Int
+  customer_id                                     Int?
+  provider_code                                   String?                                           @db.VarChar(50)
+  window_from                                     DateTime                                          @db.Timestamptz(6)
+  window_to                                       DateTime                                          @db.Timestamptz(6)
+  run_mode                                        String                                            @default("weekly_monitoring") @db.VarChar(100)
+  status                                          String                                            @default("running") @db.VarChar(50)
+  input_payload                                   Json                                              @default("{}")
+  resolved_config                                 Json                                              @default("{}")
+  stats                                           Json                                              @default("{}")
+  warnings                                        Json                                              @default("[]")
+  errors                                          Json                                              @default("[]")
+  started_at                                      DateTime                                          @default(now()) @db.Timestamptz(6)
+  finished_at                                     DateTime?                                         @db.Timestamptz(6)
+  created_at                                      DateTime                                          @default(now()) @db.Timestamptz(6)
+  updated_at                                      DateTime                                          @default(now()) @db.Timestamptz(6)
+  companies                                       companies                                         @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_monitoring_cycle_runs_company_id_fkey")
+  reports                                         reports                                           @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_monitoring_cycle_runs_report_id_fkey")
+  sm_m_monitoring_cycle_steps_deprecated          sm_m_monitoring_cycle_steps_deprecated[]
+  sm_m_monitoring_report_company_state_deprecated sm_m_monitoring_report_company_state_deprecated[]
+
+  @@index([report_id, company_id, provider_code, status], map: "idx_sm_m_monitoring_cycle_runs_report_company")
+  @@index([window_from, window_to], map: "idx_sm_m_monitoring_cycle_runs_window")
+}
+
+model sm_m_monitoring_cycle_steps_deprecated {
+  id                                    BigInt                                @id(map: "sm_m_monitoring_cycle_steps_pkey") @default(autoincrement())
+  monitoring_cycle_run_id               BigInt
+  step_code                             String                                @db.VarChar(100)
+  workflow_name                         String?
+  status                                String                                @default("running") @db.VarChar(50)
+  input_payload                         Json                                  @default("{}")
+  output_payload                        Json                                  @default("{}")
+  stats                                 Json                                  @default("{}")
+  warnings                              Json                                  @default("[]")
+  errors                                Json                                  @default("[]")
+  started_at                            DateTime                              @default(now()) @db.Timestamptz(6)
+  finished_at                           DateTime?                             @db.Timestamptz(6)
+  created_at                            DateTime                              @default(now()) @db.Timestamptz(6)
+  sm_m_monitoring_cycle_runs_deprecated sm_m_monitoring_cycle_runs_deprecated @relation(fields: [monitoring_cycle_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_monitoring_cycle_steps_monitoring_cycle_run_id_fkey")
+
+  @@index([monitoring_cycle_run_id, step_code], map: "idx_sm_m_monitoring_cycle_steps_run")
+}
+
+model sm_m_monitoring_event_extraction_attempts {
+  id                                  BigInt                               @id @default(autoincrement())
+  content_item_id                     BigInt
+  content_analysis_id                 BigInt?
+  company_id                          Int
+  extraction_version                  String                               @default("event_frame_v1") @db.VarChar(50)
+  extraction_status                   String                               @db.VarChar(50)
+  rejection_reason                    String?
+  event_count                         Int                                  @default(0)
+  llm_model                           String?
+  llm_usage                           Json                                 @default("{}")
+  raw_output                          Json                                 @default("{}")
+  created_at                          DateTime                             @default(now()) @db.Timestamptz(6)
+  updated_at                          DateTime                             @default(now()) @db.Timestamptz(6)
+  company_monitoring_run_id           BigInt?
+  signal_model_version_id             BigInt?
+  sm_m_external_content_item_analyses sm_m_external_content_item_analyses? @relation(fields: [content_analysis_id], references: [id], onUpdate: NoAction, map: "sm_m_monitoring_event_extraction_attem_content_analysis_id_fkey")
+  sm_m_company_monitoring_runs        sm_m_company_monitoring_runs?        @relation(fields: [company_monitoring_run_id], references: [id], onUpdate: NoAction, map: "sm_m_monitoring_event_extraction_attempts_company_run_fkey")
+  sm_m_external_content_items         sm_m_external_content_items          @relation(fields: [content_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_monitoring_event_frames        sm_m_monitoring_event_frames[]
+
+  @@unique([content_item_id, company_id, extraction_version], map: "sm_m_event_extraction_attempts_unique")
+  @@index([company_id, extraction_version], map: "idx_sm_m_event_extraction_attempts_company")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_event_extraction_attempts_company_run")
+  @@index([company_id, extraction_version], map: "idx_sm_m_event_extraction_attempts_company_version")
+  @@index([content_item_id], map: "idx_sm_m_event_extraction_attempts_content")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_monitoring_event_frame_signal_matches {
+  id                           BigInt                        @id @default(autoincrement())
+  event_frame_id               BigInt
+  company_monitoring_run_id    BigInt?
+  signal_model_version_id      BigInt?
+  sm_signal_category_id        BigInt
+  sm_signal_subcategory_id     BigInt
+  match_role                   String                        @db.VarChar(30)
+  confidence_score             Decimal?                      @db.Decimal
+  evidence_basis               String?
+  created_at                   DateTime                      @default(now()) @db.Timestamptz(6)
+  sm_signal_categories         SmSignalCategory              @relation(fields: [sm_signal_category_id], references: [id], onUpdate: NoAction, map: "fk_sm_mefsm_sig_cat")
+  sm_signal_subcategories      SmSignalSubcategory           @relation(fields: [sm_signal_subcategory_id], references: [id], onUpdate: NoAction, map: "fk_sm_mefsm_sig_subcat")
+  sm_m_company_monitoring_runs sm_m_company_monitoring_runs? @relation(fields: [company_monitoring_run_id], references: [id], onUpdate: NoAction, map: "sm_m_monitoring_event_frame_sign_company_monitoring_run_id_fkey")
+  sm_m_monitoring_event_frames sm_m_monitoring_event_frames  @relation(fields: [event_frame_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([event_frame_id, sm_signal_subcategory_id, match_role], map: "sm_m_event_frame_signal_matches_frame_subcat_role_unique")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_event_frame_signal_matches_company_run")
+  @@index([event_frame_id], map: "idx_sm_m_event_frame_signal_matches_frame")
+  @@index([sm_signal_subcategory_id], map: "idx_sm_m_event_frame_signal_matches_subcategory")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_monitoring_event_frames {
+  id                                         BigInt                                       @id @default(autoincrement())
+  content_item_id                            BigInt
+  content_analysis_id                        BigInt?
+  extraction_attempt_id                      BigInt?
+  company_id                                 Int
+  extraction_version                         String                                       @default("event_frame_v1") @db.VarChar(50)
+  frame_index                                Int                                          @default(1)
+  extraction_status                          String                                       @default("extracted") @db.VarChar(50)
+  event_class                                String?                                      @db.VarChar(100)
+  event_type                                 String?                                      @db.VarChar(150)
+  event_title                                String
+  event_summary                              String
+  event_date                                 DateTime?                                    @db.Timestamptz(6)
+  event_date_confidence                      String?                                      @db.VarChar(30)
+  source_published_at                        DateTime?                                    @db.Timestamptz(6)
+  event_object                               Json                                         @default("{}")
+  value_chain_position                       Json                                         @default("[]")
+  business_impact_direction                  Json                                         @default("[]")
+  affected_entities                          Json                                         @default("[]")
+  affected_products_or_services              Json                                         @default("[]")
+  affected_geographies                       Json                                         @default("[]")
+  confirmed_facts                            Json                                         @default("[]")
+  commercial_inferences                      Json                                         @default("[]")
+  not_supported                              Json                                         @default("[]")
+  source_urls                                Json                                         @default("[]")
+  relevance_score                            Decimal?                                     @db.Decimal
+  actionability_score                        Decimal?                                     @db.Decimal
+  confidence_score                           Decimal?                                     @db.Decimal
+  event_key                                  String?
+  raw_output                                 Json                                         @default("{}")
+  created_at                                 DateTime                                     @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime                                     @default(now()) @db.Timestamptz(6)
+  company_monitoring_run_id                  BigInt?
+  signal_model_version_id                    BigInt?
+  primary_signal_category_id                 BigInt?
+  primary_signal_subcategory_id              BigInt?
+  event_action_type                          String?                                      @db.VarChar(80)
+  signal_classification_confidence           Decimal?                                     @db.Decimal
+  signal_classification_reason               String?
+  sm_m_monitoring_event_frame_signal_matches sm_m_monitoring_event_frame_signal_matches[]
+  sm_signal_categories                       SmSignalCategory?                            @relation(fields: [primary_signal_category_id], references: [id], onUpdate: NoAction, map: "fk_sm_mef_sig_cat")
+  sm_signal_subcategories                    SmSignalSubcategory?                         @relation(fields: [primary_signal_subcategory_id], references: [id], onUpdate: NoAction, map: "fk_sm_mef_sig_subcat")
+  sm_m_company_monitoring_runs               sm_m_company_monitoring_runs?                @relation(fields: [company_monitoring_run_id], references: [id], onUpdate: NoAction, map: "sm_m_monitoring_event_frames_company_run_fkey")
+  sm_m_external_content_item_analyses        sm_m_external_content_item_analyses?         @relation(fields: [content_analysis_id], references: [id], onUpdate: NoAction)
+  sm_m_external_content_items                sm_m_external_content_items                  @relation(fields: [content_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_monitoring_event_extraction_attempts  sm_m_monitoring_event_extraction_attempts?   @relation(fields: [extraction_attempt_id], references: [id], onUpdate: NoAction)
+  sm_m_monitoring_event_thread_frames        sm_m_monitoring_event_thread_frames[]
+
+  @@unique([content_item_id, company_id, extraction_version, frame_index], map: "sm_m_monitoring_event_frames_unique")
+  @@index([event_class], map: "idx_sm_m_event_frames_class")
+  @@index([company_id, extraction_version], map: "idx_sm_m_event_frames_company")
+  @@index([content_item_id], map: "idx_sm_m_event_frames_content")
+  @@index([event_date], map: "idx_sm_m_event_frames_date")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_monitoring_event_frames_company_run")
+  @@index([company_id, primary_signal_subcategory_id], map: "idx_sm_m_monitoring_event_frames_company_subcategory")
+  @@index([event_action_type], map: "idx_sm_m_monitoring_event_frames_event_action_type")
+  @@index([signal_model_version_id], map: "idx_sm_m_monitoring_event_frames_signal_model")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_monitoring_event_thread_frames {
+  id                            BigInt                        @id @default(autoincrement())
+  event_thread_id               BigInt
+  event_frame_id                BigInt
+  relation_type                 String                        @db.VarChar(50)
+  match_score                   Decimal?                      @db.Decimal
+  reasoning                     String?
+  decision_raw                  Json                          @default("{}")
+  created_at                    DateTime                      @default(now()) @db.Timestamptz(6)
+  company_monitoring_run_id     BigInt?
+  sm_m_company_monitoring_runs  sm_m_company_monitoring_runs? @relation(fields: [company_monitoring_run_id], references: [id], onUpdate: NoAction, map: "sm_m_monitoring_event_thread_frames_company_run_fkey")
+  sm_m_monitoring_event_frames  sm_m_monitoring_event_frames  @relation(fields: [event_frame_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_monitoring_event_threads sm_m_monitoring_event_threads @relation(fields: [event_thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([event_thread_id, event_frame_id], map: "sm_m_monitoring_event_thread_frames_unique")
+  @@index([event_frame_id], map: "idx_sm_m_event_thread_frames_frame")
+  @@index([event_thread_id], map: "idx_sm_m_event_thread_frames_thread")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_monitoring_event_thread_frames_company_run")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_monitoring_event_threads {
+  id                                  BigInt                                @id @default(autoincrement())
+  company_id                          Int
+  canonical_event_class               String?                               @db.VarChar(100)
+  canonical_event_type                String?                               @db.VarChar(150)
+  canonical_title                     String
+  cumulative_summary                  String
+  latest_development_summary          String?
+  event_status                        String                                @default("developing") @db.VarChar(50)
+  first_seen_at                       DateTime                              @default(now()) @db.Timestamptz(6)
+  last_seen_at                        DateTime                              @default(now()) @db.Timestamptz(6)
+  event_start_date                    DateTime?                             @db.Timestamptz(6)
+  event_target_date                   DateTime?                             @db.Timestamptz(6)
+  event_object                        Json                                  @default("{}")
+  value_chain_position                Json                                  @default("[]")
+  business_impact_direction           Json                                  @default("[]")
+  affected_entities                   Json                                  @default("[]")
+  affected_products_or_services       Json                                  @default("[]")
+  affected_geographies                Json                                  @default("[]")
+  source_count                        Int                                   @default(0)
+  confidence_score                    Decimal?                              @db.Decimal
+  actionability_score                 Decimal?                              @db.Decimal
+  is_active                           Boolean                               @default(true)
+  meta                                Json                                  @default("{}")
+  created_at                          DateTime                              @default(now()) @db.Timestamptz(6)
+  updated_at                          DateTime                              @default(now()) @db.Timestamptz(6)
+  signal_model_version_id             BigInt?
+  primary_signal_category_id          BigInt?
+  primary_signal_subcategory_id       BigInt?
+  canonical_event_action_type         String?                               @db.VarChar(80)
+  signal_profile_confidence           Decimal?                              @db.Decimal
+  signal_profile_reason               String?
+  sm_m_event_customer_interpretations sm_m_event_customer_interpretations[]
+  sm_m_monitoring_event_thread_frames sm_m_monitoring_event_thread_frames[]
+  sm_signal_categories                SmSignalCategory?                     @relation(fields: [primary_signal_category_id], references: [id], onUpdate: NoAction, map: "fk_sm_met_sig_cat")
+  sm_signal_subcategories             SmSignalSubcategory?                  @relation(fields: [primary_signal_subcategory_id], references: [id], onUpdate: NoAction, map: "fk_sm_met_sig_subcat")
+
+  @@index([company_id, canonical_event_class], map: "idx_sm_m_event_threads_class")
+  @@index([company_id, is_active], map: "idx_sm_m_event_threads_company")
+  @@index([last_seen_at], map: "idx_sm_m_event_threads_last_seen")
+  @@index([company_id, primary_signal_subcategory_id, is_active], map: "idx_sm_m_monitoring_event_threads_company_subcategory_active")
+  @@index([signal_model_version_id], map: "idx_sm_m_monitoring_event_threads_signal_model")
+}
+
+model sm_m_monitoring_report_company_state_deprecated {
+  id                                    BigInt                                 @id(map: "sm_m_monitoring_report_company_state_pkey") @default(autoincrement())
+  report_id                             Int
+  company_id                            Int
+  provider_code                         String                                 @db.VarChar(50)
+  last_successful_cycle_run_id          BigInt?
+  last_successful_window_from           DateTime?                              @db.Timestamptz(6)
+  last_successful_window_to             DateTime?                              @db.Timestamptz(6)
+  last_status                           String?                                @db.VarChar(50)
+  stats                                 Json                                   @default("{}")
+  warnings                              Json                                   @default("[]")
+  errors                                Json                                   @default("[]")
+  updated_at                            DateTime                               @default(now()) @db.Timestamptz(6)
+  created_at                            DateTime                               @default(now()) @db.Timestamptz(6)
+  sm_m_monitoring_cycle_runs_deprecated sm_m_monitoring_cycle_runs_deprecated? @relation(fields: [last_successful_cycle_run_id], references: [id], onUpdate: NoAction, map: "sm_m_monitoring_report_compan_last_successful_cycle_run_id_fkey")
+  companies                             companies                              @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_monitoring_report_company_state_company_id_fkey")
+  reports                               reports                                @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_monitoring_report_company_state_report_id_fkey")
+
+  @@unique([report_id, company_id, provider_code], map: "sm_m_monitoring_report_compan_report_id_company_id_provider_key")
+  @@index([report_id, provider_code], map: "idx_sm_m_monitoring_report_company_state_report")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_monitoring_report_configs {
+  id                              BigInt                           @id @default(autoincrement())
+  report_id                       Int                              @unique(map: "uq_sm_m_rpt_cfgs_report")
+  customer_id                     Int
+  is_active                       Boolean                          @default(true)
+  cadence_type                    String                           @default("weekly") @db.VarChar(50)
+  timezone                        String                           @default("UTC") @db.VarChar(100)
+  lookback_days_initial           Int                              @default(7)
+  overlap_hours                   Int                              @default(24)
+  provider_profile_key            String?                          @db.VarChar(100)
+  signal_model_version_id         BigInt?
+  lens_id                         BigInt?
+  company_event_layer_enabled     Boolean                          @default(true)
+  customer_projection_enabled     Boolean                          @default(true)
+  next_run_at                     DateTime?                        @db.Timestamptz(6)
+  last_successful_run_at          DateTime?                        @db.Timestamptz(6)
+  settings                        Json                             @default("{}")
+  created_at                      DateTime                         @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime                         @default(now()) @db.Timestamptz(6)
+  sm_m_customer_monitoring_lenses sm_m_customer_monitoring_lenses? @relation(fields: [lens_id], references: [id], onUpdate: NoAction)
+  reports                         reports                          @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_monitoring_report_targets  sm_m_monitoring_report_targets[]
+
+  @@index([customer_id, is_active], map: "idx_sm_rcfg_customer_active")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_monitoring_report_targets {
+  id                                    BigInt                                  @id @default(autoincrement())
+  monitoring_report_config_id           BigInt
+  company_id                            Int
+  is_active                             Boolean                                 @default(true)
+  target_priority                       Decimal?                                @db.Decimal
+  source_type                           String                                  @default("report_companies") @db.VarChar(50)
+  settings                              Json                                    @default("{}")
+  created_at                            DateTime                                @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime                                @default(now()) @db.Timestamptz(6)
+  sm_m_company_monitoring_run_consumers sm_m_company_monitoring_run_consumers[]
+  sm_m_customer_event_projection_runs   sm_m_customer_event_projection_runs[]
+  companies                             companies                               @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sm_m_monitoring_report_configs        sm_m_monitoring_report_configs          @relation(fields: [monitoring_report_config_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([monitoring_report_config_id, company_id], map: "uq_sm_m_rt_cfg_company")
+  @@index([monitoring_report_config_id, is_active], map: "idx_sm_rt_cfg_active")
+  @@index([company_id, is_active], map: "idx_sm_rt_company_active")
+}
+
+model sm_m_opportunity_impact_proposal_decisions {
+  id                                BigInt                            @id @default(autoincrement())
+  proposal_id                       BigInt
+  customer_event_projection_run_id  BigInt?
+  company_monitoring_run_id         BigInt?
+  event_customer_interpretation_id  BigInt?
+  event_thread_id                   BigInt?
+  decision_type                     String                            @db.VarChar(100)
+  decision_status                   String                            @default("recorded") @db.VarChar(50)
+  decision_reason                   String?
+  reviewer_name                     String?
+  reviewer_user_id                  String?
+  decision_payload                  Json                              @default("{}")
+  related_prior_proposal_ids        Json                              @default("[]")
+  target_opportunity_candidate_id   BigInt?
+  next_action                       String?                           @db.VarChar(100)
+  next_workflow_key                 String?                           @db.VarChar(150)
+  apply_status                      String?                           @db.VarChar(50)
+  apply_error                       String?
+  created_at                        DateTime                          @default(now()) @db.Timestamptz(6)
+  applied_at                        DateTime?                         @db.Timestamptz(6)
+  sm_m_opportunity_impact_proposals sm_m_opportunity_impact_proposals @relation(fields: [proposal_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_oip_decisions_proposal_fk")
+  opportunity_candidates            opportunity_candidates?           @relation(fields: [target_opportunity_candidate_id], references: [id], onUpdate: NoAction, map: "sm_m_oip_decisions_target_opp_fk")
+
+  @@index([decision_status], map: "idx_sm_m_oip_decisions_decision_status")
+  @@index([decision_type], map: "idx_sm_m_oip_decisions_decision_type")
+  @@index([customer_event_projection_run_id], map: "idx_sm_m_oip_decisions_projection_run_id")
+  @@index([proposal_id], map: "idx_sm_m_oip_decisions_proposal_id")
+  @@index([related_prior_proposal_ids], map: "idx_sm_m_oip_decisions_related_prior_proposal_ids_gin", type: Gin)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model sm_m_opportunity_impact_proposal_links {
+  id                                BigInt                            @id @default(autoincrement())
+  proposal_id                       BigInt
+  opportunity_candidate_id          BigInt?
+  customer_product_id               BigInt?
+  link_type                         String                            @db.VarChar(100)
+  link_role                         String?                           @db.VarChar(100)
+  score                             Decimal?                          @db.Decimal
+  reasoning                         String?
+  meta                              Json                              @default("{}")
+  created_at                        DateTime                          @default(now()) @db.Timestamptz(6)
+  opportunity_candidates            opportunity_candidates?           @relation(fields: [opportunity_candidate_id], references: [id], onUpdate: NoAction, map: "sm_m_opportunity_impact_proposal__opportunity_candidate_id_fkey")
+  customer_products                 customer_products?                @relation(fields: [customer_product_id], references: [id], onUpdate: NoAction)
+  sm_m_opportunity_impact_proposals sm_m_opportunity_impact_proposals @relation(fields: [proposal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([opportunity_candidate_id], map: "idx_sm_m_opp_impact_links_opp")
+  @@index([customer_product_id], map: "idx_sm_m_opp_impact_links_product")
+  @@index([proposal_id], map: "idx_sm_m_opp_impact_links_proposal")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sm_m_opportunity_impact_proposals {
+  id                                         BigInt                                       @id @default(autoincrement())
+  event_customer_interpretation_id           BigInt
+  proposal_version                           String                                       @default("opportunity_impact_proposal_v1") @db.VarChar(50)
+  proposal_status                            String                                       @default("proposed") @db.VarChar(50)
+  impact_action                              String                                       @db.VarChar(100)
+  impact_label                               String?
+  target_opportunity_candidate_id            BigInt?
+  proposed_title                             String?
+  proposed_summary                           String
+  rationale                                  String
+  priority_score                             Decimal?                                     @db.Decimal
+  confidence_score                           Decimal?                                     @db.Decimal
+  urgency_label                              String?                                      @db.VarChar(50)
+  matched_existing_opportunities             Json                                         @default("[]")
+  mapped_l2_product_ids                      Json                                         @default("[]")
+  mapped_l3_product_ids                      Json                                         @default("[]")
+  opportunity_updates                        Json                                         @default("{}")
+  proposed_opportunity_payload               Json                                         @default("{}")
+  validation_tasks                           Json                                         @default("[]")
+  evidence_refs                              Json                                         @default("[]")
+  not_supported                              Json                                         @default("[]")
+  llm_model                                  String?
+  llm_usage                                  Json                                         @default("{}")
+  raw_output                                 Json                                         @default("{}")
+  created_at                                 DateTime                                     @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime                                     @default(now()) @db.Timestamptz(6)
+  customer_event_projection_run_id           BigInt?
+  company_monitoring_run_id                  BigInt?
+  event_thread_id                            BigInt?
+  customer_id                                Int?
+  report_id                                  Int?
+  company_id                                 Int?
+  company_name                               String?
+  dedupe_key                                 String?
+  proposal_split_assessment                  Json                                         @default("{}")
+  source_interpretation_snapshot             Json                                         @default("{}")
+  meta                                       Json                                         @default("{}")
+  accepted_at                                DateTime?                                    @db.Timestamptz(6)
+  rejected_at                                DateTime?                                    @db.Timestamptz(6)
+  applied_at                                 DateTime?                                    @db.Timestamptz(6)
+  rejection_reason                           String?
+  related_prior_proposal_ids                 Json                                         @default("[]")
+  sm_m_opportunity_impact_proposal_decisions sm_m_opportunity_impact_proposal_decisions[]
+  sm_m_opportunity_impact_proposal_links     sm_m_opportunity_impact_proposal_links[]
+  sm_m_company_monitoring_runs               sm_m_company_monitoring_runs?                @relation(fields: [company_monitoring_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_oip_company_monitoring_run_fk")
+  sm_m_customer_event_projection_runs        sm_m_customer_event_projection_runs?         @relation(fields: [customer_event_projection_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_oip_projection_run_fk")
+  sm_m_event_customer_interpretations        sm_m_event_customer_interpretations          @relation(fields: [event_customer_interpretation_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sm_m_opportunity_impact_propo_event_customer_interpretatio_fkey")
+  opportunity_candidates                     opportunity_candidates?                      @relation(fields: [target_opportunity_candidate_id], references: [id], onUpdate: NoAction, map: "sm_m_opportunity_impact_propo_target_opportunity_candidate_fkey")
+
+  @@unique([event_customer_interpretation_id, proposal_version], map: "sm_m_opportunity_impact_proposals_interpretation_version_unique")
+  @@index([company_monitoring_run_id], map: "idx_sm_m_oip_company_run")
+  @@index([customer_id, report_id, company_id], map: "idx_sm_m_oip_customer_report_company")
+  @@index([event_customer_interpretation_id], map: "idx_sm_m_oip_interpretation")
+  @@index([customer_event_projection_run_id], map: "idx_sm_m_oip_projection_run")
+  @@index([related_prior_proposal_ids], map: "idx_sm_m_oip_related_prior_proposal_ids_gin", type: Gin)
+  @@index([proposal_status, impact_action], map: "idx_sm_m_oip_status_action")
+  @@index([target_opportunity_candidate_id], map: "idx_sm_m_oip_target_opp")
+  @@index([event_thread_id], map: "idx_sm_m_oip_thread")
+  @@index([event_customer_interpretation_id], map: "idx_sm_m_opp_impact_interpretation")
+  @@index([proposal_status, impact_action], map: "idx_sm_m_opp_impact_status_action")
+}
+
+model source_kpi_links {
+  id            BigInt      @id @default(autoincrement())
+  source_id     BigInt
+  report_id     Int
+  company_id    Int
+  data_point_id String
+  data          Json?
+  created_at    DateTime    @default(now()) @db.Timestamp(6)
+  companies     companies   @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reports       reports     @relation(fields: [report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sources_new   sources_new @relation(fields: [source_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([source_id, report_id, data_point_id])
+  @@index([data_point_id], map: "idx_source_kpi_links_data_point")
+  @@index([report_id, company_id], map: "idx_source_kpi_links_report")
+  @@index([source_id], map: "idx_source_kpi_links_source")
+}
+
 enum report_generation_step_dependency_enum {
   rdp
   kpi
@@ -2926,111 +4065,4 @@ enum signal_search_task_status_enum {
   completed
   failed
   cancelled
-}
-
-model SmSignalCategory {
-  id          BigInt    @id @default(autoincrement())
-  external_id String    @db.VarChar(255)
-  name        String    @db.VarChar(255)
-  tier        Int?
-  parent_id   BigInt?
-  is_active   Boolean   @default(true)
-  created_at  DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
-
-  parent          SmSignalCategory?  @relation("SmSignalCategoryParent", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  children        SmSignalCategory[] @relation("SmSignalCategoryParent")
-  subcategories   SmSignalSubcategory[]
-
-  @@map("sm_signal_categories")
-}
-
-model SmSignalSubcategory {
-  id                                      BigInt    @id @default(autoincrement())
-  sm_signal_category_id                   BigInt?
-  external_id                             String    @db.VarChar(255)
-  name                                    String    @db.VarChar(255)
-  signal_class                            String    @db.VarChar(255)
-  sm_signal_subcategories_current_version_id BigInt?
-  is_active                               Boolean   @default(true)
-  created_at                              DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at                              DateTime? @default(now()) @db.Timestamptz(6)
-
-  category        SmSignalCategory?               @relation(fields: [sm_signal_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  current_version SmSignalSubcategoryVersion?     @relation("SmSubCurrentVersion", fields: [sm_signal_subcategories_current_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  versions        SmSignalSubcategoryVersion[]    @relation("SmSubAllVersions")
-  industries      SmSignalSubcategoryIndustry[]
-
-  @@map("sm_signal_subcategories")
-}
-
-model SmSignalSubcategoryVersion {
-  id                       BigInt    @id @default(autoincrement())
-  sm_signal_subcategory_id BigInt?
-  definition               String
-  prompt                   String
-  signal_definition_id     BigInt?
-  created_at               DateTime? @default(now()) @db.Timestamptz(6)
-
-  subcategory              SmSignalSubcategory?  @relation("SmSubAllVersions", fields: [sm_signal_subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  current_for_subcategories SmSignalSubcategory[] @relation("SmSubCurrentVersion")
-
-  @@unique([sm_signal_subcategory_id, definition, prompt])
-  @@map("sm_signal_subcategories_versions")
-}
-
-model SmSignalSubcategoryIndustry {
-  id                                              BigInt    @id @default(autoincrement())
-  sm_signal_subcategory_id                        BigInt?
-  gics_code                                       String?   @db.VarChar(8)
-  sm_signal_subcategories_industry_instruction_id BigInt?
-  signal_definition_id                            BigInt?
-  status                                          Boolean?
-  created_at                                      DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at                                      DateTime? @default(now()) @db.Timestamptz(6)
-
-  subcategory          SmSignalSubcategory?              @relation(fields: [sm_signal_subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  current_instruction  SmSignalSubcategoryIndustryInstruction? @relation("SmIndustryCurrentInstruction", fields: [sm_signal_subcategories_industry_instruction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  instructions         SmSignalSubcategoryIndustryInstruction[] @relation("SmIndustryAllInstructions")
-
-  @@map("sm_signal_subcategories_industries")
-}
-
-model SmSignalSubcategoryIndustryInstruction {
-  id                                  BigInt    @id @default(autoincrement())
-  sm_signal_subcategories_industry_id BigInt?
-  instruction                         String
-  signal_definition_id                BigInt?
-  created_at                          DateTime? @default(now()) @db.Timestamptz(6)
-
-  industry                          SmSignalSubcategoryIndustry?  @relation("SmIndustryAllInstructions", fields: [sm_signal_subcategories_industry_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  current_for_industries            SmSignalSubcategoryIndustry[] @relation("SmIndustryCurrentInstruction")
-
-  @@unique([sm_signal_subcategories_industry_id, instruction])
-  @@map("sm_signal_subcategories_industry_instructions")
-}
-
-model report_step_templates {
-  id          BigInt                        @id @default(autoincrement())
-  code        String                        @db.VarChar(100)
-  name        String
-  description String?
-  is_active   Boolean                       @default(true)
-  meta        Json?
-  created_at  DateTime?                     @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime?                     @default(now()) @db.Timestamptz(6)
-  steps       report_step_template_steps[]
-}
-
-model report_step_template_steps {
-  id          BigInt                   @id @default(autoincrement())
-  template_id BigInt
-  step_id     Int
-  step_order  Int
-  is_active   Boolean                  @default(true)
-  meta        Json?
-  created_at  DateTime?                @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime?                @default(now()) @db.Timestamptz(6)
-  template    report_step_templates    @relation(fields: [template_id], references: [id], onDelete: Cascade)
-  step        report_generation_steps  @relation(fields: [step_id], references: [id], onDelete: Cascade)
 }

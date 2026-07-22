@@ -12,6 +12,12 @@ import {
 } from "../../../../shared/kpi-score";
 import { ReportStepsRepository } from "../report-steps/report-steps.repository";
 import { DeepDiveRepository } from "./deep-dive.repository";
+import type {
+	OpportunityCard,
+	OpportunityCardStat,
+	OpportunityCardTier,
+	OpportunityCardsResponse,
+} from "../../../../types/deep-dive.types";
 import {
 	type CompanyCategoryMathDetail,
 	type CompanyDataPointResultUpdateData,
@@ -2667,5 +2673,155 @@ export class DeepDiveService {
 			validationId,
 			payload,
 		);
+	}
+
+	// --- Opportunity FIFA-style cards -------------------------------------
+
+	private static clampStat(value: number): number {
+		if (!Number.isFinite(value)) return 0;
+		return Math.max(0, Math.min(99, Math.round(value)));
+	}
+
+	private static dealSizeToStat(band: string | null): {
+		value: number;
+		raw: string | null;
+	} {
+		const key = (band ?? "").toLowerCase();
+		if (key.includes(">1m") || key.includes("1m+"))
+			return { value: 99, raw: band };
+		if (key.includes("250k-1m")) return { value: 85, raw: band };
+		if (key.includes("50k-250k")) return { value: 65, raw: band };
+		if (key.includes("<50k")) return { value: 45, raw: band };
+		return { value: band ? 55 : 0, raw: band };
+	}
+
+	private static stageToStat(stage: string | null): number {
+		switch ((stage ?? "").toLowerCase()) {
+			case "lead":
+				return 45;
+			case "discovery":
+				return 70;
+			case "qualified":
+				return 82;
+			case "proposal":
+				return 90;
+			case "won":
+				return 99;
+			default:
+				return stage ? 60 : 0;
+		}
+	}
+
+	private static tierForScore(overall: number): OpportunityCardTier {
+		if (overall >= 75) return "gold";
+		if (overall >= 50) return "silver";
+		return "bronze";
+	}
+
+	private static buildOpportunityCard(row: {
+		id: bigint;
+		title: string;
+		rank_position: number | null;
+		motion_family: string | null;
+		stage: string | null;
+		status: string | null;
+		deal_size_general: string | null;
+		horizon_name: string | null;
+		priority_score: number;
+		confidence_score: number;
+		stakeholder_count: number;
+		product_count: number;
+		deep_dive_property_count: number;
+		company_name: string | null;
+	}): OpportunityCard {
+		const overall = DeepDiveService.clampStat(row.priority_score);
+		const confidencePct = Math.round((row.confidence_score ?? 0) * 100);
+		const deal = DeepDiveService.dealSizeToStat(row.deal_size_general);
+
+		const stats: OpportunityCardStat[] = [
+			{
+				key: "confidence",
+				label: "CNF",
+				title: "Confidence",
+				value: DeepDiveService.clampStat(confidencePct),
+				raw: `${confidencePct}%`,
+			},
+			{
+				key: "committee",
+				label: "CMT",
+				title: "Buying committee",
+				value: DeepDiveService.clampStat(row.stakeholder_count * 16),
+				raw: row.stakeholder_count,
+			},
+			{
+				key: "value",
+				label: "VAL",
+				title: "Deal value",
+				value: DeepDiveService.clampStat(deal.value),
+				raw: deal.raw,
+			},
+			{
+				key: "bundle",
+				label: "BND",
+				title: "Bundle breadth",
+				value: DeepDiveService.clampStat(row.product_count * 22 + 30),
+				raw: row.product_count,
+			},
+			{
+				key: "depth",
+				label: "DPT",
+				title: "Deep-dive depth",
+				value: DeepDiveService.clampStat(
+					(row.deep_dive_property_count / 19) * 99,
+				),
+				raw: row.deep_dive_property_count,
+			},
+			{
+				key: "stage",
+				label: "STG",
+				title: "Stage progression",
+				value: DeepDiveService.clampStat(
+					DeepDiveService.stageToStat(row.stage),
+				),
+				raw: row.stage,
+			},
+		];
+
+		return {
+			id: row.id.toString(),
+			title: row.title,
+			rankPosition: row.rank_position,
+			companyName: row.company_name,
+			motionFamily: row.motion_family,
+			stage: row.stage,
+			status: row.status,
+			dealSize: row.deal_size_general,
+			horizonName: row.horizon_name,
+			overall,
+			tier: DeepDiveService.tierForScore(overall),
+			stats,
+			stakeholderCount: row.stakeholder_count,
+			productCount: row.product_count,
+		};
+	}
+
+	static async getCompanyOpportunityCards(
+		reportId: number,
+		companyId: number,
+	): Promise<OpportunityCardsResponse> {
+		const rows = await DeepDiveRepository.getCompanyOpportunityCards(
+			reportId,
+			companyId,
+		);
+		const cards = rows.map((row) => DeepDiveService.buildOpportunityCard(row));
+		return {
+			success: true,
+			data: {
+				reportId,
+				companyId,
+				companyName: cards[0]?.companyName ?? null,
+				cards,
+			},
+		};
 	}
 }

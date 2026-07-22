@@ -21,6 +21,7 @@ import type {
 	DeepDiveSettingsResponse,
 	DeepDiveSourcesParams,
 	ImportKpiModelPayload,
+	OpportunityCardsResponse,
 	ReplaceReportModelPayload,
 	ReportCloneData,
 	ReportCostStatsResponse,
@@ -240,6 +241,16 @@ export const deepDiveApi = {
 	): Promise<SalesMinerReportOverviewResponse> {
 		const response = await api.get(
 			`/deep-dive/${reportId}/sales-miner-overview`,
+		);
+		return response.data;
+	},
+
+	async getCompanyOpportunityCards(
+		reportId: number,
+		companyId: number,
+	): Promise<OpportunityCardsResponse> {
+		const response = await api.get(
+			`/deep-dive/${reportId}/companies/${companyId}/opportunity-cards`,
 		);
 		return response.data;
 	},
@@ -893,6 +904,24 @@ export const useGetSalesMinerReportOverview = (
 		queryFn: () => deepDiveApi.getSalesMinerReportOverview(reportId!),
 		enabled:
 			options?.enabled !== undefined ? options.enabled : reportId !== null,
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useGetCompanyOpportunityCards = (
+	reportId: number | null,
+	companyId: number | null,
+	options?: { enabled?: boolean },
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "opportunity-cards", reportId, companyId],
+		queryFn: () =>
+			deepDiveApi.getCompanyOpportunityCards(reportId!, companyId!),
+		enabled:
+			options?.enabled !== undefined
+				? options.enabled
+				: reportId !== null && companyId !== null,
 		staleTime: 60_000,
 		refetchOnWindowFocus: false,
 	});

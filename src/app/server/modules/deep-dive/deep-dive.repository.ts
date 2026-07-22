@@ -1027,6 +1027,62 @@ export class DeepDiveRepository {
     `;
 	}
 
+	static async getCompanyOpportunityCards(reportId: number, companyId: number) {
+		// Read-only: the latest research run for this report+company, and its
+		// opportunity_candidates plus the varying signals we turn into FIFA-style
+		// card stats (committee size, bundle breadth, deep-dive depth).
+		return prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				title: string;
+				rank_position: number | null;
+				motion_family: string | null;
+				stage: string | null;
+				status: string | null;
+				deal_size_general: string | null;
+				horizon_name: string | null;
+				priority_score: number;
+				confidence_score: number;
+				stakeholder_count: number;
+				product_count: number;
+				deep_dive_property_count: number;
+				company_name: string | null;
+			}>
+		>`
+      WITH latest_run AS (
+        SELECT rr.id
+        FROM public.research_runs rr
+        WHERE rr.report_id = ${reportId}
+          AND rr.company_id = ${companyId}
+        ORDER BY rr.created_at DESC, rr.id DESC
+        LIMIT 1
+      )
+      SELECT
+        oc.id AS id,
+        oc.title AS title,
+        oc.rank_position AS rank_position,
+        oc.motion_family AS motion_family,
+        oc.stage AS stage,
+        oc.status AS status,
+        oc.deal_size_general AS deal_size_general,
+        oc.horizon_name AS horizon_name,
+        COALESCE(oc.portfolio_priority_score, oc.score, 0)::float8 AS priority_score,
+        COALESCE(oc.confidence_score, 0)::float8 AS confidence_score,
+        (SELECT COUNT(*)::int FROM public.stakeholders_v2 s
+           WHERE s.opportunity_id = oc.id) AS stakeholder_count,
+        (SELECT COUNT(*)::int FROM public.opportunity_candidate_items i
+           WHERE i.opportunity_candidate_id = oc.id) AS product_count,
+        (SELECT COUNT(DISTINCT pv.property_key)::int
+           FROM public.opportunity_deep_dive_property_values pv
+           WHERE pv.opportunity_id = oc.id) AS deep_dive_property_count,
+        c.name AS company_name
+      FROM public.opportunity_candidates oc
+      JOIN public.companies c ON c.id = oc.company_id
+      WHERE oc.research_run_id = (SELECT id FROM latest_run)
+      ORDER BY oc.rank_position NULLS LAST, oc.id
+    `;
+	}
+
 	static async getReportStepStatusSummary(reportId: number) {
 		return prisma.report_step_statuses.groupBy({
 			by: ["status"],
