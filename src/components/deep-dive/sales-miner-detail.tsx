@@ -119,7 +119,7 @@ function CompaniesTable({
 	reportId,
 	showSignals,
 	title,
-	basePath = "/sales-miner",
+	basePath = "/sales-miner/reports",
 	customerId,
 }: {
 	companies: SalesMinerReportCompanyRow[];
@@ -793,9 +793,6 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 	const isAccountV2 = typeLevel === "account" && accountVersion === "2";
 	const showLevelTag = typeLevel !== null && !isAccountV2;
 
-	const backHref = "/sales-miner";
-	const backLabel = "Sales Miner";
-
 	return (
 		<Layout style={{ minHeight: "100vh", background: BG }}>
 			<Content style={{ padding: 24, background: BG, minHeight: "100vh" }}>
@@ -804,7 +801,8 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 					<div style={{ marginBottom: 24 }}>
 						<DeepDiveBreadcrumbs
 							items={[
-								{ label: backLabel, href: backHref },
+								{ label: "Sales Miner", href: "/sales-miner" },
+								{ label: "Reports", href: "/sales-miner?tab=reports" },
 								{ label: report?.name || `Report #${reportId}` },
 							]}
 						/>
@@ -832,7 +830,7 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 								<Button
 									icon={<SettingOutlined />}
 									onClick={() =>
-										router.push(`/sales-miner/${reportId}/settings`)
+										router.push(`/sales-miner/reports/${reportId}/settings`)
 									}
 								>
 									Settings
@@ -840,7 +838,9 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 								<Button
 									icon={<AppstoreOutlined />}
 									onClick={() =>
-										router.push(`/sales-miner/${reportId}/signal-catalog`)
+										router.push(
+											`/sales-miner/reports/${reportId}/signal-catalog`,
+										)
 									}
 								>
 									Signal Catalog
@@ -860,7 +860,7 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 					<SummaryCards
 						reportId={reportId}
 						settingsName={report?.settings?.name ?? null}
-						basePath="/sales-miner"
+						basePath="/sales-miner/reports"
 						compact
 					/>
 

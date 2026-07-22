@@ -448,6 +448,7 @@ export class DeepDiveController {
 			const status = parseStatus(searchParams.get("status"));
 			const useCaseRaw = toNumber(searchParams.get("useCaseId"));
 			const industryRaw = toNumber(searchParams.get("industryId"));
+			const customerRaw = toNumber(searchParams.get("customerId"));
 			const sortBy = searchParams.get("sortBy")?.trim() || undefined;
 			const sortOrder = parseSortOrder(searchParams.get("sortOrder"));
 			const createdFrom = parseDate(searchParams.get("createdFrom"));
@@ -466,6 +467,7 @@ export class DeepDiveController {
 				status: status || undefined,
 				useCaseId: useCaseRaw && useCaseRaw > 0 ? useCaseRaw : undefined,
 				industryId: industryRaw && industryRaw > 0 ? industryRaw : undefined,
+				customerId: customerRaw && customerRaw > 0 ? customerRaw : undefined,
 				reportType,
 				sortBy,
 				sortOrder,
@@ -2075,6 +2077,149 @@ export class DeepDiveController {
 			console.error("❌ DeepDiveController.addCompanyToReport:", error);
 			return NextResponse.json(
 				{ success: false, error: "Failed to add company" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async createCompany(request: NextRequest): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const body = await request.json();
+			if (!body?.name || typeof body.name !== "string") {
+				return NextResponse.json(
+					{ success: false, error: "Company name is required" },
+					{ status: 400 },
+				);
+			}
+
+			const reportId =
+				body.reportId != null && Number.isFinite(Number(body.reportId))
+					? Number(body.reportId)
+					: null;
+
+			const result = await DeepDiveService.createCompany({
+				name: body.name,
+				listed: body.listed,
+				url: body.url ?? null,
+				logoUrl: body.logoUrl ?? null,
+				countryCode: body.countryCode ?? null,
+				industryId: body.industryId ?? null,
+				gicsCode: body.gicsCode ?? null,
+				investPortal: body.investPortal ?? null,
+				careerPortal: body.careerPortal ?? null,
+				slug: body.slug ?? null,
+				reportRole: body.reportRole ?? null,
+				additionalData: body.additionalData,
+				parentCompanyId: body.parentCompanyId ?? null,
+				reportId,
+				verified:
+					typeof body.verified === "boolean" ? body.verified : undefined,
+			});
+
+			if (!result.success) {
+				return NextResponse.json(result, { status: 400 });
+			}
+
+			return NextResponse.json(result);
+		} catch (error: unknown) {
+			const msg = error instanceof Error ? error.message : String(error);
+			if (msg.includes("Unique constraint")) {
+				return NextResponse.json(
+					{ success: false, error: "Slug is already in use" },
+					{ status: 409 },
+				);
+			}
+			console.error("❌ DeepDiveController.createCompany:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to create company" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async getCompanyByIdGeneric(
+		request: NextRequest,
+		idParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const companyId = Number(idParam);
+			if (!Number.isFinite(companyId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid company id" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await DeepDiveService.getCompanyByIdGeneric(companyId);
+			if (!result) {
+				return NextResponse.json(
+					{ success: false, error: "Company not found" },
+					{ status: 404 },
+				);
+			}
+
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ DeepDiveController.getCompanyByIdGeneric:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch company" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async updateCompanyGeneric(
+		request: NextRequest,
+		idParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const companyId = Number(idParam);
+			if (!Number.isFinite(companyId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid company id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = await request.json();
+			const result = await DeepDiveService.updateCompanyGeneric(companyId, {
+				name: body.name,
+				listed: body.listed,
+				url: body.url,
+				logoUrl: body.logoUrl,
+				countryCode: body.countryCode,
+				industryId: body.industryId,
+				gicsCode: body.gicsCode,
+				investPortal: body.investPortal,
+				careerPortal: body.careerPortal,
+				slug: body.slug,
+				reportRole: body.reportRole,
+				additionalData: body.additionalData,
+				parentCompanyId: body.parentCompanyId,
+				verified: body.verified,
+			});
+
+			return NextResponse.json(result);
+		} catch (error: unknown) {
+			const msg = error instanceof Error ? error.message : String(error);
+			if (msg.includes("Unique constraint")) {
+				return NextResponse.json(
+					{ success: false, error: "Slug is already in use" },
+					{ status: 409 },
+				);
+			}
+			console.error("❌ DeepDiveController.updateCompanyGeneric:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to update company" },
 				{ status: 500 },
 			);
 		}

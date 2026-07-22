@@ -31,14 +31,17 @@ export default function SalesMinerSignalCatalogPage({
 						<DeepDiveBreadcrumbs
 							items={[
 								{ label: "Sales Miner", href: "/sales-miner" },
-								{ label: reportName, href: `/sales-miner/${reportId}` },
+								{
+									label: reportName,
+									href: `/sales-miner/reports/${reportId}`,
+								},
 								{ label: "Signal Catalog" },
 							]}
 						/>
 						<Space size="middle" align="center" wrap style={{ marginTop: 8 }}>
 							<Button
 								icon={<ArrowLeftOutlined />}
-								onClick={() => router.push(`/sales-miner/${reportId}`)}
+								onClick={() => router.push(`/sales-miner/reports/${reportId}`)}
 							>
 								Back
 							</Button>

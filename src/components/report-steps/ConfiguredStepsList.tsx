@@ -2,13 +2,13 @@
 
 import {
 	Card,
-	List,
 	Button,
 	Empty,
 	Typography,
 	Space,
 	Tag,
 	InputNumber,
+	Spin,
 } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import {
@@ -68,66 +68,65 @@ export default function ConfiguredStepsList({
 						}
 					/>
 				) : (
-					<List
-						loading={loading}
-						dataSource={steps}
-						renderItem={(step) => {
+					<Spin spinning={loading}>
+						{steps.map((step) => {
 							const settingsCount = getSettingsCount(step.settings);
 
 							return (
-								<List.Item
-									actions={[
-										<Button
-											key="delete"
-											type="text"
-											danger
-											size="small"
-											icon={<DeleteOutlined />}
-											loading={removingStepId === step.id}
-											onClick={() => onRemove(step.id)}
-										/>,
-									]}
+								<div
+									key={step.id}
+									style={{
+										display: "flex",
+										alignItems: "flex-start",
+										gap: 12,
+										padding: "12px 0",
+										borderBottom: "1px solid #303030",
+									}}
 								>
-									<List.Item.Meta
-										avatar={
-											<InputNumber
-												size="small"
-												min={1}
-												value={step.order}
-												disabled={updatingOrder}
-												onChange={(val) => {
-													if (val !== null && val >= 1 && val !== step.order) {
-														onUpdateOrder(step.id, val);
-													}
-												}}
-												style={{
-													width: 52,
-													backgroundColor: "#1f1f1f",
-												}}
-											/>
-										}
-										title={
-											<Space>
-												<Tag color="grey">{step.id}</Tag>
-												<Text style={{ color: "#d9d9d9" }}>{step.name}</Text>
-												{step.dependency && (
-													<Tag color="cyan">{step.dependency}</Tag>
-												)}
-												{settingsCount > 0 && (
-													<Tag color="blue">{settingsCount} settings</Tag>
-												)}
-											</Space>
-										}
-										description={
+									<InputNumber
+										size="small"
+										min={1}
+										value={step.order}
+										disabled={updatingOrder}
+										onChange={(val) => {
+											if (val !== null && val >= 1 && val !== step.order) {
+												onUpdateOrder(step.id, val);
+											}
+										}}
+										style={{
+											width: 52,
+											backgroundColor: "#1f1f1f",
+										}}
+									/>
+									<div style={{ flex: 1, minWidth: 0 }}>
+										<Space>
+											<Tag color="grey">{step.id}</Tag>
+											<Text style={{ color: "#d9d9d9" }}>{step.name}</Text>
+											{step.dependency && (
+												<Tag color="cyan">{step.dependency}</Tag>
+											)}
+											{settingsCount > 0 && (
+												<Tag color="blue">{settingsCount} settings</Tag>
+											)}
+										</Space>
+										<div>
 											<Text style={{ color: "#8c8c8c", fontSize: 12 }} ellipsis>
 												{step.url}
 											</Text>
-										}
+										</div>
+									</div>
+									<Button
+										type="text"
+										danger
+										size="small"
+										icon={<DeleteOutlined />}
+										loading={removingStepId === step.id}
+										onClick={() => onRemove(step.id)}
 									/>
-								</List.Item>
+								</div>
 							);
-						}}
-					/>
+						})}
+					</Spin>
 				)}
 			</div>
 		</Card>

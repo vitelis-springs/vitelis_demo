@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Result, Spin } from "antd";
-import { useAuth } from "../../../../../hooks/useAuth";
-import SalesMinerSignalCatalogPage from "../../../../../components/sales-miner/sales-miner-signal-catalog-page";
+import { useAuth } from "../../../../../../../hooks/useAuth";
+import DeepDiveCompany from "../../../../../../../components/deep-dive/deep-dive-company";
 
-export default function SalesMinerSignalCatalogRoute() {
+export default function SalesMinerCompanyPage() {
 	const { isLoggedIn, isAdmin } = useAuth();
 	const router = useRouter();
 	const params = useParams();
 	const [isLoading, setIsLoading] = useState(true);
 
 	const reportId = Number(params.id);
+	const companyId = Number(params.companyId);
 
 	useEffect(() => {
 		const timer = setTimeout(() => setIsLoading(false), 100);
@@ -56,8 +57,8 @@ export default function SalesMinerSignalCatalogRoute() {
 					status="403"
 					title="Admin access required"
 					extra={
-						<Button type="primary" onClick={() => router.push("/sales-miner")}>
-							Go to Sales Miner
+						<Button type="primary" onClick={() => router.push("/history")}>
+							Go to My Reports
 						</Button>
 					}
 				/>
@@ -65,7 +66,7 @@ export default function SalesMinerSignalCatalogRoute() {
 		);
 	}
 
-	if (!Number.isFinite(reportId)) {
+	if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
 		return (
 			<div
 				style={{
@@ -78,7 +79,7 @@ export default function SalesMinerSignalCatalogRoute() {
 			>
 				<Result
 					status="404"
-					title="Report not found"
+					title="Company not found"
 					extra={
 						<Button type="primary" onClick={() => router.push("/sales-miner")}>
 							Back to list
@@ -89,5 +90,11 @@ export default function SalesMinerSignalCatalogRoute() {
 		);
 	}
 
-	return <SalesMinerSignalCatalogPage reportId={reportId} />;
+	return (
+		<DeepDiveCompany
+			reportId={reportId}
+			companyId={companyId}
+			basePath="/sales-miner/reports"
+		/>
+	);
 }

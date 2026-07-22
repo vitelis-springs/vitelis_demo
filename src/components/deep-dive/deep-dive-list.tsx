@@ -79,9 +79,15 @@ function renderBadges(record: DeepDiveListItem): React.ReactNode {
 
 interface DeepDiveListProps {
 	fixedReportType?: string;
+	embedded?: boolean;
+	customerId?: number;
 }
 
-export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
+export default function DeepDiveList({
+	fixedReportType,
+	embedded = false,
+	customerId,
+}: DeepDiveListProps) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
@@ -141,6 +147,7 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 		status: status || undefined,
 		useCaseId,
 		industryId,
+		customerId,
 		reportType,
 		sortBy,
 		sortOrder,
@@ -366,7 +373,7 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 		(record: DeepDiveListItem) => {
 			const type = fixedReportType ?? record.reportType;
 			if (type === "biz_miner") return `/biz-miner/${record.id}`;
-			if (type === "sales_miner") return `/sales-miner/${record.id}`;
+			if (type === "sales_miner") return `/sales-miner/reports/${record.id}`;
 			if (type === "internal") return `/vitelis-sales/${record.id}`;
 			return `/deep-dive/${record.id}`;
 		},
@@ -378,67 +385,75 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 		setQuery(searchText.trim());
 	};
 
-	return (
-		<DeepDivePageLayout>
-			<PageHeader
-				breadcrumbs={[{ label: pageTitle }]}
-				title={pageTitle}
-				extra={
-					fixedReportType === "biz_miner" ||
-					fixedReportType === "sales_miner" ? (
-						<Space wrap align="center">
-							{fixedReportType === "biz_miner" && (
-								<>
-									<Button
-										onClick={() => router.push("/biz-miner/company-reports")}
-									>
-										Company Reports
-									</Button>
-									<Button
-										icon={<FileExcelOutlined />}
-										onClick={() => setXlsxModalOpen(true)}
-									>
-										Export XLSX Report
-									</Button>
-								</>
-							)}
-							{fixedReportType === "sales_miner" && (
-								<>
+	const isEmbeddedSalesMiner = embedded && fixedReportType === "sales_miner";
+
+	const createReportControl =
+		fixedReportType === "sales_miner" ? (
+			<CreateSMReportModal customerId={customerId} />
+		) : fixedReportType === "biz_miner" ? (
+			<CreateReportModal
+				reportType={fixedReportType}
+				useCases={useCasesForModal}
+			/>
+		) : null;
+
+	const cloneModal =
+		cloneFromId !== null &&
+		(fixedReportType === "biz_miner" || fixedReportType === "sales_miner") ? (
+			<CreateReportModal
+				reportType={fixedReportType}
+				useCases={useCasesForModal}
+				cloneFromId={cloneFromId}
+				onCloneClose={() => setCloneFromId(null)}
+			/>
+		) : null;
+
+	const content = (
+		<>
+			{!isEmbeddedSalesMiner && (
+				<PageHeader
+					breadcrumbs={[{ label: pageTitle }]}
+					title={pageTitle}
+					extra={
+						fixedReportType === "biz_miner" ||
+						fixedReportType === "sales_miner" ? (
+							<Space wrap align="center">
+								{fixedReportType === "biz_miner" && (
+									<>
+										<Button
+											onClick={() => router.push("/biz-miner/company-reports")}
+										>
+											Company Reports
+										</Button>
+										<Button
+											icon={<FileExcelOutlined />}
+											onClick={() => setXlsxModalOpen(true)}
+										>
+											Export XLSX Report
+										</Button>
+									</>
+								)}
+								{fixedReportType === "sales_miner" && (
 									<Button
 										icon={<AppstoreOutlined />}
 										onClick={() => router.push("/sales-miner/signal-catalog")}
 									>
 										Signal Catalog
 									</Button>
-									<Button onClick={() => router.push("/sales-miner/customers")}>
-										Customers
-									</Button>
-								</>
-							)}
-							{fixedReportType === "sales_miner" ? (
-								<CreateSMReportModal />
-							) : (
-								<CreateReportModal
-									reportType={fixedReportType}
-									useCases={useCasesForModal}
-								/>
-							)}
-							{cloneFromId !== null && (
-								<CreateReportModal
-									reportType={fixedReportType}
-									useCases={useCasesForModal}
-									cloneFromId={cloneFromId}
-									onCloneClose={() => setCloneFromId(null)}
-								/>
-							)}
-						</Space>
-					) : (
-						<Text style={{ color: "#8c8c8c" }}>
-							Track progress, queries, and company statuses
-						</Text>
-					)
-				}
-			/>
+								)}
+								{createReportControl}
+								{cloneModal}
+							</Space>
+						) : (
+							<Text style={{ color: "#8c8c8c" }}>
+								Track progress, queries, and company statuses
+							</Text>
+						)
+					}
+				/>
+			)}
+
+			{isEmbeddedSalesMiner && cloneModal}
 
 			<Card
 				style={{ ...DARK_CARD_STYLE, marginBottom: 16 }}
@@ -500,6 +515,7 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 						placeholder={["Created from", "Created to"]}
 						style={{ width: 280 }}
 					/>
+					{isEmbeddedSalesMiner && createReportControl}
 				</Space>
 			</Card>
 
@@ -545,6 +561,10 @@ export default function DeepDiveList({ fixedReportType }: DeepDiveListProps) {
 					onClose={() => setXlsxModalOpen(false)}
 				/>
 			)}
-		</DeepDivePageLayout>
+		</>
 	);
+
+	if (embedded) return content;
+
+	return <DeepDivePageLayout>{content}</DeepDivePageLayout>;
 }

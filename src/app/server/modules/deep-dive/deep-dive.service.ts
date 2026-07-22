@@ -2446,25 +2446,88 @@ export class DeepDiveService {
 			return { success: true };
 		}
 
+		return DeepDiveService.createCompany({ ...payload, reportId });
+	}
+
+	static async createCompany(payload: {
+		name: string;
+		listed: boolean;
+		url?: string | null;
+		logoUrl?: string | null;
+		countryCode?: string | null;
+		industryId?: number | null;
+		gicsCode?: string | null;
+		investPortal?: string | null;
+		careerPortal?: string | null;
+		slug?: string | null;
+		reportRole?: string | null;
+		additionalData?: unknown;
+		parentCompanyId?: number | null;
+		reportId?: number | null;
+		verified?: boolean;
+	}) {
 		if (typeof payload.listed !== "boolean") {
 			return { success: false, error: "listed is required" };
 		}
 
-		const company = await DeepDiveRepository.createCompanyAndLink(reportId, {
-			name: payload.name,
-			listed: payload.listed,
-			url: payload.url,
-			countryCode: payload.countryCode,
-			industryId: payload.industryId,
-			investPortal: payload.investPortal,
-			careerPortal: payload.careerPortal,
-			slug: payload.slug,
-			reportRole: payload.reportRole,
-			additionalData: payload.additionalData,
-			parentCompanyId: payload.parentCompanyId,
-		});
+		const company = await DeepDiveRepository.createCompanyAndLink(
+			payload.reportId ?? null,
+			{
+				name: payload.name,
+				listed: payload.listed,
+				url: payload.url,
+				logoUrl: payload.logoUrl,
+				countryCode: payload.countryCode,
+				industryId: payload.industryId,
+				gicsCode: payload.gicsCode,
+				investPortal: payload.investPortal,
+				careerPortal: payload.careerPortal,
+				slug: payload.slug,
+				reportRole: payload.reportRole,
+				additionalData: payload.additionalData,
+				parentCompanyId: payload.parentCompanyId,
+				verified: payload.verified,
+			},
+		);
 
-		return { success: true, data: { companyId: company.id } };
+		return {
+			success: true,
+			data: {
+				companyId: company.id,
+				name: company.name,
+				listed: company.listed,
+				countryCode: company.country_code,
+				url: company.url,
+				logoUrl: company.logo_url,
+				gicsCode: company.gics_code,
+				verified: company.verified,
+			},
+		};
+	}
+
+	static async getCompanyByIdGeneric(companyId: number) {
+		const company = await DeepDiveRepository.getCompanyByIdGeneric(companyId);
+		if (!company) return null;
+		return {
+			success: true,
+			data: {
+				id: company.id,
+				name: company.name,
+				listed: company.listed,
+				url: company.url,
+				logoUrl: company.logo_url,
+				countryCode: company.country_code,
+				industryId: company.industry_id,
+				gicsCode: company.gics_code,
+				investPortal: company.invest_portal,
+				careerPortal: company.career_portal,
+				slug: company.slug,
+				reportRole: company.report_role,
+				additionalData: company.additional_data,
+				parentCompanyId: company.parent_company,
+				verified: company.verified,
+			},
+		};
 	}
 
 	static async updateCompany(
@@ -2508,7 +2571,46 @@ export class DeepDiveService {
 				listed: c.listed,
 				countryCode: c.country_code,
 				url: c.url,
+				verified: c.verified,
 			})),
+		};
+	}
+
+	static async updateCompanyGeneric(
+		companyId: number,
+		data: {
+			name?: string;
+			listed?: boolean | null;
+			url?: string | null;
+			logoUrl?: string | null;
+			countryCode?: string | null;
+			industryId?: number | null;
+			gicsCode?: string | null;
+			investPortal?: string | null;
+			careerPortal?: string | null;
+			slug?: string | null;
+			reportRole?: string | null;
+			additionalData?: unknown;
+			parentCompanyId?: number | null;
+			verified?: boolean;
+		},
+	) {
+		const company = await DeepDiveRepository.updateCompanyGeneric(
+			companyId,
+			data,
+		);
+		return {
+			success: true,
+			data: {
+				companyId: company.id,
+				name: company.name,
+				listed: company.listed,
+				countryCode: company.country_code,
+				url: company.url,
+				logoUrl: company.logo_url,
+				gicsCode: company.gics_code,
+				verified: company.verified,
+			},
 		};
 	}
 
