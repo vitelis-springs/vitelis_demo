@@ -433,6 +433,22 @@ export default function DeepDiveList({
 			/>
 		) : null;
 
+	const sendToDopControl =
+		fixedReportType === "sales_miner" ? (
+			<>
+				<SendToDopButton
+					reportIds={selectedReportIds}
+					disabled={selectedReportIds.length === 0}
+					disabledReason="Select at least one eligible SalesMiner report."
+				/>
+				{selectedReportIds.length > 0 && (
+					<Text style={{ color: "#8c8c8c" }}>
+						{selectedReportIds.length} selected
+					</Text>
+				)}
+			</>
+		) : null;
+
 	useEffect(() => {
 		if (fixedReportType === "sales_miner") setSelectedReportIds([]);
 	}, [
@@ -477,16 +493,7 @@ export default function DeepDiveList({
 								)}
 								{fixedReportType === "sales_miner" && (
 									<>
-										<SendToDopButton
-											reportIds={selectedReportIds}
-											disabled={selectedReportIds.length === 0}
-											disabledReason="Select at least one eligible SalesMiner report."
-										/>
-										{selectedReportIds.length > 0 && (
-											<Text style={{ color: "#8c8c8c" }}>
-												{selectedReportIds.length} selected
-											</Text>
-										)}
+										{sendToDopControl}
 										<Button
 											icon={<AppstoreOutlined />}
 											onClick={() => router.push("/sales-miner/signal-catalog")}
@@ -569,6 +576,7 @@ export default function DeepDiveList({
 						placeholder={["Created from", "Created to"]}
 						style={{ width: 280 }}
 					/>
+					{isEmbeddedSalesMiner && sendToDopControl}
 					{isEmbeddedSalesMiner && createReportControl}
 				</Space>
 			</Card>
