@@ -48,6 +48,7 @@ candidate_source AS (
    AND oc.company_id = rr.company_id
   WHERE (p.ranking_version IS NULL OR oc.ranking_version = p.ranking_version)
     AND COALESCE((oc.meta::jsonb->>'include_in_final_pack')::boolean, true) = true
+    AND oc.is_approved IS TRUE
 ),
 base AS (
   SELECT
@@ -653,7 +654,7 @@ stakeholder_rows AS (
     s.id AS stakeholder_id,
     s.gate_role,
     s.gate_role_type,
-    s.role_title,
+    p.job_title AS role_title,
     s.entity_name,
     s.entity_level,
     s.rationale,
@@ -1147,6 +1148,7 @@ SELECT
   b.competitive_seller_implication,
   b.competitive_applicability,
   b.competitive_confidence,
+  b.competitive_awareness,
   b.competitive_vendors_summary,
   b.competitive_sources_summary,
   COALESCE(p.products_summary, '') AS products_summary,

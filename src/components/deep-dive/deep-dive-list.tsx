@@ -14,7 +14,8 @@ import {
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { TableRowSelection } from "antd/es/table/interface";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import {
 	type DeepDiveListItem,
@@ -29,6 +30,7 @@ import ExportXlsxModal from "./export-xlsx-modal";
 import PageHeader from "./shared/page-header";
 import DeepDivePageLayout from "./shared/page-layout";
 import DeepDiveStatusTag from "./status-tag";
+import SendToDopButton from "../sales-miner/send-to-dop-button";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -114,6 +116,7 @@ export default function DeepDiveList({
 	);
 	const [cloneFromId, setCloneFromId] = useState<number | null>(null);
 	const [xlsxModalOpen, setXlsxModalOpen] = useState(false);
+	const [selectedReportIds, setSelectedReportIds] = useState<number[]>([]);
 
 	const createdFromParam = searchParams.get("createdFrom");
 	const createdToParam = searchParams.get("createdTo");
@@ -380,6 +383,28 @@ export default function DeepDiveList({
 		[fixedReportType],
 	);
 
+	const salesMinerRowSelection = useMemo<
+		TableRowSelection<DeepDiveListItem> | undefined
+	>(() => {
+		if (fixedReportType !== "sales_miner") return undefined;
+		return {
+			selectedRowKeys: selectedReportIds,
+			onChange: (keys) => {
+				setSelectedReportIds(
+					keys
+						.map((key) => Number(key))
+						.filter((key) => Number.isInteger(key) && key > 0),
+				);
+			},
+			getCheckboxProps: (record) => ({
+				disabled: !record.dopExportEligible,
+				title: record.dopExportEligible
+					? "Select report"
+					: "Report must be started and have at least one completed company.",
+			}),
+		};
+	}, [fixedReportType, selectedReportIds]);
+
 	const handleSearch = () => {
 		resetPage();
 		setQuery(searchText.trim());
@@ -408,6 +433,23 @@ export default function DeepDiveList({
 			/>
 		) : null;
 
+	useEffect(() => {
+		if (fixedReportType === "sales_miner") setSelectedReportIds([]);
+	}, [
+		fixedReportType,
+		query,
+		status,
+		reportType,
+		useCaseId,
+		industryId,
+		createdFromParam,
+		createdToParam,
+		page,
+		pageSize,
+		sortBy,
+		sortOrder,
+	]);
+
 	const content = (
 		<>
 			{!isEmbeddedSalesMiner && (
@@ -434,12 +476,24 @@ export default function DeepDiveList({
 									</>
 								)}
 								{fixedReportType === "sales_miner" && (
-									<Button
-										icon={<AppstoreOutlined />}
-										onClick={() => router.push("/sales-miner/signal-catalog")}
-									>
-										Signal Catalog
-									</Button>
+									<>
+										<SendToDopButton
+											reportIds={selectedReportIds}
+											disabled={selectedReportIds.length === 0}
+											disabledReason="Select at least one eligible SalesMiner report."
+										/>
+										{selectedReportIds.length > 0 && (
+											<Text style={{ color: "#8c8c8c" }}>
+												{selectedReportIds.length} selected
+											</Text>
+										)}
+										<Button
+											icon={<AppstoreOutlined />}
+											onClick={() => router.push("/sales-miner/signal-catalog")}
+										>
+											Signal Catalog
+										</Button>
+									</>
 								)}
 								{createReportControl}
 								{cloneModal}
@@ -526,6 +580,7 @@ export default function DeepDiveList({
 					rowKey="id"
 					loading={isLoading}
 					onChange={handleTableChange}
+					rowSelection={salesMinerRowSelection}
 					pagination={{
 						current: page,
 						pageSize,

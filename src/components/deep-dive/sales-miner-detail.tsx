@@ -43,6 +43,7 @@ import SummaryCards from "./summary-cards";
 import AddCompanyModal from "./add-company-modal";
 import SignalStatsTable from "./signal-stats-table";
 import CompanyListedTag from "./company-listed-tag";
+import SendToDopButton from "../sales-miner/send-to-dop-button";
 import {
 	DARK_CARD_STYLE,
 	DARK_CARD_HEADER_STYLE,
@@ -785,6 +786,9 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 		useGetSalesMinerReportOverview(reportId);
 
 	const report = overviewData?.data.report;
+	const sendToDopDisabledReason = report?.dopExportHasStarted
+		? "Report must have at least one completed company before it can be sent to DOP."
+		: "Report must be started and have at least one completed company before it can be sent to DOP.";
 	const typeLevel = smData?.data.level ?? null;
 	const accountVersion =
 		typeLevel === "account"
@@ -827,6 +831,11 @@ export default function SalesMinerDetail({ reportId }: { reportId: number }) {
 										{typeLevel} level
 									</Tag>
 								)}
+								<SendToDopButton
+									reportIds={[reportId]}
+									disabled={!report?.dopExportEligible}
+									disabledReason={sendToDopDisabledReason}
+								/>
 								<Button
 									icon={<SettingOutlined />}
 									onClick={() =>

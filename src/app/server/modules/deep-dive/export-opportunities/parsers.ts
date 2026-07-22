@@ -483,6 +483,174 @@ export type ParsedCompetitive = {
 	evidence_summary: string | null;
 };
 
+type JsonObject = Record<string, unknown>;
+
+function asObject(value: unknown): JsonObject | null {
+	if (value === null || value === undefined || value === "") return null;
+	if (typeof value === "object" && !Array.isArray(value)) {
+		return value as JsonObject;
+	}
+	if (typeof value !== "string") return null;
+	try {
+		const parsed = JSON.parse(value);
+		return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+			? (parsed as JsonObject)
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+function asObjectArray(value: unknown): JsonObject[] {
+	return Array.isArray(value)
+		? value.filter(
+				(item): item is JsonObject =>
+					Boolean(item) && typeof item === "object" && !Array.isArray(item),
+			)
+		: [];
+}
+
+function numberedLine(index: number, parts: Array<string | null>): string {
+	return [
+		String(index).padStart(2, "0"),
+		...parts.map((part) => part?.trim()).filter(Boolean),
+	].join(" | ");
+}
+
+function formatCompetitiveSourcesFromSummary(
+	sourcesSummary: unknown,
+): string | null {
+	const text = asString(sourcesSummary)?.trim();
+	if (!text) return null;
+	return text
+		.split(/\n(?=\d{2}\s*\|)/)
+		.map((block) => block.trim())
+		.filter(Boolean)
+		.join("\n\n");
+}
+
+export type CompetitiveAwarenessBasket = {
+	competitive_summary: string | null;
+	competitive_detail: string | null;
+	confidence: number | null;
+	sales_implication: string | null;
+	vendors_mentioned: string | null;
+	awareness_themes: string | null;
+	evidence_sources: string | null;
+	group_key: string | null;
+	group_name: string | null;
+	generated_at: string | null;
+};
+
+export function parseCompetitiveAwarenessBasket(
+	rawCompetitiveAwareness: unknown,
+	vendorsSummary: unknown,
+	sourcesSummary: unknown,
+	warnings: ParseWarningBucket,
+): CompetitiveAwarenessBasket {
+	try {
+		const raw = asObject(rawCompetitiveAwareness);
+		if (!raw) {
+			return {
+				competitive_summary: null,
+				competitive_detail: null,
+				confidence: null,
+				sales_implication: null,
+				vendors_mentioned: asString(vendorsSummary)?.trim() || null,
+				awareness_themes: null,
+				evidence_sources: formatCompetitiveSourcesFromSummary(sourcesSummary),
+				group_key: null,
+				group_name: null,
+				generated_at: null,
+			};
+		}
+
+		const vendors = asObjectArray(raw.vendors)
+			.map((vendor, index) =>
+				numberedLine(index + 1, [
+					asString(vendor.name),
+					asString(vendor.evidence_strength),
+					asString(vendor.role),
+				]),
+			)
+			.join("\n");
+
+		const themes = asObjectArray(raw.awareness_lanes)
+			.flatMap((lane) =>
+				asObjectArray(lane.themes).map((theme) => ({
+					laneLabel: asString(lane.lane_label),
+					theme,
+				})),
+			)
+			.map(({ laneLabel, theme }, index) => {
+				const lines = [
+					numberedLine(index + 1, [
+						asString(theme.theme),
+						asString(theme.incumbent)
+							? `incumbent=${asString(theme.incumbent)}`
+							: null,
+						laneLabel ? `lane=${laneLabel}` : null,
+					]),
+					asString(theme.awareness)
+						? `Awareness: ${asString(theme.awareness)}`
+						: null,
+					asString(theme.competitive_note)
+						? `Competitive note: ${asString(theme.competitive_note)}`
+						: null,
+					asString(theme.opportunity_note)
+						? `Opportunity note: ${asString(theme.opportunity_note)}`
+						: null,
+					asString(theme.governance)
+						? `Governance: ${asString(theme.governance)}`
+						: null,
+				].filter(Boolean);
+				return lines.join("\n");
+			})
+			.join("\n\n");
+
+		const sources = asObjectArray(raw.sources)
+			.map((source, index) => {
+				const lines = [
+					numberedLine(index + 1, [asString(source.title)]),
+					asString(source.url) ? `URL: ${asString(source.url)}` : null,
+					asString(source.evidence_summary)
+						? `Evidence: ${asString(source.evidence_summary)}`
+						: null,
+				].filter(Boolean);
+				return lines.join("\n");
+			})
+			.join("\n\n");
+
+		return {
+			competitive_summary: asString(raw.cell_text)?.trim() || null,
+			competitive_detail: asString(raw.detail_text)?.trim() || null,
+			confidence: asNumber(raw.confidence),
+			sales_implication: asString(raw.sales_implication)?.trim() || null,
+			vendors_mentioned: vendors || asString(vendorsSummary)?.trim() || null,
+			awareness_themes: themes || null,
+			evidence_sources:
+				sources || formatCompetitiveSourcesFromSummary(sourcesSummary),
+			group_key: asString(raw.group_key)?.trim() || null,
+			group_name: asString(raw.group_name)?.trim() || null,
+			generated_at: asString(raw.generated_at)?.trim() || null,
+		};
+	} catch {
+		bumpWarning(warnings, "competitive");
+		return {
+			competitive_summary: null,
+			competitive_detail: null,
+			confidence: null,
+			sales_implication: null,
+			vendors_mentioned: asString(vendorsSummary)?.trim() || null,
+			awareness_themes: null,
+			evidence_sources: formatCompetitiveSourcesFromSummary(sourcesSummary),
+			group_key: null,
+			group_name: null,
+			generated_at: null,
+		};
+	}
+}
+
 export function parseCompetitiveAwareness(
 	vendorsSummary: unknown,
 	sourcesSummary: unknown,
@@ -592,8 +760,9 @@ export function countNonEmptyLines(value: unknown): number {
 export function priorityLabel(score: unknown): string | null {
 	const n = asNumber(score);
 	if (n === null) return null;
-	if (n >= 0.8) return "High";
-	if (n >= 0.5) return "Medium";
+	const normalized = n > 1 ? n / 100 : n;
+	if (normalized >= 0.8) return "High";
+	if (normalized >= 0.5) return "Medium";
 	return "Low";
 }
 

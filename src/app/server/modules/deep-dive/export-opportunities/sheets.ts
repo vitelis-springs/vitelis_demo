@@ -37,6 +37,7 @@ import {
 	humanReviewRequired,
 	parseCompetitiveAnalysisValue,
 	parseCompetitiveAwareness,
+	parseCompetitiveAwarenessBasket,
 	parseDiscoveryQuestions,
 	parseMeddpiccValue,
 	parseMultilineEvidence,
@@ -369,43 +370,67 @@ export function buildSignalsAndEvidence(
 	};
 }
 
+function hasMeaningfulCompetitiveValue(value: unknown): boolean {
+	const text = asString(value)?.trim();
+	if (!text) return false;
+	const normalized = text.toLowerCase().replace(/[_-]+/g, " ");
+	return normalized !== "not researched" && normalized !== "n/a";
+}
+
 export function buildCompetitiveAwareness(
 	rows: RawRow[],
 	warnings: ParseWarningBucket,
 ): SheetData | null {
 	const out: Record<string, CellValue>[] = [];
 	for (const row of rows) {
-		const items = parseCompetitiveAwareness(
+		const basket = parseCompetitiveAwarenessBasket(
+			getField(row, "competitive_awareness"),
 			getField(row, "competitive_vendors_summary"),
 			getField(row, "competitive_sources_summary"),
 			warnings,
 		);
-		for (const item of items) {
-			out.push({
-				opportunity_candidate_id: cellValue(
-					getField(row, "opportunity_candidate_id"),
-				),
-				account: cellValue(getField(row, "account")),
-				opportunity_title: cellValue(getField(row, "opportunity_title")),
-				vendor: item.vendor,
-				vendor_role: item.vendor_role,
-				competitive_status: cellValue(
-					getField(row, "competitive_awareness_status"),
-				),
-				evidence_strength: item.evidence_strength,
-				applicability: cellValue(getField(row, "competitive_applicability")),
-				confidence: cellValue(getField(row, "competitive_confidence")),
-				seller_implication: cellValue(
-					getField(row, "competitive_seller_implication"),
-				),
-				evidence_summary: item.evidence_summary,
-				source_title: item.source_title,
-				source_url: item.source_url,
-			});
-		}
+		const hasCompetitiveData = [
+			getField(row, "competitive_awareness_status"),
+			getField(row, "competitive_incumbent_awareness"),
+			basket.competitive_summary,
+			basket.competitive_detail,
+			basket.vendors_mentioned,
+			basket.awareness_themes,
+			basket.evidence_sources,
+		].some(hasMeaningfulCompetitiveValue);
+		if (!hasCompetitiveData) continue;
+
+		const confidence =
+			asNumber(getField(row, "competitive_confidence")) ?? basket.confidence;
+
+		out.push({
+			opportunity_candidate_id: cellValue(
+				getField(row, "opportunity_candidate_id"),
+			),
+			account: cellValue(getField(row, "account")),
+			opportunity_title: cellValue(getField(row, "opportunity_title")),
+			competitive_status: cellValue(
+				getField(row, "competitive_awareness_status"),
+			),
+			applicability: cellValue(getField(row, "competitive_applicability")),
+			confidence,
+			seller_implication: cellValue(
+				getField(row, "competitive_seller_implication"),
+			),
+			sales_implication: basket.sales_implication,
+			competitive_summary:
+				basket.competitive_summary ||
+				cellValue(getField(row, "competitive_incumbent_awareness")),
+			competitive_detail: basket.competitive_detail,
+			vendors_mentioned: basket.vendors_mentioned,
+			awareness_themes: basket.awareness_themes,
+			evidence_sources: basket.evidence_sources,
+			group_key: basket.group_key,
+			group_name: basket.group_name,
+			generated_at: basket.generated_at,
+		});
 	}
 	if (out.length === 0) {
-		// TODO: Prefer competitive_awareness.vendors JSON array export when available.
 		return null;
 	}
 	return {
