@@ -963,6 +963,7 @@ export interface OpportunityCard {
 	title: string;
 	rankPosition: number | null;
 	companyName: string | null;
+	companyLogoUrl: string | null;
 	motionFamily: string | null;
 	stage: string | null;
 	status: string | null;
@@ -983,6 +984,73 @@ export interface OpportunityCardsResponse {
 		reportId: number;
 		companyId: number;
 		companyName: string | null;
+		companyLogoUrl: string | null;
 		cards: OpportunityCard[];
+	};
+}
+
+export type OpportunityNarrativeFieldSource = "base" | "deepDive";
+
+export interface OpportunityNarrativeField {
+	source: OpportunityNarrativeFieldSource;
+	field: string;
+	label: string;
+	value: string | null;
+}
+
+export interface OpportunityStructuredBlock {
+	key: string;
+	label: string;
+	group: string | null;
+	value: unknown;
+	status: string | null;
+}
+
+export interface OpportunityDetailResponse {
+	success: boolean;
+	data: {
+		reportId: number;
+		companyId: number;
+		opportunityId: string;
+		companyName: string | null;
+		companyLogoUrl: string | null;
+		header: {
+			title: string;
+			rankPosition: number | null;
+			motionFamily: string | null;
+			stage: string | null;
+			status: string | null;
+			dealSize: string | null;
+			horizonName: string | null;
+			priorityScore: number;
+			confidenceScore: number;
+			isApproved: boolean;
+		};
+		baseFields: OpportunityNarrativeField[];
+		deepDiveFields: OpportunityNarrativeField[];
+		structuredBlocks: OpportunityStructuredBlock[];
+		competitiveAwareness: unknown | null;
+	};
+}
+
+export interface UpdateOpportunityNarrativeFieldPayload {
+	source: OpportunityNarrativeFieldSource;
+	field: string;
+	value: string;
+}
+
+export type UpdateOpportunityNarrativeFieldErrorCode =
+	| "INVALID_SOURCE"
+	| "FIELD_NOT_EDITABLE"
+	| "INVALID_VALUE_TYPE"
+	| "EMPTY_VALUE"
+	| "FIELD_NOT_AVAILABLE";
+
+export interface UpdateOpportunityNarrativeFieldResponse {
+	success: boolean;
+	error?: string;
+	errorCode?: UpdateOpportunityNarrativeFieldErrorCode;
+	data?: {
+		field: OpportunityNarrativeField;
 	};
 }

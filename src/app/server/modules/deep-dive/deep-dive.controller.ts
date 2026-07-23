@@ -11,6 +11,10 @@ import {
 import type { SortOrder } from "../../../../types/sorting";
 import { N8NService } from "../n8n/n8n.service";
 import type {
+	UpdateOpportunityNarrativeFieldErrorCode,
+	UpdateOpportunityNarrativeFieldPayload,
+} from "../../../../types/deep-dive.types";
+import type {
 	CreateCompanyDataPointPayload,
 	CreateReportModelItemPayload,
 	DeepDiveMetricKey,
@@ -29,6 +33,18 @@ function toNumber(value: string | null) {
 	const parsed = Number(value);
 	return Number.isFinite(parsed) ? parsed : null;
 }
+
+function toBigIntId(value: string | null) {
+	if (!value || !/^\d+$/.test(value)) return null;
+	const parsed = BigInt(value);
+	return parsed > BigInt(0) ? parsed : null;
+}
+
+const OPPORTUNITY_FIELD_UPDATE_STATUS: Partial<
+	Record<UpdateOpportunityNarrativeFieldErrorCode, number>
+> = {
+	FIELD_NOT_AVAILABLE: 404,
+};
 
 function toBoolean(value: string | null) {
 	if (value === null) return null;
@@ -2206,6 +2222,127 @@ export class DeepDiveController {
 		}
 	}
 
+	static async getOpportunityDetail(
+		request: NextRequest,
+		reportIdParam: string,
+		companyIdParam: string,
+		opportunityIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			const companyId = Number(companyIdParam);
+			const opportunityId = toBigIntId(opportunityIdParam);
+			if (
+				!Number.isFinite(reportId) ||
+				!Number.isFinite(companyId) ||
+				opportunityId === null
+			) {
+				return NextResponse.json(
+					{
+						success: false,
+						error: "Invalid report, company, or opportunity id",
+					},
+					{ status: 400 },
+				);
+			}
+
+			const result = await DeepDiveService.getOpportunityDetail(
+				reportId,
+				companyId,
+				opportunityId,
+			);
+			if (!result) {
+				return NextResponse.json(
+					{ success: false, error: "Opportunity not found" },
+					{ status: 404 },
+				);
+			}
+
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ DeepDiveController.getOpportunityDetail:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch opportunity detail" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async updateOpportunityNarrativeField(
+		request: NextRequest,
+		reportIdParam: string,
+		companyIdParam: string,
+		opportunityIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			const companyId = Number(companyIdParam);
+			const opportunityId = toBigIntId(opportunityIdParam);
+			if (
+				!Number.isFinite(reportId) ||
+				!Number.isFinite(companyId) ||
+				opportunityId === null
+			) {
+				return NextResponse.json(
+					{
+						success: false,
+						error: "Invalid report, company, or opportunity id",
+					},
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json().catch(() => null)) as unknown;
+			if (!isRecord(body)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid request body" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await DeepDiveService.updateOpportunityNarrativeField(
+				reportId,
+				companyId,
+				opportunityId,
+				{
+					source: body.source,
+					field: String(body.field ?? ""),
+					value: body.value,
+				} as UpdateOpportunityNarrativeFieldPayload,
+			);
+			if (!result) {
+				return NextResponse.json(
+					{ success: false, error: "Opportunity not found" },
+					{ status: 404 },
+				);
+			}
+
+			if (!result.success) {
+				const status = result.errorCode
+					? (OPPORTUNITY_FIELD_UPDATE_STATUS[result.errorCode] ?? 400)
+					: 400;
+				return NextResponse.json(result, { status });
+			}
+
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.updateOpportunityNarrativeField:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to update opportunity field" },
+				{ status: 500 },
+			);
+		}
+	}
+
 	static async updateOpportunityCandidateApproval(
 		request: NextRequest,
 		opportunityIdParam: string,
@@ -2214,8 +2351,8 @@ export class DeepDiveController {
 			const auth = extractAdminFromRequest(request);
 			if (!auth.success) return auth.response;
 
-			const opportunityId = Number(opportunityIdParam);
-			if (!Number.isFinite(opportunityId)) {
+			const opportunityId = toBigIntId(opportunityIdParam);
+			if (opportunityId === null) {
 				return NextResponse.json(
 					{ success: false, error: "Invalid opportunity id" },
 					{ status: 400 },

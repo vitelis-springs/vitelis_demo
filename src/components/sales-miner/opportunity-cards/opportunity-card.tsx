@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
 import { Button, Checkbox, Popover, Tag, Tooltip, Typography } from "antd";
 import type {
 	KeyboardEvent as ReactKeyboardEvent,
@@ -9,9 +10,10 @@ import { useState } from "react";
 import type {
 	OpportunityCard as OpportunityCardData,
 	OpportunityCardStat,
-	OpportunityCardTier,
 } from "../../../types/deep-dive.types";
+import CompanyLogo from "../company-logo";
 import styles from "./opportunity-card.module.css";
+import { OPPORTUNITY_CARD_TIER_META } from "./opportunity-card-tiers";
 
 const { Text } = Typography;
 
@@ -21,31 +23,7 @@ const TIER_CLASS = {
 	bronze: styles.bronze,
 } as const;
 
-const TIER_LABEL = {
-	gold: "Gold",
-	silver: "Silver",
-	bronze: "Bronze",
-} as const;
-
-const TIER_TAG_COLOR: Record<OpportunityCardTier, string> = {
-	gold: "gold",
-	silver: "default",
-	bronze: "volcano",
-};
-
 const MAX_TILT = 8;
-
-function monogram(name: string | null): string {
-	if (!name) return "—";
-	const words = name.trim().split(/\s+/);
-	const first = words[0] ?? "";
-	if (first.length <= 4) return first.toUpperCase();
-	return words
-		.slice(0, 2)
-		.map((w) => w[0] ?? "")
-		.join("")
-		.toUpperCase();
-}
 
 /** Prefer the real value (count / percent); fall back to the normalised 0–99. */
 function statDisplay(stat: OpportunityCardStat): string {
@@ -70,6 +48,7 @@ export default function OpportunityCard({
 }: OpportunityCardProps) {
 	const position = (card.motionFamily ?? "OPP").toUpperCase();
 	const [menuOpen, setMenuOpen] = useState(false);
+	const tier = OPPORTUNITY_CARD_TIER_META[card.tier];
 
 	const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
 		if (e.key === "Enter" || e.key === " ") {
@@ -83,8 +62,8 @@ export default function OpportunityCard({
 	const popoverContent = (
 		<div className={styles.menu}>
 			<div className={styles.menuHead}>
-				<Tag color={TIER_TAG_COLOR[card.tier]} style={{ marginInlineEnd: 0 }}>
-					{TIER_LABEL[card.tier]}
+				<Tag color={tier.tagColor} style={{ marginInlineEnd: 0 }}>
+					{tier.label}
 				</Tag>
 				<Text strong style={{ fontSize: 22, lineHeight: 1 }}>
 					{card.overall}
@@ -180,7 +159,7 @@ export default function OpportunityCard({
 							card.isApproved ? styles.statusApproved : styles.statusRejected
 						}`}
 					>
-						{card.isApproved ? "V" : "X"}
+						{card.isApproved ? <CheckOutlined /> : <CloseOutlined />}
 					</span>
 				</Tooltip>
 				<div
@@ -193,17 +172,21 @@ export default function OpportunityCard({
 							<div className={styles.ratingBlock}>
 								<span className={styles.overall}>{card.overall}</span>
 								<span className={styles.position}>{position}</span>
-								<span className={styles.tierBadge}>
-									{TIER_LABEL[card.tier]}
-								</span>
+								<span className={styles.tierBadge}>{tier.label}</span>
 							</div>
 							<div className={styles.rightCol}>
 								{card.rankPosition != null && (
 									<span className={styles.rank}>#{card.rankPosition}</span>
 								)}
-								<span className={styles.mono}>
-									{monogram(card.companyName)}
-								</span>
+								<CompanyLogo
+									name={card.companyName}
+									logoUrl={card.companyLogoUrl}
+									size={42}
+									className={styles.mono}
+									avatarClassName={styles.logo}
+									logoBackground="rgba(255, 255, 255, 0.88)"
+									fallbackBackground="rgba(0, 0, 0, 0.2)"
+								/>
 							</div>
 						</div>
 

@@ -11,7 +11,9 @@
 	cursor: pointer;
 	transform-style: preserve-3d;
 	will-change: transform;
-	transition: transform 0.16s ease, filter 0.16s ease;
+	transition:
+		transform 0.16s ease,
+		filter 0.16s ease;
 	filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.4));
 	user-select: none;
 }
@@ -85,15 +87,33 @@
 }
 
 .gold {
-	background: linear-gradient(157deg, #fdf3b0 0%, #ecca55 34%, #cfa233 66%, #a67c1e 100%);
+	background: linear-gradient(
+		157deg,
+		#fdf3b0 0%,
+		#ecca55 34%,
+		#cfa233 66%,
+		#a67c1e 100%
+	);
 	color: #2a1e00;
 }
 .silver {
-	background: linear-gradient(157deg, #f8f9fb 0%, #d7dbe1 34%, #b2b8c1 66%, #8b9099 100%);
+	background: linear-gradient(
+		157deg,
+		#f8f9fb 0%,
+		#d7dbe1 34%,
+		#b2b8c1 66%,
+		#8b9099 100%
+	);
 	color: #1b2026;
 }
 .bronze {
-	background: linear-gradient(157deg, #efc79b 0%, #cd8c53 34%, #a86730 66%, #7a441b 100%);
+	background: linear-gradient(
+		157deg,
+		#efc79b 0%,
+		#cd8c53 34%,
+		#a86730 66%,
+		#7a441b 100%
+	);
 	color: #fff3e6;
 }
 
@@ -134,7 +154,6 @@
 	/*writing-mode: vertical-rl;*/
 	padding: 6px 12px;
 	display: block;
-	min-width: 12px;
 	min-width: 12px;
 	border-radius: 999px;
 	font-size: 9px;
@@ -268,6 +287,18 @@
 	letter-spacing: 0.5px;
 	background: rgba(0, 0, 0, 0.2);
 	border: 1px solid rgba(255, 255, 255, 0.3);
+	overflow: hidden;
+}
+
+.logo {
+	width: 100%;
+	height: 100%;
+	/*padding: 5px;*/
+	background: rgba(255, 255, 255, 0.88);
+}
+
+.logo img {
+	object-fit: contain;
 }
 
 .crest {

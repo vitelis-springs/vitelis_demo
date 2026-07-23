@@ -13,31 +13,15 @@ import type {
 	OpportunityCardsResponse,
 	OpportunityCardTier,
 } from "../../../types/deep-dive.types";
+import CompanyLogo from "../company-logo";
 import OpportunityCard from "./opportunity-card";
+import { OPPORTUNITY_CARD_TIER_META } from "./opportunity-card-tiers";
 
 const { Title, Text } = Typography;
-
-const TIER_SWATCH: Record<string, string> = {
-	gold: "linear-gradient(135deg, #fdf3b0, #cfa233)",
-	silver: "linear-gradient(135deg, #f8f9fb, #b2b8c1)",
-	bronze: "linear-gradient(135deg, #efc79b, #a86730)",
-};
 
 type SortKey = "rank" | "score";
 type TierFilter = "all" | OpportunityCardTier;
 type ApprovalFilter = "all" | "approved" | "unapproved";
-
-function crestMonogram(name: string | null | undefined): string {
-	if (!name) return "—";
-	const words = name.trim().split(/\s+/);
-	const first = words[0] ?? "";
-	if (first.length <= 4) return first.toUpperCase();
-	return words
-		.slice(0, 2)
-		.map((w) => w[0] ?? "")
-		.join("")
-		.toUpperCase();
-}
 
 interface OpportunityCardsGridProps {
 	reportId: number;
@@ -109,6 +93,7 @@ export default function OpportunityCardsGrid({
 
 	const allCards = useMemo(() => data?.data.cards ?? [], [data]);
 	const companyName = data?.data.companyName;
+	const companyLogoUrl = data?.data.companyLogoUrl;
 
 	const visibleCards = useMemo(() => {
 		const filtered = allCards
@@ -166,10 +151,14 @@ export default function OpportunityCardsGrid({
 					}}
 				>
 					<div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-						<span
+						<CompanyLogo
+							name={companyName}
+							logoUrl={companyLogoUrl}
+							size={52}
+							logoBackground="rgba(255,255,255,0.92)"
+							fallbackBackground={OPPORTUNITY_CARD_TIER_META.gold.swatch}
+							avatarStyle={{ padding: 6 }}
 							style={{
-								width: 52,
-								height: 52,
 								borderRadius: 12,
 								display: "flex",
 								alignItems: "center",
@@ -177,12 +166,10 @@ export default function OpportunityCardsGrid({
 								fontWeight: 800,
 								fontSize: 16,
 								color: "#2a1e00",
-								background: TIER_SWATCH.gold,
 								boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+								overflow: "hidden",
 							}}
-						>
-							{crestMonogram(companyName)}
-						</span>
+						/>
 						<div>
 							<Title level={4} style={{ margin: 0 }}>
 								Opportunities{companyName ? ` · ${companyName}` : ""}

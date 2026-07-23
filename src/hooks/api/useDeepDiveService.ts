@@ -22,6 +22,7 @@ import type {
 	DeepDiveSourcesParams,
 	ImportKpiModelPayload,
 	OpportunityCardsResponse,
+	OpportunityDetailResponse,
 	ReplaceReportModelPayload,
 	ReportCloneData,
 	ReportCostStatsResponse,
@@ -40,6 +41,8 @@ import type {
 	UpdateCompanyDataPointPayload,
 	UpdateCompanyDataPointResponse,
 	UpdateDeepDiveSettingsPayload,
+	UpdateOpportunityNarrativeFieldPayload,
+	UpdateOpportunityNarrativeFieldResponse,
 	UpdateQueryPayload,
 	UpdateReportModelItemPayload,
 	UpdateValidationCheckPayload,
@@ -264,6 +267,30 @@ export const deepDiveApi = {
 		const response = await api.patch(
 			`/deep-dive/${reportId}/companies/${companyId}/opportunity-cards/${opportunityId}`,
 			{ isApproved },
+		);
+		return response.data;
+	},
+
+	async getOpportunityDetail(
+		reportId: number,
+		companyId: number,
+		opportunityId: string,
+	): Promise<OpportunityDetailResponse> {
+		const response = await api.get(
+			`/deep-dive/${reportId}/companies/${companyId}/opportunities/${opportunityId}`,
+		);
+		return response.data;
+	},
+
+	async updateOpportunityNarrativeField(
+		reportId: number,
+		companyId: number,
+		opportunityId: string,
+		payload: UpdateOpportunityNarrativeFieldPayload,
+	): Promise<UpdateOpportunityNarrativeFieldResponse> {
+		const response = await api.patch(
+			`/deep-dive/${reportId}/companies/${companyId}/opportunities/${opportunityId}/fields`,
+			payload,
 		);
 		return response.data;
 	},
@@ -961,6 +988,63 @@ export const useSetOpportunityCandidateApproval = (
 				isApproved,
 			),
 		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["deep-dive", "opportunity-cards", reportId, companyId],
+			});
+		},
+	});
+};
+
+export const useGetOpportunityDetail = (
+	reportId: number | null,
+	companyId: number | null,
+	opportunityId: string | null,
+	options?: { enabled?: boolean },
+) => {
+	return useQuery({
+		queryKey: [
+			"deep-dive",
+			"opportunity-detail",
+			reportId,
+			companyId,
+			opportunityId,
+		],
+		queryFn: () =>
+			deepDiveApi.getOpportunityDetail(reportId!, companyId!, opportunityId!),
+		enabled:
+			options?.enabled !== undefined
+				? options.enabled
+				: reportId !== null && companyId !== null && opportunityId !== null,
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useUpdateOpportunityNarrativeField = (
+	reportId: number,
+	companyId: number,
+	opportunityId: string,
+) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: UpdateOpportunityNarrativeFieldPayload) =>
+			deepDiveApi.updateOpportunityNarrativeField(
+				reportId,
+				companyId,
+				opportunityId,
+				payload,
+			),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: [
+					"deep-dive",
+					"opportunity-detail",
+					reportId,
+					companyId,
+					opportunityId,
+				],
+			});
 			queryClient.invalidateQueries({
 				queryKey: ["deep-dive", "opportunity-cards", reportId, companyId],
 			});

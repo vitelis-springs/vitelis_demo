@@ -17,6 +17,11 @@ import type {
 	OpportunityCardStat,
 	OpportunityCardTier,
 	OpportunityCardsResponse,
+	OpportunityDetailResponse,
+	OpportunityNarrativeField,
+	OpportunityNarrativeFieldSource,
+	UpdateOpportunityNarrativeFieldPayload,
+	UpdateOpportunityNarrativeFieldResponse,
 } from "../../../../types/deep-dive.types";
 import {
 	type CompanyCategoryMathDetail,
@@ -75,6 +80,53 @@ type DopExportStatsRow = {
 type DopEligibility = { eligible: true } | { eligible: false; reason: string };
 
 export class DeepDiveService {
+	private static readonly OPPORTUNITY_BASE_TEXT_FIELDS = [
+		{
+			field: "title",
+			label: "Title",
+			key: "title",
+		},
+		{
+			field: "primary_business_problem",
+			label: "Business Problem",
+			key: "primary_business_problem",
+		},
+		{
+			field: "primary_value_proposition",
+			label: "Value Proposition",
+			key: "primary_value_proposition",
+		},
+		{ field: "why_now", label: "Why Now", key: "why_now" },
+		{ field: "notes", label: "Notes", key: "notes" },
+	] as const;
+
+	private static readonly OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS = [
+		{ field: "primaryProblem", label: "Primary Problem" },
+		{ field: "whyWeWin", label: "Why We Win" },
+		{ field: "whyWeCouldLose", label: "Why We Could Lose" },
+		{ field: "executiveSummary", label: "Executive Summary" },
+		{ field: "competitivePositioning", label: "Competitive Positioning" },
+	] as const;
+
+	private static readonly OPPORTUNITY_STRUCTURED_LABELS: Record<
+		string,
+		string
+	> = {
+		commercialSnapshot: "Commercial Snapshot",
+		whatToOffer: "What To Offer",
+		whyNow: "Why Now Evidence",
+		competitiveAnalysis: "Competitive Analysis",
+		meddpicc: "MEDDPICC",
+		meddpiccStructured: "MEDDPICC Structured",
+		nextBestActions: "Next Best Actions",
+		discoveryQuestions: "Discovery Questions",
+		proofPoints: "Proof Points",
+		bundle: "Bundle",
+		productImpactChain: "Product Impact Chain",
+		trialUniverse: "Trial Universe",
+		evidenceUrls: "Evidence URLs",
+	};
+
 	private static isJsonObject(
 		value: unknown,
 	): value is Record<string, unknown> {
@@ -2733,6 +2785,7 @@ export class DeepDiveService {
 		product_count: number;
 		deep_dive_property_count: number;
 		company_name: string | null;
+		company_logo_url: string | null;
 		is_approved: boolean | null;
 	}): OpportunityCard {
 		const overall = DeepDiveService.clampStat(row.priority_score);
@@ -2793,6 +2846,7 @@ export class DeepDiveService {
 			title: row.title,
 			rankPosition: row.rank_position,
 			companyName: row.company_name,
+			companyLogoUrl: row.company_logo_url?.trim() || null,
 			motionFamily: row.motion_family,
 			stage: row.stage,
 			status: row.status,
@@ -2808,7 +2862,7 @@ export class DeepDiveService {
 	}
 
 	static async setOpportunityCandidateApproval(
-		opportunityId: number,
+		opportunityId: bigint,
 		isApproved: boolean,
 	): Promise<void> {
 		await DeepDiveRepository.setOpportunityCandidateApproval(
@@ -2832,7 +2886,225 @@ export class DeepDiveService {
 				reportId,
 				companyId,
 				companyName: cards[0]?.companyName ?? null,
+				companyLogoUrl: cards[0]?.companyLogoUrl ?? null,
 				cards,
+			},
+		};
+	}
+
+	private static buildOpportunityBaseFields(row: {
+		title: string;
+		primary_business_problem: string | null;
+		primary_value_proposition: string | null;
+		why_now: string | null;
+		notes: string | null;
+	}): OpportunityNarrativeField[] {
+		return DeepDiveService.OPPORTUNITY_BASE_TEXT_FIELDS.map((def) => ({
+			source: "base",
+			field: def.field,
+			label: def.label,
+			value: row[def.key],
+		}));
+	}
+
+	private static buildOpportunityDeepDiveFields(
+		propertyRows: Awaited<
+			ReturnType<typeof DeepDiveRepository.getOpportunityDeepDiveProperties>
+		>,
+	): OpportunityNarrativeField[] {
+		const byKey = new Map(propertyRows.map((row) => [row.property_key, row]));
+		return DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS.flatMap((def) => {
+			const row = byKey.get(def.field);
+			if (!row || typeof row.value_json !== "string") return [];
+			return [
+				{
+					source: "deepDive" as const,
+					field: def.field,
+					label: def.label,
+					value: row.value_json,
+				},
+			];
+		});
+	}
+
+	private static isEditableOpportunityField(
+		source: OpportunityNarrativeFieldSource,
+		field: string,
+	): boolean {
+		if (source === "base") {
+			return DeepDiveService.OPPORTUNITY_BASE_TEXT_FIELDS.some(
+				(def) => def.field === field,
+			);
+		}
+
+		return DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS.some(
+			(def) => def.field === field,
+		);
+	}
+
+	private static opportunityFieldLabel(
+		source: OpportunityNarrativeFieldSource,
+		field: string,
+	): string {
+		const defs =
+			source === "base"
+				? DeepDiveService.OPPORTUNITY_BASE_TEXT_FIELDS
+				: DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS;
+		return defs.find((def) => def.field === field)?.label ?? field;
+	}
+
+	static async getOpportunityDetail(
+		reportId: number,
+		companyId: number,
+		opportunityId: bigint,
+	): Promise<OpportunityDetailResponse | null> {
+		const base = await DeepDiveRepository.getOpportunityDetailBase(
+			reportId,
+			companyId,
+			opportunityId,
+		);
+		if (!base) return null;
+
+		const propertyRows =
+			await DeepDiveRepository.getOpportunityDeepDiveProperties(opportunityId);
+		const editableDeepDiveKeys = new Set<string>(
+			DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS.map((def) => def.field),
+		);
+		const structuredBlocks = propertyRows
+			.filter((row) => !editableDeepDiveKeys.has(row.property_key))
+			.filter((row) =>
+				Object.prototype.hasOwnProperty.call(
+					DeepDiveService.OPPORTUNITY_STRUCTURED_LABELS,
+					row.property_key,
+				),
+			)
+			.map((row) => ({
+				key: row.property_key,
+				label:
+					DeepDiveService.OPPORTUNITY_STRUCTURED_LABELS[row.property_key] ??
+					row.property_key,
+				group: row.property_group,
+				value: row.value_json,
+				status: row.status,
+			}));
+
+		return {
+			success: true,
+			data: {
+				reportId,
+				companyId,
+				opportunityId: base.id.toString(),
+				companyName: base.company_name,
+				companyLogoUrl: base.company_logo_url?.trim() || null,
+				header: {
+					title: base.title,
+					rankPosition: base.rank_position,
+					motionFamily: base.motion_family,
+					stage: base.stage,
+					status: base.status,
+					dealSize: base.deal_size_general,
+					horizonName: base.horizon_name,
+					priorityScore: DeepDiveService.clampStat(base.priority_score),
+					confidenceScore: base.confidence_score,
+					isApproved: base.is_approved ?? false,
+				},
+				baseFields: DeepDiveService.buildOpportunityBaseFields(base),
+				deepDiveFields:
+					DeepDiveService.buildOpportunityDeepDiveFields(propertyRows),
+				structuredBlocks,
+				competitiveAwareness: base.competitive_awareness,
+			},
+		};
+	}
+
+	static async updateOpportunityNarrativeField(
+		reportId: number,
+		companyId: number,
+		opportunityId: bigint,
+		payload: UpdateOpportunityNarrativeFieldPayload,
+	): Promise<UpdateOpportunityNarrativeFieldResponse | null> {
+		const base = await DeepDiveRepository.getOpportunityDetailBase(
+			reportId,
+			companyId,
+			opportunityId,
+		);
+		if (!base) return null;
+
+		if (payload.source !== "base" && payload.source !== "deepDive") {
+			return {
+				success: false,
+				error: "Invalid field source",
+				errorCode: "INVALID_SOURCE",
+			};
+		}
+
+		if (
+			!DeepDiveService.isEditableOpportunityField(payload.source, payload.field)
+		) {
+			return {
+				success: false,
+				error: "Field is not editable",
+				errorCode: "FIELD_NOT_EDITABLE",
+			};
+		}
+
+		if (typeof payload.value !== "string") {
+			return {
+				success: false,
+				error: "Field value must be a string",
+				errorCode: "INVALID_VALUE_TYPE",
+			};
+		}
+
+		const value = payload.value.trim();
+		if (!value) {
+			return {
+				success: false,
+				error: "Field value cannot be empty",
+				errorCode: "EMPTY_VALUE",
+			};
+		}
+
+		const updatedCount =
+			payload.source === "base"
+				? await DeepDiveRepository.updateOpportunityBaseTextField(
+						reportId,
+						companyId,
+						opportunityId,
+						payload.field,
+						value,
+					)
+				: await DeepDiveRepository.updateOpportunityDeepDiveTextField(
+						reportId,
+						companyId,
+						opportunityId,
+						payload.field,
+						value,
+					);
+
+		if (updatedCount === 0) {
+			return {
+				success: false,
+				error:
+					payload.source === "deepDive"
+						? "Deep-dive field is not available for this opportunity"
+						: "Opportunity field is not available",
+				errorCode: "FIELD_NOT_AVAILABLE",
+			};
+		}
+
+		return {
+			success: true,
+			data: {
+				field: {
+					source: payload.source,
+					field: payload.field,
+					label: DeepDiveService.opportunityFieldLabel(
+						payload.source,
+						payload.field,
+					),
+					value,
+				},
 			},
 		};
 	}
