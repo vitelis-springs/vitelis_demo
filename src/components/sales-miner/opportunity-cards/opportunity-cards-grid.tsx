@@ -1,20 +1,8 @@
 "use client";
 
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import {
-	Alert,
-	App,
-	Button,
-	Checkbox,
-	Descriptions,
-	Drawer,
-	Empty,
-	Segmented,
-	Spin,
-	Tag,
-	Typography,
-} from "antd";
 import { useQueryClient } from "@tanstack/react-query";
+import { Alert, App, Button, Empty, Segmented, Spin, Typography } from "antd";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
@@ -22,7 +10,6 @@ import {
 	useSetOpportunityCandidateApproval,
 } from "../../../hooks/api/useDeepDiveService";
 import type {
-	OpportunityCard as OpportunityCardData,
 	OpportunityCardsResponse,
 	OpportunityCardTier,
 } from "../../../types/deep-dive.types";
@@ -34,12 +21,6 @@ const TIER_SWATCH: Record<string, string> = {
 	gold: "linear-gradient(135deg, #fdf3b0, #cfa233)",
 	silver: "linear-gradient(135deg, #f8f9fb, #b2b8c1)",
 	bronze: "linear-gradient(135deg, #efc79b, #a86730)",
-};
-
-const TIER_TAG_COLOR: Record<OpportunityCardTier, string> = {
-	gold: "gold",
-	silver: "default",
-	bronze: "volcano",
 };
 
 type SortKey = "rank" | "score";
@@ -81,7 +62,6 @@ export default function OpportunityCardsGrid({
 	const [sortKey, setSortKey] = useState<SortKey>("rank");
 	const [tierFilter, setTierFilter] = useState<TierFilter>("all");
 	const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
-	const [selected, setSelected] = useState<OpportunityCardData | null>(null);
 
 	const opportunityCardsQueryKey = [
 		"deep-dive",
@@ -104,11 +84,6 @@ export default function OpportunityCardsGrid({
 					},
 				},
 		);
-		setSelected((prev) =>
-			prev && prev.id === opportunityId
-				? { ...prev, isApproved: checked }
-				: prev,
-		);
 		setApproval(
 			{ opportunityId, isApproved: checked },
 			{
@@ -125,11 +100,6 @@ export default function OpportunityCardsGrid({
 									),
 								},
 							},
-					);
-					setSelected((prev) =>
-						prev && prev.id === opportunityId
-							? { ...prev, isApproved: !checked }
-							: prev,
 					);
 					message.error("Failed to update approval status");
 				},
@@ -271,122 +241,16 @@ export default function OpportunityCardsGrid({
 						<OpportunityCard
 							key={card.id}
 							card={card}
-							onOpen={setSelected}
+							onMoreDetails={(c) =>
+								router.push(
+									`/sales-miner/${reportId}/companies/${companyId}/opp/${c.id}`,
+								)
+							}
 							onToggleApproval={handleToggleApproval}
 						/>
 					))}
 				</div>
 			)}
-
-			<Drawer
-				title={selected?.title}
-				placement="right"
-				size={480}
-				open={selected !== null}
-				onClose={() => setSelected(null)}
-			>
-				{selected && (
-					<div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-						<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-							<Tag color={TIER_TAG_COLOR[selected.tier]}>
-								{selected.tier.toUpperCase()}
-							</Tag>
-							<Text strong style={{ fontSize: 28 }}>
-								{selected.overall}
-							</Text>
-							<Text type="secondary">overall priority</Text>
-						</div>
-
-						<Checkbox
-							checked={selected.isApproved}
-							onChange={(e) =>
-								handleToggleApproval(selected.id, e.target.checked)
-							}
-						>
-							Approved
-						</Checkbox>
-
-						<Descriptions
-							column={1}
-							size="small"
-							bordered
-							items={[
-								{
-									key: "company",
-									label: "Company",
-									children: selected.companyName ?? "—",
-								},
-								{
-									key: "rank",
-									label: "Rank",
-									children:
-										selected.rankPosition != null
-											? `#${selected.rankPosition}`
-											: "—",
-								},
-								{
-									key: "motion",
-									label: "Motion",
-									children: selected.motionFamily ?? "—",
-								},
-								{
-									key: "stage",
-									label: "Stage",
-									children: selected.stage ?? "—",
-								},
-								{
-									key: "status",
-									label: "Status",
-									children: selected.status ?? "—",
-								},
-								{
-									key: "deal",
-									label: "Deal size",
-									children: selected.dealSize ?? "—",
-								},
-								{
-									key: "stk",
-									label: "Stakeholders",
-									children: selected.stakeholderCount,
-								},
-								{
-									key: "prod",
-									label: "Products",
-									children: selected.productCount,
-								},
-							]}
-						/>
-
-						<div>
-							<Text strong>Card stats</Text>
-							<div
-								style={{
-									display: "grid",
-									gridTemplateColumns: "1fr 1fr",
-									gap: 8,
-									marginTop: 8,
-								}}
-							>
-								{selected.stats.map((stat) => (
-									<div
-										key={stat.key}
-										style={{ display: "flex", justifyContent: "space-between" }}
-									>
-										<Text type="secondary">{stat.title}</Text>
-										<Text strong>{stat.raw ?? stat.value}</Text>
-									</div>
-								))}
-							</div>
-						</div>
-
-						<Alert
-							type="info"
-							showIcon
-							title="Full deep-dive (Overview / Intelligence / Validate / Winning strategy / Actions) coming next."
-						/>
-					</div>
-				)}
-			</Drawer>
 		</div>
 	);
 }
