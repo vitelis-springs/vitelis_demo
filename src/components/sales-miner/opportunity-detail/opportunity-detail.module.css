@@ -220,16 +220,18 @@
 
 .rail {
 	align-self: start;
+	position: sticky;
+	top: 20px;
+	height: max-content;
+	min-height: 0;
+	max-height: calc(100vh - 40px);
+	overflow-y: auto;
 }
 
 .railInner {
-	position: sticky;
-	top: 20px;
 	display: flex;
 	flex-direction: column;
 	gap: 18px;
-	max-height: calc(100vh - 40px);
-	overflow-y: auto;
 }
 
 .vitals {
@@ -777,6 +779,12 @@
 	}
 	.body {
 		display: block;
+	}
+	.rail {
+		position: static;
+		height: auto;
+		max-height: none;
+		overflow: visible;
 	}
 	.railInner {
 		position: static;
