@@ -230,7 +230,7 @@ export default function OpportunityCardsGrid({
 							card={card}
 							onMoreDetails={(c) =>
 								router.push(
-									`/sales-miner/${reportId}/companies/${companyId}/opp/${c.id}`,
+									`/sales-miner/reports/${reportId}/companies/${companyId}/opp/${c.id}`,
 								)
 							}
 							onToggleApproval={handleToggleApproval}

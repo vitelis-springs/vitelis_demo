@@ -3,10 +3,10 @@
 import { Button, Layout, Result, Spin, theme } from "antd";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import OpportunityDetailWorkspace from "../../../../../../../../components/sales-miner/opportunity-detail/opportunity-detail-workspace";
-import Sidebar from "../../../../../../../../components/ui/sidebar";
-import { SIDEBAR_MARGIN_LEFT } from "../../../../../../../../components/ui/sidebar-layout";
-import { useAuth } from "../../../../../../../../hooks/useAuth";
+import OpportunityDetailWorkspace from "../../../../../../../../../components/sales-miner/opportunity-detail/opportunity-detail-workspace";
+import Sidebar from "../../../../../../../../../components/ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../../../../../../../../../components/ui/sidebar-layout";
+import { useAuth } from "../../../../../../../../../hooks/useAuth";
 
 export default function SalesMinerOpportunityDetailPage() {
 	const { isLoggedIn, isAdmin } = useAuth();

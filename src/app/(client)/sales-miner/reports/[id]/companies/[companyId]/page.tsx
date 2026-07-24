@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button, Result, Spin } from "antd";
+import { Button, Layout, Result, Spin, theme } from "antd";
 import { useAuth } from "../../../../../../../hooks/useAuth";
-import DeepDiveCompany from "../../../../../../../components/deep-dive/deep-dive-company";
+import OpportunityCardsGrid from "../../../../../../../components/sales-miner/opportunity-cards/opportunity-cards-grid";
+import Sidebar from "../../../../../../../components/ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../../../../../../../components/ui/sidebar-layout";
 
 export default function SalesMinerCompanyPage() {
 	const { isLoggedIn, isAdmin } = useAuth();
@@ -90,11 +92,36 @@ export default function SalesMinerCompanyPage() {
 		);
 	}
 
+	return <CompanyOpportunitiesView reportId={reportId} companyId={companyId} />;
+}
+
+function CompanyOpportunitiesView({
+	reportId,
+	companyId,
+}: {
+	reportId: number;
+	companyId: number;
+}) {
+	const { token } = theme.useToken();
 	return (
-		<DeepDiveCompany
-			reportId={reportId}
-			companyId={companyId}
-			basePath="/sales-miner/reports"
-		/>
+		<Layout style={{ minHeight: "100vh", background: token.colorBgLayout }}>
+			<Sidebar />
+			<Layout
+				style={{
+					marginLeft: SIDEBAR_MARGIN_LEFT,
+					background: token.colorBgLayout,
+				}}
+			>
+				<Layout.Content
+					style={{
+						padding: "28px clamp(16px, 4vw, 40px)",
+						background: token.colorBgLayout,
+						minHeight: "100vh",
+					}}
+				>
+					<OpportunityCardsGrid reportId={reportId} companyId={companyId} />
+				</Layout.Content>
+			</Layout>
+		</Layout>
 	);
 }
