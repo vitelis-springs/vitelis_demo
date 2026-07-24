@@ -18,7 +18,9 @@ export async function GET(
 
 	const accounts = await prisma.customer_accounts.findMany({
 		where: { customer_id: BigInt(customerId), is_active: true },
-		include: { companies: { select: { id: true, name: true } } },
+		include: {
+			companies: { select: { id: true, name: true, verified: true } },
+		},
 		orderBy: { companies: { name: "asc" } },
 	});
 
@@ -26,6 +28,7 @@ export async function GET(
 		data: accounts.map((a) => ({
 			companyId: a.company_id,
 			name: a.companies.name,
+			verified: a.companies.verified,
 		})),
 	});
 }

@@ -382,7 +382,7 @@ function AccountLevelView({
 	reportId,
 	companyId,
 	companyName,
-	basePath = "/sales-miner",
+	basePath = "/sales-miner/reports",
 	onEdit,
 }: {
 	reportId: number;
@@ -874,7 +874,7 @@ function EntityLevelView({
 	reportId,
 	companyId,
 	companyName,
-	basePath = "/sales-miner",
+	basePath = "/sales-miner/reports",
 	onEdit,
 }: {
 	reportId: number;
@@ -990,7 +990,7 @@ export default function SalesMinerCompany({
 	companyId,
 	typeLevel,
 	companyName,
-	basePath = "/sales-miner",
+	basePath = "/sales-miner/reports",
 	onEdit,
 }: {
 	reportId: number;

@@ -1,52 +1,136 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button, Result, Spin } from "antd";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AppstoreOutlined } from "@ant-design/icons";
+import { Button, Result, Spin, Tabs } from "antd";
 import { useAuth } from "../../../hooks/useAuth";
 import DeepDiveList from "../../../components/deep-dive/deep-dive-list";
+import { SalesMinerCustomersEmbedded } from "../../../components/sales-miner/sales-miner-customers-page";
+import DeepDivePageLayout from "../../../components/deep-dive/shared/page-layout";
+import PageHeader from "../../../components/deep-dive/shared/page-header";
+
+const VALID_TABS = ["customers", "reports"] as const;
+type SalesMinerTab = (typeof VALID_TABS)[number];
+
+function LoadingScreen() {
+	return (
+		<div
+			style={{
+				minHeight: "100vh",
+				background: "#141414",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+			}}
+		>
+			<Spin size="large" />
+		</div>
+	);
+}
 
 export default function SalesMinerPage() {
-  const { isLoggedIn, isAdmin } = useAuth();
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+	return (
+		<Suspense fallback={<LoadingScreen />}>
+			<SalesMinerPageContent />
+		</Suspense>
+	);
+}
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 100);
+function SalesMinerPageContent() {
+	const { isLoggedIn, isAdmin } = useAuth();
+	const router = useRouter();
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
+	const [isLoading, setIsLoading] = useState(true);
 
-    return () => clearTimeout(timer);
-  }, []);
+	const tabParam = searchParams.get("tab");
+	const activeTab: SalesMinerTab =
+		tabParam && (VALID_TABS as readonly string[]).includes(tabParam)
+			? (tabParam as SalesMinerTab)
+			: "customers";
 
-  useEffect(() => {
-    if (!isLoading && !isLoggedIn) {
-      router.push("/");
-    }
-  }, [isLoggedIn, router, isLoading]);
+	const handleTabChange = (key: string) => {
+		const params = new URLSearchParams(searchParams.toString());
+		params.set("tab", key);
+		router.replace(`${pathname}?${params.toString()}`);
+	};
 
-  if (isLoading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setIsLoading(false);
+		}, 100);
 
-  if (!isLoggedIn) return null;
+		return () => clearTimeout(timer);
+	}, []);
 
-  if (!isAdmin()) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#141414", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Result
-          status="403"
-          title="Admin access required"
-          subTitle="You do not have permission to view this page."
-          extra={<Button type="primary" onClick={() => router.push("/history")}>Go to My Reports</Button>}
-        />
-      </div>
-    );
-  }
+	useEffect(() => {
+		if (!isLoading && !isLoggedIn) {
+			router.push("/");
+		}
+	}, [isLoggedIn, router, isLoading]);
 
-  return <DeepDiveList fixedReportType="sales_miner" />;
+	if (isLoading) {
+		return <LoadingScreen />;
+	}
+
+	if (!isLoggedIn) return null;
+
+	if (!isAdmin()) {
+		return (
+			<div
+				style={{
+					minHeight: "100vh",
+					background: "#141414",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+				}}
+			>
+				<Result
+					status="403"
+					title="Admin access required"
+					subTitle="You do not have permission to view this page."
+					extra={
+						<Button type="primary" onClick={() => router.push("/history")}>
+							Go to My Reports
+						</Button>
+					}
+				/>
+			</div>
+		);
+	}
+
+	return (
+		<DeepDivePageLayout>
+			<PageHeader
+				breadcrumbs={[]}
+				title="Sales Miner"
+				extra={
+					<Button
+						icon={<AppstoreOutlined />}
+						onClick={() => router.push("/sales-miner/signal-catalog")}
+					>
+						Signal Catalog
+					</Button>
+				}
+			/>
+			<Tabs
+				activeKey={activeTab}
+				onChange={handleTabChange}
+				items={[
+					{
+						key: "customers",
+						label: "Customers",
+						children: <SalesMinerCustomersEmbedded />,
+					},
+					{
+						key: "reports",
+						label: "Reports",
+						children: <DeepDiveList fixedReportType="sales_miner" embedded />,
+					},
+				]}
+			/>
+		</DeepDivePageLayout>
+	);
 }

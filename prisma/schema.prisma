@@ -98,12 +98,12 @@ model companies {
   additional_data                                                                                             Json?                                             @db.Json
   invest_portal                                                                                               String?                                           @db.VarChar(255)
   career_portal                                                                                               String?                                           @db.VarChar(255)
+  logo_url                                                                                                    String? @db.VarChar(255)
   parent_company                                                                                              Int?
   slug                                                                                                        String?                                           @unique(map: "companies_slug_unique") @db.VarChar(255)
   report_role                                                                                                 String?                                           @db.VarChar
   gics_code                                                                                                   String?                                           @db.VarChar(8)
   listed                                                                                                      Boolean?
-  logo_url                                                                                                    String?
   verified                                                                                                    Boolean                                           @default(true)
   alixpartner_reports                                                                                         alixpartner_reports[]
   bizminer_reports                                                                                            bizminer_reports[]
