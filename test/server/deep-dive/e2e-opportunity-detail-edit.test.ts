@@ -141,6 +141,9 @@ describe("E2E: opportunity detail read/edit", () => {
 		jest
 			.spyOn(DeepDiveRepository, "getOpportunityDeepDiveProperties")
 			.mockResolvedValueOnce(PROPERTY_ROWS as never);
+		jest
+			.spyOn(DeepDiveRepository, "getOpportunityStakeholders")
+			.mockResolvedValueOnce([] as never);
 
 		const res = await callGet();
 		const body = await res.json();
@@ -190,6 +193,9 @@ describe("E2E: opportunity detail read/edit", () => {
 			} as never);
 		jest
 			.spyOn(DeepDiveRepository, "getOpportunityDeepDiveProperties")
+			.mockResolvedValueOnce([] as never);
+		jest
+			.spyOn(DeepDiveRepository, "getOpportunityStakeholders")
 			.mockResolvedValueOnce([] as never);
 
 		const res = await callGet("171", "2929", largeOpportunityId);
