@@ -24,6 +24,11 @@ import type {
 	UpdateOpportunityNarrativeFieldResponse,
 } from "../../../../types/deep-dive.types";
 import {
+	buildOpportunityPortfolio,
+	buildOpportunityQa,
+	buildOpportunityStakeholders,
+} from "./opportunity-detail.mapper";
+import {
 	type CompanyCategoryMathDetail,
 	type CompanyDataPointResultUpdateData,
 	type CompanyKpiResultRow,
@@ -3067,8 +3072,10 @@ export class DeepDiveService {
 		);
 		if (!base) return null;
 
-		const propertyRows =
-			await DeepDiveRepository.getOpportunityDeepDiveProperties(opportunityId);
+		const [propertyRows, stakeholderRows] = await Promise.all([
+			DeepDiveRepository.getOpportunityDeepDiveProperties(opportunityId),
+			DeepDiveRepository.getOpportunityStakeholders(opportunityId),
+		]);
 		const editableDeepDiveKeys = new Set<string>(
 			DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS.map((def) => def.field),
 		);
@@ -3090,6 +3097,8 @@ export class DeepDiveService {
 				status: row.status,
 			}));
 
+		const priorityScore = DeepDiveService.clampStat(base.priority_score);
+
 		return {
 			success: true,
 			data: {
@@ -3106,7 +3115,7 @@ export class DeepDiveService {
 					status: base.status,
 					dealSize: base.deal_size_general,
 					horizonName: base.horizon_name,
-					priorityScore: DeepDiveService.clampStat(base.priority_score),
+					priorityScore,
 					confidenceScore: base.confidence_score,
 					isApproved: base.is_approved ?? false,
 				},
@@ -3115,6 +3124,14 @@ export class DeepDiveService {
 					DeepDiveService.buildOpportunityDeepDiveFields(propertyRows),
 				structuredBlocks,
 				competitiveAwareness: base.competitive_awareness,
+				stakeholders: buildOpportunityStakeholders(stakeholderRows),
+				qa: buildOpportunityQa(base.quality_json),
+				portfolio: buildOpportunityPortfolio(
+					base,
+					priorityScore,
+					propertyRows.find((row) => row.property_key === "commercialSnapshot")
+						?.value_json ?? null,
+				),
 			},
 		};
 	}

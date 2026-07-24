@@ -1205,9 +1205,14 @@ export class DeepDiveRepository {
 				company_logo_url: string | null;
 				primary_business_problem: string | null;
 				primary_value_proposition: string | null;
+				primary_buyer_persona: string | null;
+				solution_center: string | null;
+				portfolio_priority_reason: string | null;
+				time_label_general: string | null;
 				why_now: string | null;
 				notes: string | null;
 				competitive_awareness: Prisma.JsonValue | null;
+				quality_json: Prisma.JsonValue | null;
 			}>
 		>`
       WITH latest_run AS (
@@ -1234,9 +1239,14 @@ export class DeepDiveRepository {
 	        c.logo_url AS company_logo_url,
 	        oc.primary_business_problem,
         oc.primary_value_proposition,
+        oc.primary_buyer_persona,
+        oc.solution_center,
+        oc.portfolio_priority_reason,
+        oc.time_label_general,
         oc.why_now,
         oc.notes,
-        oc.competitive_awareness
+        oc.competitive_awareness,
+        oc.meta::jsonb -> 'quality' AS quality_json
       FROM public.opportunity_candidates oc
       JOIN public.companies c
         ON c.id = oc.company_id
@@ -1273,6 +1283,55 @@ export class DeepDiveRepository {
         ON p.id = pv.property_id
       WHERE pv.opportunity_id = ${opportunityId}
       ORDER BY COALESCE(p.assemble_order, 100), pv.property_key
+    `;
+	}
+
+	static async getOpportunityStakeholders(opportunityId: bigint) {
+		return prisma.$queryRaw<
+			Array<{
+				id: number;
+				person_id: number | null;
+				gate_role: string | null;
+				gate_role_type: string | null;
+				full_name: string | null;
+				job_title: string | null;
+				entity_name: string | null;
+				entity_level: string | null;
+				linkedin_url: string | null;
+				contacts: Prisma.JsonValue | null;
+				rationale: string | null;
+				message_id: string | null;
+				message_subject: string | null;
+				message_body: string | null;
+			}>
+		>`
+      SELECT
+        s.id::int AS id,
+        s.person_id::int AS person_id,
+        s.gate_role,
+        s.gate_role_type,
+        p.full_name,
+        p.job_title,
+        s.entity_name,
+        s.entity_level,
+        p.linkedin_url,
+        p.contacts,
+        s.rationale,
+        msg.message_id,
+        msg.message_subject,
+        msg.message_body
+      FROM public.stakeholders_v2 s
+      LEFT JOIN public.persons p ON p.id = s.person_id
+      LEFT JOIN LATERAL (
+        SELECT m.id::text AS message_id, m.message_subject, m.message_body
+        FROM public.opportunity_stakeholder_messages m
+        WHERE m.opportunity_id = s.opportunity_id
+          AND m.stakeholder_id = s.id
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT 1
+      ) msg ON true
+      WHERE s.opportunity_id = ${opportunityId}
+      ORDER BY s.id
     `;
 	}
 

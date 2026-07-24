@@ -4,6 +4,26 @@ import styles from "./opportunity-detail.module.css";
 
 const { Text } = Typography;
 
+/** Machine keys the reviewer never needs: ids, slugs, internal references. */
+const METADATA_KEY =
+	/^(_|id$|.*id$|.*ids$|slug|uuid|guid|key|plays|ref|refs)$/i;
+
+/** camelCase / snake_case machine key → human label ("bundleWhyNow" → "Why now"). */
+function humanizeKey(key: string): string {
+	const words = key
+		.replace(/[_-]+/g, " ")
+		.replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+		.replace(/\s+/g, " ")
+		.trim()
+		.toLowerCase()
+		.split(" ")
+		.filter(Boolean);
+	const [first, ...rest] = words;
+	if (!first) return key;
+	const capped = first.charAt(0).toUpperCase() + first.slice(1);
+	return [capped, ...rest].join(" ");
+}
+
 function stringifyPrimitive(value: unknown): string {
 	if (value === null || value === undefined) return "";
 	if (typeof value === "string") return value;
@@ -54,16 +74,19 @@ export function renderStructuredValue(value: unknown, depth = 0): ReactNode {
 	}
 
 	if (value && typeof value === "object") {
-		if (depth >= 2) return <Text>{shortValue(value)}</Text>;
+		if (depth >= 3) return <Text>{shortValue(value)}</Text>;
 		const entries = Object.entries(value as Record<string, unknown>).filter(
-			([, entryValue]) => entryValue !== null && entryValue !== undefined,
+			([key, entryValue]) =>
+				entryValue !== null &&
+				entryValue !== undefined &&
+				!METADATA_KEY.test(key),
 		);
 		if (entries.length === 0) return <Text type="secondary">No details</Text>;
 		return (
 			<div className={styles.keyValueGrid}>
 				{entries.slice(0, 14).map(([key, entryValue]) => (
 					<div className={styles.keyValueRow} key={key}>
-						<Text className={styles.keyLabel}>{key}</Text>
+						<Text className={styles.keyLabel}>{humanizeKey(key)}</Text>
 						<div className={styles.keyValue}>
 							{typeof entryValue === "object" && entryValue !== null ? (
 								renderStructuredValue(entryValue, depth + 1)

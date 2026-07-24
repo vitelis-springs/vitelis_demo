@@ -1,0 +1,66 @@
+/* Competitive tab: verdict badges, vendors in play, and source cards. */
+.compStats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 18px;
+}
+.vendorRow {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 13px 0;
+	border-top: 1px solid var(--hair);
+}
+.vendorRow:first-of-type {
+	border-top: 0;
+}
+.vendorName {
+	flex: 0 0 34%;
+	font-size: 13.5px;
+	font-weight: 800;
+	color: var(--ink);
+}
+.vendorRole {
+	flex: 1 1 auto;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--ink-2);
+}
+
+/* Source cards (competitive evidence) */
+.srcList {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.srcItem {
+	padding: 14px 16px;
+	border: 1px solid var(--hair);
+	border-radius: 10px;
+	background: var(--surface);
+}
+.srcSource {
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0.2px;
+	color: var(--ink);
+}
+.srcQuote {
+	margin: 6px 0 0;
+	font-size: 13px;
+	line-height: 1.55;
+	color: var(--ink-2);
+}
+.srcLink {
+	display: inline-block;
+	margin-top: 8px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--signal);
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+.srcLink:hover {
+	text-decoration: underline;
+}

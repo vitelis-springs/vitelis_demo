@@ -31,6 +31,11 @@ export {
 	VALIDATION_DATA_POINT_LEVELS,
 	VALIDATION_RULE_LEVELS,
 } from "../shared/deep-dive-contract.types";
+import type {
+	OpportunityPortfolio,
+	OpportunityQa,
+	OpportunityStakeholder,
+} from "./sales-miner-opportunity-detail.types";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
 
@@ -1084,6 +1089,9 @@ export interface OpportunityDetailResponse {
 		deepDiveFields: OpportunityNarrativeField[];
 		structuredBlocks: OpportunityStructuredBlock[];
 		competitiveAwareness: unknown | null;
+		stakeholders: OpportunityStakeholder[];
+		qa: OpportunityQa | null;
+		portfolio: OpportunityPortfolio;
 	};
 }
 

@@ -9,18 +9,22 @@ import {
 	useUpdateOpportunityNarrativeField,
 } from "../../../hooks/api/useDeepDiveService";
 import type { OpportunityNarrativeField } from "../../../types/deep-dive.types";
-import CompanyLogo from "../company-logo";
+import AppendixSection from "./appendix-section";
+import BundleSection from "./bundle-section";
 import ConvictionSpine from "./conviction-spine";
 import DiscoveryQuestions from "./discovery-questions";
 import DossierSection from "./dossier-section";
+import ExportPreviewSection from "./export-preview/export-preview-section";
 import { parseMeddpicc } from "./meddpicc";
 import MeddpiccDetail from "./meddpicc-detail";
 import NarrativeFieldEditor from "./narrative-field-editor";
 import NextActions from "./next-actions";
 import styles from "./opportunity-detail.module.css";
 import { editKey } from "./opportunity-detail.utils";
+import { asObj, hostOf, str } from "./opportunity-detail.value-utils";
+import OpportunityMasthead from "./opportunity-masthead";
+import OpportunityRail from "./opportunity-rail";
 import ProofPoints from "./proof-points";
-import StructuredBlock from "./structured-block";
 
 /** Structured blocks rendered bespoke or intentionally hidden (raw/noisy). */
 const CURATED_KEYS = new Set([
@@ -34,6 +38,7 @@ const CURATED_KEYS = new Set([
 	"discoveryQuestions",
 	"identity",
 	"evidenceUrls",
+	"bundle",
 ]);
 
 const SECTIONS = [
@@ -52,24 +57,6 @@ const FEATURED_FIELD_KEYS = new Set([
 	"whyWeCouldLose",
 	"competitivePositioning",
 ]);
-
-function asObj(value: unknown): Record<string, unknown> | null {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: null;
-}
-function str(value: unknown): string | null {
-	if (typeof value !== "string") return null;
-	const t = value.trim();
-	return t.length ? t : null;
-}
-function hostOf(url: string): string {
-	try {
-		return new URL(url).host.replace(/^www\./, "");
-	} catch {
-		return url;
-	}
-}
 
 function NotCaptured() {
 	return (
@@ -214,6 +201,7 @@ export default function OpportunityDetailWorkspace({
 		(b) => !CURATED_KEYS.has(b.key) && b.value && typeof b.value === "object",
 	);
 
+	const bundle = blockByKey.get("bundle")?.value;
 	const nextBestActions = blockByKey.get("nextBestActions")?.value;
 	const proofPoints = blockByKey.get("proofPoints")?.value;
 	const discoveryQuestions = blockByKey.get("discoveryQuestions")?.value;
@@ -234,38 +222,16 @@ export default function OpportunityDetailWorkspace({
 				Back
 			</Button>
 
-			<div className={styles.masthead}>
-				<CompanyLogo
-					name={detail.companyName}
-					logoUrl={detail.companyLogoUrl}
-					size={68}
-					className={styles.companyMark}
-					avatarStyle={{ padding: 9 }}
-				/>
-				<div className={styles.mastText}>
-					<span className={styles.eyebrow}>
-						{detail.companyName ?? "Account"}
-					</span>
-					<h1 className={styles.mastTitle}>{header.title}</h1>
-					<div className={styles.meta}>
-						{header.motionFamily && (
-							<span className={styles.chipStrong}>{header.motionFamily}</span>
-						)}
-						{header.stage && (
-							<span className={styles.chip}>{header.stage}</span>
-						)}
-						{header.dealSize && (
-							<span className={styles.chip}>{header.dealSize}</span>
-						)}
-						{header.horizonName && (
-							<span className={styles.chip}>{header.horizonName}</span>
-						)}
-						{header.rankPosition != null && (
-							<span className={styles.chip}>Rank #{header.rankPosition}</span>
-						)}
-					</div>
-				</div>
-			</div>
+			<OpportunityMasthead
+				companyName={detail.companyName}
+				companyLogoUrl={detail.companyLogoUrl}
+				title={header.title}
+				motionFamily={header.motionFamily}
+				stage={header.stage}
+				dealSize={header.dealSize}
+				horizonName={header.horizonName}
+				rankPosition={header.rankPosition}
+			/>
 
 			<ConvictionSpine
 				priorityScore={header.priorityScore}
@@ -274,58 +240,22 @@ export default function OpportunityDetailWorkspace({
 			/>
 
 			<div className={styles.body}>
-				<aside className={styles.rail}>
-					<div className={styles.railInner}>
-						<div className={styles.vitals}>
-							<div className={styles.vital}>
-								<span className={styles.vitalLabel}>Conviction</span>
-								<span className={styles.vitalValue}>
-									{header.priorityScore != null
-										? Math.round(header.priorityScore)
-										: "—"}
-								</span>
-							</div>
-							<div className={styles.vital}>
-								<span className={styles.vitalLabel}>Confidence</span>
-								<span className={styles.vitalValue}>
-									{Math.round(header.confidenceScore * 100)}%
-								</span>
-							</div>
-							{header.dealSize && (
-								<div className={styles.vital}>
-									<span className={styles.vitalLabel}>Deal size</span>
-									<span className={styles.vitalValue}>{header.dealSize}</span>
-								</div>
-							)}
-							<span
-								className={`${styles.approvePill} ${
-									header.isApproved ? styles.approveYes : styles.approveNo
-								}`}
-							>
-								{header.isApproved ? "Approved" : "Not approved"}
-							</span>
-						</div>
-
-						<nav className={styles.jump}>
-							{SECTIONS.map((s) => (
-								<button
-									key={s.id}
-									type="button"
-									className={styles.jumpItem}
-									onClick={() =>
-										document
-											.getElementById(s.id)
-											?.scrollIntoView({ behavior: "smooth", block: "start" })
-									}
-								>
-									{s.label}
-								</button>
-							))}
-						</nav>
-					</div>
-				</aside>
+				<OpportunityRail
+					priorityScore={header.priorityScore}
+					confidenceScore={header.confidenceScore}
+					dealSize={header.dealSize}
+					isApproved={header.isApproved}
+					sections={SECTIONS}
+				/>
 
 				<main className={styles.main}>
+					<ExportPreviewSection
+						portfolio={detail.portfolio}
+						stakeholders={detail.stakeholders}
+						competitiveAwareness={detail.competitiveAwareness}
+						qa={detail.qa}
+					/>
+
 					<DossierSection id="thesis" eyebrow="The read" title="The thesis">
 						<div className={styles.fieldGrid}>
 							{renderEditor("executiveSummary")}
@@ -442,6 +372,8 @@ export default function OpportunityDetailWorkspace({
 						)}
 					</DossierSection>
 
+					{bundle != null && <BundleSection value={bundle} />}
+
 					{leftoverFields.length > 0 && (
 						<DossierSection
 							id="details"
@@ -456,15 +388,7 @@ export default function OpportunityDetailWorkspace({
 						</DossierSection>
 					)}
 
-					{appendix.length > 0 && (
-						<DossierSection id="appendix" eyebrow="Raw" title="Appendix">
-							<div className={styles.appendix}>
-								{appendix.map((block) => (
-									<StructuredBlock block={block} key={block.key} />
-								))}
-							</div>
-						</DossierSection>
-					)}
+					<AppendixSection blocks={appendix} />
 				</main>
 			</div>
 		</div>

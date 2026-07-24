@@ -1,0 +1,121 @@
+/* Stakeholders tab: person cards with gate role, contacts, and draft email. */
+.stakeList {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.stakeCard {
+	border: 1px solid var(--hair);
+	border-radius: 12px;
+	background: var(--surface);
+	padding: 16px 18px;
+}
+.stakeTop {
+	display: flex;
+	align-items: flex-start;
+	gap: 13px;
+}
+.stakeAvatar {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	border-radius: 999px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: color-mix(in srgb, var(--signal) 14%, transparent);
+	color: var(--signal);
+	font-size: 14px;
+	font-weight: 800;
+}
+.stakeId {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+.stakeName {
+	font-size: 15px;
+	font-weight: 800;
+	letter-spacing: -0.1px;
+	color: var(--ink);
+}
+.stakeTitle {
+	margin-top: 1px;
+	font-size: 13px;
+	color: var(--ink-2);
+}
+.stakeEntity {
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--ink-3);
+}
+.gateBadge {
+	flex: 0 0 auto;
+	display: inline-flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 3px;
+	text-align: right;
+}
+.gateRole {
+	font-size: 12px;
+	font-weight: 800;
+	color: var(--ink);
+}
+.stakeLinks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.stakeChip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 11px;
+	border-radius: 999px;
+	border: 1px solid var(--hair);
+	background: var(--surface);
+	color: var(--ink-2);
+	font-size: 12px;
+	font-weight: 600;
+	text-decoration: none;
+}
+.stakeChip:hover {
+	border-color: var(--signal);
+	color: var(--signal);
+}
+.stakeEmail {
+	margin-top: 12px;
+	border-top: 1px solid var(--hair);
+	padding-top: 12px;
+}
+.stakeEmailSummary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	list-style: none;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--ink-2);
+}
+.stakeEmailSummary::-webkit-details-marker {
+	display: none;
+}
+.stakeEmailSummary::before {
+	content: "✎";
+	color: var(--signal);
+}
+.stakeEmailSubject {
+	color: var(--ink);
+}
+.stakeEmailBody {
+	margin: 10px 0 0;
+	padding: 12px 14px;
+	border-radius: 8px;
+	background: var(--surface-2);
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--ink-2);
+	white-space: pre-wrap;
+}
