@@ -385,7 +385,7 @@ export class ReportStepsRepository {
 	// ===== report_step_templates (пресети кроків) =====
 
 	static async listStepTemplates(includeInactive = false) {
-		return prisma.report_step_templates.findMany({
+		const templates = await prisma.report_step_templates.findMany({
 			where: includeInactive ? undefined : { is_active: true },
 			orderBy: { id: "asc" },
 			select: {
@@ -395,21 +395,64 @@ export class ReportStepsRepository {
 				description: true,
 				is_active: true,
 				updated_at: true,
-				_count: { select: { report_step_template_steps: true } },
 			},
 		});
+
+		if (templates.length === 0) return [];
+
+		const counts = await prisma.report_step_template_steps.groupBy({
+			by: ["template_id"],
+			where: { template_id: { in: templates.map((t) => t.id) } },
+			_count: { _all: true },
+		});
+		const countsByTemplateId = new Map(
+			counts.map((row) => [row.template_id.toString(), row._count._all]),
+		);
+
+		return templates.map((template) => ({
+			...template,
+			step_count: countsByTemplateId.get(template.id.toString()) ?? 0,
+		}));
 	}
 
 	static async getStepTemplateById(templateId: bigint) {
-		return prisma.report_step_templates.findUnique({
+		const template = await prisma.report_step_templates.findUnique({
 			where: { id: templateId },
-			include: {
-				report_step_template_steps: {
-					orderBy: { step_order: "asc" },
-					include: { report_generation_steps: true },
-				},
+		});
+		if (!template) return null;
+
+		const steps = await prisma.report_step_template_steps.findMany({
+			where: { template_id: templateId },
+			orderBy: { step_order: "asc" },
+			select: {
+				id: true,
+				template_id: true,
+				step_id: true,
+				step_order: true,
+				is_active: true,
+				meta: true,
+				created_at: true,
+				updated_at: true,
 			},
 		});
+
+		const generationSteps =
+			steps.length === 0
+				? []
+				: await prisma.report_generation_steps.findMany({
+						where: { id: { in: steps.map((s) => s.step_id) } },
+					});
+		const generationStepsById = new Map(
+			generationSteps.map((step) => [step.id, step]),
+		);
+
+		return {
+			...template,
+			steps: steps.map((step) => ({
+				...step,
+				step: generationStepsById.get(step.step_id),
+			})),
+		};
 	}
 
 	static async getActiveTemplateSteps(templateId: bigint) {
@@ -427,25 +470,33 @@ export class ReportStepsRepository {
 		meta: object | null;
 		steps: Array<{ step_id: number; step_order: number }>;
 	}) {
-		return prisma.report_step_templates.create({
-			data: {
-				code: input.code,
-				name: input.name,
-				description: input.description,
-				is_active: true,
-				// meta is a non-nullable Json with a DB default of {}
-				...(input.meta ? { meta: input.meta } : {}),
-				report_step_template_steps: {
-					create: input.steps.map((s) => ({
+		return prisma.$transaction(async (tx) => {
+			const created = await tx.report_step_templates.create({
+				data: {
+					code: input.code,
+					name: input.name,
+					description: input.description,
+					is_active: true,
+					// meta is a non-nullable Json with a DB default of {}
+					...(input.meta ? { meta: input.meta } : {}),
+				},
+			});
+			if (input.steps.length > 0) {
+				await tx.report_step_template_steps.createMany({
+					data: input.steps.map((s) => ({
+						template_id: created.id,
 						step_id: s.step_id,
 						step_order: s.step_order,
 						is_active: true,
 					})),
-				},
-			},
-			include: {
-				report_step_template_steps: { orderBy: { step_order: "asc" } },
-			},
+				});
+			}
+			const steps = await tx.report_step_template_steps.findMany({
+				where: { template_id: created.id, is_active: true },
+				orderBy: { step_order: "asc" },
+				select: { step_id: true, step_order: true },
+			});
+			return { ...created, steps };
 		});
 	}
 
