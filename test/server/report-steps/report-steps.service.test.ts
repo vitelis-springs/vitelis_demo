@@ -131,7 +131,7 @@ describe("createPresetFromReport", () => {
 			id: 100,
 			code: "report-7-abc",
 			name: "Snapshot",
-			report_step_template_steps: [{}, {}, {}],
+			steps: [{}, {}, {}],
 		});
 
 		const result = await ReportStepsService.createPresetFromReport(7, {
@@ -150,12 +150,45 @@ describe("createPresetFromReport", () => {
 	});
 });
 
+describe("listPresets", () => {
+	it("maps the repository-provided step count", async () => {
+		mockRepo("listStepTemplates", [
+			{
+				id: BigInt(100),
+				code: "SM_v4_1",
+				name: "SM V4.1",
+				description: null,
+				is_active: true,
+				updated_at: new Date("2026-07-27T09:00:00.000Z"),
+				step_count: 14,
+			},
+		]);
+
+		const result = await ReportStepsService.listPresets(true);
+
+		expect(result).toEqual({
+			success: true,
+			data: [
+				{
+					id: "100",
+					code: "SM_v4_1",
+					name: "SM V4.1",
+					description: null,
+					isActive: true,
+					stepCount: 14,
+					updatedAt: "2026-07-27T09:00:00.000Z",
+				},
+			],
+		});
+	});
+});
+
 describe("applyPreset", () => {
 	function template(overrides: Record<string, unknown> = {}) {
 		return {
 			id: 100,
 			is_active: true,
-			report_step_template_steps: [
+			steps: [
 				{ step_id: 20, step_order: 2, is_active: true },
 				{ step_id: 10, step_order: 1, is_active: true },
 			],
