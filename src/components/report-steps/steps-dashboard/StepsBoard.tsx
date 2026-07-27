@@ -1,7 +1,7 @@
 "use client";
 
 import { CloseOutlined, SearchOutlined } from "@ant-design/icons";
-import { App, Button, Grid, Input, Popconfirm, Select } from "antd";
+import { App, Button, Grid, Input, Popconfirm, Popover, Select } from "antd";
 import { type ReactNode, useMemo, useState } from "react";
 import {
 	type StepStatus,
@@ -11,6 +11,7 @@ import {
 } from "../../../hooks/api/useReportStepsService";
 import { useStepsMatrixFilters } from "../use-steps-matrix-filters";
 import CellDetails from "./CellDetails";
+import CellHoverCard from "./CellHoverCard";
 import { deriveProgressSummary, STATUS_ORDER } from "./progress";
 import StatusCell, { STATUS_META } from "./StatusCell";
 import styles from "./steps-board.module.css";
@@ -366,7 +367,7 @@ export default function StepsBoard({
 								{visibleSteps.map((step) => {
 									const active = hoveredStep === step.id;
 									const st = statusOf(row, step.id);
-									return (
+									const cell = (
 										<div
 											key={step.id}
 											className={`${styles.cell} ${active ? (styles.colActive ?? "") : ""}`}
@@ -384,6 +385,32 @@ export default function StepsBoard({
 												onToggle={() => clickCell(row.companyId, step.id)}
 											/>
 										</div>
+									);
+									// Hover reveals a light card with the step's meta + this
+									// cell's status. mouseLeaveDelay keeps it up for a beat so the
+									// pointer can travel onto it (links stay reachable); antd
+									// cancels that timer once the pointer lands on the card.
+									return (
+										<Popover
+											key={step.id}
+											content={
+												<CellHoverCard
+													reportId={reportId}
+													companyName={row.companyName}
+													companyId={row.companyId}
+													step={step}
+													status={st}
+												/>
+											}
+											trigger="hover"
+											placement="top"
+											mouseEnterDelay={0.3}
+											mouseLeaveDelay={1}
+											color="#1a1a1a"
+											classNames={{ root: styles.hoverPop ?? "" }}
+										>
+											{cell}
+										</Popover>
 									);
 								})}
 							</div>

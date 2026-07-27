@@ -401,6 +401,106 @@
 	color: #a6e6ef;
 }
 
+/* ── Cell hover card (Popover on desktop cells) ── */
+
+/* Root overlay: tighten antd's chrome to the console palette. `color` on the
+ * Popover paints the background + arrow; these rules add the hairline, shadow,
+ * radius, and width bound. */
+.hoverPop :global(.ant-popover-inner) {
+	border: 1px solid #2f2f2f;
+	border-radius: 8px;
+	box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+	padding: 9px 11px;
+	max-width: 300px;
+}
+
+.hoverCard {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.hcHead {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.hcCompany {
+	color: #e8e8e8;
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hcId {
+	color: #6b6b6b;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	flex-shrink: 0;
+}
+
+.hcStep {
+	color: #9a9a9a;
+	font-size: 12px;
+	line-height: 1.35;
+}
+
+.hcStatus {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	color: #d9d9d9;
+	font-size: 12px;
+}
+
+.hcTags {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 5px 6px;
+	margin-top: 1px;
+}
+
+.hcCode {
+	color: #8fa3ac;
+	font-size: 11px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 260px;
+}
+
+/* Run metadata: label · value rows, hairline-separated from the step meta. */
+.hcRuns {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 3px 12px;
+	margin: 2px 0 0;
+	padding-top: 8px;
+	border-top: 1px solid #2a2a2a;
+}
+
+.hcRunLabel {
+	color: #6f6f6f;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	align-self: center;
+}
+
+.hcRunVal {
+	margin: 0;
+	color: #d9d9d9;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	word-break: break-word;
+}
+
 /* ── Mobile: company cards ── */
 
 .cards {
