@@ -1,19 +1,19 @@
 "use client";
 
-import {
-	Card,
-	Button,
-	Empty,
-	Typography,
-	Space,
-	Tag,
-	InputNumber,
-	Spin,
-} from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import {
-	DARK_CARD_STYLE,
+	Button,
+	Card,
+	Empty,
+	InputNumber,
+	Space,
+	Spin,
+	Tag,
+	Typography,
+} from "antd";
+import {
 	DARK_CARD_HEADER_STYLE,
+	DARK_CARD_STYLE,
 } from "../../config/chart-theme";
 import type { ConfiguredStep } from "../../hooks/api/useReportStepsService";
 

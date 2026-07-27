@@ -203,6 +203,9 @@ export class ReportStepsRepository {
 				id: s.step_id,
 				name: s.report_generation_steps.name,
 				order: s.step_order,
+				url: s.report_generation_steps.url,
+				dependency: s.report_generation_steps.dependency,
+				settings: s.report_generation_steps.settings,
 			})),
 			matrix: companies
 				.filter((c) => c.companies)
@@ -242,8 +245,265 @@ export class ReportStepsRepository {
 		return !!report;
 	}
 
+	static async getReportTypeById(reportId: number) {
+		return prisma.reports.findUnique({
+			where: { id: reportId },
+			select: { id: true, report_type: true },
+		});
+	}
+
+	static async getReportCompanyIds(reportId: number) {
+		const rows = await prisma.report_companies.findMany({
+			where: { report_id: reportId, company_id: { not: null } },
+			select: { company_id: true },
+		});
+		return rows
+			.map((r) => r.company_id)
+			.filter((id): id is number => id !== null);
+	}
+
+	static async getConfiguredStepIds(reportId: number) {
+		const rows = await prisma.report_steps.findMany({
+			where: { report_id: reportId },
+			select: { step_id: true },
+		});
+		return rows.map((r) => r.step_id);
+	}
+
+	/**
+	 * Per configured step for ONE company: the step's workflow id plus that
+	 * company's own status/start/end/exec_id (LEFT JOIN, so steps with no run
+	 * for this company come back with nulls). Company-scoped so a cell shows
+	 * the clicked company's execution, not another company's.
+	 */
+	static async getCompanyStepRuns(reportId: number, companyId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				step_id: number;
+				name: string;
+				workflow_id: string | null;
+				status: string | null;
+				start_time: Date | null;
+				end_time: Date | null;
+				exec_id: string | null;
+			}>
+		>`
+			SELECT DISTINCT ON (rs.step_id)
+				rs.step_id                     AS step_id,
+				rgs.name                       AS name,
+				rgs.workflow_id                AS workflow_id,
+				s.status::text                 AS status,
+				s.start_time                   AS start_time,
+				s.end_time                     AS end_time,
+				(s.metadata ->> 'exec_id')     AS exec_id
+			FROM report_steps rs
+			JOIN report_generation_steps rgs ON rgs.id = rs.step_id
+			LEFT JOIN report_step_statuses s
+				ON s.report_id = rs.report_id
+				AND s.step_id = rs.step_id
+				AND s.company_id = ${companyId}
+			WHERE rs.report_id = ${reportId}
+			ORDER BY rs.step_id
+		`;
+	}
+
+	/**
+	 * Per configured step: its n8n workflow id plus the latest status run
+	 * (status/start/end/exec_id). Uses raw SQL because workflow_id,
+	 * start_time and end_time are newer columns not in the generated client.
+	 * report_steps can hold duplicate rows, so we DISTINCT ON (step_id).
+	 */
+	static async getReportStepRuns(reportId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				step_id: number;
+				step_order: number;
+				name: string;
+				workflow_id: string | null;
+				status: string | null;
+				start_time: Date | null;
+				end_time: Date | null;
+				exec_id: string | null;
+			}>
+		>`
+			SELECT DISTINCT ON (rs.step_id)
+				rs.step_id                     AS step_id,
+				rs.step_order                  AS step_order,
+				rgs.name                       AS name,
+				rgs.workflow_id                AS workflow_id,
+				st.status::text                AS status,
+				st.start_time                  AS start_time,
+				st.end_time                    AS end_time,
+				(st.metadata ->> 'exec_id')    AS exec_id
+			FROM report_steps rs
+			JOIN report_generation_steps rgs ON rgs.id = rs.step_id
+			LEFT JOIN LATERAL (
+				SELECT s.status, s.start_time, s.end_time, s.metadata
+				FROM report_step_statuses s
+				WHERE s.report_id = rs.report_id AND s.step_id = rs.step_id
+				ORDER BY s.start_time DESC NULLS LAST, s.updated_at DESC NULLS LAST
+				LIMIT 1
+			) st ON true
+			WHERE rs.report_id = ${reportId}
+			ORDER BY rs.step_id, rs.step_order
+		`;
+	}
+
+	/**
+	 * Upsert an explicit set of (company_id, step_id) cells to one status in a
+	 * single transaction — all or nothing. Rectangular and sparse selections
+	 * both arrive here as a flat cell list. Callers must validate membership.
+	 */
+	static async bulkUpsertStatusCells(
+		reportId: number,
+		cells: Array<{ companyId: number; stepId: number }>,
+		status: report_status_enum,
+	) {
+		const now = new Date();
+		const ops = cells.map((cell) =>
+			prisma.report_step_statuses.upsert({
+				where: {
+					report_id_company_id_step_id: {
+						report_id: reportId,
+						company_id: cell.companyId,
+						step_id: cell.stepId,
+					},
+				},
+				update: { status, updated_at: now },
+				create: {
+					report_id: reportId,
+					company_id: cell.companyId,
+					step_id: cell.stepId,
+					status,
+				},
+			}),
+		);
+		await prisma.$transaction(ops);
+		return ops.length;
+	}
+
+	// ===== report_step_templates (пресети кроків) =====
+
+	static async listStepTemplates(includeInactive = false) {
+		return prisma.report_step_templates.findMany({
+			where: includeInactive ? undefined : { is_active: true },
+			orderBy: { id: "asc" },
+			select: {
+				id: true,
+				code: true,
+				name: true,
+				description: true,
+				is_active: true,
+				updated_at: true,
+				_count: { select: { report_step_template_steps: true } },
+			},
+		});
+	}
+
+	static async getStepTemplateById(templateId: bigint) {
+		return prisma.report_step_templates.findUnique({
+			where: { id: templateId },
+			include: {
+				report_step_template_steps: {
+					orderBy: { step_order: "asc" },
+					include: { report_generation_steps: true },
+				},
+			},
+		});
+	}
+
+	static async getActiveTemplateSteps(templateId: bigint) {
+		return prisma.report_step_template_steps.findMany({
+			where: { template_id: templateId, is_active: true },
+			orderBy: { step_order: "asc" },
+			select: { step_id: true, step_order: true },
+		});
+	}
+
+	static async createStepTemplate(input: {
+		code: string;
+		name: string;
+		description: string | null;
+		meta: object | null;
+		steps: Array<{ step_id: number; step_order: number }>;
+	}) {
+		return prisma.report_step_templates.create({
+			data: {
+				code: input.code,
+				name: input.name,
+				description: input.description,
+				is_active: true,
+				// meta is a non-nullable Json with a DB default of {}
+				...(input.meta ? { meta: input.meta } : {}),
+				report_step_template_steps: {
+					create: input.steps.map((s) => ({
+						step_id: s.step_id,
+						step_order: s.step_order,
+						is_active: true,
+					})),
+				},
+			},
+			include: {
+				report_step_template_steps: { orderBy: { step_order: "asc" } },
+			},
+		});
+	}
+
+	static async updateStepTemplate(
+		templateId: bigint,
+		data: {
+			name?: string;
+			description?: string | null;
+			is_active?: boolean;
+			meta?: object | null;
+		},
+	) {
+		return prisma.report_step_templates.update({
+			where: { id: templateId },
+			data: {
+				...(data.name !== undefined ? { name: data.name } : {}),
+				...(data.description !== undefined
+					? { description: data.description }
+					: {}),
+				...(data.is_active !== undefined ? { is_active: data.is_active } : {}),
+				// meta is non-nullable; only overwrite when a value is provided
+				...(data.meta ? { meta: data.meta } : {}),
+				updated_at: new Date(),
+			},
+		});
+	}
+
+	/**
+	 * Replace-only apply: wipe the report's configured steps and recreate them
+	 * from the preset, atomically. Returns the resulting configured steps.
+	 * Deleting report_steps cascade-deletes their report_step_statuses.
+	 */
+	static async replaceReportSteps(
+		reportId: number,
+		steps: Array<{ step_id: number; step_order: number }>,
+	) {
+		return prisma.$transaction(async (tx) => {
+			await tx.report_steps.deleteMany({ where: { report_id: reportId } });
+			if (steps.length > 0) {
+				await tx.report_steps.createMany({
+					data: steps.map((s) => ({
+						report_id: reportId,
+						step_id: s.step_id,
+						step_order: s.step_order,
+					})),
+				});
+			}
+			return tx.report_steps.findMany({
+				where: { report_id: reportId },
+				include: { report_generation_steps: true },
+				orderBy: { step_order: "asc" },
+			});
+		});
+	}
+
 	static async ensureOrchestrator(reportId: number) {
-		const existing = await this.getOrchestratorByReportId(reportId);
+		const existing =
+			await ReportStepsRepository.getOrchestratorByReportId(reportId);
 		if (existing) {
 			return { created: false, orchestrator: existing };
 		}
@@ -262,7 +522,8 @@ export class ReportStepsRepository {
 				error instanceof Error &&
 				error.message.includes("Unique constraint")
 			) {
-				const current = await this.getOrchestratorByReportId(reportId);
+				const current =
+					await ReportStepsRepository.getOrchestratorByReportId(reportId);
 				if (current) {
 					return { created: false, orchestrator: current };
 				}

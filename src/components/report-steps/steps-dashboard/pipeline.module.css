@@ -1,0 +1,178 @@
+/*
+ * Config "pipeline": each configured step as a row with a deep-link to its
+ * n8n workflow and, when it has run, the latest run's status, duration and a
+ * deep-link to the execution. Dark console palette, cyan for links/accent.
+ */
+
+.panel {
+	background: #1f1f1f;
+	border: 1px solid #303030;
+	border-radius: 10px;
+	padding: 16px;
+}
+
+.head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.head h3 {
+	margin: 0;
+	color: #e8e8e8;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.hint {
+	color: #8c8c8c;
+	font-size: 12px;
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.row {
+	display: grid;
+	grid-template-columns: 28px minmax(150px, 1.5fr) auto;
+	align-items: center;
+	gap: 14px;
+	background: #141414;
+	border: 1px solid #262626;
+	border-radius: 8px;
+	padding: 10px 12px;
+}
+
+@media (max-width: 720px) {
+	.row {
+		grid-template-columns: 28px 1fr;
+	}
+	.run {
+		grid-column: 1 / -1;
+		justify-self: start;
+	}
+}
+
+.order {
+	width: 26px;
+	height: 26px;
+	border-radius: 6px;
+	background: #242424;
+	border: 1px solid #303030;
+	color: #8c8c8c;
+	font-size: 12px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-variant-numeric: tabular-nums;
+}
+
+.main {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.name {
+	color: #e2e2e2;
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wfLink {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: #58bfce;
+	font-size: 12px;
+	text-decoration: none;
+	width: fit-content;
+}
+
+.wfLink:hover {
+	text-decoration: underline;
+}
+
+.wfNone {
+	color: #5a5a5a;
+	font-size: 12px;
+}
+
+.run {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	justify-self: end;
+	flex-wrap: wrap;
+}
+
+.status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: #cfcfcf;
+}
+
+.statusDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.dur {
+	color: #a9a9a9;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.durRunning {
+	color: #8fb4e0;
+}
+
+.execLink {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: #58bfce;
+	font-size: 12px;
+	text-decoration: none;
+}
+
+.execLink:hover {
+	text-decoration: underline;
+}
+
+.execRaw {
+	color: #7d7d7d;
+	font-size: 11px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.noRun {
+	color: #5a5a5a;
+	font-size: 12px;
+}
+
+.actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.empty {
+	color: #8c8c8c;
+	font-size: 13px;
+	padding: 8px 2px;
+}
