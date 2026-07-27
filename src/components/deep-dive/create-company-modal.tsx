@@ -29,6 +29,7 @@ import {
 	PlusOutlined,
 	ReloadOutlined,
 } from "@ant-design/icons";
+import { api } from "../../lib/api-client";
 import { useGetIndustries } from "../../hooks/api/useIndustriesService";
 import { useGicsCodes } from "../../hooks/api/useSalesMinerSignalCatalogService";
 import {
@@ -77,6 +78,26 @@ export function toSlug(value: string): string {
 		.replace(/_+/g, "_")
 		.replace(/^_+/, "")
 		.replace(/_+$/, "");
+}
+
+export async function checkSlugAvailable(
+	slug: string,
+	excludeCompanyId?: number | null,
+): Promise<{
+	available: boolean;
+	companyId?: number;
+	companyName?: string;
+} | null> {
+	try {
+		const params = new URLSearchParams({ slug });
+		if (excludeCompanyId != null) {
+			params.set("excludeCompanyId", String(excludeCompanyId));
+		}
+		const res = await api.get(`/companies/check-slug?${params.toString()}`);
+		return res.data?.data ?? null;
+	} catch {
+		return null;
+	}
 }
 
 export interface StagedCompanyDraft {
@@ -214,8 +235,14 @@ export default function CreateCompanyModal({
 	// Skip the reset on initial mount — the Modal (and its Form) hasn't been
 	// rendered yet at that point, so the form instance isn't connected.
 	const hasOpenedRef = useRef(false);
+	// Guards against re-syncing the form mid-edit: `initialValues` is a fresh
+	// object on every parent render (e.g. a background refetch of the company
+	// query), and without this guard that would stomp the user's in-progress edits.
+	const syncedForOpenRef = useRef(false);
 	useEffect(() => {
 		if (open) {
+			if (syncedForOpenRef.current) return;
+			syncedForOpenRef.current = true;
 			hasOpenedRef.current = true;
 			if (initialValues) {
 				form.setFieldsValue(initialValues);
@@ -230,6 +257,7 @@ export default function CreateCompanyModal({
 			}
 			return;
 		}
+		syncedForOpenRef.current = false;
 		if (!hasOpenedRef.current) return;
 		form.resetFields();
 		slugManuallyEdited.current = false;
@@ -272,6 +300,9 @@ export default function CreateCompanyModal({
 				if (typeof parsed.logo_url === "string" && parsed.logo_url.trim()) {
 					form.setFieldValue("logoUrl", parsed.logo_url);
 				}
+				if (typeof parsed.gics_code === "string" && parsed.gics_code.trim()) {
+					form.setFieldValue("gicsCode", parsed.gics_code.trim());
+				}
 				if (typeof parsed.company_type === "string") {
 					const companyType = parsed.company_type.trim().toLowerCase();
 					if (companyType === "public" || companyType === "private") {
@@ -286,6 +317,39 @@ export default function CreateCompanyModal({
 			setGenerating(false);
 		}
 	}, [additionalDataMode, form, message, variant]);
+
+	// Keeps a form field's value mirrored into whichever additional-data key
+	// represents the same concept (e.g. logoUrl -> logo_url), but only when
+	// that key is already present — this never introduces new keys.
+	const syncAdditionalDataField = useCallback((key: string, value: unknown) => {
+		setAdditionalDataObj((prev) => {
+			if (!(key in prev)) return prev;
+			return { ...prev, [key]: value };
+		});
+		setAdditionalDataJson((prev) => {
+			const parsed = parseAdditionalData(prev);
+			if (!parsed || !(key in parsed)) return prev;
+			return stringifyAdditionalData({ ...parsed, [key]: value });
+		});
+	}, []);
+
+	const validateSlugAvailable = useCallback(
+		async (_: unknown, value: string) => {
+			if (!value) return;
+			const check = await checkSlugAvailable(
+				value,
+				mode === "edit" ? companyId : undefined,
+			);
+			if (check && check.available === false) {
+				throw new Error(
+					`Slug already used by company #${check.companyId}${
+						check.companyName ? ` (${check.companyName})` : ""
+					}`,
+				);
+			}
+		},
+		[companyId, mode],
+	);
 
 	const handleGenerateSlug = useCallback(() => {
 		const name = form.getFieldValue("name") as string;
@@ -501,6 +565,8 @@ export default function CreateCompanyModal({
 						<Form.Item
 							name="slug"
 							label="Slug"
+							validateTrigger="onBlur"
+							hasFeedback
 							rules={[
 								{ required: true, message: "Slug is required" },
 								{
@@ -508,6 +574,7 @@ export default function CreateCompanyModal({
 									message:
 										"Only lowercase letters, numbers, hyphens and underscores",
 								},
+								{ validator: validateSlugAvailable },
 							]}
 							extra="Auto-generated from name, you can edit it manually"
 						>
@@ -559,7 +626,12 @@ export default function CreateCompanyModal({
 							label="Logo URL"
 							rules={[{ type: "url", message: "Enter a valid URL" }]}
 						>
-							<Input placeholder="https://acme.com/logo.png" />
+							<Input
+								placeholder="https://acme.com/logo.png"
+								onChange={(e) =>
+									syncAdditionalDataField("logo_url", e.target.value)
+								}
+							/>
 						</Form.Item>
 
 						<Form.Item name="gicsCode" label="GICS Code">
@@ -573,6 +645,9 @@ export default function CreateCompanyModal({
 									value: g.code,
 									label: `${g.code} — ${g.name}`,
 								}))}
+								onChange={(value) =>
+									syncAdditionalDataField("gics_code", value ?? null)
+								}
 							/>
 						</Form.Item>
 
@@ -642,6 +717,12 @@ export default function CreateCompanyModal({
 							<Segmented<Exclude<CompanyListingValue, "unknown">>
 								options={COMPANY_LISTING_REQUIRED_OPTIONS}
 								disabled={readOnly}
+								onChange={(value) =>
+									syncAdditionalDataField(
+										"company_type",
+										value === "public" ? "Public" : "Private",
+									)
+								}
 							/>
 						</Form.Item>
 

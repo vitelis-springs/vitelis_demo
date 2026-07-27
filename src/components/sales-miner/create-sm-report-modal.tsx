@@ -587,7 +587,7 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 					width="80vw"
 					style={{ top: "10vh" }}
 					styles={{ body: { maxHeight: "80vh", overflowY: "auto" } }}
-					destroyOnClose
+					destroyOnHidden
 				>
 					<Form
 						form={form}
