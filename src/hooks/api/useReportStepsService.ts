@@ -29,6 +29,34 @@ export interface ReportStepsResponse {
 	};
 }
 
+export interface ReportStepRun {
+	stepId: number;
+	order: number;
+	name: string;
+	workflowId: string | null;
+	workflowUrl: string | null;
+	status: StepStatus | null;
+	running: boolean;
+	startTime: string | null;
+	endTime: string | null;
+	execId: string | null;
+	executionUrl: string | null;
+}
+
+export interface ReportStepRunsResponse {
+	success: boolean;
+	data: ReportStepRun[];
+}
+
+/**
+ * Bulk status payload: sparse (explicit cells) or rectangular (the product of
+ * companies × steps). Both apply atomically in a single request.
+ */
+export type BulkStatusPayload = { status: StepStatus } & (
+	| { cells: Array<{ company_id: number; step_id: number }> }
+	| { company_ids: number[]; step_ids: number[] }
+);
+
 export interface StepsMatrixCompany {
 	id: number;
 	name: string;
@@ -38,6 +66,9 @@ export interface StepsMatrixStep {
 	id: number;
 	name: string;
 	order: number;
+	url: string;
+	dependency: StepDependency;
+	settings: unknown;
 }
 
 export interface StepsMatrixRow {
@@ -60,9 +91,13 @@ export interface StepsMatrixResponse {
 export interface CompanyStepStatus {
 	stepId: number;
 	stepName: string;
-	status: StepStatus;
-	metadata: unknown;
-	updatedAt: string | null;
+	status: StepStatus | null;
+	workflowId: string | null;
+	workflowUrl: string | null;
+	execId: string | null;
+	executionUrl: string | null;
+	startTime: string | null;
+	endTime: string | null;
 }
 
 export interface CompanyStepStatusesResponse {
@@ -87,6 +122,32 @@ export interface EnsureOrchestratorResponse {
 		status: StepStatus;
 		metadata: unknown;
 	};
+}
+
+export interface StepPresetSummary {
+	id: string;
+	code: string;
+	name: string;
+	description: string | null;
+	isActive: boolean;
+	stepCount: number;
+	updatedAt: string | null;
+}
+
+export interface StepPresetStep {
+	stepId: number;
+	order: number;
+	name: string;
+	isActive: boolean;
+}
+
+export interface StepPresetDetail {
+	id: string;
+	code: string;
+	name: string;
+	description: string | null;
+	isActive: boolean;
+	steps: StepPresetStep[];
 }
 
 // ===== API Functions =====
@@ -154,6 +215,11 @@ const reportStepsApi = {
 		return response.data;
 	},
 
+	async getReportStepRuns(reportId: number): Promise<ReportStepRunsResponse> {
+		const response = await api.get(`/deep-dive/${reportId}/step-runs`);
+		return response.data;
+	},
+
 	async getCompanyStepStatuses(
 		reportId: number,
 		companyId: number,
@@ -185,6 +251,85 @@ const reportStepsApi = {
 		const response = await api.patch(
 			`/deep-dive/${reportId}/companies/${companyId}/steps`,
 			{ updates },
+		);
+		return response.data;
+	},
+
+	async bulkUpdateReportStepStatuses(
+		reportId: number,
+		payload: BulkStatusPayload,
+	): Promise<{
+		success: boolean;
+		data?: { updated: number };
+		error?: string;
+	}> {
+		const response = await api.patch(
+			`/deep-dive/${reportId}/steps-statuses`,
+			payload,
+		);
+		return response.data;
+	},
+
+	async listStepPresets(
+		includeInactive = false,
+	): Promise<{ data: StepPresetSummary[] }> {
+		const response = await api.get("/sales-miner/report-step-templates", {
+			params: includeInactive ? { include_inactive: 1 } : undefined,
+		});
+		return response.data;
+	},
+
+	async getStepPreset(
+		templateId: string,
+	): Promise<{ success: boolean; data?: StepPresetDetail; error?: string }> {
+		const response = await api.get(
+			`/sales-miner/report-step-templates/${templateId}`,
+		);
+		return response.data;
+	},
+
+	async createStepPreset(payload: {
+		report_id: number;
+		name: string;
+		description?: string;
+	}): Promise<{
+		success: boolean;
+		data?: { id: string; code: string; name: string; stepCount: number };
+		error?: string;
+	}> {
+		const response = await api.post(
+			"/sales-miner/report-step-templates",
+			payload,
+		);
+		return response.data;
+	},
+
+	async applyStepPreset(
+		templateId: string,
+		reportId: number,
+	): Promise<{
+		success: boolean;
+		data?: { configured: ConfiguredStep[] };
+		error?: string;
+	}> {
+		const response = await api.post(
+			`/sales-miner/report-step-templates/${templateId}/apply`,
+			{ report_id: reportId },
+		);
+		return response.data;
+	},
+
+	async updateStepPreset(
+		templateId: string,
+		payload: {
+			name?: string;
+			description?: string | null;
+			is_active?: boolean;
+		},
+	): Promise<{ success: boolean; error?: string }> {
+		const response = await api.patch(
+			`/sales-miner/report-step-templates/${templateId}`,
+			payload,
 		);
 		return response.data;
 	},
@@ -300,6 +445,19 @@ export const useGetStepsMatrix = (
 	});
 };
 
+export const useGetReportStepRuns = (
+	reportId: number | null,
+	options?: { enabled?: boolean; refetchInterval?: number },
+) => {
+	return useQuery({
+		queryKey: ["step-runs", reportId],
+		queryFn: () => reportStepsApi.getReportStepRuns(reportId!),
+		enabled:
+			options?.enabled !== undefined ? options.enabled : reportId !== null,
+		refetchInterval: options?.refetchInterval ?? 30000,
+	});
+};
+
 export const useGetCompanyStepStatuses = (
 	reportId: number | null,
 	companyId: number | null,
@@ -380,6 +538,13 @@ export const useAddStepToReport = (reportId: number) => {
 				.catch((error) => {
 					console.error("Failed to invalidate query", error);
 				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["step-runs", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -394,6 +559,13 @@ export const useRemoveStepFromReport = (reportId: number) => {
 			queryClient
 				.invalidateQueries({
 					queryKey: ["report-steps", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["step-runs", reportId],
 				})
 				.catch((error) => {
 					console.error("Failed to invalidate query", error);
@@ -416,6 +588,13 @@ export const useReorderSteps = (reportId: number) => {
 				.catch((error) => {
 					console.error("Failed to invalidate query", error);
 				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["step-runs", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
 		},
 	});
 };
@@ -430,6 +609,13 @@ export const useUpdateStepOrder = (reportId: number) => {
 			queryClient
 				.invalidateQueries({
 					queryKey: ["report-steps", reportId],
+				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			queryClient
+				.invalidateQueries({
+					queryKey: ["step-runs", reportId],
 				})
 				.catch((error) => {
 					console.error("Failed to invalidate query", error);
@@ -493,6 +679,104 @@ export const useBulkUpdateStepStatuses = (reportId: number) => {
 				.invalidateQueries({
 					queryKey: ["company-step-statuses", reportId, variables.companyId],
 				})
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+		},
+	});
+};
+
+export const useBulkUpdateReportStepStatuses = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: BulkStatusPayload) =>
+			reportStepsApi.bulkUpdateReportStepStatuses(reportId, payload),
+		onSuccess: () => {
+			for (const key of [
+				["steps-matrix", reportId],
+				["company-step-statuses", reportId],
+			]) {
+				queryClient.invalidateQueries({ queryKey: key }).catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			}
+		},
+	});
+};
+
+export const useStepPresets = (includeInactive = false) => {
+	return useQuery({
+		queryKey: ["step-presets", { includeInactive }],
+		queryFn: () => reportStepsApi.listStepPresets(includeInactive),
+	});
+};
+
+export const useStepPresetDetail = (templateId: string | null) => {
+	return useQuery({
+		queryKey: ["step-preset", templateId],
+		queryFn: () => reportStepsApi.getStepPreset(templateId!),
+		enabled: templateId !== null,
+	});
+};
+
+export const useCreateStepPreset = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (payload: {
+			report_id: number;
+			name: string;
+			description?: string;
+		}) => reportStepsApi.createStepPreset(payload),
+		onSuccess: () => {
+			queryClient
+				.invalidateQueries({ queryKey: ["step-presets"] })
+				.catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+		},
+	});
+};
+
+export const useApplyStepPreset = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (templateId: string) =>
+			reportStepsApi.applyStepPreset(templateId, reportId),
+		onSuccess: () => {
+			for (const key of [
+				["report-steps", reportId],
+				["steps-matrix", reportId],
+				["step-runs", reportId],
+			]) {
+				queryClient.invalidateQueries({ queryKey: key }).catch((error) => {
+					console.error("Failed to invalidate query", error);
+				});
+			}
+		},
+	});
+};
+
+export const useUpdateStepPreset = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			templateId,
+			payload,
+		}: {
+			templateId: string;
+			payload: {
+				name?: string;
+				description?: string | null;
+				is_active?: boolean;
+			};
+		}) => reportStepsApi.updateStepPreset(templateId, payload),
+		onSuccess: () => {
+			queryClient
+				.invalidateQueries({ queryKey: ["step-presets"] })
 				.catch((error) => {
 					console.error("Failed to invalidate query", error);
 				});

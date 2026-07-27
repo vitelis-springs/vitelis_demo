@@ -101,6 +101,18 @@ export class N8NService {
 		return { url, apiKey };
 	}
 
+	/**
+	 * Editor host for a given n8n type, trailing-slashed. Mirrors the URL
+	 * selection in getConfigByType but needs no API key — for building
+	 * workflow/execution deep-links. Types: "salesminer", "bizminer",
+	 * "vitelis_sales", or undefined for the default instance.
+	 */
+	static getEditorBaseUrl(type?: string | null): string {
+		const url = process.env.N8N_API_URL; // vitelis_sales + default
+		const base = url || "https://vitelis.app.n8n.cloud/";
+		return base.endsWith("/") ? base : `${base}/`;
+	}
+
 	static async stopExecution(
 		executionId: string,
 		type?: string | null,
