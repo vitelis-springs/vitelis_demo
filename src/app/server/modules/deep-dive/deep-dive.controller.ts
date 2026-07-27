@@ -2246,6 +2246,40 @@ export class DeepDiveController {
 		}
 	}
 
+	static async checkSlugAvailable(request: NextRequest): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const params = new URL(request.url).searchParams;
+			const slug = params.get("slug")?.trim() ?? "";
+			if (!slug) {
+				return NextResponse.json(
+					{ success: false, error: "slug is required" },
+					{ status: 400 },
+				);
+			}
+			const excludeCompanyIdParam = params.get("excludeCompanyId");
+			const excludeCompanyId =
+				excludeCompanyIdParam != null &&
+				Number.isFinite(Number(excludeCompanyIdParam))
+					? Number(excludeCompanyIdParam)
+					: undefined;
+
+			const result = await DeepDiveService.checkSlugAvailable(
+				slug,
+				excludeCompanyId,
+			);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ DeepDiveController.checkSlugAvailable:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to check slug" },
+				{ status: 500 },
+			);
+		}
+	}
+
 	static async getValidationSummary(
 		request: NextRequest,
 		reportIdParam: string,

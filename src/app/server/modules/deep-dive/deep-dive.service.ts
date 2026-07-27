@@ -2649,6 +2649,21 @@ export class DeepDiveService {
 		};
 	}
 
+	static async checkSlugAvailable(slug: string, excludeCompanyId?: number) {
+		const existing = await DeepDiveRepository.getCompanyBySlug(slug);
+		const takenByAnother = existing != null && existing.id !== excludeCompanyId;
+		return {
+			success: true,
+			data: takenByAnother
+				? {
+						available: false,
+						companyId: existing!.id,
+						companyName: existing!.name,
+					}
+				: { available: true },
+		};
+	}
+
 	static async updateCompanyGeneric(
 		companyId: number,
 		data: {

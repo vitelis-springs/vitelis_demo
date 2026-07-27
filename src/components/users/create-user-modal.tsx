@@ -1,9 +1,9 @@
 "use client";
 import { useCreateUser } from "@hooks/api/useUsersService";
 import {
-  USE_CASE_SUGGESTIONS,
-  formatUseCaseLabel,
-  normalizeUseCase,
+	USE_CASE_SUGGESTIONS,
+	formatUseCaseLabel,
+	normalizeUseCase,
 } from "@shared/constants/use-cases";
 import { Col, Form, Input, Modal, Row, Select, Tag, message } from "antd";
 import type { CustomTagProps } from "rc-select/lib/BaseSelect";
@@ -101,7 +101,7 @@ export default function CreateUserModal({
 			cancelText="Cancel"
 			width={700}
 			confirmLoading={isPending}
-			destroyOnClose
+			destroyOnHidden
 		>
 			<Form
 				form={form}
@@ -207,20 +207,24 @@ export default function CreateUserModal({
 					name="credits"
 					label="Credits"
 					rules={[
-						{ 
+						{
 							validator: (_, value) => {
-								if (value === undefined || value === null || value === '') {
+								if (value === undefined || value === null || value === "") {
 									return Promise.resolve();
 								}
 								const numValue = Number(value);
 								if (isNaN(numValue)) {
-									return Promise.reject(new Error('Credits must be a valid number'));
+									return Promise.reject(
+										new Error("Credits must be a valid number"),
+									);
 								}
 								if (numValue < 0) {
-									return Promise.reject(new Error('Credits must be a positive number'));
+									return Promise.reject(
+										new Error("Credits must be a positive number"),
+									);
 								}
 								return Promise.resolve();
-							}
+							},
 						},
 					]}
 					initialValue={0}

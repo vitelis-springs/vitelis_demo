@@ -893,6 +893,13 @@ export class DeepDiveRepository {
 		return prisma.companies.findUnique({ where: { id: companyId } });
 	}
 
+	static async getCompanyBySlug(slug: string) {
+		return prisma.companies.findUnique({
+			where: { slug },
+			select: { id: true, name: true },
+		});
+	}
+
 	static async updateCompany(
 		companyId: number,
 		data: {

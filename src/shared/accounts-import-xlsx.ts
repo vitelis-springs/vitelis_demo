@@ -120,9 +120,15 @@ function parseRowCells(
 	return cellMap;
 }
 
+// Treat common "empty" placeholders (n/a, none, -, etc.) as null rather than a literal value.
+const NA_PLACEHOLDER_PATTERN = /^(n\/?a|none|null|-|–|—)$/i;
+
 function getCell(cellMap: Map<number, string>, col: number): string | null {
 	const v = cellMap.get(col);
-	return v && v.trim() ? v.trim() : null;
+	if (!v) return null;
+	const trimmed = v.trim();
+	if (!trimmed || NA_PLACEHOLDER_PATTERN.test(trimmed)) return null;
+	return trimmed;
 }
 
 function parseAccountsSheet(

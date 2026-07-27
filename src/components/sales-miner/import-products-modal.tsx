@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
 import {
+	PRODUCTS_SHEET_NAME_PATTERN,
 	parseProductsWorkbook,
 	type ParsedProductRow,
 } from "../../shared/products-import-xlsx";
@@ -76,6 +77,12 @@ export default function ImportProductsModal({
 		reset();
 		try {
 			const wb = await parseProductsWorkbook(file);
+			if (!wb.rows) {
+				message.error(
+					`Sheet "product-table" not found. Found: ${wb.allSheetNames.join(", ")}`,
+				);
+				return;
+			}
 			if (wb.rows.length === 0) {
 				message.warning("No product rows found in the workbook");
 				return;
@@ -201,7 +208,18 @@ export default function ImportProductsModal({
 			/>
 
 			<Modal
-				title="Import Product Portfolio from XLSX"
+				title={
+					<div>
+						<div>Import Product Portfolio from XLSX</div>
+						<Typography.Text
+							type="secondary"
+							style={{ fontSize: 12, fontWeight: 400 }}
+						>
+							Expects a sheet named &quot;{PRODUCTS_SHEET_NAME_PATTERN}&quot;
+							(or containing that text)
+						</Typography.Text>
+					</div>
+				}
 				open={open}
 				onCancel={() => {
 					reset();

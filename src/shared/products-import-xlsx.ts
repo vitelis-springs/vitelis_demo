@@ -1,3 +1,5 @@
+export const PRODUCTS_SHEET_NAME_PATTERN = "product-table";
+
 export const EXPECTED_PRODUCTS_HEADERS = [
 	"#",
 	"Org Unit",
@@ -37,8 +39,9 @@ export interface ParsedProductRow {
 }
 
 export interface ProductsWorkbook {
-	sheetName: string;
-	rows: ParsedProductRow[];
+	allSheetNames: string[];
+	sheetName: string | null;
+	rows: ParsedProductRow[] | null;
 }
 
 function parseXmlDoc(xmlText: string): Document {
@@ -196,18 +199,28 @@ export async function parseProductsWorkbook(
 	}
 
 	const sheetPaths = resolveWorksheetPaths(workbookXml, workbookRelsXml);
-	const firstSheet = sheetPaths[0];
-	if (!firstSheet) throw new Error("No sheets found in workbook");
+	const allSheetNames = sheetPaths.map((s) => s.sheetName);
+
+	const norm = (s: string) => s.trim().toLowerCase();
+	const targetSheet = sheetPaths.find((s) =>
+		norm(s.sheetName).includes(PRODUCTS_SHEET_NAME_PATTERN),
+	);
+
+	if (!targetSheet) {
+		return { allSheetNames, sheetName: null, rows: null };
+	}
 
 	const sharedStrings = readSharedStrings(
 		(await zip.file("xl/sharedStrings.xml")?.async("string")) ?? null,
 	);
 
 	const worksheetXml = await zip
-		.file(firstSheet.worksheetPath)
+		.file(targetSheet.worksheetPath)
 		?.async("string");
-	if (!worksheetXml) throw new Error("Could not read worksheet");
+	if (!worksheetXml) {
+		return { allSheetNames, sheetName: null, rows: null };
+	}
 
 	const rows = parseProductsSheet(worksheetXml, sharedStrings);
-	return { sheetName: firstSheet.sheetName, rows };
+	return { allSheetNames, sheetName: targetSheet.sheetName, rows };
 }
