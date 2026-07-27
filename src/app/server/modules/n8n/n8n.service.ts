@@ -40,6 +40,9 @@ interface SalesMinerDopExportResult {
 	status?: string;
 }
 
+/** Key of an n8n instance. Monitoring resolves a host from this to build deep links. */
+export type N8NInstanceKey = "salesminer" | "bizminer";
+
 const BIZMINER_PATH_V2_ALLIANZ = "webhook/v2/bizminer/allianz";
 const BIZMINER_PATH_V2_DEFAULT = "webhook/v2/bizminer/default";
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer";
@@ -160,6 +163,18 @@ export class N8NService {
 	static getTypeByInstanceIndex(index: number | null): string {
 		if (index === 0) return "salesminer";
 		return "bizminer";
+	}
+
+	// ===== Monitoring =====
+
+	/** Base URL of an instance, always with a trailing slash. Null when unconfigured. */
+	static getInstanceHost(key: N8NInstanceKey): string | null {
+		try {
+			const { url } = N8NService.getConfigByType(key);
+			return url.endsWith("/") ? url : `${url}/`;
+		} catch {
+			return null;
+		}
 	}
 
 	private static async fetchWithTimeout(
