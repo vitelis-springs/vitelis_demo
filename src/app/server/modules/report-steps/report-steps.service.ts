@@ -339,7 +339,7 @@ export class ReportStepsService {
 				name: t.name,
 				description: t.description ?? null,
 				isActive: t.is_active,
-				stepCount: t._count.report_step_template_steps,
+				stepCount: t.step_count,
 				updatedAt: t.updated_at?.toISOString() ?? null,
 			})),
 		};
@@ -359,10 +359,10 @@ export class ReportStepsService {
 				name: template.name,
 				description: template.description ?? null,
 				isActive: template.is_active,
-				steps: template.report_step_template_steps.map((s) => ({
+				steps: template.steps.map((s) => ({
 					stepId: s.step_id,
 					order: s.step_order,
-					name: s.report_generation_steps.name,
+					name: s.step?.name ?? `Step #${s.step_id}`,
 					isActive: s.is_active,
 				})),
 			},
@@ -409,7 +409,7 @@ export class ReportStepsService {
 				id: created.id.toString(),
 				code: created.code,
 				name: created.name,
-				stepCount: created.report_step_template_steps.length,
+				stepCount: created.steps.length,
 			},
 		};
 	}
@@ -466,9 +466,7 @@ export class ReportStepsService {
 		if (!template) return fail("Preset not found", 404);
 		if (!template.is_active) return fail("Preset is inactive", 400);
 
-		const activeSteps = template.report_step_template_steps.filter(
-			(s) => s.is_active,
-		);
+		const activeSteps = template.steps.filter((s) => s.is_active);
 		if (activeSteps.length === 0) {
 			return fail("Preset has no active steps", 400);
 		}
