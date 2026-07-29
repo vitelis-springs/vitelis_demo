@@ -40,7 +40,14 @@ export class CustomersAdminRepository {
 				take: params.take,
 				orderBy: { id: "desc" },
 				include: {
-					companies: { select: { id: true, name: true } },
+					companies: {
+						select: {
+							id: true,
+							name: true,
+							gics_code: true,
+							gics_codes: { select: { name: true } },
+						},
+					},
 					_count: { select: { customer_accounts: true } },
 				},
 			}),

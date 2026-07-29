@@ -13,7 +13,12 @@ export interface SalesMinerCustomerListRow {
 	settings: unknown;
 	created_at: string;
 	updated_at: string;
-	companies: { id: number; name: string };
+	companies: {
+		id: number;
+		name: string;
+		gics_code?: string | null;
+		gics_codes?: { name: string } | null;
+	};
 	_count: { customer_accounts: number };
 }
 
