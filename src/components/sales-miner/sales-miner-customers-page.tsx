@@ -188,6 +188,20 @@ function SalesMinerCustomersContent() {
 			),
 		},
 		{
+			title: "Industry",
+			key: "industry",
+			ellipsis: true,
+			render: (_, r) =>
+				r.companies.gics_codes?.name ?? <Text type="secondary">—</Text>,
+		},
+		{
+			title: "GICS Code",
+			key: "gics",
+			width: 110,
+			render: (_, r) =>
+				r.companies.gics_code ?? <Text type="secondary">—</Text>,
+		},
+		{
 			title: "Accounts",
 			key: "ac",
 			width: 110,
