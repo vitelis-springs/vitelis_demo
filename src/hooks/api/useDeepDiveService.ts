@@ -1091,6 +1091,23 @@ export const useGetSalesMinerSignalStats = (
 	});
 };
 
+export const useExportSalesMinerSignalStatsXlsx = () => {
+	return useMutation({
+		mutationFn: async (reportId: number) => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/signal-stats/export`,
+				{ responseType: "blob" },
+			);
+			const url = URL.createObjectURL(response.data as Blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `signal_stats_${reportId}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+		},
+	});
+};
+
 export const useExportOpportunitiesXlsx = () => {
 	return useMutation({
 		mutationFn: async ({
