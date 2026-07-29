@@ -861,26 +861,18 @@ export interface StepCostTasksResponse {
 }
 
 export interface SignalStatRow {
-	signalDefinitionId: number;
-	signalTypeName: string;
-	signalDefinitionName: string;
-	researchedContextCount: number;
-	decisionContextCount: number;
-	researchedButNotSelectedContextCount: number;
-	usedSeedCount: number;
-	finalOpportunityCount: number;
-	top10OpportunityCount: number;
-	deepDiveOpportunityCount: number;
-	usedEffectiveSignalScore: number;
-	top10EffectiveSignalScore: number;
-	avgEffectiveSignalScore: number;
-	totalConfirmationCount: number | null;
-	avgEvidenceStrengthScore: number;
-	avgEvidenceConfidenceScore: number;
-	avgEvidenceFreshnessScore: number;
-	latestEffectiveDate: string | null;
-	selectedOpportunitySpaces: string[];
-	signalEffectivenessClass: string;
+	unitType: "subcategory" | "product_signal";
+	unitId: number;
+	unitName: string | null;
+	externalId: string | null;
+	signalClass: string | null;
+	opportunitiesCount: number;
+	distinctSignalDefinitionCount: number;
+	completedSearchCount: number;
+	signalEfficiencyPct: number | null;
+	companiesResearchedCount: number;
+	companiesWithOpportunityCount: number;
+	companyHitRatePct: number | null;
 }
 
 export interface SignalStatsResponse {

@@ -2,6 +2,7 @@
 /** biome-ignore-all lint/style/useDefaultSwitchClause: Switches are exhaustive over validated union inputs. */
 import { type Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
+import { buildSignalStatsWorkbook } from "../../../../lib/xlsx/signal-stats-workbook";
 import {
 	buildKpiScoreValue,
 	isKpiScoreTier,
@@ -2707,33 +2708,37 @@ export class DeepDiveService {
 		return {
 			success: true,
 			data: rows.map((r) => ({
-				signalDefinitionId: Number(r.signal_definition_id),
-				signalTypeName: r.signal_type_name,
-				signalDefinitionName: r.signal_definition_name,
-				researchedContextCount: Number(r.researched_context_count),
-				decisionContextCount: Number(r.decision_context_count),
-				researchedButNotSelectedContextCount: Number(
-					r.researched_but_not_selected_context_count,
+				unitType: r.unit_type as "subcategory" | "product_signal",
+				unitId: Number(r.unit_id),
+				unitName: r.unit_name,
+				externalId: r.external_id,
+				signalClass: r.signal_class,
+				opportunitiesCount: Number(r.opportunities_count),
+				distinctSignalDefinitionCount: Number(
+					r.distinct_signal_definition_count,
 				),
-				usedSeedCount: Number(r.used_seed_count),
-				finalOpportunityCount: Number(r.final_opportunity_count),
-				top10OpportunityCount: Number(r.top10_opportunity_count),
-				deepDiveOpportunityCount: Number(r.deep_dive_opportunity_count),
-				usedEffectiveSignalScore: Number(r.used_effective_signal_score),
-				top10EffectiveSignalScore: Number(r.top10_effective_signal_score),
-				avgEffectiveSignalScore: Number(r.avg_effective_signal_score),
-				totalConfirmationCount:
-					r.total_confirmation_count != null
-						? Number(r.total_confirmation_count)
+				completedSearchCount: Number(r.completed_search_count),
+				signalEfficiencyPct:
+					r.signal_efficiency_pct != null
+						? Number(r.signal_efficiency_pct)
 						: null,
-				avgEvidenceStrengthScore: Number(r.avg_evidence_strength_score),
-				avgEvidenceConfidenceScore: Number(r.avg_evidence_confidence_score),
-				avgEvidenceFreshnessScore: Number(r.avg_evidence_freshness_score),
-				latestEffectiveDate: r.latest_effective_date?.toISOString() ?? null,
-				selectedOpportunitySpaces: r.selected_opportunity_spaces ?? [],
-				signalEffectivenessClass: r.signal_effectiveness_class,
+				companiesResearchedCount: Number(r.companies_researched_count),
+				companiesWithOpportunityCount: Number(
+					r.companies_with_opportunity_count,
+				),
+				companyHitRatePct:
+					r.company_hit_rate_pct != null
+						? Number(r.company_hit_rate_pct)
+						: null,
 			})),
 		};
+	}
+
+	static async exportSalesMinerSignalStatsXlsx(
+		reportId: number,
+	): Promise<ArrayBuffer> {
+		const { data } = await this.getSalesMinerSignalStats(reportId);
+		return buildSignalStatsWorkbook(data);
 	}
 
 	static async getValidationSummary(reportId: number) {

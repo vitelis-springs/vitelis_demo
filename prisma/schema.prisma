@@ -582,6 +582,7 @@ model reports {
   report_settings_id                              Int?
   source_validation_settings_id                   Int?
   report_type                                     String?                                           @db.VarChar(100)
+  report_classifier_id                            Int?
   company_level_report_state                      company_level_report_state[]
   generated_company_reports                       generated_company_reports[]
   n8n_tasks                                       n8n_tasks[]
@@ -604,6 +605,7 @@ model reports {
   report_settings                                 report_settings?                                  @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   source_validation_settings                      source_validation_settings?                       @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   use_cases                                       use_cases?                                        @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  report_classifiers                              report_classifiers?                               @relation(fields: [report_classifier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   research_runs                                   research_runs[]
   sales_report_step_intermediate_results          sales_report_step_intermediate_results[]
   sm_m_monitoring_cycle_runs_deprecated           sm_m_monitoring_cycle_runs_deprecated[]
@@ -613,6 +615,16 @@ model reports {
   temp_resolved_data_points_result                temp_resolved_data_points_result[]
 
   @@index([source_validation_settings_id], map: "idx_reports_source_validation_settings_id")
+  @@index([report_classifier_id], map: "idx_reports_report_classifier_id")
+}
+
+model report_classifiers {
+  id               Int       @id @default(autoincrement())
+  name             String    @unique @db.VarChar(255)
+  exported_to_dop  Boolean   @default(false)
+  created_at       DateTime  @default(now()) @db.Timestamp(6)
+  updated_at       DateTime  @default(now()) @db.Timestamp(6)
+  reports          reports[]
 }
 
 model scape_url_candidates {
