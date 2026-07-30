@@ -1,5 +1,12 @@
 # Report Email Notifications Plan
 
+> **Post-v1 amendments.** This doc describes the original v1 design. Since then the
+> implementation has grown beyond a few of the v1 decisions below — see the inline
+> notes marked **[post-v1]** in sections 6, 10, 11 and 14. Backend notification
+> support (subscriptions, delivery, dispatch) is generic across report types; only
+> the reports-table **UI** currently wires the subscribe/recipients controls in for
+> `sales_miner` reports.
+
 ## Загальний опис
 
 Потрібно додати email notifications для report lifecycle events через n8n.
@@ -24,10 +31,13 @@ Backend є source of truth для стану report. n8n не визначає, 
 templates і відправляє email.
 
 Delivery модель best-effort. Scheduled job запускається всередині app process на
-startup і виконується кожні 5 хвилин. Це не окремий worker, не microservice, не CLI
-і не internal HTTP endpoint. Якщо `NOTIFICATIONS_SCHEDULER_ENABLED=false`, scheduler
-не стартує. Default behavior - enabled. Якщо `N8N_NOTIFICATION_WEBHOOK_URL` не
-заданий, scheduler не стартує і пише warning у лог.
+startup і виконується кожні 5 хвилин. Сам tick
+іде не окремим worker/microservice/CLI, а через internal HTTP endpoint
+**[post-v1: v1 позначав internal HTTP endpoint як non-goal — знадобився через
+Edge-runtime bundling конфлікт з `src/middleware.ts`, див. секцію 10]**. Якщо
+`NOTIFICATIONS_SCHEDULER_ENABLED=false`, scheduler не стартує. Default behavior -
+enabled. Якщо `N8N_NOTIFICATION_WEBHOOK_URL` або `INTERNAL_CRON_SECRET` не
+задані, scheduler не стартує і пише warning у лог.
 
 ## Деталі імплементації
 
@@ -213,6 +223,12 @@ Use bulk state endpoint for visible reports to avoid N+1 requests.
 The v1 button manages all supported events at once. Partial per-event management is
 future UI work.
 
+**[post-v1]** Implemented beyond v1 scope, still `sales_miner`-only in the UI:
+subscribing other recipients (`Recipients` modal, backed by the non-`/me`
+`/notification-subscriptions` endpoints) and per-event granularity (checkboxes per
+`REPORT_STARTED`/`REPORT_COMPLETED`/`REPORT_FAILED` instead of all-or-nothing),
+via an optional `event_type` on the same endpoints.
+
 ### 7. Delivery dedupe
 
 One delivery row represents:
@@ -285,10 +301,29 @@ Include both `report_type` and `report_url` in `template_data`.
 
 ### 10. Scheduler
 
-Add notification scheduler on app startup, likely in `src/instrumentation.node.ts`
-or a small module imported from there.
+Add notification scheduler on app startup, in `src/instrumentation.ts` **[post-v1:
+must be named exactly `instrumentation.ts` — Next.js only loads that filename, not
+`instrumentation.node.ts`]**.
 
 Do not use `N8NTasksService.runCycle()` for notifications.
+
+**[post-v1]** `src/middleware.ts` runs on the Edge runtime, which forces Next.js to
+also Edge-bundle `instrumentation.ts`. Importing Prisma-backed service code there
+(even behind a `NEXT_RUNTIME` guard) breaks that Edge bundle, since webpack still
+resolves the import graph statically. So the actual cron logic lives in two plain
+Node.js route handlers instead, and `instrumentation.ts`'s `setInterval` only ever
+calls them over `fetch()` — zero app/Prisma imports in the instrumentation file
+itself:
+
+```http
+POST /api/internal/orchestrator-cron
+POST /api/internal/notification-cron
+```
+
+Both endpoints require an `x-internal-cron-secret` header matching
+`INTERNAL_CRON_SECRET`, checked before any side effects; missing/mismatched secret
+returns `401`. This closes off what would otherwise be a public, unauthenticated
+way to trigger cron cycles on demand.
 
 Scheduler behavior:
 
@@ -298,7 +333,8 @@ Scheduler behavior:
 - feature flag: `NOTIFICATIONS_SCHEDULER_ENABLED`;
 - default enabled;
 - if `NOTIFICATIONS_SCHEDULER_ENABLED=false`, do not start;
-- if `N8N_NOTIFICATION_WEBHOOK_URL` is missing, do not start and log warning once;
+- if `N8N_NOTIFICATION_WEBHOOK_URL` or `INTERNAL_CRON_SECRET` is missing, do not
+  start and log warning once;
 - run has overlap guard: if previous run is still executing, skip next tick.
 
 Run steps:
@@ -310,11 +346,10 @@ Run steps:
 
 Statuses:
 
-- `pending`: created, not dispatched yet;
+- `pending`: created, not dispatched yet, or a failed attempt eligible for retry;
+- `processing`: claimed by a dispatch cycle, in flight **[post-v1, see below]**;
 - `dispatched`: backend passed request to n8n; does not mean final email delivery;
-- `failed`: backend failed to pass request to n8n.
-
-No retry loop in v1.
+- `failed`: backend permanently gave up (attempts exhausted).
 
 Keep debug fields:
 
@@ -325,15 +360,28 @@ Keep debug fields:
 
 Dispatch behavior:
 
-- select pending deliveries;
-- increment `attempt_count`;
-- set `last_attempt_at`;
+- atomically claim up to `limit` due pending deliveries: flip them to `processing`
+  and increment `attempt_count`/`last_attempt_at` in one `UPDATE ... FOR UPDATE
+  SKIP LOCKED` statement, so two concurrent cron ticks can never dispatch the same
+  row twice **[post-v1: v1 had a plain `SELECT` + separate `markAttempted` update,
+  which raced under concurrent dispatch]**;
 - POST payload to `N8N_NOTIFICATION_WEBHOOK_URL`;
-- if request is accepted/successful enough for backend dispatch semantics, set
+- if the request is accepted/successful enough for backend dispatch semantics, set
   `status='dispatched'` and `dispatched_at=now()`;
-- if config/request throws or fails, set `status='failed'` and `last_error`.
+- if the request throws or the response is not ok, retry with backoff
+  **[post-v1: v1 had no retry loop — any failure was permanent]**: below
+  `MAX_DELIVERY_ATTEMPTS` (5), set `status='pending'` and `last_error`; once
+  exhausted, set `status='failed'` and `last_error`. Retry eligibility is computed
+  on the fly from `last_attempt_at` + a backoff step keyed off `attempt_count`
+  (1m / 5m / 15m / 1h) at claim time — no extra "next attempt" column.
 
 Do not wait for final SMTP/provider delivery from n8n.
+
+**[post-v1]** Restarting a report (orchestrator status set back to `PROCESSING`,
+which is what the reports-table "Active" state maps to) deletes all
+`notification_deliveries` rows for that `report_id` on the backend, so the
+lifecycle events can dedupe-fire again for the new run instead of staying
+suppressed by deliveries from the previous run.
 
 ### 12. Repository/service shape
 
@@ -390,13 +438,14 @@ UI test can be minimal:
 
 Do not implement:
 
-- assign-to-others UI;
+- ~~assign-to-others UI~~ **[post-v1: implemented, see section 6]**;
 - non-email channels;
-- per-event UI management;
-- retry loop;
+- ~~per-event UI management~~ **[post-v1: implemented, see section 6]**;
+- ~~retry loop~~ **[post-v1: implemented, see section 11]**;
 - delivery provider webhooks;
 - separate worker/microservice;
 - CLI cron command;
-- internal HTTP cron endpoint;
+- ~~internal HTTP cron endpoint~~ **[post-v1: implemented, see section 10 —
+  required by an Edge-runtime bundling constraint, not a scope decision]**;
 - direct DB migration execution from this repo;
 - dependency on `N8NTasksService.runCycle()`.
