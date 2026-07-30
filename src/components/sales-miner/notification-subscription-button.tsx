@@ -102,7 +102,7 @@ export default function NotificationSubscriptionButton({
 	};
 
 	const content = (
-		<Space direction="vertical" size={4} style={{ minWidth: 160 }}>
+		<Space orientation="vertical" size={4} style={{ minWidth: 160 }}>
 			{NOTIFICATION_EVENT_ORDER.map((eventType) => (
 				<Checkbox
 					key={eventType}

@@ -163,7 +163,7 @@ export default function ReportRecipientsModal({
 										gap: 8,
 									}}
 								>
-									<Space direction="vertical" size={2}>
+									<Space orientation="vertical" size={2}>
 										<Text>{recipient.recipient_email}</Text>
 										<Space size={12}>
 											{NOTIFICATION_EVENT_ORDER.map((eventType) => (
