@@ -1,5 +1,6 @@
 import { report_status_enum } from "../../../../generated/prisma";
 import { N8NService } from "../n8n/n8n.service";
+import { NotificationDeliveriesRepository } from "../report-notifications/notification-deliveries.repository";
 import { normalizePresetSteps } from "./report-steps.presets";
 import { ReportStepsRepository } from "./report-steps.repository";
 
@@ -723,11 +724,13 @@ export class ReportStepsService {
 					status,
 					cleaned,
 				);
+				await ReportStepsService.resetNotificationsOnRestart(reportId, status);
 				return { success: true };
 			}
 
 			if (status) {
 				await ReportStepsRepository.updateOrchestratorStatus(reportId, status);
+				await ReportStepsService.resetNotificationsOnRestart(reportId, status);
 				return { success: true };
 			}
 
@@ -741,6 +744,21 @@ export class ReportStepsService {
 			}
 			throw error;
 		}
+	}
+
+	/**
+	 * The "Active" UI label maps to orchestrator status PROCESSING, and is
+	 * also how a report is manually restarted. Clearing prior deliveries here
+	 * (rather than a separate frontend call) lets the lifecycle notifications
+	 * (started/completed/failed) fire again for the new run instead of
+	 * staying deduped against the previous one.
+	 */
+	private static async resetNotificationsOnRestart(
+		reportId: number,
+		status: report_status_enum,
+	): Promise<void> {
+		if (status !== report_status_enum.PROCESSING) return;
+		await NotificationDeliveriesRepository.resetForReport(reportId);
 	}
 
 	// ===== Cost stats =====
