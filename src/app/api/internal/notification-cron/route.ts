@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { verifyInternalCronSecret } from "../../../../lib/internal-cron-auth";
 import { ReportNotificationsService } from "../../../server/modules/report-notifications";
 
 /**
@@ -8,7 +9,10 @@ import { ReportNotificationsService } from "../../../server/modules/report-notif
  * import chain never has to be bundled for the Edge runtime that
  * src/middleware.ts also requires instrumentation.ts to support.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+	const unauthorized = verifyInternalCronSecret(request);
+	if (unauthorized) return unauthorized;
+
 	try {
 		await ReportNotificationsService.runNotificationCronOnce();
 		return NextResponse.json({ success: true });

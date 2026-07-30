@@ -311,36 +311,31 @@ describe("dispatchPendingDeliveries", () => {
 
 	it("is a no-op when N8N_NOTIFICATION_WEBHOOK_URL is not set", async () => {
 		delete process.env.N8N_NOTIFICATION_WEBHOOK_URL;
-		const findPending = mock(
+		const claimPending = mock(
 			NotificationDeliveriesRepository,
-			"findPending",
+			"claimPending",
 			[],
 		);
 
 		const result = await ReportNotificationsService.dispatchPendingDeliveries();
 
-		expect(findPending).not.toHaveBeenCalled();
+		expect(claimPending).not.toHaveBeenCalled();
 		expect(result).toEqual({ dispatched: 0, failed: 0 });
 	});
 
 	it("marks a delivery dispatched when the webhook accepts it", async () => {
 		process.env.N8N_NOTIFICATION_WEBHOOK_URL =
 			"https://n8n.example.com/webhook";
-		mock(NotificationDeliveriesRepository, "findPending", [
+		mock(NotificationDeliveriesRepository, "claimPending", [
 			{
 				id: BigInt(1),
 				report_id: 123,
 				recipient_email: "anna@example.com",
 				event_type: "REPORT_COMPLETED",
 				payload: { email: "anna@example.com" },
-				attempt_count: 0,
+				attempt_count: 1,
 			},
 		]);
-		const markAttempted = mock(
-			NotificationDeliveriesRepository,
-			"markAttempted",
-			undefined,
-		);
 		const markDispatched = mock(
 			NotificationDeliveriesRepository,
 			"markDispatched",
@@ -350,25 +345,23 @@ describe("dispatchPendingDeliveries", () => {
 
 		const result = await ReportNotificationsService.dispatchPendingDeliveries();
 
-		expect(markAttempted).toHaveBeenCalledWith(BigInt(1));
 		expect(markDispatched).toHaveBeenCalledWith(BigInt(1));
 		expect(result).toEqual({ dispatched: 1, failed: 0 });
 	});
 
-	it("marks a delivery failed when the webhook request throws", async () => {
+	it("retries a delivery when the webhook request throws and attempts remain", async () => {
 		process.env.N8N_NOTIFICATION_WEBHOOK_URL =
 			"https://n8n.example.com/webhook";
-		mock(NotificationDeliveriesRepository, "findPending", [
+		mock(NotificationDeliveriesRepository, "claimPending", [
 			{
 				id: BigInt(2),
 				report_id: 123,
 				recipient_email: "anna@example.com",
 				event_type: "REPORT_FAILED",
 				payload: { email: "anna@example.com" },
-				attempt_count: 0,
+				attempt_count: 1,
 			},
 		]);
-		mock(NotificationDeliveriesRepository, "markAttempted", undefined);
 		const markFailed = mock(
 			NotificationDeliveriesRepository,
 			"markFailed",
@@ -378,24 +371,23 @@ describe("dispatchPendingDeliveries", () => {
 
 		const result = await ReportNotificationsService.dispatchPendingDeliveries();
 
-		expect(markFailed).toHaveBeenCalledWith(BigInt(2), "network down");
+		expect(markFailed).toHaveBeenCalledWith(BigInt(2), "network down", 1);
 		expect(result).toEqual({ dispatched: 0, failed: 1 });
 	});
 
 	it("marks a delivery failed when the webhook responds with a non-ok status", async () => {
 		process.env.N8N_NOTIFICATION_WEBHOOK_URL =
 			"https://n8n.example.com/webhook";
-		mock(NotificationDeliveriesRepository, "findPending", [
+		mock(NotificationDeliveriesRepository, "claimPending", [
 			{
 				id: BigInt(3),
 				report_id: 123,
 				recipient_email: "anna@example.com",
 				event_type: "REPORT_STARTED",
 				payload: { email: "anna@example.com" },
-				attempt_count: 0,
+				attempt_count: 5,
 			},
 		]);
-		mock(NotificationDeliveriesRepository, "markAttempted", undefined);
 		const markFailed = mock(
 			NotificationDeliveriesRepository,
 			"markFailed",
@@ -408,6 +400,7 @@ describe("dispatchPendingDeliveries", () => {
 		expect(markFailed).toHaveBeenCalledWith(
 			BigInt(3),
 			"n8n webhook responded with status 500",
+			5,
 		);
 		expect(result).toEqual({ dispatched: 0, failed: 1 });
 	});

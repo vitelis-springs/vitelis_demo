@@ -1,5 +1,5 @@
 const ORCHESTRATOR_INTERVAL_MS = 30_000;
-const NOTIFICATIONS_INTERVAL_MS = 60_000;
+const NOTIFICATIONS_INTERVAL_MS = 5 * 60_000;
 
 const g = global as typeof global & {
 	__orchestratorCronStarted?: boolean;
@@ -20,14 +20,28 @@ function internalUrl(path: string): string {
 	return `http://127.0.0.1:${port}${path}`;
 }
 
+function internalCronHeaders(): Record<string, string> {
+	const secret = process.env.INTERNAL_CRON_SECRET;
+	return secret ? { "x-internal-cron-secret": secret } : {};
+}
+
 function startOrchestratorCron(): void {
 	if (g.__orchestratorCronStarted) return;
+
+	if (!process.env.INTERNAL_CRON_SECRET) {
+		console.warn(
+			"[OrchestratorCron] INTERNAL_CRON_SECRET is not set, scheduler will not start",
+		);
+		return;
+	}
+
 	g.__orchestratorCronStarted = true;
 
 	const run = async () => {
 		try {
 			await fetch(internalUrl("/api/internal/orchestrator-cron"), {
 				method: "POST",
+				headers: internalCronHeaders(),
 			});
 		} catch (error) {
 			console.error("[OrchestratorCron] cycle failed:", error);
@@ -57,6 +71,13 @@ function startNotificationScheduler(): void {
 		return;
 	}
 
+	if (!process.env.INTERNAL_CRON_SECRET) {
+		console.warn(
+			"[NotificationScheduler] INTERNAL_CRON_SECRET is not set, scheduler will not start",
+		);
+		return;
+	}
+
 	g.__notificationSchedulerStarted = true;
 
 	let running = false;
@@ -66,6 +87,7 @@ function startNotificationScheduler(): void {
 		try {
 			await fetch(internalUrl("/api/internal/notification-cron"), {
 				method: "POST",
+				headers: internalCronHeaders(),
 			});
 		} catch (error) {
 			console.error("[NotificationScheduler] cycle failed:", error);

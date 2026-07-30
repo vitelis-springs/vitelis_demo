@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { verifyInternalCronSecret } from "../../../../lib/internal-cron-auth";
 import { N8NTasksService } from "../../../server/modules/n8n-tasks/n8n-tasks.service";
 
 /**
@@ -8,7 +9,10 @@ import { N8NTasksService } from "../../../server/modules/n8n-tasks/n8n-tasks.ser
  * import chain never has to be bundled for the Edge runtime that
  * src/middleware.ts also requires instrumentation.ts to support.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+	const unauthorized = verifyInternalCronSecret(request);
+	if (unauthorized) return unauthorized;
+
 	try {
 		await N8NTasksService.runCycle();
 		return NextResponse.json({ success: true });

@@ -9,7 +9,12 @@ export type ReportNotificationEvent =
 
 export const NOTIFICATION_CHANNEL = "email" as const;
 
-export const DELIVERY_STATUSES = ["pending", "dispatched", "failed"] as const;
+export const DELIVERY_STATUSES = [
+	"pending",
+	"processing",
+	"dispatched",
+	"failed",
+] as const;
 
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 

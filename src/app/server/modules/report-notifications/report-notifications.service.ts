@@ -234,12 +234,11 @@ export class ReportNotificationsService {
 		const webhookUrl = process.env.N8N_NOTIFICATION_WEBHOOK_URL;
 		if (!webhookUrl) return { dispatched: 0, failed: 0 };
 
-		const pending = await NotificationDeliveriesRepository.findPending(limit);
+		const claimed = await NotificationDeliveriesRepository.claimPending(limit);
 		let dispatched = 0;
 		let failed = 0;
 
-		for (const delivery of pending) {
-			await NotificationDeliveriesRepository.markAttempted(delivery.id);
+		for (const delivery of claimed) {
 			try {
 				const response = await fetch(webhookUrl, {
 					method: "POST",
@@ -255,7 +254,11 @@ export class ReportNotificationsService {
 				dispatched += 1;
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				await NotificationDeliveriesRepository.markFailed(delivery.id, message);
+				await NotificationDeliveriesRepository.markFailed(
+					delivery.id,
+					message,
+					delivery.attempt_count,
+				);
 				failed += 1;
 			}
 		}
