@@ -86,11 +86,38 @@
 
 .mastTitle {
 	margin: 8px 0 0;
-	max-width: 22ch;
-	font-size: clamp(28px, 3.4vw, 46px);
+	max-width: 100%;
+	font-size: clamp(24px, 2.4vw, 34px);
 	font-weight: 800;
-	line-height: 1.04;
-	letter-spacing: -0.5px;
+	line-height: 1.12;
+	letter-spacing: 0;
+}
+
+.mastTitleEditor {
+	margin-top: 8px;
+	max-width: 100%;
+}
+.mastTitleEditor .fieldHead {
+	align-items: center;
+	margin-bottom: 4px;
+}
+.mastTitleEditor .fieldLabel {
+	font-size: 11px;
+}
+.mastTitleEditor .fieldText {
+	max-width: 100%;
+	font-size: clamp(24px, 2.4vw, 34px);
+	font-weight: 800;
+	line-height: 1.12;
+	letter-spacing: 0;
+}
+.mastTitleEditor .editor {
+	max-width: 100%;
+}
+.mastTitleEditor .textarea {
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1.32;
 }
 
 .meta {
@@ -340,6 +367,16 @@
 }
 .field {
 	min-width: 0;
+	padding: 10px 12px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	margin: -10px -12px;
+	transition:
+		background 0.14s ease,
+		border-color 0.14s ease;
+}
+.fieldEdited {
+	background: color-mix(in srgb, var(--signal) 6%, transparent);
 }
 .fieldHead {
 	display: flex;
@@ -347,6 +384,12 @@
 	justify-content: space-between;
 	gap: 12px;
 	margin-bottom: 6px;
+}
+.fieldLabelRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
 }
 .fieldLabel {
 	display: block;
@@ -358,6 +401,29 @@
 }
 .fieldSource {
 	display: none;
+}
+.fieldTools {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 0 0 auto;
+}
+.editedTag,
+.currentTag {
+	margin-inline-end: 0;
+	font-size: 11px;
+	line-height: 18px;
+	border-radius: 5px;
+}
+.editedTag {
+	border-color: color-mix(in srgb, var(--signal) 28%, var(--hair));
+	color: var(--signal);
+	background: color-mix(in srgb, var(--signal) 9%, transparent);
+}
+.currentTag {
+	color: var(--win);
+	background: color-mix(in srgb, var(--win) 10%, transparent);
+	border-color: color-mix(in srgb, var(--win) 26%, var(--hair));
 }
 .fieldText {
 	margin: 0;
@@ -372,9 +438,10 @@
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	max-width: 70ch;
+	width: 100%;
 }
 .textarea {
+	width: 100%;
 	font-size: 15px;
 	line-height: 1.55;
 }
@@ -385,6 +452,47 @@
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
+}
+.historyList {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-height: min(62vh, 680px);
+	overflow-y: auto;
+	padding-right: 4px;
+}
+.historyItem {
+	border: 1px solid var(--hair);
+	border-radius: 8px;
+	padding: 12px 14px;
+	background: var(--surface);
+}
+.historyItemHead {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 14px;
+	margin-bottom: 8px;
+}
+.historyItemTitle {
+	display: block;
+	font-size: 13px;
+	font-weight: 800;
+	color: var(--ink);
+}
+.historyItemMeta {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--ink-3);
+}
+.historyValue {
+	margin: 0;
+	color: var(--ink-2);
+	font-size: 13px;
+	line-height: 1.55;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 
 /* ---- Win ⇄ Risk ---- */

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import CompanyLogo from "../company-logo";
 import styles from "./opportunity-detail.module.css";
 
@@ -6,6 +7,7 @@ export default function OpportunityMasthead({
 	companyName,
 	companyLogoUrl,
 	title,
+	titleEditor,
 	motionFamily,
 	stage,
 	dealSize,
@@ -15,6 +17,7 @@ export default function OpportunityMasthead({
 	companyName: string | null;
 	companyLogoUrl: string | null;
 	title: string;
+	titleEditor?: ReactNode;
 	motionFamily: string | null;
 	stage: string | null;
 	dealSize: string | null;
@@ -32,7 +35,11 @@ export default function OpportunityMasthead({
 			/>
 			<div className={styles.mastText}>
 				<span className={styles.eyebrow}>{companyName ?? "Account"}</span>
-				<h1 className={styles.mastTitle}>{title}</h1>
+				{titleEditor ? (
+					<div className={styles.mastTitleEditor}>{titleEditor}</div>
+				) : (
+					<h1 className={styles.mastTitle}>{title}</h1>
+				)}
 				<div className={styles.meta}>
 					{motionFamily && (
 						<span className={`${styles.chip} ${styles.chipStrong}`}>

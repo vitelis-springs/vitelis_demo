@@ -90,12 +90,14 @@ export default function OpportunityCard({
 			</div>
 
 			{onToggleApproval && (
-				<Checkbox
-					checked={card.isApproved}
-					onChange={(e) => onToggleApproval(card.id, e.target.checked)}
-				>
-					Approved
-				</Checkbox>
+				<Tooltip title="Determines whether this opportunity is included in the DOP export.">
+					<Checkbox
+						checked={card.isApproved}
+						onChange={(e) => onToggleApproval(card.id, e.target.checked)}
+					>
+						Approved
+					</Checkbox>
+				</Tooltip>
 			)}
 
 			<Button

@@ -1350,21 +1350,28 @@ export class DeepDiveRepository {
 			throw new Error("Unsupported opportunity base text field");
 		}
 
-		return prisma.$executeRaw`
+		return prisma.$executeRawUnsafe(
+			`
       WITH latest_run AS (
         SELECT rr.id
         FROM public.research_runs rr
-        WHERE rr.report_id = ${reportId}
-          AND rr.company_id = ${companyId}
+        WHERE rr.report_id = $1
+          AND rr.company_id = $2
         ORDER BY rr.created_at DESC, rr.id DESC
         LIMIT 1
       )
       UPDATE public.opportunity_candidates oc
-      SET ${Prisma.raw(column)} = ${value}, updated_at = NOW()
+      SET ${column} = $3, updated_at = NOW()
       WHERE oc.research_run_id = (SELECT id FROM latest_run)
-        AND oc.company_id = ${companyId}
-        AND oc.id = ${opportunityId}
-    `;
+        AND oc.company_id = $4
+        AND oc.id = $5
+    `,
+			reportId,
+			companyId,
+			value,
+			companyId,
+			opportunityId,
+		);
 	}
 
 	static async updateOpportunityDeepDiveTextField(
@@ -1394,6 +1401,39 @@ export class DeepDiveRepository {
     `;
 	}
 
+	static async updateOpportunityDeepDiveJsonTextField(
+		reportId: number,
+		companyId: number,
+		opportunityId: bigint,
+		propertyKey: string,
+		path: readonly string[],
+		value: string,
+	): Promise<number> {
+		return prisma.$executeRaw`
+	      WITH latest_run AS (
+	        SELECT rr.id
+	        FROM public.research_runs rr
+	        WHERE rr.report_id = ${reportId}
+	          AND rr.company_id = ${companyId}
+	        ORDER BY rr.created_at DESC, rr.id DESC
+	        LIMIT 1
+	      )
+	      UPDATE public.opportunity_deep_dive_property_values pv
+	      SET value_json = jsonb_set(
+	        pv.value_json,
+	        ${[...path]}::text[],
+	        to_jsonb(${value}::text),
+	        false
+	      ), updated_at = NOW()
+	      FROM public.opportunity_candidates oc
+	      WHERE pv.opportunity_id = oc.id
+	        AND oc.research_run_id = (SELECT id FROM latest_run)
+	        AND oc.company_id = ${companyId}
+	        AND oc.id = ${opportunityId}
+	        AND pv.property_key = ${propertyKey}
+	        AND jsonb_typeof(pv.value_json #> ${[...path]}::text[]) = 'string'
+	    `;
+	}
 	static async setOpportunityCandidateApproval(
 		opportunityId: bigint,
 		isApproved: boolean,

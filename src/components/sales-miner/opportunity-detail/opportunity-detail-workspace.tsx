@@ -3,12 +3,14 @@
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { Alert, App, Button, Spin, theme } from "antd";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
+	useGetDeepDiveOverview,
 	useGetOpportunityDetail,
 	useUpdateOpportunityNarrativeField,
 } from "../../../hooks/api/useDeepDiveService";
 import type { OpportunityNarrativeField } from "../../../types/deep-dive.types";
+import DeepDiveBreadcrumbs from "../../deep-dive/breadcrumbs";
 import AppendixSection from "./appendix-section";
 import BundleSection from "./bundle-section";
 import ConvictionSpine from "./conviction-spine";
@@ -19,6 +21,10 @@ import { parseMeddpicc } from "./meddpicc";
 import MeddpiccDetail from "./meddpicc-detail";
 import NarrativeFieldEditor from "./narrative-field-editor";
 import NextActions from "./next-actions";
+import {
+	getOpportunityFieldHistory,
+	recordOpportunityFieldChange,
+} from "./opportunity-edit-history";
 import styles from "./opportunity-detail.module.css";
 import { editKey } from "./opportunity-detail.utils";
 import { asObj, hostOf, str } from "./opportunity-detail.value-utils";
@@ -51,12 +57,20 @@ const SECTIONS = [
 ] as const;
 
 const FEATURED_FIELD_KEYS = new Set([
+	"title",
 	"executiveSummary",
 	"primaryProblem",
 	"whyWeWin",
 	"whyWeCouldLose",
 	"competitivePositioning",
 ]);
+
+function reportCrumbLabel(
+	reportName: string | null | undefined,
+	reportId: number,
+) {
+	return reportName?.trim() || `Report #${reportId}`;
+}
 
 function NotCaptured() {
 	return (
@@ -81,7 +95,13 @@ export default function OpportunityDetailWorkspace({
 	const { message } = App.useApp();
 	const { token } = theme.useToken();
 	const activeEdit = searchParams.get("edit");
+	const historyScope = { reportId, companyId, opportunityId };
+	const [historyRevision, setHistoryRevision] = useState(0);
+	const [restoringFieldKey, setRestoringFieldKey] = useState<string | null>(
+		null,
+	);
 
+	const { data: reportOverview } = useGetDeepDiveOverview(reportId);
 	const { data, isLoading, isError, error } = useGetOpportunityDetail(
 		reportId,
 		companyId,
@@ -92,6 +112,10 @@ export default function OpportunityDetailWorkspace({
 		companyId,
 		opportunityId,
 	);
+
+	useEffect(() => {
+		setHistoryRevision((revision) => revision + 1);
+	}, [reportId, companyId, opportunityId]);
 
 	function setEdit(next: string | null) {
 		const params = new URLSearchParams(searchParams.toString());
@@ -113,12 +137,53 @@ export default function OpportunityDetailWorkspace({
 			if (!result.success) {
 				throw new Error(result.error ?? "Failed to save field");
 			}
+			recordOpportunityFieldChange(
+				historyScope,
+				field,
+				field.value ?? "",
+				value,
+			);
+			setHistoryRevision((revision) => revision + 1);
 			message.success(`${field.label} saved`);
 			setEdit(null);
 		} catch (saveError) {
 			message.error(
 				saveError instanceof Error ? saveError.message : "Failed to save field",
 			);
+		}
+	}
+
+	async function restoreField(field: OpportunityNarrativeField, value: string) {
+		const key = editKey(field);
+		setRestoringFieldKey(key);
+		try {
+			const result = await mutateAsync({
+				source: field.source,
+				field: field.field,
+				value,
+			});
+			if (!result.success) {
+				throw new Error(result.error ?? "Failed to restore field");
+			}
+			recordOpportunityFieldChange(
+				historyScope,
+				field,
+				field.value ?? "",
+				value,
+				{ action: "restore" },
+			);
+			setHistoryRevision((revision) => revision + 1);
+			message.success(`${field.label} restored`);
+			setEdit(null);
+		} catch (restoreError) {
+			message.error(
+				restoreError instanceof Error
+					? restoreError.message
+					: "Failed to restore field",
+			);
+			throw restoreError;
+		} finally {
+			setRestoringFieldKey(null);
 		}
 	}
 
@@ -143,6 +208,10 @@ export default function OpportunityDetailWorkspace({
 
 	const detail = data.data;
 	const { header } = detail;
+	const reportName = reportOverview?.data.report.name;
+	const companyLabel = detail.companyName?.trim() || `Company #${companyId}`;
+	const opportunityLabel =
+		header.title?.trim() || `Opportunity #${opportunityId}`;
 	const blocks = detail.structuredBlocks;
 	const gates = parseMeddpicc(blocks);
 	const allFields = [...detail.baseFields, ...detail.deepDiveFields];
@@ -154,15 +223,22 @@ export default function OpportunityDetailWorkspace({
 		if (!field) return null;
 		const key = editKey(field);
 		const active = activeEdit === key;
+		const history =
+			historyRevision >= 0
+				? getOpportunityFieldHistory(historyScope, field)
+				: null;
 		return (
 			<NarrativeFieldEditor
 				field={field}
 				active={active}
 				saving={isPending && active}
 				error={null}
+				history={history}
+				restoring={isPending && restoringFieldKey === key}
 				onEdit={() => setEdit(key)}
 				onCancel={() => setEdit(null)}
 				onSave={(value) => saveField(field, value)}
+				onRestore={(value) => restoreField(field, value)}
 			/>
 		);
 	};
@@ -213,6 +289,21 @@ export default function OpportunityDetailWorkspace({
 
 	return (
 		<div className={styles.page} style={themeVars}>
+			<DeepDiveBreadcrumbs
+				items={[
+					{ label: "Sales Miner", href: "/sales-miner" },
+					{ label: "Reports", href: "/sales-miner?tab=reports" },
+					{
+						label: reportCrumbLabel(reportName, reportId),
+						href: `/sales-miner/reports/${reportId}`,
+					},
+					{
+						label: companyLabel,
+						href: `/sales-miner/reports/${reportId}/companies/${companyId}`,
+					},
+					{ label: opportunityLabel },
+				]}
+			/>
 			<Button
 				type="text"
 				icon={<ArrowLeftOutlined />}
@@ -226,6 +317,7 @@ export default function OpportunityDetailWorkspace({
 				companyName={detail.companyName}
 				companyLogoUrl={detail.companyLogoUrl}
 				title={header.title}
+				titleEditor={renderEditor("title")}
 				motionFamily={header.motionFamily}
 				stage={header.stage}
 				dealSize={header.dealSize}

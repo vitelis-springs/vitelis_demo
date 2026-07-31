@@ -4,20 +4,30 @@ import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Empty, Segmented, Spin, Typography } from "antd";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	useGetCompanyOpportunityCards,
+	useGetDeepDiveOverview,
 	useSetOpportunityCandidateApproval,
 } from "../../../hooks/api/useDeepDiveService";
 import type {
 	OpportunityCardsResponse,
 	OpportunityCardTier,
 } from "../../../types/deep-dive.types";
+import DeepDiveBreadcrumbs from "../../deep-dive/breadcrumbs";
 import CompanyLogo from "../company-logo";
 import OpportunityCard from "./opportunity-card";
+import styles from "./opportunity-cards-grid.module.css";
 import { OPPORTUNITY_CARD_TIER_META } from "./opportunity-card-tiers";
 
 const { Title, Text } = Typography;
+
+function reportCrumbLabel(
+	reportName: string | null | undefined,
+	reportId: number,
+) {
+	return reportName?.trim() || `Report #${reportId}`;
+}
 
 type SortKey = "rank" | "score";
 type TierFilter = "all" | OpportunityCardTier;
@@ -35,6 +45,7 @@ export default function OpportunityCardsGrid({
 	const router = useRouter();
 	const { message } = App.useApp();
 	const queryClient = useQueryClient();
+	const { data: reportOverview } = useGetDeepDiveOverview(reportId);
 	const { data, isLoading, isError, error } = useGetCompanyOpportunityCards(
 		reportId,
 		companyId,
@@ -46,6 +57,8 @@ export default function OpportunityCardsGrid({
 	const [sortKey, setSortKey] = useState<SortKey>("rank");
 	const [tierFilter, setTierFilter] = useState<TierFilter>("all");
 	const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
+	const previousApprovedCountRef = useRef<number | null>(null);
+	const [dopCounterPulse, setDopCounterPulse] = useState(false);
 
 	const opportunityCardsQueryKey = [
 		"deep-dive",
@@ -71,6 +84,13 @@ export default function OpportunityCardsGrid({
 		setApproval(
 			{ opportunityId, isApproved: checked },
 			{
+				onSuccess: () => {
+					message.success(
+						checked
+							? "Opportunity selected for DOP export"
+							: "Opportunity removed from DOP export",
+					);
+				},
 				onError: () => {
 					queryClient.setQueryData<OpportunityCardsResponse>(
 						opportunityCardsQueryKey,
@@ -92,8 +112,33 @@ export default function OpportunityCardsGrid({
 	};
 
 	const allCards = useMemo(() => data?.data.cards ?? [], [data]);
+	const approvedCount = useMemo(
+		() => allCards.filter((card) => card.isApproved).length,
+		[allCards],
+	);
 	const companyName = data?.data.companyName;
 	const companyLogoUrl = data?.data.companyLogoUrl;
+	const reportName = reportOverview?.data.report.name;
+	const companyLabel = companyName?.trim() || `Company #${companyId}`;
+
+	useEffect(() => {
+		if (previousApprovedCountRef.current === null) {
+			previousApprovedCountRef.current = approvedCount;
+			return;
+		}
+
+		if (previousApprovedCountRef.current === approvedCount) return;
+
+		previousApprovedCountRef.current = approvedCount;
+		setDopCounterPulse(false);
+		const startTimer = window.setTimeout(() => setDopCounterPulse(true), 0);
+		const stopTimer = window.setTimeout(() => setDopCounterPulse(false), 760);
+
+		return () => {
+			window.clearTimeout(startTimer);
+			window.clearTimeout(stopTimer);
+		};
+	}, [approvedCount]);
 
 	const visibleCards = useMemo(() => {
 		const filtered = allCards
@@ -132,6 +177,17 @@ export default function OpportunityCardsGrid({
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
 			<div>
+				<DeepDiveBreadcrumbs
+					items={[
+						{ label: "Sales Miner", href: "/sales-miner" },
+						{ label: "Reports", href: "/sales-miner?tab=reports" },
+						{
+							label: reportCrumbLabel(reportName, reportId),
+							href: `/sales-miner/reports/${reportId}`,
+						},
+						{ label: companyLabel },
+					]}
+				/>
 				<Button
 					type="text"
 					size="small"
@@ -170,14 +226,34 @@ export default function OpportunityCardsGrid({
 								overflow: "hidden",
 							}}
 						/>
-						<div>
+						<div className={styles.headerText}>
 							<Title level={4} style={{ margin: 0 }}>
 								Opportunities{companyName ? ` · ${companyName}` : ""}
 							</Title>
-							<Text type="secondary">
-								{allCards.length} total · showing {visibleCards.length} · ranked
-								by priority
-							</Text>
+							<div className={styles.headerMeta}>
+								<div
+									className={[
+										styles.dopCounter,
+										dopCounterPulse ? styles.dopCounterPulse : "",
+									]
+										.filter(Boolean)
+										.join(" ")}
+									aria-label={
+										approvedCount + " opportunities selected for DOP export"
+									}
+								>
+									<span className={styles.dopCounterNumber}>
+										{approvedCount}
+									</span>
+									<span className={styles.dopCounterLabel}>
+										Selected for DOP export
+									</span>
+								</div>
+								<Text type="secondary" className={styles.summaryText}>
+									{allCards.length} total · showing {visibleCards.length} ·
+									ranked by priority
+								</Text>
+							</div>
 						</div>
 					</div>
 

@@ -84,34 +84,431 @@ type DopExportStatsRow = {
 
 type DopEligibility = { eligible: true } | { eligible: false; reason: string };
 
-export class DeepDiveService {
-	private static readonly OPPORTUNITY_BASE_TEXT_FIELDS = [
-		{
-			field: "title",
-			label: "Title",
-			key: "title",
-		},
-		{
-			field: "primary_business_problem",
-			label: "Business Problem",
-			key: "primary_business_problem",
-		},
-		{
-			field: "primary_value_proposition",
-			label: "Value Proposition",
-			key: "primary_value_proposition",
-		},
-		{ field: "why_now", label: "Why Now", key: "why_now" },
-		{ field: "notes", label: "Notes", key: "notes" },
-	] as const;
+type OpportunityReviewFieldBase = {
+	field: string;
+	label: string;
+	source: "base";
+	storage: "baseColumn";
+	rowKey:
+		| "title"
+		| "primary_business_problem"
+		| "primary_value_proposition"
+		| "why_now"
+		| "notes";
+	editable: boolean;
+};
 
-	private static readonly OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS = [
-		{ field: "primaryProblem", label: "Primary Problem" },
-		{ field: "whyWeWin", label: "Why We Win" },
-		{ field: "whyWeCouldLose", label: "Why We Could Lose" },
-		{ field: "executiveSummary", label: "Executive Summary" },
-		{ field: "competitivePositioning", label: "Competitive Positioning" },
-	] as const;
+type OpportunityReviewFieldDeepDiveString = {
+	field: string;
+	label: string;
+	source: "deepDive";
+	storage: "deepDiveString";
+	propertyKey: string;
+	editable: boolean;
+};
+
+type OpportunityReviewFieldDeepDiveJsonPath = {
+	field: string;
+	label: string;
+	source: "deepDive";
+	storage: "deepDiveJsonPath";
+	propertyKey: string;
+	path: readonly string[];
+	editable: boolean;
+};
+
+type OpportunityReviewFieldDeepDiveJsonArrayPath = {
+	field: string;
+	label: string;
+	source: "deepDive";
+	storage: "deepDiveJsonArrayPath";
+	propertyKey: string;
+	pathTemplate: readonly ["$index", string];
+	itemLabel: string;
+	itemFieldLabel: string;
+	editable: boolean;
+};
+
+type OpportunityReviewFieldReadonly = {
+	field: string;
+	label: string;
+	source: OpportunityNarrativeFieldSource;
+	storage: "readonly";
+	propertyKey?: string;
+	path?: readonly string[];
+	reason: string;
+	editable: false;
+};
+
+type OpportunityReviewField =
+	| OpportunityReviewFieldBase
+	| OpportunityReviewFieldDeepDiveString
+	| OpportunityReviewFieldDeepDiveJsonPath
+	| OpportunityReviewFieldDeepDiveJsonArrayPath
+	| OpportunityReviewFieldReadonly;
+
+type ResolvedOpportunityReviewField = {
+	field: string;
+	label: string;
+	source: OpportunityNarrativeFieldSource;
+	storage: "baseColumn" | "deepDiveString" | "deepDiveJsonPath";
+	editable: boolean;
+	rowKey?: OpportunityReviewFieldBase["rowKey"];
+	propertyKey?: string;
+	path?: readonly string[];
+};
+
+export class DeepDiveService {
+	private static readonly OPPORTUNITY_REVIEW_FIELDS: readonly OpportunityReviewField[] =
+		[
+			{
+				field: "title",
+				label: "Title",
+				source: "base",
+				storage: "baseColumn",
+				rowKey: "title",
+				editable: true,
+			},
+			{
+				field: "primary_business_problem",
+				label: "Business Problem",
+				source: "base",
+				storage: "baseColumn",
+				rowKey: "primary_business_problem",
+				editable: true,
+			},
+			{
+				field: "primary_value_proposition",
+				label: "Value Proposition",
+				source: "base",
+				storage: "baseColumn",
+				rowKey: "primary_value_proposition",
+				editable: true,
+			},
+			{
+				field: "why_now",
+				label: "Why Now",
+				source: "base",
+				storage: "baseColumn",
+				rowKey: "why_now",
+				editable: true,
+			},
+			{
+				field: "notes",
+				label: "Notes",
+				source: "base",
+				storage: "baseColumn",
+				rowKey: "notes",
+				editable: true,
+			},
+			{
+				field: "primaryProblem",
+				label: "Primary Problem",
+				source: "deepDive",
+				storage: "deepDiveString",
+				propertyKey: "primaryProblem",
+				editable: true,
+			},
+			{
+				field: "whyWeWin",
+				label: "Why We Win",
+				source: "deepDive",
+				storage: "deepDiveString",
+				propertyKey: "whyWeWin",
+				editable: true,
+			},
+			{
+				field: "whyWeCouldLose",
+				label: "Why We Could Lose",
+				source: "deepDive",
+				storage: "deepDiveString",
+				propertyKey: "whyWeCouldLose",
+				editable: true,
+			},
+			{
+				field: "executiveSummary",
+				label: "Executive Summary",
+				source: "deepDive",
+				storage: "deepDiveString",
+				propertyKey: "executiveSummary",
+				editable: true,
+			},
+			{
+				field: "competitivePositioning",
+				label: "Competitive Positioning",
+				source: "deepDive",
+				storage: "deepDiveString",
+				propertyKey: "competitivePositioning",
+				editable: true,
+			},
+			{
+				field: "whatToOffer.approach",
+				label: "Offer Approach",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "whatToOffer",
+				path: ["approach"],
+				editable: true,
+			},
+			{
+				field: "whatToOffer.offering",
+				label: "Offering",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "whatToOffer",
+				path: ["offering"],
+				editable: true,
+			},
+			{
+				field: "whatToOffer.offeringDescription",
+				label: "Offering Description",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "whatToOffer",
+				path: ["offeringDescription"],
+				editable: true,
+			},
+			{
+				field: "whatToOffer.businessOutcome",
+				label: "Business Outcome",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "whatToOffer",
+				path: ["businessOutcome"],
+				editable: true,
+			},
+			{
+				field: "whyNow.narrative",
+				label: "Why Now Narrative",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "whyNow",
+				path: ["narrative"],
+				editable: true,
+			},
+			{
+				field: "bundle.bundleName",
+				label: "Bundle Name",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "bundle",
+				path: ["bundleName"],
+				editable: true,
+			},
+			{
+				field: "bundle.bundleWhyNow",
+				label: "Bundle Why Now",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "bundle",
+				path: ["bundleWhyNow"],
+				editable: true,
+			},
+			{
+				field: "bundle.bundleNarrative",
+				label: "Bundle Narrative",
+				source: "deepDive",
+				storage: "deepDiveJsonPath",
+				propertyKey: "bundle",
+				path: ["bundleNarrative"],
+				editable: true,
+			},
+			{
+				field: "nextBestActions[].due",
+				label: "Action Due",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "nextBestActions",
+				pathTemplate: ["$index", "due"],
+				itemLabel: "Action",
+				itemFieldLabel: "Due",
+				editable: true,
+			},
+			{
+				field: "nextBestActions[].who",
+				label: "Action Owner",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "nextBestActions",
+				pathTemplate: ["$index", "who"],
+				itemLabel: "Action",
+				itemFieldLabel: "Owner",
+				editable: true,
+			},
+			{
+				field: "nextBestActions[].action",
+				label: "Action",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "nextBestActions",
+				pathTemplate: ["$index", "action"],
+				itemLabel: "Action",
+				itemFieldLabel: "Action",
+				editable: true,
+			},
+			{
+				field: "nextBestActions[].rationale",
+				label: "Action Rationale",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "nextBestActions",
+				pathTemplate: ["$index", "rationale"],
+				itemLabel: "Action",
+				itemFieldLabel: "Rationale",
+				editable: true,
+			},
+			{
+				field: "discoveryQuestions[].layer",
+				label: "Question Layer",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "discoveryQuestions",
+				pathTemplate: ["$index", "layer"],
+				itemLabel: "Question",
+				itemFieldLabel: "Layer",
+				editable: true,
+			},
+			{
+				field: "discoveryQuestions[].question",
+				label: "Discovery Question",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "discoveryQuestions",
+				pathTemplate: ["$index", "question"],
+				itemLabel: "Question",
+				itemFieldLabel: "Question",
+				editable: true,
+			},
+			{
+				field: "discoveryQuestions[].rationale",
+				label: "Question Rationale",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "discoveryQuestions",
+				pathTemplate: ["$index", "rationale"],
+				itemLabel: "Question",
+				itemFieldLabel: "Rationale",
+				editable: true,
+			},
+			{
+				field: "proofPoints[].claim",
+				label: "Proof Claim",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "proofPoints",
+				pathTemplate: ["$index", "claim"],
+				itemLabel: "Proof Point",
+				itemFieldLabel: "Claim",
+				editable: true,
+			},
+			{
+				field: "proofPoints[].evidence",
+				label: "Proof Evidence",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "proofPoints",
+				pathTemplate: ["$index", "evidence"],
+				itemLabel: "Proof Point",
+				itemFieldLabel: "Evidence",
+				editable: true,
+			},
+			{
+				field: "proofPoints[].applicability",
+				label: "Proof Applicability",
+				source: "deepDive",
+				storage: "deepDiveJsonArrayPath",
+				propertyKey: "proofPoints",
+				pathTemplate: ["$index", "applicability"],
+				itemLabel: "Proof Point",
+				itemFieldLabel: "Applicability",
+				editable: true,
+			},
+			{
+				field: "whyNow.sources",
+				label: "Why Now Sources",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "whyNow",
+				path: ["sources"],
+				reason: "Source attribution is part of the evidence base.",
+				editable: false,
+			},
+			{
+				field: "proofPoints[].sourceUrl",
+				label: "Proof Source URL",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "proofPoints",
+				reason: "Source URLs must stay tied to the original evidence.",
+				editable: false,
+			},
+			{
+				field: "proofPoints[].verbatimSupport",
+				label: "Proof Verbatim Support",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "proofPoints",
+				reason: "Verbatim source support must not be rewritten manually.",
+				editable: false,
+			},
+			{
+				field: "evidenceUrls",
+				label: "Evidence URLs",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "evidenceUrls",
+				reason: "Evidence references are part of traceability.",
+				editable: false,
+			},
+			{
+				field: "competitiveAnalysis.sources",
+				label: "Competitive Analysis Sources",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "competitiveAnalysis",
+				path: ["sources"],
+				reason: "Competitive sources are evidence, not presentation copy.",
+				editable: false,
+			},
+			{
+				field: "commercialSnapshot.score",
+				label: "Commercial Snapshot Score",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "commercialSnapshot",
+				path: ["score"],
+				reason: "Scores are analysis outputs.",
+				editable: false,
+			},
+			{
+				field: "commercialSnapshot.exportSafe",
+				label: "Commercial Snapshot Export Safety",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "commercialSnapshot",
+				path: ["exportSafe"],
+				reason: "Export safety is an analysis/QA signal.",
+				editable: false,
+			},
+			{
+				field: "meddpicc",
+				label: "MEDDPICC Evidence",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "meddpicc",
+				reason: "MEDDPICC evidence and scoring should stay analysis-owned.",
+				editable: false,
+			},
+			{
+				field: "meddpiccStructured",
+				label: "MEDDPICC Structured Evidence",
+				source: "deepDive",
+				storage: "readonly",
+				propertyKey: "meddpiccStructured",
+				reason: "Structured qualification evidence should stay analysis-owned.",
+				editable: false,
+			},
+		] as const;
 
 	private static readonly OPPORTUNITY_STRUCTURED_LABELS: Record<
 		string,
@@ -2999,6 +3396,85 @@ export class DeepDiveService {
 		};
 	}
 
+	private static readJsonText(
+		value: unknown,
+		path: readonly string[],
+	): string | null {
+		let current = value;
+		for (const segment of path) {
+			if (Array.isArray(current)) {
+				const index = Number(segment);
+				if (!Number.isInteger(index) || index < 0) return null;
+				current = current[index];
+			} else if (DeepDiveService.isJsonObject(current)) {
+				current = current[segment];
+			} else {
+				return null;
+			}
+		}
+		return typeof current === "string" ? current : null;
+	}
+
+	private static resolveOpportunityReviewField(
+		source: OpportunityNarrativeFieldSource,
+		field: string,
+	): ResolvedOpportunityReviewField | null {
+		const direct = DeepDiveService.OPPORTUNITY_REVIEW_FIELDS.find(
+			(
+				def,
+			): def is Exclude<
+				OpportunityReviewField,
+				| OpportunityReviewFieldDeepDiveJsonArrayPath
+				| OpportunityReviewFieldReadonly
+			> =>
+				def.source === source &&
+				def.storage !== "deepDiveJsonArrayPath" &&
+				def.storage !== "readonly" &&
+				def.field === field,
+		);
+		if (direct) {
+			return {
+				field: direct.field,
+				label: direct.label,
+				source: direct.source,
+				storage: direct.storage,
+				editable: direct.editable,
+				rowKey: "rowKey" in direct ? direct.rowKey : undefined,
+				propertyKey: "propertyKey" in direct ? direct.propertyKey : undefined,
+				path:
+					direct.storage === "deepDiveJsonPath" ? [...direct.path] : undefined,
+			};
+		}
+
+		if (source !== "deepDive") return null;
+		const arrayMatch = field.match(
+			/^([A-Za-z0-9_]+)\[(\d+)\]\.([A-Za-z0-9_]+)$/,
+		);
+		if (!arrayMatch) return null;
+
+		const propertyKey = arrayMatch[1];
+		const index = arrayMatch[2];
+		const itemFieldKey = arrayMatch[3];
+		if (!propertyKey || !index || !itemFieldKey) return null;
+		const template = DeepDiveService.OPPORTUNITY_REVIEW_FIELDS.find(
+			(def): def is OpportunityReviewFieldDeepDiveJsonArrayPath =>
+				def.storage === "deepDiveJsonArrayPath" &&
+				def.propertyKey === propertyKey &&
+				def.pathTemplate[1] === itemFieldKey,
+		);
+		if (!template) return null;
+
+		return {
+			field,
+			label: `${template.itemLabel} ${Number(index) + 1} ${template.itemFieldLabel}`,
+			source: template.source,
+			storage: "deepDiveJsonPath",
+			editable: template.editable,
+			propertyKey: template.propertyKey,
+			path: [index, itemFieldKey],
+		};
+	}
+
 	private static buildOpportunityBaseFields(row: {
 		title: string;
 		primary_business_problem: string | null;
@@ -3006,12 +3482,17 @@ export class DeepDiveService {
 		why_now: string | null;
 		notes: string | null;
 	}): OpportunityNarrativeField[] {
-		return DeepDiveService.OPPORTUNITY_BASE_TEXT_FIELDS.map((def) => ({
-			source: "base",
-			field: def.field,
-			label: def.label,
-			value: row[def.key],
-		}));
+		return DeepDiveService.OPPORTUNITY_REVIEW_FIELDS.flatMap((def) => {
+			if (def.storage !== "baseColumn" || !def.editable) return [];
+			return [
+				{
+					source: def.source,
+					field: def.field,
+					label: def.label,
+					value: row[def.rowKey],
+				},
+			];
+		});
 	}
 
 	private static buildOpportunityDeepDiveFields(
@@ -3020,44 +3501,67 @@ export class DeepDiveService {
 		>,
 	): OpportunityNarrativeField[] {
 		const byKey = new Map(propertyRows.map((row) => [row.property_key, row]));
-		return DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS.flatMap((def) => {
-			const row = byKey.get(def.field);
-			if (!row || typeof row.value_json !== "string") return [];
-			return [
-				{
-					source: "deepDive" as const,
+		const fields: OpportunityNarrativeField[] = [];
+
+		for (const def of DeepDiveService.OPPORTUNITY_REVIEW_FIELDS) {
+			if (def.source !== "deepDive" || !def.editable) continue;
+
+			if (def.storage === "deepDiveString") {
+				const row = byKey.get(def.propertyKey);
+				if (!row || typeof row.value_json !== "string") continue;
+				fields.push({
+					source: def.source,
 					field: def.field,
 					label: def.label,
 					value: row.value_json,
-				},
-			];
-		});
-	}
+				});
+				continue;
+			}
 
-	private static isEditableOpportunityField(
-		source: OpportunityNarrativeFieldSource,
-		field: string,
-	): boolean {
-		if (source === "base") {
-			return DeepDiveService.OPPORTUNITY_BASE_TEXT_FIELDS.some(
-				(def) => def.field === field,
-			);
+			if (def.storage === "deepDiveJsonPath") {
+				const row = byKey.get(def.propertyKey);
+				const value = row
+					? DeepDiveService.readJsonText(row.value_json, def.path)
+					: null;
+				if (value === null) continue;
+				fields.push({
+					source: def.source,
+					field: def.field,
+					label: def.label,
+					value,
+				});
+				continue;
+			}
+
+			const row = byKey.get(def.propertyKey);
+			if (!row || !Array.isArray(row.value_json)) continue;
+			const itemFieldKey = def.pathTemplate[1];
+			row.value_json.forEach((_, index) => {
+				const value = DeepDiveService.readJsonText(row.value_json, [
+					String(index),
+					itemFieldKey,
+				]);
+				if (value === null) return;
+				fields.push({
+					source: def.source,
+					field: `${def.propertyKey}[${index}].${itemFieldKey}`,
+					label: `${def.itemLabel} ${index + 1} ${def.itemFieldLabel}`,
+					value,
+				});
+			});
 		}
 
-		return DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS.some(
-			(def) => def.field === field,
-		);
+		return fields;
 	}
 
 	private static opportunityFieldLabel(
 		source: OpportunityNarrativeFieldSource,
 		field: string,
 	): string {
-		const defs =
-			source === "base"
-				? DeepDiveService.OPPORTUNITY_BASE_TEXT_FIELDS
-				: DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS;
-		return defs.find((def) => def.field === field)?.label ?? field;
+		return (
+			DeepDiveService.resolveOpportunityReviewField(source, field)?.label ??
+			field
+		);
 	}
 
 	static async getOpportunityDetail(
@@ -3077,7 +3581,9 @@ export class DeepDiveService {
 			DeepDiveRepository.getOpportunityStakeholders(opportunityId),
 		]);
 		const editableDeepDiveKeys = new Set<string>(
-			DeepDiveService.OPPORTUNITY_DEEP_DIVE_TEXT_FIELDS.map((def) => def.field),
+			DeepDiveService.OPPORTUNITY_REVIEW_FIELDS.flatMap((def) =>
+				def.storage === "deepDiveString" ? [def.propertyKey] : [],
+			),
 		);
 		const structuredBlocks = propertyRows
 			.filter((row) => !editableDeepDiveKeys.has(row.property_key))
@@ -3157,9 +3663,11 @@ export class DeepDiveService {
 			};
 		}
 
-		if (
-			!DeepDiveService.isEditableOpportunityField(payload.source, payload.field)
-		) {
+		const fieldDef = DeepDiveService.resolveOpportunityReviewField(
+			payload.source,
+			payload.field,
+		);
+		if (!fieldDef?.editable) {
 			return {
 				success: false,
 				error: "Field is not editable",
@@ -3184,22 +3692,35 @@ export class DeepDiveService {
 			};
 		}
 
-		const updatedCount =
-			payload.source === "base"
-				? await DeepDiveRepository.updateOpportunityBaseTextField(
-						reportId,
-						companyId,
-						opportunityId,
-						payload.field,
-						value,
-					)
-				: await DeepDiveRepository.updateOpportunityDeepDiveTextField(
-						reportId,
-						companyId,
-						opportunityId,
-						payload.field,
-						value,
-					);
+		let updatedCount = 0;
+		if (fieldDef.storage === "baseColumn") {
+			updatedCount = await DeepDiveRepository.updateOpportunityBaseTextField(
+				reportId,
+				companyId,
+				opportunityId,
+				payload.field,
+				value,
+			);
+		} else if (fieldDef.storage === "deepDiveString" && fieldDef.propertyKey) {
+			updatedCount =
+				await DeepDiveRepository.updateOpportunityDeepDiveTextField(
+					reportId,
+					companyId,
+					opportunityId,
+					fieldDef.propertyKey,
+					value,
+				);
+		} else if (fieldDef.propertyKey && fieldDef.path) {
+			updatedCount =
+				await DeepDiveRepository.updateOpportunityDeepDiveJsonTextField(
+					reportId,
+					companyId,
+					opportunityId,
+					fieldDef.propertyKey,
+					fieldDef.path,
+					value,
+				);
+		}
 
 		if (updatedCount === 0) {
 			return {

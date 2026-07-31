@@ -174,7 +174,7 @@ describe("E2E: opportunity detail read/edit", () => {
 		);
 		expect(
 			body.data.deepDiveFields.map((field: { field: string }) => field.field),
-		).toEqual(["primaryProblem", "whyWeWin"]);
+		).toEqual(["primaryProblem", "whyWeWin", "whatToOffer.offering"]);
 		expect(body.data.structuredBlocks).toEqual([
 			expect.objectContaining({
 				key: "whatToOffer",
@@ -300,6 +300,56 @@ describe("E2E: opportunity detail read/edit", () => {
 			BigInt(4395),
 			"whyWeWin",
 			"Updated win narrative",
+		);
+	});
+
+	it("updates an allowlisted deep-dive object JSON text path", async () => {
+		jest
+			.spyOn(DeepDiveRepository, "getOpportunityDetailBase")
+			.mockResolvedValueOnce(BASE_ROW as never);
+		const updateSpy = jest
+			.spyOn(DeepDiveRepository, "updateOpportunityDeepDiveJsonTextField")
+			.mockResolvedValueOnce(1);
+
+		const res = await callPatch({
+			source: "deepDive",
+			field: "whatToOffer.offering",
+			value: "Updated offering",
+		});
+
+		expect(res.status).toBe(200);
+		expect(updateSpy).toHaveBeenCalledWith(
+			171,
+			2929,
+			BigInt(4395),
+			"whatToOffer",
+			["offering"],
+			"Updated offering",
+		);
+	});
+
+	it("updates an allowlisted deep-dive array item JSON text path", async () => {
+		jest
+			.spyOn(DeepDiveRepository, "getOpportunityDetailBase")
+			.mockResolvedValueOnce(BASE_ROW as never);
+		const updateSpy = jest
+			.spyOn(DeepDiveRepository, "updateOpportunityDeepDiveJsonTextField")
+			.mockResolvedValueOnce(1);
+
+		const res = await callPatch({
+			source: "deepDive",
+			field: "nextBestActions[1].action",
+			value: "Updated second action",
+		});
+
+		expect(res.status).toBe(200);
+		expect(updateSpy).toHaveBeenCalledWith(
+			171,
+			2929,
+			BigInt(4395),
+			"nextBestActions",
+			["1", "action"],
+			"Updated second action",
 		);
 	});
 
