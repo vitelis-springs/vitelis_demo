@@ -7,6 +7,7 @@
  */
 jest.mock("../../../src/lib/prisma", () => ({ __esModule: true, default: {} }));
 
+import { NotificationDeliveriesRepository } from "../../../src/app/server/modules/report-notifications/notification-deliveries.repository";
 import { ReportStepsRepository } from "../../../src/app/server/modules/report-steps/report-steps.repository";
 import { ReportStepsService } from "../../../src/app/server/modules/report-steps/report-steps.service";
 import { report_status_enum } from "../../../src/generated/prisma";
@@ -17,6 +18,14 @@ function mockRepo<K extends keyof typeof ReportStepsRepository>(
 ) {
 	return jest
 		.spyOn(ReportStepsRepository, method as never)
+		.mockResolvedValue(value as never);
+}
+
+function mockNotificationsRepo<
+	K extends keyof typeof NotificationDeliveriesRepository,
+>(method: K, value: unknown) {
+	return jest
+		.spyOn(NotificationDeliveriesRepository, method as never)
 		.mockResolvedValue(value as never);
 }
 
@@ -247,5 +256,67 @@ describe("applyPreset", () => {
 		mockRepo("getStepTemplateById", null);
 		const result = await ReportStepsService.applyPreset("100", 9);
 		expect(result).toMatchObject({ success: false, status: 404 });
+	});
+});
+
+describe("updateOrchestrator", () => {
+	it("clears prior notification deliveries when restarted to PROCESSING via status-only update", async () => {
+		mockRepo("updateOrchestratorStatus", { report_id: 9 });
+		const reset = mockNotificationsRepo("resetForReport", undefined);
+
+		const result = await ReportStepsService.updateOrchestrator(
+			9,
+			report_status_enum.PROCESSING,
+		);
+
+		expect(result.success).toBe(true);
+		expect(reset).toHaveBeenCalledWith(9);
+	});
+
+	it("clears prior notification deliveries when restarted to PROCESSING alongside metadata", async () => {
+		mockRepo("getOrchestratorByReportId", {
+			status: report_status_enum.DONE,
+			metadata: {},
+		});
+		mockRepo("upsertOrchestrator", { report_id: 9 });
+		const reset = mockNotificationsRepo("resetForReport", undefined);
+
+		const result = await ReportStepsService.updateOrchestrator(
+			9,
+			report_status_enum.PROCESSING,
+			{ restarted_at: "2026-07-30T00:00:00.000Z" },
+		);
+
+		expect(result.success).toBe(true);
+		expect(reset).toHaveBeenCalledWith(9);
+	});
+
+	it("does not touch deliveries when the new status is not PROCESSING", async () => {
+		mockRepo("updateOrchestratorStatus", { report_id: 9 });
+		const reset = mockNotificationsRepo("resetForReport", undefined);
+
+		const result = await ReportStepsService.updateOrchestrator(
+			9,
+			report_status_enum.DONE,
+		);
+
+		expect(result.success).toBe(true);
+		expect(reset).not.toHaveBeenCalled();
+	});
+
+	it("does not touch deliveries on a metadata-only update", async () => {
+		mockRepo("getOrchestratorByReportId", {
+			status: report_status_enum.PROCESSING,
+			metadata: {},
+		});
+		mockRepo("upsertOrchestrator", { report_id: 9 });
+		const reset = mockNotificationsRepo("resetForReport", undefined);
+
+		const result = await ReportStepsService.updateOrchestrator(9, undefined, {
+			note: "ping",
+		});
+
+		expect(result.success).toBe(true);
+		expect(reset).not.toHaveBeenCalled();
 	});
 });

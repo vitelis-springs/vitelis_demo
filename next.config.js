@@ -10,7 +10,7 @@ const nextConfig = {
   experimental: {
     reactCompiler: true,
   },
-  serverExternalPackages: ['@resvg/resvg-js'],
+  serverExternalPackages: ['@resvg/resvg-js', 'pg', '@prisma/adapter-pg'],
   outputFileTracingIncludes: {
     "/api/export/docx": ["./src/config/docx/assets/**/*"],
     // Include Aptos fonts for radar chart generation in all API routes that might use it
