@@ -7,7 +7,11 @@ import {
 import prisma from "../../../../lib/prisma";
 import type { SortOrder } from "../../../../types/sorting";
 import {
+	buildCategoryProductTagMatrixQuery,
+	buildSignalCategoryStatsQuery,
 	buildSignalStatsQuery,
+	type CategoryProductTagCellRawRow,
+	type SignalCategoryStatsRawRow,
 	type SignalStatsRawRow,
 } from "./signal-stats-query";
 import { ValidationRepository } from "./validation/validation.repository";
@@ -3228,6 +3232,22 @@ export class DeepDiveRepository {
 	static async getSalesMinerSignalStats(reportId: number) {
 		return prisma.$queryRaw<SignalStatsRawRow[]>(
 			buildSignalStatsQuery(
+				Prisma.sql`SELECT rr.id FROM public.research_runs rr WHERE rr.report_id = ${reportId}`,
+			),
+		);
+	}
+
+	static async getSalesMinerSignalCategoryStats(reportId: number) {
+		return prisma.$queryRaw<SignalCategoryStatsRawRow[]>(
+			buildSignalCategoryStatsQuery(
+				Prisma.sql`SELECT rr.id FROM public.research_runs rr WHERE rr.report_id = ${reportId}`,
+			),
+		);
+	}
+
+	static async getSalesMinerCategoryProductTagMatrix(reportId: number) {
+		return prisma.$queryRaw<CategoryProductTagCellRawRow[]>(
+			buildCategoryProductTagMatrixQuery(
 				Prisma.sql`SELECT rr.id FROM public.research_runs rr WHERE rr.report_id = ${reportId}`,
 			),
 		);

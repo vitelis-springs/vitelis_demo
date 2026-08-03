@@ -45,6 +45,22 @@ export class SalesMinerStatsController {
 		}
 	}
 
+	static async listCapabilityTags(request: NextRequest): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const result = await SalesMinerStatsService.listCapabilityTags();
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ SalesMinerStatsController.listCapabilityTags:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch capability tags" },
+				{ status: 500 },
+			);
+		}
+	}
+
 	static async getSignalStats(request: NextRequest): Promise<NextResponse> {
 		try {
 			const auth = extractAdminFromRequest(request);
@@ -93,13 +109,135 @@ export class SalesMinerStatsController {
 		}
 	}
 
+	static async getSignalCategoryStats(
+		request: NextRequest,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const filters = SalesMinerStatsController.parseFilters(request);
+			const result =
+				await SalesMinerStatsService.getSignalCategoryStats(filters);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error(
+				"❌ SalesMinerStatsController.getSignalCategoryStats:",
+				error,
+			);
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Failed to fetch sales miner category stats",
+				},
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async exportSignalCategoryStatsXlsx(
+		request: NextRequest,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const filters = SalesMinerStatsController.parseFilters(request);
+			const buffer =
+				await SalesMinerStatsService.exportSignalCategoryStatsXlsx(filters);
+			const exportDate = new Date().toISOString().slice(0, 10);
+
+			return new NextResponse(buffer, {
+				headers: {
+					"Content-Type":
+						"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					"Content-Disposition": `attachment; filename="sales_miner_signal_category_stats_${exportDate}.xlsx"`,
+				},
+			});
+		} catch (error) {
+			console.error(
+				"❌ SalesMinerStatsController.exportSignalCategoryStatsXlsx:",
+				error,
+			);
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Failed to export sales miner category stats",
+				},
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async getCategoryProductTagMatrix(
+		request: NextRequest,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const filters = SalesMinerStatsController.parseFilters(request);
+			const result =
+				await SalesMinerStatsService.getCategoryProductTagMatrix(filters);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error(
+				"❌ SalesMinerStatsController.getCategoryProductTagMatrix:",
+				error,
+			);
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Failed to fetch category/product tag matrix",
+				},
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async exportCategoryProductTagMatrixXlsx(
+		request: NextRequest,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const filters = SalesMinerStatsController.parseFilters(request);
+			const buffer =
+				await SalesMinerStatsService.exportCategoryProductTagMatrixXlsx(
+					filters,
+				);
+			const exportDate = new Date().toISOString().slice(0, 10);
+
+			return new NextResponse(buffer, {
+				headers: {
+					"Content-Type":
+						"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					"Content-Disposition": `attachment; filename="sales_miner_category_product_tag_matrix_${exportDate}.xlsx"`,
+				},
+			});
+		} catch (error) {
+			console.error(
+				"❌ SalesMinerStatsController.exportCategoryProductTagMatrixXlsx:",
+				error,
+			);
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Failed to export category/product tag matrix",
+				},
+				{ status: 500 },
+			);
+		}
+	}
+
 	private static parseFilters(request: NextRequest) {
 		const { searchParams } = new URL(request.url);
 		return {
 			customerIds: parseBigIntList(searchParams.get("customerIds")),
-			customerGicsCodes: parseStringList(searchParams.get("customerGics")),
 			targetGicsCodes: parseStringList(searchParams.get("targetGics")),
 			classifierIds: parseIntList(searchParams.get("classifierIds")),
+			capabilityTagIds: parseBigIntList(searchParams.get("capabilityTagIds")),
 			unitTypes: parseStringList(searchParams.get("unitTypes")),
 		};
 	}

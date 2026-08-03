@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
 import type {
 	AddCompanyPayload,
+	CategoryProductTagMatrixResponse,
 	CompanyDetail,
 	CompanySearchResult,
 	CompanyUpdatePayload,
@@ -33,6 +34,7 @@ import type {
 	SalesMinerReportOverviewResponse,
 	ScrapeCandidatesParams,
 	ScrapeCandidatesResponse,
+	SignalCategoryStatsResponse,
 	SignalStatsResponse,
 	SourcesAnalyticsParams,
 	SourcesAnalyticsResponse,
@@ -1102,6 +1104,76 @@ export const useExportSalesMinerSignalStatsXlsx = () => {
 			const a = document.createElement("a");
 			a.href = url;
 			a.download = `signal_stats_${reportId}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+		},
+	});
+};
+
+export const useGetSalesMinerSignalCategoryStats = (
+	reportId: number,
+	enabled = true,
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "signal-category-stats", reportId],
+		queryFn: async () => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/signal-category-stats`,
+			);
+			return response.data as SignalCategoryStatsResponse;
+		},
+		enabled: enabled && Number.isFinite(reportId),
+		staleTime: 5 * 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useExportSalesMinerSignalCategoryStatsXlsx = () => {
+	return useMutation({
+		mutationFn: async (reportId: number) => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/signal-category-stats/export`,
+				{ responseType: "blob" },
+			);
+			const url = URL.createObjectURL(response.data as Blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `signal_category_stats_${reportId}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+		},
+	});
+};
+
+export const useGetSalesMinerCategoryProductTagMatrix = (
+	reportId: number,
+	enabled = true,
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "category-product-tag-matrix", reportId],
+		queryFn: async () => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/category-product-tag-matrix`,
+			);
+			return response.data as CategoryProductTagMatrixResponse;
+		},
+		enabled: enabled && Number.isFinite(reportId),
+		staleTime: 5 * 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useExportSalesMinerCategoryProductTagMatrixXlsx = () => {
+	return useMutation({
+		mutationFn: async (reportId: number) => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/category-product-tag-matrix/export`,
+				{ responseType: "blob" },
+			);
+			const url = URL.createObjectURL(response.data as Blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `category_product_tag_matrix_${reportId}.xlsx`;
 			a.click();
 			URL.revokeObjectURL(url);
 		},

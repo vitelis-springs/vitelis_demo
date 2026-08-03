@@ -1,30 +1,30 @@
 "use client";
 
-import {
-	Button,
-	Card,
-	Select,
-	Space,
-	Table,
-	TreeSelect,
-	Typography,
-} from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+import { Card, Select, Space, TreeSelect, Typography } from "antd";
 import { useMemo, useState } from "react";
-import {
-	DARK_CARD_STYLE,
-	DARK_CARD_HEADER_STYLE,
-} from "../../config/chart-theme";
+import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import { useSalesMinerCustomersList } from "../../hooks/api/useSalesMinerCustomersService";
 import { useGicsCodes } from "../../hooks/api/useSalesMinerSignalCatalogService";
 import {
+	useExportSalesMinerCategoryProductTagMatrixXlsx,
+	useExportSalesMinerCategoryStatsXlsx,
 	useExportSalesMinerStatsXlsx,
+	useGetCapabilityTags,
 	useGetReportClassifiers,
+	useGetSalesMinerCategoryProductTagMatrix,
+	useGetSalesMinerCategoryStats,
 	useGetSalesMinerStats,
 } from "../../hooks/api/useSalesMinerStatsService";
 import { buildGicsTree } from "../../lib/gics-tree";
-import type { SignalStatRow } from "../../types/deep-dive.types";
-import { buildColumns } from "../deep-dive/signal-stats-columns";
+import {
+	buildCategoryColumns,
+	buildColumns,
+	buildProductTagMatrixColumns,
+} from "../deep-dive/signal-stats-columns";
+import {
+	SignalStatsResults,
+	type SignalStatsView,
+} from "../deep-dive/signal-stats-results";
 
 const { Text } = Typography;
 
@@ -33,12 +33,16 @@ const UNIT_TYPE_OPTIONS = [
 	{ label: "Subcategory", value: "subcategory" },
 ];
 
+/** Static column set (no args, always the same) — computed once at module load rather than per-render. */
+const CATEGORY_COLUMNS = buildCategoryColumns();
+
 export function SalesMinerStatsEmbedded() {
 	const [customerIds, setCustomerIds] = useState<string[]>([]);
-	const [customerGics, setCustomerGics] = useState<string[]>([]);
+	const [capabilityTagIds, setCapabilityTagIds] = useState<string[]>([]);
 	const [targetGics, setTargetGics] = useState<string[]>([]);
 	const [classifierIds, setClassifierIds] = useState<string[]>([]);
 	const [unitTypes, setUnitTypes] = useState<string[]>([]);
+	const [view, setView] = useState<SignalStatsView>("signal");
 
 	const customersQuery = useSalesMinerCustomersList({
 		page: 1,
@@ -47,6 +51,7 @@ export function SalesMinerStatsEmbedded() {
 	});
 	const gicsQuery = useGicsCodes();
 	const classifiersQuery = useGetReportClassifiers();
+	const capabilityTagsQuery = useGetCapabilityTags();
 
 	const customerOptions = useMemo(
 		() =>
@@ -71,14 +76,39 @@ export function SalesMinerStatsEmbedded() {
 		[classifiersQuery.data?.data],
 	);
 
-	const statsQuery = useGetSalesMinerStats({
+	const capabilityTagOptions = useMemo(
+		() =>
+			(capabilityTagsQuery.data?.data ?? []).map((t) => ({
+				label: t.name,
+				value: String(t.id),
+			})),
+		[capabilityTagsQuery.data?.data],
+	);
+
+	const filterParams = {
 		customerIds,
-		customerGics,
+		capabilityTagIds,
 		targetGics,
 		classifierIds,
-	});
+	};
+
+	const statsQuery = useGetSalesMinerStats(filterParams, view === "signal");
+	// "By Product Tag" reuses the category rows as its base table, so it fetches
+	// alongside "By Category" too — see buildProductTagMatrixColumns.
+	const categoryStatsQuery = useGetSalesMinerCategoryStats(
+		filterParams,
+		view === "category" || view === "productTag",
+	);
+	const matrixQuery = useGetSalesMinerCategoryProductTagMatrix(
+		filterParams,
+		view === "productTag",
+	);
 	const { mutateAsync: exportXlsx, isPending: exportPending } =
 		useExportSalesMinerStatsXlsx();
+	const { mutateAsync: exportCategoryXlsx, isPending: exportCategoryPending } =
+		useExportSalesMinerCategoryStatsXlsx();
+	const { mutateAsync: exportMatrixXlsx, isPending: exportMatrixPending } =
+		useExportSalesMinerCategoryProductTagMatrixXlsx();
 
 	const allRows = useMemo(() => statsQuery.data?.data ?? [], [statsQuery.data]);
 	const rows = useMemo(
@@ -88,20 +118,19 @@ export function SalesMinerStatsEmbedded() {
 				: allRows,
 		[allRows, unitTypes],
 	);
+	const categoryRows = useMemo(
+		() => categoryStatsQuery.data?.data ?? [],
+		[categoryStatsQuery.data],
+	);
+	const matrixCells = useMemo(
+		() => matrixQuery.data?.data ?? [],
+		[matrixQuery.data],
+	);
 	const columns = useMemo(() => buildColumns(rows), [rows]);
-	const title = statsQuery.isLoading
-		? "Signal Statistics"
-		: `Signal Statistics (${rows.length})`;
-
-	const handleExport = () => {
-		exportXlsx({
-			customerIds,
-			customerGics,
-			targetGics,
-			classifierIds,
-			unitTypes,
-		}).catch(() => undefined);
-	};
+	const productTagColumns = useMemo(
+		() => [...CATEGORY_COLUMNS, ...buildProductTagMatrixColumns(matrixCells)],
+		[matrixCells],
+	);
 
 	return (
 		<div>
@@ -144,29 +173,19 @@ export function SalesMinerStatsEmbedded() {
 								marginBottom: 4,
 							}}
 						>
-							Customer Industry (GICS)
+							Product Tag
 						</Text>
-						<TreeSelect
-							treeData={gicsTree}
-							multiple
+						<Select
+							mode="multiple"
 							showSearch
 							allowClear
-							value={customerGics}
-							onChange={setCustomerGics}
-							filterTreeNode={(input, node) => {
-								const code = String(node.value ?? "");
-								const title = String(node.title ?? "");
-								const namePart = title.split(" — ").slice(1).join(" — ");
-								return (
-									code.startsWith(input) ||
-									namePart.toLowerCase().includes(input.toLowerCase())
-								);
-							}}
-							loading={gicsQuery.isLoading}
-							placeholder="All industries"
-							style={{ width: 280 }}
-							dropdownStyle={{ maxHeight: 400, overflow: "auto" }}
-							treeDefaultExpandAll={false}
+							value={capabilityTagIds}
+							onChange={setCapabilityTagIds}
+							options={capabilityTagOptions}
+							optionFilterProp="label"
+							loading={capabilityTagsQuery.isLoading}
+							placeholder="All product tags"
+							style={{ width: 260 }}
 							maxTagCount="responsive"
 						/>
 					</div>
@@ -255,53 +274,31 @@ export function SalesMinerStatsEmbedded() {
 				</Space>
 			</Card>
 
-			<Card
-				title={title}
-				extra={
-					<Button
-						icon={<DownloadOutlined />}
-						size="small"
-						type="primary"
-						loading={exportPending}
-						disabled={rows.length === 0}
-						onClick={handleExport}
-					>
-						Export XLSX
-					</Button>
-				}
-				size="small"
-				style={DARK_CARD_STYLE}
-				styles={{ header: DARK_CARD_HEADER_STYLE }}
-			>
-				<Table<SignalStatRow>
-					dataSource={rows}
-					columns={columns}
-					rowKey={(row) => `${row.unitType}-${row.unitId}`}
-					loading={statsQuery.isLoading}
-					size="small"
-					scroll={{ x: 1400 }}
-					pagination={{
-						pageSize: 20,
-						showSizeChanger: true,
-						pageSizeOptions: ["10", "20", "50", "100"],
-						showTotal: (total) => `${total} signals`,
-					}}
-					rowClassName={() => "sm-signal-row"}
-					className="sm-signal-stats"
-					style={{ background: "transparent" }}
-				/>
-				<style jsx global>{`
-					.sm-signal-row:hover td { background: #1f1f1f !important; }
-					.sm-signal-stats .ant-table-thead > tr > th {
-						white-space: normal !important;
-						word-break: keep-all;
-						overflow-wrap: normal;
-						vertical-align: top;
-						padding: 8px 6px !important;
-						line-height: 1.3;
-					}
-				`}</style>
-			</Card>
+			<SignalStatsResults
+				view={view}
+				onViewChange={setView}
+				cardStyle={DARK_CARD_STYLE}
+				signalRows={rows}
+				signalColumns={columns}
+				signalLoading={statsQuery.isLoading}
+				signalExportPending={exportPending}
+				onExportSignal={() => {
+					exportXlsx({ ...filterParams, unitTypes }).catch(() => undefined);
+				}}
+				categoryRows={categoryRows}
+				categoryColumns={CATEGORY_COLUMNS}
+				categoryLoading={categoryStatsQuery.isLoading}
+				categoryExportPending={exportCategoryPending}
+				onExportCategory={() => {
+					exportCategoryXlsx(filterParams).catch(() => undefined);
+				}}
+				productTagColumns={productTagColumns}
+				matrixLoading={matrixQuery.isLoading}
+				matrixExportPending={exportMatrixPending}
+				onExportMatrix={() => {
+					exportMatrixXlsx(filterParams).catch(() => undefined);
+				}}
+			/>
 		</div>
 	);
 }
