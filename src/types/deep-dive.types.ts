@@ -31,6 +31,11 @@ export {
 	VALIDATION_DATA_POINT_LEVELS,
 	VALIDATION_RULE_LEVELS,
 } from "../shared/deep-dive-contract.types";
+import type {
+	OpportunityPortfolio,
+	OpportunityQa,
+	OpportunityStakeholder,
+} from "./sales-miner-opportunity-detail.types";
 
 export type DeepDiveStatus = "PENDING" | "PROCESSING" | "DONE" | "ERROR";
 
@@ -1028,4 +1033,120 @@ export interface CreateValidationRulePayload {
 	enabled: boolean;
 	description: string;
 	criteria: ValidationRuleCriteria;
+}
+
+// --- Opportunity FIFA-style cards (read-only company opportunities list) ---
+
+export type OpportunityCardTier = "gold" | "silver" | "bronze";
+
+export interface OpportunityCardStat {
+	key: string;
+	/** Short FIFA-style label, e.g. "CNF", "CMT". */
+	label: string;
+	/** Full human label for tooltip/aria, e.g. "Confidence". */
+	title: string;
+	/** Normalised 0–99 stat value. */
+	value: number;
+	/** Raw underlying value for reference (count, band label, %). */
+	raw: string | number | null;
+}
+
+export interface OpportunityCard {
+	id: string;
+	title: string;
+	rankPosition: number | null;
+	companyName: string | null;
+	companyLogoUrl: string | null;
+	motionFamily: string | null;
+	stage: string | null;
+	status: string | null;
+	dealSize: string | null;
+	horizonName: string | null;
+	/** Big FIFA "overall" number (priority score, 0–99). */
+	overall: number;
+	tier: OpportunityCardTier;
+	stats: OpportunityCardStat[];
+	stakeholderCount: number;
+	productCount: number;
+	isApproved: boolean;
+}
+
+export interface OpportunityCardsResponse {
+	success: boolean;
+	data: {
+		reportId: number;
+		companyId: number;
+		companyName: string | null;
+		companyLogoUrl: string | null;
+		cards: OpportunityCard[];
+	};
+}
+
+export type OpportunityNarrativeFieldSource = "base" | "deepDive";
+
+export interface OpportunityNarrativeField {
+	source: OpportunityNarrativeFieldSource;
+	field: string;
+	label: string;
+	value: string | null;
+}
+
+export interface OpportunityStructuredBlock {
+	key: string;
+	label: string;
+	group: string | null;
+	value: unknown;
+	status: string | null;
+}
+
+export interface OpportunityDetailResponse {
+	success: boolean;
+	data: {
+		reportId: number;
+		companyId: number;
+		opportunityId: string;
+		companyName: string | null;
+		companyLogoUrl: string | null;
+		header: {
+			title: string;
+			rankPosition: number | null;
+			motionFamily: string | null;
+			stage: string | null;
+			status: string | null;
+			dealSize: string | null;
+			horizonName: string | null;
+			priorityScore: number;
+			confidenceScore: number;
+			isApproved: boolean;
+		};
+		baseFields: OpportunityNarrativeField[];
+		deepDiveFields: OpportunityNarrativeField[];
+		structuredBlocks: OpportunityStructuredBlock[];
+		competitiveAwareness: unknown | null;
+		stakeholders: OpportunityStakeholder[];
+		qa: OpportunityQa | null;
+		portfolio: OpportunityPortfolio;
+	};
+}
+
+export interface UpdateOpportunityNarrativeFieldPayload {
+	source: OpportunityNarrativeFieldSource;
+	field: string;
+	value: string;
+}
+
+export type UpdateOpportunityNarrativeFieldErrorCode =
+	| "INVALID_SOURCE"
+	| "FIELD_NOT_EDITABLE"
+	| "INVALID_VALUE_TYPE"
+	| "EMPTY_VALUE"
+	| "FIELD_NOT_AVAILABLE";
+
+export interface UpdateOpportunityNarrativeFieldResponse {
+	success: boolean;
+	error?: string;
+	errorCode?: UpdateOpportunityNarrativeFieldErrorCode;
+	data?: {
+		field: OpportunityNarrativeField;
+	};
 }
