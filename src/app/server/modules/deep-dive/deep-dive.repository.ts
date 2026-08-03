@@ -50,6 +50,14 @@ import type {
 } from "./deep-dive.types";
 
 export class DeepDiveRepository {
+	private static readonly OPPORTUNITY_BASE_TEXT_COLUMNS = {
+		title: "title",
+		primary_business_problem: "primary_business_problem",
+		primary_value_proposition: "primary_value_proposition",
+		why_now: "why_now",
+		notes: "notes",
+	} as const;
+
 	private static buildOrderBy(
 		sortBy: string | undefined,
 		sortOrder: SortOrder | undefined,
@@ -1123,6 +1131,328 @@ export class DeepDiveRepository {
       LEFT JOIN completed_companies cc
         ON cc.report_id = r.id
       WHERE r.id = ANY(${reportIds}::int[])
+    `;
+	}
+
+	static async getCompanyOpportunityCards(reportId: number, companyId: number) {
+		// Read-only: the latest research run for this report+company, and its
+		// opportunity_candidates plus the varying signals we turn into FIFA-style
+		// card stats (committee size, bundle breadth, deep-dive depth).
+		return prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				title: string;
+				rank_position: number | null;
+				motion_family: string | null;
+				stage: string | null;
+				status: string | null;
+				deal_size_general: string | null;
+				horizon_name: string | null;
+				priority_score: number;
+				confidence_score: number;
+				stakeholder_count: number;
+				product_count: number;
+				deep_dive_property_count: number;
+				company_name: string | null;
+				company_logo_url: string | null;
+				is_approved: boolean | null;
+			}>
+		>`
+      WITH latest_run AS (
+        SELECT rr.id
+        FROM public.research_runs rr
+        WHERE rr.report_id = ${reportId}
+          AND rr.company_id = ${companyId}
+        ORDER BY rr.created_at DESC, rr.id DESC
+        LIMIT 1
+      )
+      SELECT
+        oc.id AS id,
+        oc.title AS title,
+        oc.rank_position AS rank_position,
+        oc.motion_family AS motion_family,
+        oc.stage AS stage,
+        oc.status AS status,
+        oc.deal_size_general AS deal_size_general,
+        oc.horizon_name AS horizon_name,
+        COALESCE(oc.portfolio_priority_score, oc.score, 0)::float8 AS priority_score,
+        COALESCE(oc.confidence_score, 0)::float8 AS confidence_score,
+        (SELECT COUNT(*)::int FROM public.stakeholders_v2 s
+           WHERE s.opportunity_id = oc.id) AS stakeholder_count,
+        (SELECT COUNT(*)::int FROM public.opportunity_candidate_items i
+           WHERE i.opportunity_candidate_id = oc.id) AS product_count,
+	        (SELECT COUNT(DISTINCT pv.property_key)::int
+	           FROM public.opportunity_deep_dive_property_values pv
+	           WHERE pv.opportunity_id = oc.id) AS deep_dive_property_count,
+	        c.name AS company_name,
+	        c.logo_url AS company_logo_url,
+	        oc.is_approved AS is_approved
+      FROM public.opportunity_candidates oc
+      JOIN public.companies c ON c.id = oc.company_id
+      WHERE oc.research_run_id = (SELECT id FROM latest_run)
+      ORDER BY oc.rank_position NULLS LAST, oc.id
+    `;
+	}
+
+	static async getOpportunityDetailBase(
+		reportId: number,
+		companyId: number,
+		opportunityId: bigint,
+	) {
+		const rows = await prisma.$queryRaw<
+			Array<{
+				id: bigint;
+				title: string;
+				rank_position: number | null;
+				motion_family: string | null;
+				stage: string | null;
+				status: string | null;
+				deal_size_general: string | null;
+				horizon_name: string | null;
+				priority_score: number;
+				confidence_score: number;
+				is_approved: boolean | null;
+				company_name: string | null;
+				company_logo_url: string | null;
+				primary_business_problem: string | null;
+				primary_value_proposition: string | null;
+				primary_buyer_persona: string | null;
+				solution_center: string | null;
+				portfolio_priority_reason: string | null;
+				time_label_general: string | null;
+				why_now: string | null;
+				notes: string | null;
+				competitive_awareness: Prisma.JsonValue | null;
+				quality_json: Prisma.JsonValue | null;
+			}>
+		>`
+      WITH latest_run AS (
+        SELECT rr.id
+        FROM public.research_runs rr
+        WHERE rr.report_id = ${reportId}
+          AND rr.company_id = ${companyId}
+        ORDER BY rr.created_at DESC, rr.id DESC
+        LIMIT 1
+      )
+      SELECT
+        oc.id,
+        oc.title,
+        oc.rank_position,
+        oc.motion_family,
+        oc.stage,
+        oc.status,
+        oc.deal_size_general,
+        oc.horizon_name,
+        COALESCE(oc.portfolio_priority_score, oc.score, 0)::float8 AS priority_score,
+	        COALESCE(oc.confidence_score, 0)::float8 AS confidence_score,
+	        oc.is_approved,
+	        c.name AS company_name,
+	        c.logo_url AS company_logo_url,
+	        oc.primary_business_problem,
+        oc.primary_value_proposition,
+        oc.primary_buyer_persona,
+        oc.solution_center,
+        oc.portfolio_priority_reason,
+        oc.time_label_general,
+        oc.why_now,
+        oc.notes,
+        oc.competitive_awareness,
+        oc.meta::jsonb -> 'quality' AS quality_json
+      FROM public.opportunity_candidates oc
+      JOIN public.companies c
+        ON c.id = oc.company_id
+      WHERE oc.company_id = ${companyId}
+        AND oc.id = ${opportunityId}
+        AND oc.research_run_id = (SELECT id FROM latest_run)
+      LIMIT 1
+    `;
+		return rows[0] ?? null;
+	}
+
+	static async getOpportunityDeepDiveProperties(opportunityId: bigint) {
+		return prisma.$queryRaw<
+			Array<{
+				property_key: string;
+				property_group: string | null;
+				kind: string | null;
+				preferred_shape: string | null;
+				value_json: Prisma.JsonValue;
+				status: string | null;
+				assemble_order: number | null;
+			}>
+		>`
+      SELECT
+        pv.property_key,
+        p.property_group,
+        p.kind,
+        p.preferred_shape,
+        pv.value_json,
+        pv.status,
+        p.assemble_order
+      FROM public.opportunity_deep_dive_property_values pv
+      LEFT JOIN public.opportunity_deep_dive_properties p
+        ON p.id = pv.property_id
+      WHERE pv.opportunity_id = ${opportunityId}
+      ORDER BY COALESCE(p.assemble_order, 100), pv.property_key
+    `;
+	}
+
+	static async getOpportunityStakeholders(opportunityId: bigint) {
+		return prisma.$queryRaw<
+			Array<{
+				id: number;
+				person_id: number | null;
+				gate_role: string | null;
+				gate_role_type: string | null;
+				full_name: string | null;
+				job_title: string | null;
+				entity_name: string | null;
+				entity_level: string | null;
+				linkedin_url: string | null;
+				contacts: Prisma.JsonValue | null;
+				rationale: string | null;
+				message_id: string | null;
+				message_subject: string | null;
+				message_body: string | null;
+			}>
+		>`
+      SELECT
+        s.id::int AS id,
+        s.person_id::int AS person_id,
+        s.gate_role,
+        s.gate_role_type,
+        p.full_name,
+        p.job_title,
+        s.entity_name,
+        s.entity_level,
+        p.linkedin_url,
+        p.contacts,
+        s.rationale,
+        msg.message_id,
+        msg.message_subject,
+        msg.message_body
+      FROM public.stakeholders_v2 s
+      LEFT JOIN public.persons p ON p.id = s.person_id
+      LEFT JOIN LATERAL (
+        SELECT m.id::text AS message_id, m.message_subject, m.message_body
+        FROM public.opportunity_stakeholder_messages m
+        WHERE m.opportunity_id = s.opportunity_id
+          AND m.stakeholder_id = s.id
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT 1
+      ) msg ON true
+      WHERE s.opportunity_id = ${opportunityId}
+      ORDER BY s.id
+    `;
+	}
+
+	static async updateOpportunityBaseTextField(
+		reportId: number,
+		companyId: number,
+		opportunityId: bigint,
+		field: string,
+		value: string,
+	): Promise<number> {
+		const column =
+			DeepDiveRepository.OPPORTUNITY_BASE_TEXT_COLUMNS[
+				field as keyof typeof DeepDiveRepository.OPPORTUNITY_BASE_TEXT_COLUMNS
+			];
+		if (!column) {
+			throw new Error("Unsupported opportunity base text field");
+		}
+
+		return prisma.$executeRawUnsafe(
+			`
+      WITH latest_run AS (
+        SELECT rr.id
+        FROM public.research_runs rr
+        WHERE rr.report_id = $1
+          AND rr.company_id = $2
+        ORDER BY rr.created_at DESC, rr.id DESC
+        LIMIT 1
+      )
+      UPDATE public.opportunity_candidates oc
+      SET ${column} = $3, updated_at = NOW()
+      WHERE oc.research_run_id = (SELECT id FROM latest_run)
+        AND oc.company_id = $4
+        AND oc.id = $5
+    `,
+			reportId,
+			companyId,
+			value,
+			companyId,
+			opportunityId,
+		);
+	}
+
+	static async updateOpportunityDeepDiveTextField(
+		reportId: number,
+		companyId: number,
+		opportunityId: bigint,
+		propertyKey: string,
+		value: string,
+	): Promise<number> {
+		return prisma.$executeRaw`
+      WITH latest_run AS (
+        SELECT rr.id
+        FROM public.research_runs rr
+        WHERE rr.report_id = ${reportId}
+          AND rr.company_id = ${companyId}
+        ORDER BY rr.created_at DESC, rr.id DESC
+        LIMIT 1
+      )
+      UPDATE public.opportunity_deep_dive_property_values pv
+      SET value_json = ${JSON.stringify(value)}::jsonb, updated_at = NOW()
+      FROM public.opportunity_candidates oc
+      WHERE pv.opportunity_id = oc.id
+        AND oc.research_run_id = (SELECT id FROM latest_run)
+        AND oc.company_id = ${companyId}
+        AND oc.id = ${opportunityId}
+        AND pv.property_key = ${propertyKey}
+    `;
+	}
+
+	static async updateOpportunityDeepDiveJsonTextField(
+		reportId: number,
+		companyId: number,
+		opportunityId: bigint,
+		propertyKey: string,
+		path: readonly string[],
+		value: string,
+	): Promise<number> {
+		return prisma.$executeRaw`
+	      WITH latest_run AS (
+	        SELECT rr.id
+	        FROM public.research_runs rr
+	        WHERE rr.report_id = ${reportId}
+	          AND rr.company_id = ${companyId}
+	        ORDER BY rr.created_at DESC, rr.id DESC
+	        LIMIT 1
+	      )
+	      UPDATE public.opportunity_deep_dive_property_values pv
+	      SET value_json = jsonb_set(
+	        pv.value_json,
+	        ${[...path]}::text[],
+	        to_jsonb(${value}::text),
+	        false
+	      ), updated_at = NOW()
+	      FROM public.opportunity_candidates oc
+	      WHERE pv.opportunity_id = oc.id
+	        AND oc.research_run_id = (SELECT id FROM latest_run)
+	        AND oc.company_id = ${companyId}
+	        AND oc.id = ${opportunityId}
+	        AND pv.property_key = ${propertyKey}
+	        AND jsonb_typeof(pv.value_json #> ${[...path]}::text[]) = 'string'
+	    `;
+	}
+	static async setOpportunityCandidateApproval(
+		opportunityId: bigint,
+		isApproved: boolean,
+	): Promise<void> {
+		await prisma.$executeRaw`
+      UPDATE public.opportunity_candidates
+      SET is_approved = ${isApproved}, updated_at = NOW()
+      WHERE id = ${opportunityId}
     `;
 	}
 

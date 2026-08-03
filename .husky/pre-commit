@@ -1,4 +1,17 @@
 #!/usr/bin/env sh
 . ~/.nvm/nvm.sh
 nvm use 22 >/dev/null
-yarn precommit:checks
+
+run_yarn() {
+	if command -v corepack >/dev/null 2>&1; then
+		corepack yarn "$@"
+	elif command -v yarn >/dev/null 2>&1; then
+		yarn "$@"
+	else
+		echo "yarn is not available. Install Yarn or enable Corepack for Node 22." >&2
+		exit 127
+	fi
+}
+
+run_yarn lint:staged
+run_yarn test:deep-dive:e2e

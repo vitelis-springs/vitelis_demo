@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { Button, Layout, Result, Spin, theme } from "antd";
-import { useAuth } from "../../../../../../../hooks/useAuth";
-import OpportunityCardsGrid from "../../../../../../../components/sales-miner/opportunity-cards/opportunity-cards-grid";
-import Sidebar from "../../../../../../../components/ui/sidebar";
-import { SIDEBAR_MARGIN_LEFT } from "../../../../../../../components/ui/sidebar-layout";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import OpportunityDetailWorkspace from "../../../../../../../../../components/sales-miner/opportunity-detail/opportunity-detail-workspace";
+import Sidebar from "../../../../../../../../../components/ui/sidebar";
+import { SIDEBAR_MARGIN_LEFT } from "../../../../../../../../../components/ui/sidebar-layout";
+import { useAuth } from "../../../../../../../../../hooks/useAuth";
 
-export default function SalesMinerCompanyPage() {
+export default function SalesMinerOpportunityDetailPage() {
 	const { isLoggedIn, isAdmin } = useAuth();
 	const router = useRouter();
 	const params = useParams();
@@ -16,6 +16,7 @@ export default function SalesMinerCompanyPage() {
 
 	const reportId = Number(params.id);
 	const companyId = Number(params.companyId);
+	const opportunityId = String(params.oppId ?? "");
 
 	useEffect(() => {
 		const timer = setTimeout(() => setIsLoading(false), 100);
@@ -68,7 +69,11 @@ export default function SalesMinerCompanyPage() {
 		);
 	}
 
-	if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+	if (
+		!Number.isFinite(reportId) ||
+		!Number.isFinite(companyId) ||
+		!opportunityId
+	) {
 		return (
 			<div
 				style={{
@@ -81,7 +86,7 @@ export default function SalesMinerCompanyPage() {
 			>
 				<Result
 					status="404"
-					title="Company not found"
+					title="Opportunity not found"
 					extra={
 						<Button type="primary" onClick={() => router.push("/sales-miner")}>
 							Back to list
@@ -92,15 +97,23 @@ export default function SalesMinerCompanyPage() {
 		);
 	}
 
-	return <CompanyOpportunitiesView reportId={reportId} companyId={companyId} />;
+	return (
+		<SalesMinerOpportunityDetailView
+			reportId={reportId}
+			companyId={companyId}
+			opportunityId={opportunityId}
+		/>
+	);
 }
 
-function CompanyOpportunitiesView({
+function SalesMinerOpportunityDetailView({
 	reportId,
 	companyId,
+	opportunityId,
 }: {
 	reportId: number;
 	companyId: number;
+	opportunityId: string;
 }) {
 	const { token } = theme.useToken();
 	return (
@@ -119,7 +132,11 @@ function CompanyOpportunitiesView({
 						minHeight: "100vh",
 					}}
 				>
-					<OpportunityCardsGrid reportId={reportId} companyId={companyId} />
+					<OpportunityDetailWorkspace
+						reportId={reportId}
+						companyId={companyId}
+						opportunityId={opportunityId}
+					/>
 				</Layout.Content>
 			</Layout>
 		</Layout>
