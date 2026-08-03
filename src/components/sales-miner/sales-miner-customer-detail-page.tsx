@@ -94,6 +94,15 @@ function apiErr(err: unknown): string {
 	return "Request failed";
 }
 
+function safeFileName(name: string): string {
+	const cleaned = name
+		.trim()
+		.replace(/[\\/:*?"<>|]+/g, "")
+		.replace(/\s+/g, " ")
+		.slice(0, 100);
+	return cleaned || "customer";
+}
+
 function CompanySearchSelect({
 	value,
 	onChange,
@@ -176,33 +185,10 @@ function AccountsTab({
 	const [accountCompany, setAccountCompany] =
 		useState<CompanySearchResult | null>(null);
 	const [importModalOpen, setImportModalOpen] = useState(false);
-	const [isExporting, setIsExporting] = useState(false);
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(10);
 	const [editCompanyId, setEditCompanyId] = useState<number | null>(null);
 	const { data: editCompanyDetail } = useGetCompany(editCompanyId);
-
-	const handleExport = async () => {
-		setIsExporting(true);
-		try {
-			const response = await api.get(
-				`/sales-miner/customers/${customerId}/accounts/export`,
-				{ responseType: "blob" },
-			);
-			const url = window.URL.createObjectURL(new Blob([response.data]));
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `customer-${customerId}-accounts.xlsx`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			window.URL.revokeObjectURL(url);
-		} catch (err) {
-			message.error(apiErr(err));
-		} finally {
-			setIsExporting(false);
-		}
-	};
 
 	const submitAccount = useCallback(async () => {
 		if (!accountCompany) {
@@ -287,9 +273,6 @@ function AccountsTab({
 				</Button>
 				<Button onClick={() => setImportModalOpen(true)}>
 					Import from XLSX
-				</Button>
-				<Button loading={isExporting} onClick={() => void handleExport()}>
-					Export to XLSX
 				</Button>
 			</Space>
 			<Table<AccountRow>
@@ -839,6 +822,29 @@ function SalesMinerCustomerDetailContent({
 
 	const [form] = Form.useForm<{ displayName: string; isActive: boolean }>();
 	const [editModalOpen, setEditModalOpen] = useState(false);
+	const [isExporting, setIsExporting] = useState(false);
+
+	const handleExport = async () => {
+		setIsExporting(true);
+		try {
+			const response = await api.get(
+				`/sales-miner/customers/${customerId}/export`,
+				{ responseType: "blob" },
+			);
+			const url = window.URL.createObjectURL(new Blob([response.data]));
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `${safeFileName(detail?.display_name ?? `customer-${customerId}`)}-export.xlsx`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			window.URL.revokeObjectURL(url);
+		} catch (err) {
+			message.error(apiErr(err));
+		} finally {
+			setIsExporting(false);
+		}
+	};
 
 	useEffect(() => {
 		const t = setTimeout(() => setBoot(false), 100);
@@ -931,6 +937,9 @@ function SalesMinerCustomerDetailContent({
 						<Space size="middle" align="center">
 							<Text type="secondary">Status:</Text>
 							<Switch checked={detail.is_active} disabled size="small" />
+							<Button loading={isExporting} onClick={() => void handleExport()}>
+								Export to XLSX
+							</Button>
 							<Button onClick={() => setEditModalOpen(true)}>Edit</Button>
 						</Space>
 					)

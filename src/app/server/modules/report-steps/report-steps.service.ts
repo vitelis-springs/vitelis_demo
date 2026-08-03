@@ -1,5 +1,18 @@
 import { report_status_enum } from "../../../../generated/prisma";
+import { N8NService } from "../n8n/n8n.service";
+import { NotificationDeliveriesRepository } from "../report-notifications/notification-deliveries.repository";
+import { normalizePresetSteps } from "./report-steps.presets";
 import { ReportStepsRepository } from "./report-steps.repository";
+
+interface ServiceFailure {
+	success: false;
+	error: string;
+	status?: number;
+}
+
+function fail(error: string, status: number): ServiceFailure {
+	return { success: false, error, status };
+}
 
 export class ReportStepsService {
 	// ===== Generation Steps (довідник) =====
@@ -175,20 +188,36 @@ export class ReportStepsService {
 	// ===== Step Statuses =====
 
 	static async getCompanyStepStatuses(reportId: number, companyId: number) {
-		const statuses = await ReportStepsRepository.getStatusesByReportAndCompany(
-			reportId,
-			companyId,
+		const [rows, report] = await Promise.all([
+			ReportStepsRepository.getCompanyStepRuns(reportId, companyId),
+			ReportStepsRepository.getReportTypeById(reportId),
+		]);
+		const base = N8NService.getEditorBaseUrl(
+			ReportStepsService.n8nTypeForReport(report?.report_type ?? null),
 		);
 
 		return {
 			success: true,
-			data: statuses.map((s) => ({
-				stepId: s.step_id,
-				stepName: s.report_generation_steps.name,
-				status: s.status,
-				metadata: s.metadata,
-				updatedAt: s.updated_at,
-			})),
+			data: rows.map((r) => {
+				const workflowUrl = r.workflow_id
+					? `${base}workflow/${r.workflow_id}`
+					: null;
+				const executionUrl =
+					r.workflow_id && r.exec_id
+						? `${base}workflow/${r.workflow_id}/executions/${r.exec_id}`
+						: null;
+				return {
+					stepId: r.step_id,
+					stepName: r.name,
+					status: r.status,
+					workflowId: r.workflow_id,
+					workflowUrl,
+					execId: r.exec_id,
+					executionUrl,
+					startTime: r.start_time ? r.start_time.toISOString() : null,
+					endTime: r.end_time ? r.end_time.toISOString() : null,
+				};
+			}),
 		};
 	}
 
@@ -228,6 +257,297 @@ export class ReportStepsService {
 			updates,
 		);
 		return { success: true };
+	}
+
+	// ===== Report-level bulk status update + presets =====
+
+	/**
+	 * Guard shared by report-level mutations: the report must exist and be a
+	 * sales_miner report. Returns null on success or a typed failure.
+	 */
+	private static async assertSalesMinerReport(
+		reportId: number,
+	): Promise<ServiceFailure | null> {
+		const report = await ReportStepsRepository.getReportTypeById(reportId);
+		if (!report) return fail("Report not found", 404);
+		if (report.report_type !== "sales_miner") {
+			return fail("Report is not a sales_miner report", 400);
+		}
+		return null;
+	}
+
+	/**
+	 * Apply one status to an explicit set of (company, step) cells in a single
+	 * transaction. Both selection shapes converge here as a flat cell list:
+	 * a rectangular {company_ids × step_ids} is expanded to cells by the
+	 * controller, a sparse {cells} is passed straight through. Validates that
+	 * the report is sales_miner and every referenced company/step belongs to
+	 * it before the all-or-nothing upsert.
+	 */
+	static async bulkUpdateReportStepStatuses(
+		reportId: number,
+		cells: Array<{ companyId: number; stepId: number }>,
+		status: report_status_enum,
+	) {
+		const guard = await ReportStepsService.assertSalesMinerReport(reportId);
+		if (guard) return guard;
+
+		if (cells.length === 0) {
+			return fail("Provide at least one cell to update", 400);
+		}
+
+		const [validCompanyIds, validStepIds] = await Promise.all([
+			ReportStepsRepository.getReportCompanyIds(reportId),
+			ReportStepsRepository.getConfiguredStepIds(reportId),
+		]);
+
+		const companySet = new Set(validCompanyIds);
+		const stepSet = new Set(validStepIds);
+
+		const unknownCompany = cells.find((c) => !companySet.has(c.companyId));
+		if (unknownCompany) {
+			return fail(
+				`Company ${unknownCompany.companyId} does not belong to report`,
+				400,
+			);
+		}
+
+		const unknownStep = cells.find((c) => !stepSet.has(c.stepId));
+		if (unknownStep) {
+			return fail(
+				`Step ${unknownStep.stepId} is not configured for report`,
+				400,
+			);
+		}
+
+		const updated = await ReportStepsRepository.bulkUpsertStatusCells(
+			reportId,
+			cells,
+			status,
+		);
+
+		return { success: true as const, data: { updated } };
+	}
+
+	static async listPresets(includeInactive = false) {
+		const templates =
+			await ReportStepsRepository.listStepTemplates(includeInactive);
+		return {
+			success: true as const,
+			data: templates.map((t) => ({
+				id: t.id.toString(),
+				code: t.code,
+				name: t.name,
+				description: t.description ?? null,
+				isActive: t.is_active,
+				stepCount: t.step_count,
+				updatedAt: t.updated_at?.toISOString() ?? null,
+			})),
+		};
+	}
+
+	static async getPreset(templateId: string) {
+		const template = await ReportStepsRepository.getStepTemplateById(
+			BigInt(templateId),
+		);
+		if (!template) return fail("Preset not found", 404);
+
+		return {
+			success: true as const,
+			data: {
+				id: template.id.toString(),
+				code: template.code,
+				name: template.name,
+				description: template.description ?? null,
+				isActive: template.is_active,
+				steps: template.steps.map((s) => ({
+					stepId: s.step_id,
+					order: s.step_order,
+					name: s.step?.name ?? `Step #${s.step_id}`,
+					isActive: s.is_active,
+				})),
+			},
+		};
+	}
+
+	/**
+	 * Snapshot the report's current configured steps into a new preset.
+	 * Includes all configured steps and normalizes order to 1..N.
+	 */
+	static async createPresetFromReport(
+		reportId: number,
+		input: { name: string; description?: string | null; code?: string | null },
+	) {
+		const guard = await ReportStepsService.assertSalesMinerReport(reportId);
+		if (guard) return guard;
+
+		const configured = await ReportStepsRepository.getStepsByReportId(reportId);
+		if (configured.length === 0) {
+			return fail("Report has no configured steps to snapshot", 400);
+		}
+
+		const normalized = normalizePresetSteps(
+			configured.map((s) => ({
+				step_id: s.step_id,
+				step_order: s.step_order,
+			})),
+		);
+
+		const code =
+			input.code?.trim() || `report-${reportId}-${Date.now().toString(36)}`;
+
+		const created = await ReportStepsRepository.createStepTemplate({
+			code,
+			name: input.name,
+			description: input.description ?? null,
+			meta: { source_report_id: reportId },
+			steps: normalized,
+		});
+
+		return {
+			success: true as const,
+			data: {
+				id: created.id.toString(),
+				code: created.code,
+				name: created.name,
+				stepCount: created.steps.length,
+			},
+		};
+	}
+
+	static async updatePreset(
+		templateId: string,
+		data: {
+			name?: string;
+			description?: string | null;
+			isActive?: boolean;
+			meta?: object | null;
+		},
+	) {
+		const existing = await ReportStepsRepository.getStepTemplateById(
+			BigInt(templateId),
+		);
+		if (!existing) return fail("Preset not found", 404);
+
+		const updated = await ReportStepsRepository.updateStepTemplate(
+			BigInt(templateId),
+			{
+				...(data.name !== undefined ? { name: data.name } : {}),
+				...(data.description !== undefined
+					? { description: data.description }
+					: {}),
+				...(data.isActive !== undefined ? { is_active: data.isActive } : {}),
+				...(data.meta !== undefined ? { meta: data.meta } : {}),
+			},
+		);
+
+		return {
+			success: true as const,
+			data: {
+				id: updated.id.toString(),
+				name: updated.name,
+				description: updated.description ?? null,
+				isActive: updated.is_active,
+			},
+		};
+	}
+
+	/**
+	 * Replace-only apply of a preset onto a report, inside a transaction.
+	 * Existing report_steps (and their statuses, via cascade) are removed
+	 * and rebuilt from the preset's active steps with normalized order.
+	 */
+	static async applyPreset(templateId: string, reportId: number) {
+		const guard = await ReportStepsService.assertSalesMinerReport(reportId);
+		if (guard) return guard;
+
+		const template = await ReportStepsRepository.getStepTemplateById(
+			BigInt(templateId),
+		);
+		if (!template) return fail("Preset not found", 404);
+		if (!template.is_active) return fail("Preset is inactive", 400);
+
+		const activeSteps = template.steps.filter((s) => s.is_active);
+		if (activeSteps.length === 0) {
+			return fail("Preset has no active steps", 400);
+		}
+
+		const normalized = normalizePresetSteps(
+			activeSteps.map((s) => ({
+				step_id: s.step_id,
+				step_order: s.step_order,
+			})),
+		);
+
+		const configured = await ReportStepsRepository.replaceReportSteps(
+			reportId,
+			normalized,
+		);
+
+		return {
+			success: true as const,
+			data: {
+				configured: configured.map((s) => ({
+					id: s.step_id,
+					name: s.report_generation_steps.name,
+					url: s.report_generation_steps.url,
+					order: s.step_order,
+					dependency: s.report_generation_steps.dependency,
+					settings: s.report_generation_steps.settings,
+				})),
+			},
+		};
+	}
+
+	/** Map a report_type to the project's n8n instance type. */
+	private static n8nTypeForReport(
+		reportType?: string | null,
+	): string | undefined {
+		if (reportType === "sales_miner") return "salesminer";
+		if (reportType === "biz_miner") return "bizminer";
+		if (reportType === "internal") return "vitelis_sales";
+		return undefined;
+	}
+
+	/**
+	 * Per configured step: workflow deep-link, latest run status, raw run
+	 * timestamps, and an execution deep-link. Duration is computed on the
+	 * client so a running step ticks live.
+	 */
+	static async getReportStepRuns(reportId: number) {
+		const [rows, report] = await Promise.all([
+			ReportStepsRepository.getReportStepRuns(reportId),
+			ReportStepsRepository.getReportTypeById(reportId),
+		]);
+		const base = N8NService.getEditorBaseUrl(
+			ReportStepsService.n8nTypeForReport(report?.report_type ?? null),
+		);
+
+		const runs = rows.map((r) => {
+			const workflowUrl = r.workflow_id
+				? `${base}workflow/${r.workflow_id}`
+				: null;
+			const executionUrl =
+				r.workflow_id && r.exec_id
+					? `${base}workflow/${r.workflow_id}/executions/${r.exec_id}`
+					: null;
+			return {
+				stepId: r.step_id,
+				order: r.step_order,
+				name: r.name,
+				workflowId: r.workflow_id,
+				workflowUrl,
+				status: r.status,
+				running: r.status === "PROCESSING",
+				startTime: r.start_time ? r.start_time.toISOString() : null,
+				endTime: r.end_time ? r.end_time.toISOString() : null,
+				execId: r.exec_id,
+				executionUrl,
+			};
+		});
+
+		runs.sort((a, b) => a.order - b.order || a.stepId - b.stepId);
+		return { success: true as const, data: runs };
 	}
 
 	// ===== Steps Matrix =====
@@ -404,11 +724,13 @@ export class ReportStepsService {
 					status,
 					cleaned,
 				);
+				await ReportStepsService.resetNotificationsOnRestart(reportId, status);
 				return { success: true };
 			}
 
 			if (status) {
 				await ReportStepsRepository.updateOrchestratorStatus(reportId, status);
+				await ReportStepsService.resetNotificationsOnRestart(reportId, status);
 				return { success: true };
 			}
 
@@ -422,6 +744,21 @@ export class ReportStepsService {
 			}
 			throw error;
 		}
+	}
+
+	/**
+	 * The "Active" UI label maps to orchestrator status PROCESSING, and is
+	 * also how a report is manually restarted. Clearing prior deliveries here
+	 * (rather than a separate frontend call) lets the lifecycle notifications
+	 * (started/completed/failed) fire again for the new run instead of
+	 * staying deduped against the previous one.
+	 */
+	private static async resetNotificationsOnRestart(
+		reportId: number,
+		status: report_status_enum,
+	): Promise<void> {
+		if (status !== report_status_enum.PROCESSING) return;
+		await NotificationDeliveriesRepository.resetForReport(reportId);
 	}
 
 	// ===== Cost stats =====

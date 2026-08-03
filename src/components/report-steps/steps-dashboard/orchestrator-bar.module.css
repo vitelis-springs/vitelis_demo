@@ -1,0 +1,198 @@
+/*
+ * Orchestrator control strip — a shared layer above the Dashboard/Config tabs.
+ * Compact, horizontal, dark console palette (#1a1a1a base, #2a2a2a hairline,
+ * #58bfce accent). Status hues are muted to match the status board.
+ */
+
+.bar {
+	display: flex;
+	align-items: center;
+	gap: 12px 18px;
+	flex-wrap: wrap;
+	padding: 10px 14px;
+	margin-bottom: 16px;
+	background: #1a1a1a;
+	border: 1px solid #2a2a2a;
+	border-radius: 10px;
+}
+
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: #e2e2e2;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+}
+
+.brandDot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.label {
+	color: #6f6f6f;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+}
+
+/* ── Status pill (dropdown trigger) ── */
+
+.pill {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	border: 1px solid #333;
+	background: #202020;
+	color: #d9d9d9;
+	transition:
+		border-color 0.15s ease,
+		background 0.15s ease;
+}
+
+.pill:hover {
+	border-color: #58bfce;
+}
+
+.pill:focus-visible {
+	outline: 2px solid #58bfce;
+	outline-offset: 2px;
+}
+
+.pillDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.pillCaret {
+	color: #7d7d7d;
+	font-size: 10px;
+}
+
+.active {
+	background: rgba(74, 114, 168, 0.16);
+	border-color: #3b5f8f;
+	color: #bcd6f2;
+}
+.active .pillDot,
+.dotActive {
+	background: #4a72a8;
+}
+
+.paused {
+	background: #232323;
+	border-color: #383838;
+	color: #bfbfbf;
+}
+.paused .pillDot,
+.dotPaused {
+	background: #6b6b6b;
+}
+
+.done {
+	background: rgba(78, 133, 96, 0.16);
+	border-color: #3d6b4a;
+	color: #bfe0c4;
+}
+.done .pillDot,
+.dotDone {
+	background: #4e8560;
+}
+
+.error {
+	background: rgba(160, 90, 92, 0.16);
+	border-color: #7a3b3d;
+	color: #f0cdce;
+}
+.error .pillDot,
+.dotError {
+	background: #a05a5c;
+}
+
+/* ── Menu item (status dropdown) ── */
+
+.menuItem {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	font-size: 13px;
+}
+
+.menuDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+/* ── Settings ── */
+
+.settings {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-left: auto;
+}
+
+@media (max-width: 720px) {
+	.settings {
+		margin-left: 0;
+		width: 100%;
+	}
+}
+
+.chips {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.metaChip {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 6px;
+	background: #141414;
+	border: 1px solid #2a2a2a;
+	border-radius: 6px;
+	padding: 3px 9px;
+	font-size: 12px;
+}
+
+.metaKey {
+	color: #8c8c8c;
+}
+
+.metaVal {
+	color: #d9d9d9;
+	font-variant-numeric: tabular-nums;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 11px;
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.noSettings {
+	color: #6b6b6b;
+	font-size: 12px;
+}

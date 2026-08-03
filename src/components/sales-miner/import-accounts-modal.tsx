@@ -6,9 +6,11 @@ import {
 	Button,
 	Checkbox,
 	Modal,
+	Progress,
 	Space,
 	Table,
 	Tag,
+	Tooltip,
 	Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -18,15 +20,18 @@ import CreateSMReportModal, {
 } from "./create-sm-report-modal";
 import { api } from "../../lib/api-client";
 import { useCreateSalesMinerCustomerAccount } from "../../hooks/api/useSalesMinerCustomersService";
+import { useGicsCodes } from "../../hooks/api/useSalesMinerSignalCatalogService";
 import {
 	useGetCompany,
 	type CompanySearchResult,
 } from "../../hooks/api/useDeepDiveService";
 import CreateCompanyModal, {
+	checkSlugAvailable,
 	toSlug,
 	type StagedCompanyDraft,
 } from "../deep-dive/create-company-modal";
 import {
+	ACCOUNTS_SHEET_NAME_PATTERN,
 	parseAccountsWorkbook,
 	type ParsedAccountRow,
 } from "../../shared/accounts-import-xlsx";
@@ -44,6 +49,10 @@ interface DraftCompanyRow {
 	pendingEdit: StagedCompanyDraft | null;
 	verified: boolean;
 	errorMessage?: string;
+	importStatus?: "importing" | "done" | "failed";
+	importError?: string;
+	/** Pre-import problems (invalid GICS code, duplicate slug) that must be resolved first. */
+	validationIssues?: string[];
 }
 
 async function searchExactCompany(
@@ -53,6 +62,34 @@ async function searchExactCompany(
 	const items: CompanySearchResult[] = res.data?.data ?? [];
 	const trimmed = name.trim().toLowerCase();
 	return items.find((c) => c.name.trim().toLowerCase() === trimmed) ?? null;
+}
+
+async function validateDraftRow(
+	draft: StagedCompanyDraft,
+	gicsCodes: Set<string>,
+	otherSlugs: Set<string>,
+	excludeCompanyId?: number | null,
+): Promise<string[]> {
+	const issues: string[] = [];
+
+	if (draft.gicsCode && gicsCodes.size > 0 && !gicsCodes.has(draft.gicsCode)) {
+		issues.push(`Unknown GICS code "${draft.gicsCode}"`);
+	}
+
+	if (draft.slug) {
+		if (otherSlugs.has(draft.slug)) {
+			issues.push(`Slug "${draft.slug}" is used by another row in this file`);
+		} else {
+			const check = await checkSlugAvailable(draft.slug, excludeCompanyId);
+			if (check && !check.available) {
+				issues.push(
+					`Slug "${draft.slug}" already used by company #${check.companyId}`,
+				);
+			}
+		}
+	}
+
+	return issues;
 }
 
 async function generateCompanyData(input: {
@@ -143,17 +180,22 @@ export default function ImportAccountsModal({
 	existingCompanyIds,
 	onImported,
 }: Props) {
-	const { message } = App.useApp();
+	const { message, modal } = App.useApp();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [rows, setRows] = useState<DraftCompanyRow[]>([]);
 	const [isParsing, setIsParsing] = useState(false);
 	const [isImporting, setIsImporting] = useState(false);
+	const [importProgress, setImportProgress] = useState<{
+		done: number;
+		total: number;
+	} | null>(null);
 	const [reviewKey, setReviewKey] = useState<string | null>(null);
 	const [forceEditKey, setForceEditKey] = useState<string | null>(null);
 	const [createReport, setCreateReport] = useState(true);
 	const createReportModalRef = useRef<CreateSMReportModalHandle>(null);
 
 	const createAccount = useCreateSalesMinerCustomerAccount(customerId);
+	const { data: gicsCodesData } = useGicsCodes();
 
 	const reviewRow = rows.find((r) => r.key === reviewKey) ?? null;
 	const isForceEditing = forceEditKey != null && forceEditKey === reviewKey;
@@ -177,6 +219,7 @@ export default function ImportAccountsModal({
 
 	const reset = () => {
 		setRows([]);
+		setImportProgress(null);
 		closeReview();
 		if (fileInputRef.current) fileInputRef.current.value = "";
 	};
@@ -217,6 +260,11 @@ export default function ImportAccountsModal({
 			);
 
 			message.success(`Parsed ${byKey.size} companies from "${wb.sheetName}"`);
+
+			// Local mirror of each row's final draft, kept in sync alongside the
+			// incremental `updateRow` calls below, so we have a synchronous
+			// snapshot to run the post-parse validation pass against.
+			const draftsByKey = new Map<string, StagedCompanyDraft>();
 
 			await Promise.all(
 				Array.from(byKey.entries()).map(async ([key, row]) => {
@@ -273,6 +321,7 @@ export default function ImportAccountsModal({
 							verified: false,
 						};
 
+						draftsByKey.set(key, draft);
 						updateRow(key, {
 							status: "ready",
 							draft,
@@ -283,6 +332,30 @@ export default function ImportAccountsModal({
 							status: "error",
 							errorMessage: err instanceof Error ? err.message : "Failed",
 						});
+					}
+				}),
+			);
+
+			// Validate GICS codes and slug uniqueness for the new ("ready")
+			// companies, blocking import until issues are resolved.
+			const gicsSet = new Set((gicsCodesData?.data ?? []).map((g) => g.code));
+			const slugCounts = new Map<string, number>();
+			for (const draft of Array.from(draftsByKey.values())) {
+				if (draft.slug) {
+					slugCounts.set(draft.slug, (slugCounts.get(draft.slug) ?? 0) + 1);
+				}
+			}
+
+			await Promise.all(
+				Array.from(draftsByKey.entries()).map(async ([key, draft]) => {
+					const otherSlugs = new Set(
+						(slugCounts.get(draft.slug ?? "") ?? 0) > 1 && draft.slug
+							? [draft.slug]
+							: [],
+					);
+					const issues = await validateDraftRow(draft, gicsSet, otherSlugs);
+					if (issues.length > 0) {
+						updateRow(key, { validationIssues: issues });
 					}
 				}),
 			);
@@ -297,14 +370,33 @@ export default function ImportAccountsModal({
 
 	const handleConfirmImport = async () => {
 		setIsImporting(true);
+		setImportProgress({ done: 0, total: rows.length });
+
+		// Snapshot what this import is expected to do, before anything runs,
+		// so the final report can show expected vs. actual.
+		const expectedNew = rows.filter((r) => r.status === "ready").length;
+		const expectedExisting = rows.filter((r) => r.status === "existing").length;
+
 		let created = 0;
 		let linked = 0;
 		let skipped = 0;
 		let failed = 0;
+		let failedNew = 0;
+		let failedExisting = 0;
 		const alreadyLinked = new Set(existingCompanyIds);
 		const importedCompanyIds: number[] = [];
+		const failures: { name: string; reason: string }[] = [];
+
+		const fail = (row: DraftCompanyRow, reason: string) => {
+			failed++;
+			if (row.status === "ready") failedNew++;
+			else failedExisting++;
+			failures.push({ name: row.name, reason });
+			updateRow(row.key, { importStatus: "failed", importError: reason });
+		};
 
 		for (const row of rows) {
+			updateRow(row.key, { importStatus: "importing" });
 			try {
 				let companyId: number;
 				if (row.status === "existing" && row.existingId != null) {
@@ -315,20 +407,20 @@ export default function ImportAccountsModal({
 							row.pendingEdit,
 						);
 						if (!patchRes.data?.success) {
-							failed++;
+							fail(row, "Failed to save staged edits");
 							continue;
 						}
 					}
 				} else if (row.status === "ready" && row.draft) {
 					const res = await api.post("/companies", row.draft);
 					if (!res.data?.success || !res.data.data) {
-						failed++;
+						fail(row, res.data?.error ?? "Failed to create company");
 						continue;
 					}
 					companyId = res.data.data.companyId;
 					created++;
 				} else {
-					failed++;
+					fail(row, row.errorMessage ?? "Row not ready for import");
 					continue;
 				}
 
@@ -336,37 +428,159 @@ export default function ImportAccountsModal({
 
 				if (alreadyLinked.has(companyId)) {
 					skipped++;
+					updateRow(row.key, { importStatus: "done" });
 					continue;
 				}
 
 				await createAccount.mutateAsync({ companyId });
 				alreadyLinked.add(companyId);
 				linked++;
+				updateRow(row.key, { importStatus: "done" });
 			} catch (err) {
 				const status = (err as { response?: { status?: number } }).response
 					?.status;
-				if (status === 409) skipped++;
-				else failed++;
+				if (status === 409) {
+					skipped++;
+					updateRow(row.key, { importStatus: "done" });
+				} else {
+					fail(row, err instanceof Error ? err.message : "Unknown error");
+				}
+			} finally {
+				setImportProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
 			}
 		}
 
 		setIsImporting(false);
-		message.success(
-			`Import complete: ${created} companies created, ${linked} accounts linked, ${skipped} already linked, ${failed} failed`,
-		);
-		onImported();
-		reset();
-		onClose();
 
-		if (createReport && !hasUnverified && importedCompanyIds.length > 0) {
-			createReportModalRef.current?.open(importedCompanyIds);
+		if (created > 0 || linked > 0) {
+			onImported();
 		}
+
+		const reportRow = (
+			label: string,
+			expected: number,
+			actual: number,
+			mismatch: boolean,
+		) => (
+			<tr key={label}>
+				<td style={{ padding: "4px 0" }}>{label}</td>
+				<td style={{ padding: "4px 0", textAlign: "right" }}>{expected}</td>
+				<td
+					style={{
+						padding: "4px 0",
+						textAlign: "right",
+						color: mismatch ? "#ff4d4f" : undefined,
+						fontWeight: mismatch ? 600 : undefined,
+					}}
+				>
+					{actual}
+				</td>
+			</tr>
+		);
+
+		const reportContent = (
+			<div>
+				<table style={{ width: "100%", borderCollapse: "collapse" }}>
+					<thead>
+						<tr>
+							<th
+								style={{ textAlign: "left", fontWeight: 400, color: "#8c8c8c" }}
+							>
+								{" "}
+							</th>
+							<th
+								style={{
+									textAlign: "right",
+									fontWeight: 400,
+									color: "#8c8c8c",
+									fontSize: 12,
+								}}
+							>
+								Expected
+							</th>
+							<th
+								style={{
+									textAlign: "right",
+									fontWeight: 400,
+									color: "#8c8c8c",
+									fontSize: 12,
+								}}
+							>
+								Actual
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{reportRow(
+							"New companies created",
+							expectedNew,
+							created,
+							created !== expectedNew,
+						)}
+						{reportRow(
+							"Existing companies processed",
+							expectedExisting,
+							expectedExisting - failedExisting,
+							failedExisting > 0,
+						)}
+						{reportRow(
+							"Accounts linked to customer",
+							expectedNew + expectedExisting - failedNew - failedExisting,
+							linked + skipped,
+							false,
+						)}
+						{reportRow("Failed", 0, failed, failed > 0)}
+					</tbody>
+				</table>
+				{failures.length > 0 && (
+					<>
+						<Typography.Paragraph style={{ marginTop: 12, marginBottom: 4 }}>
+							Failures:
+						</Typography.Paragraph>
+						<ul style={{ paddingLeft: 20, margin: 0 }}>
+							{failures.map((f) => (
+								<li key={f.name}>
+									<strong>{f.name}</strong>: {f.reason}
+								</li>
+							))}
+						</ul>
+					</>
+				)}
+			</div>
+		);
+
+		const finishAndClose = () => {
+			reset();
+			onClose();
+			if (createReport && !hasUnverified && importedCompanyIds.length > 0) {
+				createReportModalRef.current?.open(importedCompanyIds);
+			}
+		};
+
+		if (failed > 0) {
+			modal.error({
+				title: "Import finished with errors",
+				width: 600,
+				content: reportContent,
+			});
+			return;
+		}
+
+		modal.success({
+			title: "Import complete",
+			width: 560,
+			content: reportContent,
+			onOk: finishAndClose,
+		});
 	};
 
 	const hasPendingWork = rows.some(
 		(r) => r.status === "matching" || r.status === "generating",
 	);
 	const hasUnverified = rows.some((r) => !r.verified);
+	const hasValidationIssues = rows.some(
+		(r) => r.validationIssues && r.validationIssues.length > 0,
+	);
 
 	const columns: ColumnsType<DraftCompanyRow> = [
 		{ title: "Company", dataIndex: "name" },
@@ -415,6 +629,50 @@ export default function ImportAccountsModal({
 			},
 		},
 		{
+			title: "Issues",
+			key: "validationIssues",
+			width: 140,
+			render: (_, row) => {
+				if (!row.validationIssues || row.validationIssues.length === 0) {
+					return <span style={{ color: "#595959" }}>—</span>;
+				}
+				return (
+					<Tooltip
+						title={
+							<ul style={{ margin: 0, paddingLeft: 16 }}>
+								{row.validationIssues.map((issue) => (
+									<li key={issue}>{issue}</li>
+								))}
+							</ul>
+						}
+					>
+						<Tag color="red">
+							{row.validationIssues.length} issue
+							{row.validationIssues.length > 1 ? "s" : ""}
+						</Tag>
+					</Tooltip>
+				);
+			},
+		},
+		{
+			title: "Import",
+			key: "importStatus",
+			width: 130,
+			render: (_, row) => {
+				if (!row.importStatus)
+					return <span style={{ color: "#595959" }}>—</span>;
+				if (row.importStatus === "importing")
+					return <Tag color="processing">importing…</Tag>;
+				if (row.importStatus === "done")
+					return <Tag color="green">imported</Tag>;
+				return (
+					<Tooltip title={row.importError}>
+						<Tag color="red">failed</Tag>
+					</Tooltip>
+				);
+			},
+		},
+		{
 			title: "",
 			key: "actions",
 			width: 90,
@@ -449,7 +707,18 @@ export default function ImportAccountsModal({
 			/>
 
 			<Modal
-				title="Import Accounts from XLSX"
+				title={
+					<div>
+						<div>Import Accounts from XLSX</div>
+						<Typography.Text
+							type="secondary"
+							style={{ fontSize: 12, fontWeight: 400 }}
+						>
+							Expects a sheet named &quot;{ACCOUNTS_SHEET_NAME_PATTERN}&quot;
+							(or containing that text)
+						</Typography.Text>
+					</div>
+				}
 				open={open}
 				onCancel={() => {
 					reset();
@@ -492,19 +761,29 @@ export default function ImportAccountsModal({
 					>
 						Cancel
 					</Button>,
-					<Button
+					<Tooltip
 						key="confirm"
-						type="primary"
-						loading={isImporting}
-						disabled={rows.length === 0 || hasPendingWork}
-						onClick={() => {
-							handleConfirmImport().catch((err) => {
-								console.error("Accounts import failed", err);
-							});
-						}}
+						title={
+							hasValidationIssues
+								? "Fix validation issues before importing"
+								: undefined
+						}
 					>
-						Confirm Import ({rows.length})
-					</Button>,
+						<Button
+							type="primary"
+							loading={isImporting}
+							disabled={
+								rows.length === 0 || hasPendingWork || hasValidationIssues
+							}
+							onClick={() => {
+								handleConfirmImport().catch((err) => {
+									console.error("Accounts import failed", err);
+								});
+							}}
+						>
+							Confirm Import ({rows.length})
+						</Button>
+					</Tooltip>,
 				]}
 				destroyOnHidden
 			>
@@ -515,6 +794,16 @@ export default function ImportAccountsModal({
 					Viewing or editing a company here only stages the change — nothing is
 					written to the database until you click &quot;Confirm Import&quot;.
 				</Typography.Text>
+				{importProgress && (
+					<Progress
+						style={{ marginBottom: 12 }}
+						percent={Math.round(
+							(importProgress.done / importProgress.total) * 100,
+						)}
+						status={isImporting ? "active" : "normal"}
+						format={() => `${importProgress.done} / ${importProgress.total}`}
+					/>
+				)}
 				<Table<DraftCompanyRow>
 					rowKey="key"
 					size="small"
@@ -572,8 +861,27 @@ export default function ImportAccountsModal({
 							updateRow(reviewRow.key, {
 								pendingEdit: draft,
 								verified: draft.verified,
+								validationIssues: undefined,
 							});
 							setForceEditKey(null);
+							const gicsSet = new Set(
+								(gicsCodesData?.data ?? []).map((g) => g.code),
+							);
+							const otherSlugs = new Set(
+								rows
+									.filter((r) => r.key !== reviewRow.key && r.draft?.slug)
+									.map((r) => r.draft?.slug as string),
+							);
+							validateDraftRow(
+								draft,
+								gicsSet,
+								otherSlugs,
+								reviewRow.existingId,
+							).then((issues) => {
+								if (issues.length > 0) {
+									updateRow(reviewRow.key, { validationIssues: issues });
+								}
+							});
 						}}
 					/>
 				)}
@@ -594,9 +902,26 @@ export default function ImportAccountsModal({
 						initialAdditionalData={additionalDataAsRecord(
 							reviewRow.draft.additionalData,
 						)}
-						onStaged={(draft) =>
-							updateRow(reviewRow.key, { draft, verified: draft.verified })
-						}
+						onStaged={(draft) => {
+							updateRow(reviewRow.key, {
+								draft,
+								verified: draft.verified,
+								validationIssues: undefined,
+							});
+							const gicsSet = new Set(
+								(gicsCodesData?.data ?? []).map((g) => g.code),
+							);
+							const otherSlugs = new Set(
+								rows
+									.filter((r) => r.key !== reviewRow.key && r.draft?.slug)
+									.map((r) => r.draft?.slug as string),
+							);
+							validateDraftRow(draft, gicsSet, otherSlugs).then((issues) => {
+								if (issues.length > 0) {
+									updateRow(reviewRow.key, { validationIssues: issues });
+								}
+							});
+						}}
 					/>
 				)}
 

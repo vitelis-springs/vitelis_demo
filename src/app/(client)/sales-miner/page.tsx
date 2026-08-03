@@ -7,10 +7,11 @@ import { Button, Result, Spin, Tabs } from "antd";
 import { useAuth } from "../../../hooks/useAuth";
 import DeepDiveList from "../../../components/deep-dive/deep-dive-list";
 import { SalesMinerCustomersEmbedded } from "../../../components/sales-miner/sales-miner-customers-page";
+import { SalesMinerStatsEmbedded } from "../../../components/sales-miner/sales-miner-stats-page";
 import DeepDivePageLayout from "../../../components/deep-dive/shared/page-layout";
 import PageHeader from "../../../components/deep-dive/shared/page-header";
 
-const VALID_TABS = ["customers", "reports"] as const;
+const VALID_TABS = ["customers", "reports", "stats"] as const;
 type SalesMinerTab = (typeof VALID_TABS)[number];
 
 function LoadingScreen() {
@@ -128,6 +129,11 @@ function SalesMinerPageContent() {
 						key: "reports",
 						label: "Reports",
 						children: <DeepDiveList fixedReportType="sales_miner" embedded />,
+					},
+					{
+						key: "stats",
+						label: "Statistics",
+						children: <SalesMinerStatsEmbedded />,
 					},
 				]}
 			/>

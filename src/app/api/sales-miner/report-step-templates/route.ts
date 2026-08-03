@@ -1,18 +1,10 @@
-import { NextResponse } from "next/server";
-import prisma from "../../../../lib/prisma";
+import type { NextRequest } from "next/server";
+import { ReportStepsController } from "../../../server/modules/report-steps";
 
-export async function GET() {
-	const templates = await prisma.report_step_templates.findMany({
-		where: { is_active: true },
-		orderBy: { id: "asc" },
-		select: { id: true, code: true, name: true },
-	});
+export async function GET(request: NextRequest) {
+	return ReportStepsController.listPresets(request);
+}
 
-	return NextResponse.json({
-		data: templates.map((t) => ({
-			id: Number(t.id),
-			code: t.code,
-			name: t.name,
-		})),
-	});
+export async function POST(request: NextRequest) {
+	return ReportStepsController.createPreset(request);
 }

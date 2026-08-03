@@ -831,7 +831,9 @@ seed_fact_signals AS (
     b.opportunity_candidate_id,
     b.seed_id,
     osf.signal_definition_id,
-    osf.signal_type_name,
+    -- Prefer the canonical signal_definitions.name (human-readable label) over the
+    -- fact row's signal_type_name, mirroring the lineage_signals fallback path.
+    COALESCE(sd.name, osf.signal_type_name) AS signal_type_name,
     osf.decision_role,
     osf.causal_role,
     osf.influence_score,
@@ -844,6 +846,8 @@ seed_fact_signals AS (
     ON osf.research_run_id = b.research_run_id
    AND osf.company_id = b.company_id
    AND osf.seed_id = b.seed_id
+  LEFT JOIN public.signal_definitions sd
+    ON sd.id = osf.signal_definition_id
 ),
 lineage_signals AS (
   -- Fallback path: signals carried on the candidate itself (meta.trigger_signal_lineage).

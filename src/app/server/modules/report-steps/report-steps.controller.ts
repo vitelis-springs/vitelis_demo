@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { extractAdminFromRequest } from "../../../../lib/auth";
+import { type NextRequest, NextResponse } from "next/server";
 import { report_status_enum } from "../../../../generated/prisma";
+import { extractAdminFromRequest } from "../../../../lib/auth";
 import { ReportStepsService } from "./report-steps.service";
 
 function parseStatus(value: string | null) {
@@ -11,6 +11,14 @@ function parseStatus(value: string | null) {
 	)
 		? (normalized as report_status_enum)
 		: null;
+}
+
+/**
+ * Preset ids are bigint in the DB — keep them as digit strings across the API
+ * boundary (never Number(), which loses precision past 2^53).
+ */
+function parseTemplateId(param: string): string | null {
+	return /^\d+$/.test(param) ? param : null;
 }
 
 export class ReportStepsController {
@@ -336,6 +344,35 @@ export class ReportStepsController {
 		}
 	}
 
+	// ===== Step runs (workflow / execution links + timings) =====
+
+	static async getReportStepRuns(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await ReportStepsService.getReportStepRuns(reportId);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ ReportStepsController.getReportStepRuns:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch step runs" },
+				{ status: 500 },
+			);
+		}
+	}
+
 	// ===== Steps Matrix =====
 
 	static async getStepsMatrix(
@@ -488,6 +525,339 @@ export class ReportStepsController {
 			);
 			return NextResponse.json(
 				{ success: false, error: "Failed to update step statuses" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	// ===== Report-level bulk status update =====
+
+	static async bulkUpdateReportStepStatuses(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json()) as {
+				company_ids?: unknown;
+				step_ids?: unknown;
+				cells?: unknown;
+				status?: unknown;
+			};
+
+			const status = parseStatus(
+				typeof body.status === "string" ? body.status : null,
+			);
+			if (!status) {
+				return NextResponse.json(
+					{
+						success: false,
+						error: "status must be one of PENDING, PROCESSING, DONE, ERROR",
+					},
+					{ status: 400 },
+				);
+			}
+
+			const isInt = (v: unknown) =>
+				typeof v === "number" && Number.isInteger(v);
+
+			// Two accepted shapes, both collapse to a flat cell list for one
+			// atomic upsert: sparse { cells:[{company_id,step_id}] } or
+			// rectangular { company_ids, step_ids } (expanded to the product).
+			let cells: Array<{ companyId: number; stepId: number }>;
+
+			if (body.cells !== undefined) {
+				if (
+					!Array.isArray(body.cells) ||
+					!body.cells.every(
+						(c) =>
+							!!c &&
+							typeof c === "object" &&
+							isInt((c as { company_id?: unknown }).company_id) &&
+							isInt((c as { step_id?: unknown }).step_id),
+					)
+				) {
+					return NextResponse.json(
+						{
+							success: false,
+							error:
+								"cells must be an array of { company_id, step_id } integers",
+						},
+						{ status: 400 },
+					);
+				}
+				cells = (
+					body.cells as Array<{ company_id: number; step_id: number }>
+				).map((c) => ({ companyId: c.company_id, stepId: c.step_id }));
+			} else if (
+				Array.isArray(body.company_ids) &&
+				Array.isArray(body.step_ids)
+			) {
+				if (!body.company_ids.every(isInt) || !body.step_ids.every(isInt)) {
+					return NextResponse.json(
+						{
+							success: false,
+							error: "company_ids and step_ids must be arrays of integers",
+						},
+						{ status: 400 },
+					);
+				}
+				cells = [];
+				for (const companyId of body.company_ids as number[]) {
+					for (const stepId of body.step_ids as number[]) {
+						cells.push({ companyId, stepId });
+					}
+				}
+			} else {
+				return NextResponse.json(
+					{
+						success: false,
+						error: "Provide cells, or company_ids and step_ids",
+					},
+					{ status: 400 },
+				);
+			}
+
+			const result = await ReportStepsService.bulkUpdateReportStepStatuses(
+				reportId,
+				cells,
+				status,
+			);
+
+			if (!result.success) {
+				return NextResponse.json(result, { status: result.status ?? 400 });
+			}
+
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error(
+				"❌ ReportStepsController.bulkUpdateReportStepStatuses:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to bulk update step statuses" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	// ===== Step Presets (report_step_templates) =====
+
+	static async listPresets(request: NextRequest): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const includeInactive =
+				request.nextUrl.searchParams.get("include_inactive") === "1";
+			const result = await ReportStepsService.listPresets(includeInactive);
+			// Back-compat: existing consumers read `{ data }`.
+			return NextResponse.json({ data: result.data });
+		} catch (error) {
+			console.error("❌ ReportStepsController.listPresets:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch presets" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async getPreset(
+		request: NextRequest,
+		templateIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const templateId = parseTemplateId(templateIdParam);
+			if (!templateId) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid preset id" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await ReportStepsService.getPreset(templateId);
+			if (!result.success) {
+				return NextResponse.json(result, { status: result.status ?? 404 });
+			}
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ ReportStepsController.getPreset:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch preset" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async createPreset(request: NextRequest): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const body = (await request.json()) as {
+				report_id?: unknown;
+				name?: unknown;
+				description?: unknown;
+				code?: unknown;
+			};
+
+			if (
+				typeof body.report_id !== "number" ||
+				!Number.isFinite(body.report_id)
+			) {
+				return NextResponse.json(
+					{ success: false, error: "report_id must be a valid number" },
+					{ status: 400 },
+				);
+			}
+
+			if (typeof body.name !== "string" || body.name.trim() === "") {
+				return NextResponse.json(
+					{ success: false, error: "name is required" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await ReportStepsService.createPresetFromReport(
+				body.report_id,
+				{
+					name: body.name.trim(),
+					description:
+						typeof body.description === "string" ? body.description : null,
+					code: typeof body.code === "string" ? body.code : null,
+				},
+			);
+
+			if (!result.success) {
+				return NextResponse.json(result, { status: result.status ?? 400 });
+			}
+			return NextResponse.json(result, { status: 201 });
+		} catch (error) {
+			console.error("❌ ReportStepsController.createPreset:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to create preset" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async updatePreset(
+		request: NextRequest,
+		templateIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const templateId = parseTemplateId(templateIdParam);
+			if (!templateId) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid preset id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json()) as {
+				name?: unknown;
+				description?: unknown;
+				is_active?: unknown;
+				meta?: unknown;
+			};
+
+			if (body.name !== undefined && typeof body.name !== "string") {
+				return NextResponse.json(
+					{ success: false, error: "name must be a string" },
+					{ status: 400 },
+				);
+			}
+			if (body.is_active !== undefined && typeof body.is_active !== "boolean") {
+				return NextResponse.json(
+					{ success: false, error: "is_active must be a boolean" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await ReportStepsService.updatePreset(templateId, {
+				...(typeof body.name === "string" ? { name: body.name } : {}),
+				...(body.description !== undefined
+					? {
+							description:
+								typeof body.description === "string" ? body.description : null,
+						}
+					: {}),
+				...(typeof body.is_active === "boolean"
+					? { isActive: body.is_active }
+					: {}),
+				...(body.meta !== undefined
+					? { meta: (body.meta as object | null) ?? null }
+					: {}),
+			});
+
+			if (!result.success) {
+				return NextResponse.json(result, { status: result.status ?? 404 });
+			}
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ ReportStepsController.updatePreset:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to update preset" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async applyPreset(
+		request: NextRequest,
+		templateIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const templateId = parseTemplateId(templateIdParam);
+			if (!templateId) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid preset id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json()) as { report_id?: unknown };
+			if (
+				typeof body.report_id !== "number" ||
+				!Number.isFinite(body.report_id)
+			) {
+				return NextResponse.json(
+					{ success: false, error: "report_id must be a valid number" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await ReportStepsService.applyPreset(
+				templateId,
+				body.report_id,
+			);
+			if (!result.success) {
+				return NextResponse.json(result, { status: result.status ?? 400 });
+			}
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ ReportStepsController.applyPreset:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to apply preset" },
 				{ status: 500 },
 			);
 		}

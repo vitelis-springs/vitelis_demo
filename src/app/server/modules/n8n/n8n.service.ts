@@ -40,6 +40,9 @@ interface SalesMinerDopExportResult {
 	status?: string;
 }
 
+/** Key of an n8n instance. Monitoring resolves a host from this to build deep links. */
+export type N8NInstanceKey = "salesminer" | "bizminer";
+
 const BIZMINER_PATH_V2_ALLIANZ = "webhook/v2/bizminer/allianz";
 const BIZMINER_PATH_V2_DEFAULT = "webhook/v2/bizminer/default";
 const SALESMINER_PATH_V1 = "webhook/v1/salesminer";
@@ -101,6 +104,18 @@ export class N8NService {
 		return { url, apiKey };
 	}
 
+	/**
+	 * Editor host for a given n8n type, trailing-slashed. Mirrors the URL
+	 * selection in getConfigByType but needs no API key — for building
+	 * workflow/execution deep-links. Types: "salesminer", "bizminer",
+	 * "vitelis_sales", or undefined for the default instance.
+	 */
+	static getEditorBaseUrl(type?: string | null): string {
+		const url = process.env.N8N_API_URL; // vitelis_sales + default
+		const base = url || "https://vitelis.app.n8n.cloud/";
+		return base.endsWith("/") ? base : `${base}/`;
+	}
+
 	static async stopExecution(
 		executionId: string,
 		type?: string | null,
@@ -148,6 +163,18 @@ export class N8NService {
 	static getTypeByInstanceIndex(index: number | null): string {
 		if (index === 0) return "salesminer";
 		return "bizminer";
+	}
+
+	// ===== Monitoring =====
+
+	/** Base URL of an instance, always with a trailing slash. Null when unconfigured. */
+	static getInstanceHost(key: N8NInstanceKey): string | null {
+		try {
+			const { url } = N8NService.getConfigByType(key);
+			return url.endsWith("/") ? url : `${url}/`;
+		} catch {
+			return null;
+		}
 	}
 
 	private static async fetchWithTimeout(

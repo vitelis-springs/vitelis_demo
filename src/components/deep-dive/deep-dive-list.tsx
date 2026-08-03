@@ -22,6 +22,7 @@ import {
 	type DeepDiveStatus,
 	useGetDeepDives,
 } from "../../hooks/api/useDeepDiveService";
+import { useReportNotificationSubscriptions } from "../../hooks/api/useReportNotificationsService";
 import useServerSortedTable from "../../hooks/useServerSortedTable";
 import { ReportCostModal } from "../report-steps/ReportCostModal";
 import CreateReportModal, { CloneReportButton } from "./create-report-modal";
@@ -30,6 +31,8 @@ import ExportXlsxModal from "./export-xlsx-modal";
 import PageHeader from "./shared/page-header";
 import DeepDivePageLayout from "./shared/page-layout";
 import DeepDiveStatusTag from "./status-tag";
+import NotificationSubscriptionButton from "../sales-miner/notification-subscription-button";
+import ReportRecipientsModal from "../sales-miner/report-recipients-modal";
 import SendToDopButton from "../sales-miner/send-to-dop-button";
 
 const { Text } = Typography;
@@ -158,10 +161,22 @@ export default function DeepDiveList({
 		createdTo: createdToParam ?? undefined,
 	});
 
-	const items = data?.data.items ?? [];
+	const items = useMemo(() => data?.data.items ?? [], [data]);
 	const total = data?.data.total ?? 0;
 	const filters = data?.data.filters;
 	const useCasesForModal = filters?.useCases ?? [];
+
+	const salesMinerReportIds = useMemo(
+		() =>
+			fixedReportType === "sales_miner" ? items.map((item) => item.id) : [],
+		[fixedReportType, items],
+	);
+	const { data: subscriptionData } =
+		useReportNotificationSubscriptions(salesMinerReportIds);
+	const subscriptionsByReportId = useMemo(
+		() => subscriptionData?.data.reports ?? {},
+		[subscriptionData],
+	);
 
 	const pageTitle =
 		fixedReportType === "biz_miner"
@@ -361,15 +376,33 @@ export default function DeepDiveList({
 						{
 							title: "",
 							key: "actions",
-							width: 48,
+							width: fixedReportType === "sales_miner" ? 208 : 48,
 							render: (_: unknown, record: DeepDiveListItem) => (
-								<CloneReportButton onClone={() => setCloneFromId(record.id)} />
+								<Space size={4}>
+									<CloneReportButton
+										onClone={() => setCloneFromId(record.id)}
+									/>
+									{fixedReportType === "sales_miner" && (
+										<>
+											<NotificationSubscriptionButton
+												reportId={record.id}
+												events={
+													subscriptionsByReportId[String(record.id)]?.events
+												}
+											/>
+											<ReportRecipientsModal
+												reportId={record.id}
+												reportName={record.name}
+											/>
+										</>
+									)}
+								</Space>
 							),
 						},
 					]
 				: []),
 		],
-		[fixedReportType],
+		[fixedReportType, subscriptionsByReportId],
 	);
 
 	const getRecordHref = useCallback(
@@ -602,7 +635,7 @@ export default function DeepDiveList({
 							const target = e.target as HTMLElement;
 							if (
 								target.closest(
-									'button, a, .ant-modal-root, [role="button"], .ant-select, .ant-dropdown',
+									'button, a, .ant-modal-root, [role="button"], .ant-select, .ant-dropdown, .ant-popover, .ant-checkbox-wrapper',
 								)
 							)
 								return;

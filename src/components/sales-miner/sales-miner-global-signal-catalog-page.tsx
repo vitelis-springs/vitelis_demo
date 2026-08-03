@@ -35,6 +35,7 @@ import {
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
+import { buildGicsTree } from "../../lib/gics-tree";
 import DeepDiveBreadcrumbs from "../deep-dive/breadcrumbs";
 import SignalModelImport, {
 	type SignalModelImportHandle,
@@ -42,7 +43,6 @@ import SignalModelImport, {
 import SmSignalModelView from "./sm-signal-model-view";
 import {
 	type CurrentSignalRow,
-	type GicsCodeRow,
 	type SignalCategoryRow,
 	type SignalDefinitionRow,
 	useCreateSignalCategory,
@@ -83,33 +83,6 @@ interface SignalFormValues {
 	isActive: boolean;
 	gicsCodes?: string[];
 	phrases?: Array<{ phrase: string }>;
-}
-
-interface GicsTreeNode {
-	title: string;
-	value: string;
-	children: GicsTreeNode[];
-}
-
-function buildGicsTree(items: GicsCodeRow[]): GicsTreeNode[] {
-	const map = new Map<string, GicsTreeNode>();
-	for (const item of items) {
-		map.set(item.code, {
-			title: `${item.code} — ${item.name}`,
-			value: item.code,
-			children: [],
-		});
-	}
-	const roots: GicsTreeNode[] = [];
-	for (const item of items) {
-		const node = map.get(item.code)!;
-		if (item.parent_code && map.has(item.parent_code)) {
-			map.get(item.parent_code)!.children.push(node);
-		} else {
-			roots.push(node);
-		}
-	}
-	return roots;
 }
 
 function autoCode(): string {

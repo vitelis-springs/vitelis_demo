@@ -2,6 +2,7 @@
 
 import {
 	AuditOutlined,
+	DashboardOutlined,
 	DatabaseOutlined,
 	FileSearchOutlined,
 	HistoryOutlined,
@@ -141,6 +142,11 @@ export default function Sidebar() {
 								key: "/vitelis-sales",
 								icon: <LineChartOutlined style={{ fontSize: "18px" }} />,
 								label: "Vitelis Sales",
+							},
+							{
+								key: "/monitoring",
+								icon: <DashboardOutlined style={{ fontSize: "18px" }} />,
+								label: "Monitoring",
 							},
 							{
 								key: "/account",

@@ -1958,6 +1958,44 @@ export class DeepDiveController {
 		}
 	}
 
+	static async exportSalesMinerSignalStatsXlsx(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const buffer =
+				await DeepDiveService.exportSalesMinerSignalStatsXlsx(reportId);
+
+			return new NextResponse(buffer, {
+				headers: {
+					"Content-Type":
+						"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					"Content-Disposition": `attachment; filename="signal_stats_${reportId}.xlsx"`,
+				},
+			});
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.exportSalesMinerSignalStatsXlsx:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to export signal stats" },
+				{ status: 500 },
+			);
+		}
+	}
+
 	static async tryQuery(
 		request: NextRequest,
 		reportIdParam: string,
@@ -2257,6 +2295,40 @@ export class DeepDiveController {
 			console.error("❌ DeepDiveController.searchCompanies:", error);
 			return NextResponse.json(
 				{ success: false, error: "Search failed" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async checkSlugAvailable(request: NextRequest): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const params = new URL(request.url).searchParams;
+			const slug = params.get("slug")?.trim() ?? "";
+			if (!slug) {
+				return NextResponse.json(
+					{ success: false, error: "slug is required" },
+					{ status: 400 },
+				);
+			}
+			const excludeCompanyIdParam = params.get("excludeCompanyId");
+			const excludeCompanyId =
+				excludeCompanyIdParam != null &&
+				Number.isFinite(Number(excludeCompanyIdParam))
+					? Number(excludeCompanyIdParam)
+					: undefined;
+
+			const result = await DeepDiveService.checkSlugAvailable(
+				slug,
+				excludeCompanyId,
+			);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ DeepDiveController.checkSlugAvailable:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to check slug" },
 				{ status: 500 },
 			);
 		}
