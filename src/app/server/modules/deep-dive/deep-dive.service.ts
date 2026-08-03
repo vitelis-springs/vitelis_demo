@@ -2,7 +2,11 @@
 /** biome-ignore-all lint/style/useDefaultSwitchClause: Switches are exhaustive over validated union inputs. */
 import { type Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
-import { buildSignalStatsWorkbook } from "../../../../lib/xlsx/signal-stats-workbook";
+import {
+	buildCategoryProductTagMatrixWorkbook,
+	buildSignalCategoryStatsWorkbook,
+	buildSignalStatsWorkbook,
+} from "../../../../lib/xlsx/signal-stats-workbook";
 import {
 	buildKpiScoreValue,
 	isKpiScoreTier,
@@ -3190,6 +3194,11 @@ export class DeepDiveService {
 					r.company_hit_rate_pct != null
 						? Number(r.company_hit_rate_pct)
 						: null,
+				triggerOpportunitiesCount: Number(r.trigger_opportunities_count),
+				triggerEfficiencyPct:
+					r.trigger_efficiency_pct != null
+						? Number(r.trigger_efficiency_pct)
+						: null,
 			})),
 		};
 	}
@@ -3199,6 +3208,76 @@ export class DeepDiveService {
 	): Promise<ArrayBuffer> {
 		const { data } = await this.getSalesMinerSignalStats(reportId);
 		return buildSignalStatsWorkbook(data);
+	}
+
+	static async getSalesMinerSignalCategoryStats(reportId: number) {
+		const rows =
+			await DeepDiveRepository.getSalesMinerSignalCategoryStats(reportId);
+		return {
+			success: true,
+			data: rows.map((r) => ({
+				categoryId: r.category_id != null ? Number(r.category_id) : null,
+				categoryName: r.category_name,
+				subcategoryCount: Number(r.subcategory_count),
+				opportunitiesCount: Number(r.opportunities_count),
+				distinctSignalDefinitionCount: Number(
+					r.distinct_signal_definition_count,
+				),
+				completedSearchCount: Number(r.completed_search_count),
+				signalEfficiencyPct:
+					r.signal_efficiency_pct != null
+						? Number(r.signal_efficiency_pct)
+						: null,
+				companiesResearchedCount: Number(r.companies_researched_count),
+				companiesWithOpportunityCount: Number(
+					r.companies_with_opportunity_count,
+				),
+				companyHitRatePct:
+					r.company_hit_rate_pct != null
+						? Number(r.company_hit_rate_pct)
+						: null,
+				triggerOpportunitiesCount: Number(r.trigger_opportunities_count),
+				triggerEfficiencyPct:
+					r.trigger_efficiency_pct != null
+						? Number(r.trigger_efficiency_pct)
+						: null,
+			})),
+		};
+	}
+
+	static async exportSalesMinerSignalCategoryStatsXlsx(
+		reportId: number,
+	): Promise<ArrayBuffer> {
+		const { data } = await this.getSalesMinerSignalCategoryStats(reportId);
+		return buildSignalCategoryStatsWorkbook(data);
+	}
+
+	static async getSalesMinerCategoryProductTagMatrix(reportId: number) {
+		const rows =
+			await DeepDiveRepository.getSalesMinerCategoryProductTagMatrix(reportId);
+		return {
+			success: true,
+			data: rows.map((r) => ({
+				categoryId: r.category_id != null ? Number(r.category_id) : null,
+				categoryName: r.category_name,
+				capabilityTagId:
+					r.capability_tag_id != null ? Number(r.capability_tag_id) : null,
+				tagName: r.tag_name,
+				opportunitiesCount: Number(r.opportunities_count),
+				completedSearchCount: Number(r.completed_search_count),
+				signalEfficiencyPct:
+					r.signal_efficiency_pct != null
+						? Number(r.signal_efficiency_pct)
+						: null,
+			})),
+		};
+	}
+
+	static async exportSalesMinerCategoryProductTagMatrixXlsx(
+		reportId: number,
+	): Promise<ArrayBuffer> {
+		const { data } = await this.getSalesMinerCategoryProductTagMatrix(reportId);
+		return buildCategoryProductTagMatrixWorkbook(data);
 	}
 
 	static async getValidationSummary(reportId: number) {

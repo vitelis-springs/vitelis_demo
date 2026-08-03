@@ -878,11 +878,53 @@ export interface SignalStatRow {
 	companiesResearchedCount: number;
 	companiesWithOpportunityCount: number;
 	companyHitRatePct: number | null;
+	/** Opportunities where this signal was the actual trigger, not just supporting context — see SignalStatsRawRow for the exact definition and its caveats. */
+	triggerOpportunitiesCount: number;
+	triggerEfficiencyPct: number | null;
 }
 
 export interface SignalStatsResponse {
 	success: boolean;
 	data: SignalStatRow[];
+}
+
+export interface SignalCategoryStatRow {
+	/** Null for the synthetic "Custom / Product Signals" rollup row. */
+	categoryId: number | null;
+	categoryName: string;
+	subcategoryCount: number;
+	opportunitiesCount: number;
+	distinctSignalDefinitionCount: number;
+	completedSearchCount: number;
+	signalEfficiencyPct: number | null;
+	companiesResearchedCount: number;
+	companiesWithOpportunityCount: number;
+	companyHitRatePct: number | null;
+	triggerOpportunitiesCount: number;
+	triggerEfficiencyPct: number | null;
+}
+
+export interface SignalCategoryStatsResponse {
+	success: boolean;
+	data: SignalCategoryStatRow[];
+}
+
+export interface CategoryProductTagCell {
+	/** Null for the synthetic "Custom / Product Signals" row bucket — matches SignalCategoryStatRow.categoryId. */
+	categoryId: number | null;
+	categoryName: string;
+	/** Null for the synthetic "No Product Tag" column bucket. */
+	capabilityTagId: number | null;
+	tagName: string;
+	opportunitiesCount: number;
+	/** This category's own completed_search_count — same denominator as the matching SignalCategoryStatRow, not a per-tag total. */
+	completedSearchCount: number;
+	signalEfficiencyPct: number | null;
+}
+
+export interface CategoryProductTagMatrixResponse {
+	success: boolean;
+	data: CategoryProductTagCell[];
 }
 
 export interface ValidationCompanyRow {

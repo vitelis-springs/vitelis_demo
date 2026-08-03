@@ -1,83 +1,96 @@
 "use client";
 
-import { Button, Card, Table } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+	useExportSalesMinerCategoryProductTagMatrixXlsx,
+	useExportSalesMinerSignalCategoryStatsXlsx,
 	useExportSalesMinerSignalStatsXlsx,
+	useGetSalesMinerCategoryProductTagMatrix,
+	useGetSalesMinerSignalCategoryStats,
 	useGetSalesMinerSignalStats,
-	type SignalStatRow,
 } from "../../hooks/api/useDeepDiveService";
+import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import {
-	DARK_CARD_STYLE,
-	DARK_CARD_HEADER_STYLE,
-} from "../../config/chart-theme";
-import { buildColumns } from "./signal-stats-columns";
+	buildCategoryColumns,
+	buildColumns,
+	buildProductTagMatrixColumns,
+} from "./signal-stats-columns";
+import {
+	SignalStatsResults,
+	type SignalStatsView,
+} from "./signal-stats-results";
+
+/** Static column set (no args, always the same) — computed once at module load rather than per-render. */
+const CATEGORY_COLUMNS = buildCategoryColumns();
 
 interface Props {
 	reportId: number;
 }
 
 export default function SignalStatsTable({ reportId }: Props) {
-	const { data, isLoading } = useGetSalesMinerSignalStats(reportId);
-	const { mutateAsync: exportXlsx, isPending: exportPending } =
-		useExportSalesMinerSignalStatsXlsx();
+	const [view, setView] = useState<SignalStatsView>("signal");
 
-	const rows = useMemo(() => data?.data ?? [], [data]);
-	const columns = useMemo(() => buildColumns(rows), [rows]);
-	const title = isLoading
-		? "Signal Statistics"
-		: `Signal Statistics (${rows.length})`;
+	const signalQuery = useGetSalesMinerSignalStats(reportId, view === "signal");
+	// "By Product Tag" reuses the category rows as its base table, so it fetches
+	// alongside "By Category" too — see buildProductTagMatrixColumns.
+	const categoryQuery = useGetSalesMinerSignalCategoryStats(
+		reportId,
+		view === "category" || view === "productTag",
+	);
+	const matrixQuery = useGetSalesMinerCategoryProductTagMatrix(
+		reportId,
+		view === "productTag",
+	);
+	const { mutateAsync: exportSignalXlsx, isPending: exportSignalPending } =
+		useExportSalesMinerSignalStatsXlsx();
+	const { mutateAsync: exportCategoryXlsx, isPending: exportCategoryPending } =
+		useExportSalesMinerSignalCategoryStatsXlsx();
+	const { mutateAsync: exportMatrixXlsx, isPending: exportMatrixPending } =
+		useExportSalesMinerCategoryProductTagMatrixXlsx();
+
+	const signalRows = useMemo(
+		() => signalQuery.data?.data ?? [],
+		[signalQuery.data],
+	);
+	const categoryRows = useMemo(
+		() => categoryQuery.data?.data ?? [],
+		[categoryQuery.data],
+	);
+	const matrixCells = useMemo(
+		() => matrixQuery.data?.data ?? [],
+		[matrixQuery.data],
+	);
+	const signalColumns = useMemo(() => buildColumns(signalRows), [signalRows]);
+	const productTagColumns = useMemo(
+		() => [...CATEGORY_COLUMNS, ...buildProductTagMatrixColumns(matrixCells)],
+		[matrixCells],
+	);
 
 	return (
-		<Card
-			title={title}
-			extra={
-				<Button
-					icon={<DownloadOutlined />}
-					size="small"
-					type="primary"
-					loading={exportPending}
-					disabled={rows.length === 0}
-					onClick={() => {
-						exportXlsx(reportId).catch(() => undefined);
-					}}
-				>
-					Export XLSX
-				</Button>
-			}
-			size="small"
-			style={{ ...DARK_CARD_STYLE, marginBottom: 24 }}
-			styles={{ header: DARK_CARD_HEADER_STYLE }}
-		>
-			<Table<SignalStatRow>
-				dataSource={rows}
-				columns={columns}
-				rowKey={(row) => `${row.unitType}-${row.unitId}`}
-				loading={isLoading}
-				size="small"
-				scroll={{ x: 1400 }}
-				pagination={{
-					pageSize: 20,
-					showSizeChanger: true,
-					pageSizeOptions: ["10", "20", "50", "100"],
-					showTotal: (total) => `${total} signals`,
-				}}
-				rowClassName={() => "sm-signal-row"}
-				className="sm-signal-stats"
-				style={{ background: "transparent" }}
-			/>
-			<style jsx global>{`
-        .sm-signal-row:hover td { background: #1f1f1f !important; }
-        .sm-signal-stats .ant-table-thead > tr > th {
-          white-space: normal !important;
-          word-break: keep-all;
-          overflow-wrap: normal;
-          vertical-align: top;
-          padding: 8px 6px !important;
-          line-height: 1.3;
-        }
-      `}</style>
-		</Card>
+		<SignalStatsResults
+			view={view}
+			onViewChange={setView}
+			cardStyle={{ ...DARK_CARD_STYLE, marginBottom: 24 }}
+			signalRows={signalRows}
+			signalColumns={signalColumns}
+			signalLoading={signalQuery.isLoading}
+			signalExportPending={exportSignalPending}
+			onExportSignal={() => {
+				exportSignalXlsx(reportId).catch(() => undefined);
+			}}
+			categoryRows={categoryRows}
+			categoryColumns={CATEGORY_COLUMNS}
+			categoryLoading={categoryQuery.isLoading}
+			categoryExportPending={exportCategoryPending}
+			onExportCategory={() => {
+				exportCategoryXlsx(reportId).catch(() => undefined);
+			}}
+			productTagColumns={productTagColumns}
+			matrixLoading={matrixQuery.isLoading}
+			matrixExportPending={exportMatrixPending}
+			onExportMatrix={() => {
+				exportMatrixXlsx(reportId).catch(() => undefined);
+			}}
+		/>
 	);
 }

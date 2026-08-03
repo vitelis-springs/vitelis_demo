@@ -1996,6 +1996,152 @@ export class DeepDiveController {
 		}
 	}
 
+	static async getSalesMinerSignalCategoryStats(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const result =
+				await DeepDiveService.getSalesMinerSignalCategoryStats(reportId);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.getSalesMinerSignalCategoryStats:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch signal category stats" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async exportSalesMinerSignalCategoryStatsXlsx(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const buffer =
+				await DeepDiveService.exportSalesMinerSignalCategoryStatsXlsx(reportId);
+
+			return new NextResponse(buffer, {
+				headers: {
+					"Content-Type":
+						"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					"Content-Disposition": `attachment; filename="signal_category_stats_${reportId}.xlsx"`,
+				},
+			});
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.exportSalesMinerSignalCategoryStatsXlsx:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to export signal category stats" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async getSalesMinerCategoryProductTagMatrix(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const result =
+				await DeepDiveService.getSalesMinerCategoryProductTagMatrix(reportId);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.getSalesMinerCategoryProductTagMatrix:",
+				error,
+			);
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Failed to fetch category/product tag matrix",
+				},
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async exportSalesMinerCategoryProductTagMatrixXlsx(
+		request: NextRequest,
+		reportIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			if (!Number.isFinite(reportId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id" },
+					{ status: 400 },
+				);
+			}
+
+			const buffer =
+				await DeepDiveService.exportSalesMinerCategoryProductTagMatrixXlsx(
+					reportId,
+				);
+
+			return new NextResponse(buffer, {
+				headers: {
+					"Content-Type":
+						"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					"Content-Disposition": `attachment; filename="category_product_tag_matrix_${reportId}.xlsx"`,
+				},
+			});
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.exportSalesMinerCategoryProductTagMatrixXlsx:",
+				error,
+			);
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Failed to export category/product tag matrix",
+				},
+				{ status: 500 },
+			);
+		}
+	}
+
 	static async tryQuery(
 		request: NextRequest,
 		reportIdParam: string,
