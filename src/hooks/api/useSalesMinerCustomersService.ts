@@ -299,8 +299,13 @@ export interface ProductDiscoveryRun {
 		unfiled: number;
 		taxonomy_origin: string;
 		cost_usd: number;
+		// Calls served from cache: they cost nothing this run, so a cheap
+		// re-run explains itself rather than looking like a pricing bug.
+		cached_calls: number;
 		duration_s: number;
 		strategies: Record<string, number>;
+		rejected: Array<{ name: string; reason: string }>;
+		rejected_total: number;
 		errors: string[];
 		preflight_verdict: string;
 		sources: Array<{
