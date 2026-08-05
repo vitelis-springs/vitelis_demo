@@ -251,3 +251,121 @@ export function useCustomerProducts(
 		refetchInterval: options?.refetchInterval,
 	});
 }
+
+// --- product discovery -----------------------------------------------------
+// A run takes minutes, so nothing here waits on one. `useStartProductDiscovery`
+// returns as soon as the run is recorded and `useProductDiscoveryRun` polls it.
+// The result is a *proposal*: it reaches customer_products only when the
+// engineer confirms and the existing import mutation writes it.
+
+/** Exactly the keys `POST /products/import` accepts, so a confirmed preview
+ * can be posted to the existing endpoint without reshaping. */
+export interface DiscoveredProductPayload {
+	groupCategory: string;
+	productName: string;
+	internalDescription: string;
+	subCategory: string | null;
+	valueProposition: string | null;
+	painPoint: string | null;
+	orgUnit: string | null;
+	markets: string | null;
+	geographies: string | null;
+	price: string | null;
+	buyingTriggerSignals: string | null;
+	landAnchor: string | null;
+	expandAnchor: string | null;
+	scaleAnchor: string | null;
+	crossPortfolioConnection: string | null;
+	discovery: {
+		confidence: number;
+		evidence_urls: string[];
+		strategies: string[];
+		variants: string[];
+		retrieved_at: string | null;
+		unfiled: boolean;
+	} | null;
+}
+
+export interface ProductDiscoveryRun {
+	id: string;
+	customer_id: number;
+	status: "queued" | "running" | "succeeded" | "failed";
+	created_at: string;
+	finished_at: string | null;
+	error: string | null;
+	summary: {
+		products: number;
+		groups: number;
+		unfiled: number;
+		taxonomy_origin: string;
+		cost_usd: number;
+		duration_s: number;
+		strategies: Record<string, number>;
+		errors: string[];
+		preflight_verdict: string;
+		sources: Array<{
+			url: string;
+			role: string;
+			status: number;
+			verdict: string;
+			crawlable: boolean;
+		}>;
+	} | null;
+	products: DiscoveredProductPayload[] | null;
+}
+
+export function useStartProductDiscovery(customerId: string) {
+	return useMutation({
+		mutationFn: async () => {
+			const res = await api.post(
+				`/sales-miner/customers/${customerId}/products/discover`,
+				{},
+			);
+			return res.data as { success: boolean; data: ProductDiscoveryRun };
+		},
+	});
+}
+
+/**
+ * The customer's most recent run — asked on load so a refresh rejoins one.
+ *
+ * Polls only while that run is unfinished. An idle Portfolio tab makes one
+ * request and then goes quiet, which matters because this tab is left open.
+ */
+export function useLatestProductDiscoveryRun(
+	customerId: string,
+	options?: { pollMs?: number },
+) {
+	const pollMs = options?.pollMs ?? 4000;
+	return useQuery({
+		queryKey: ["sales-miner", "product-discovery", "latest", customerId],
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/customers/${customerId}/products/discover`,
+			);
+			return res.data as { success: boolean; data: ProductDiscoveryRun | null };
+		},
+		refetchInterval: (query) => {
+			const status = query.state.data?.data?.status;
+			return status === "queued" || status === "running" ? pollMs : false;
+		},
+	});
+}
+
+export function useProductDiscoveryRun(
+	customerId: string,
+	runId: string | null,
+	options?: { refetchInterval?: number | false },
+) {
+	return useQuery({
+		queryKey: ["sales-miner", "product-discovery", "run", runId],
+		enabled: Boolean(runId),
+		queryFn: async () => {
+			const res = await api.get(
+				`/sales-miner/customers/${customerId}/products/discover/${runId}`,
+			);
+			return res.data as { success: boolean; data: ProductDiscoveryRun };
+		},
+		refetchInterval: options?.refetchInterval,
+	});
+}

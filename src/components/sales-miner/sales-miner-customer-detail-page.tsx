@@ -1,9 +1,11 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	App,
 	Button,
 	Card,
+	Divider,
 	Form,
 	Input,
 	Modal,
@@ -18,6 +20,7 @@ import {
 	Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { useRouter } from "next/navigation";
 import {
 	type ReactNode,
 	useCallback,
@@ -26,34 +29,41 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
-import { useAuth } from "../../hooks/useAuth";
-import { api } from "../../lib/api-client";
-import {
-	type CustomerProductRow,
-	type SalesMinerCustomerDetail,
-	useCreateSalesMinerCustomerAccount,
-	useCustomerProducts,
-	useSalesMinerCustomerDetail,
-	useUpdateSalesMinerCustomer,
-	useUpdateSalesMinerCustomerAccount,
-} from "../../hooks/api/useSalesMinerCustomersService";
 import {
 	type CompanyDetail,
 	type CompanySearchResult,
 	useGetCompany,
 	useSearchCompanies,
 } from "../../hooks/api/useDeepDiveService";
-import DeepDiveList from "../deep-dive/deep-dive-list";
-import DeepDivePageLayout from "../deep-dive/shared/page-layout";
-import PageHeader from "../deep-dive/shared/page-header";
+import { useGetExecutionDetails } from "../../hooks/api/useN8NService";
+import {
+	type CustomerProductRow,
+	type SalesMinerCustomerDetail,
+	useCreateSalesMinerCustomerAccount,
+	useCustomerProducts,
+	useLatestProductDiscoveryRun,
+	useSalesMinerCustomerDetail,
+	useStartProductDiscovery,
+	useUpdateSalesMinerCustomer,
+	useUpdateSalesMinerCustomerAccount,
+} from "../../hooks/api/useSalesMinerCustomersService";
+import { useAuth } from "../../hooks/useAuth";
+import { api } from "../../lib/api-client";
+import {
+	mergeDiscoverySettings,
+	PORTFOLIO_TYPES,
+	type ProductDiscoverySettings,
+	readDiscoverySettings,
+} from "../../shared/product-discovery-settings";
+import { triggerProductsSetupWebhook } from "../../shared/products-setup-webhook";
 import CreateCompanyModal from "../deep-dive/create-company-modal";
+import DeepDiveList from "../deep-dive/deep-dive-list";
+import PageHeader from "../deep-dive/shared/page-header";
+import DeepDivePageLayout from "../deep-dive/shared/page-layout";
+import DiscoverProductsModal from "./discover-products-modal";
 import ImportAccountsModal from "./import-accounts-modal";
 import ImportProductsModal from "./import-products-modal";
-import { triggerProductsSetupWebhook } from "../../shared/products-setup-webhook";
-import { useGetExecutionDetails } from "../../hooks/api/useN8NService";
 
 function companyDetailToInitialValues(company: CompanyDetail) {
 	return {
@@ -83,7 +93,7 @@ function companyAdditionalDataAsRecord(
 		: null;
 }
 
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
 
 function apiErr(err: unknown): string {
 	if (typeof err === "object" && err !== null && "response" in err) {
@@ -432,6 +442,7 @@ function ProductPortfolioTab({ customerId }: { customerId: string }) {
 	const { message } = App.useApp();
 	const queryClient = useQueryClient();
 	const [importModalOpen, setImportModalOpen] = useState(false);
+	const [discoverModalOpen, setDiscoverModalOpen] = useState(false);
 	const [isRegenerating, setIsRegenerating] = useState(false);
 	const [activeFilter, setActiveFilter] =
 		useState<ProductActiveFilter>("active");
@@ -445,6 +456,14 @@ function ProductPortfolioTab({ customerId }: { customerId: string }) {
 	const { data, isLoading } = useCustomerProducts(customerId, {
 		refetchInterval: pollForPending || isRegenerating ? 4000 : false,
 	});
+
+	// A discovery run lives in the database, so a refresh mid-run rejoins it
+	// rather than offering a button that would start a second one.
+	const { data: discoveryRunData } = useLatestProductDiscoveryRun(customerId);
+	const discoveryRun = discoveryRunData?.data ?? null;
+	const isDiscovering =
+		discoveryRun?.status === "queued" || discoveryRun?.status === "running";
+	const startDiscovery = useStartProductDiscovery(customerId);
 
 	const { data: executionDetails } = useGetExecutionDetails(
 		activeExecutionId,
@@ -687,6 +706,51 @@ function ProductPortfolioTab({ customerId }: { customerId: string }) {
 					<Button type="primary" onClick={() => setImportModalOpen(true)}>
 						Import Products from XLSX
 					</Button>
+					<Tooltip
+						title={
+							isDiscovering
+								? "A discovery run is already in progress for this customer"
+								: "Infer this customer's product catalogue from their website. Takes a few minutes; you review the result before anything is saved."
+						}
+					>
+						<Button
+							loading={isDiscovering}
+							disabled={isDiscovering || startDiscovery.isPending}
+							onClick={() => {
+								startDiscovery.mutate(undefined, {
+									onSuccess: () => {
+										message.info(
+											"Discovery started — this takes a few minutes. You can leave this page; the run continues.",
+										);
+										void queryClient.invalidateQueries({
+											queryKey: [
+												"sales-miner",
+												"product-discovery",
+												"latest",
+												customerId,
+											],
+										});
+									},
+									onError: (err) => {
+										message.error(
+											`Could not start discovery: ${
+												err instanceof Error ? err.message : "unknown error"
+											}`,
+											8,
+										);
+									},
+								});
+							}}
+						>
+							{isDiscovering ? "Discovering…" : "Discover Products with AI"}
+						</Button>
+					</Tooltip>
+					{discoveryRun?.status === "succeeded" &&
+					discoveryRun.products?.length ? (
+						<Button type="dashed" onClick={() => setDiscoverModalOpen(true)}>
+							Review {discoveryRun.products.length} discovered products
+						</Button>
+					) : null}
 					<Button
 						loading={isRegenerating}
 						disabled={allProducts.length === 0}
@@ -749,6 +813,14 @@ function ProductPortfolioTab({ customerId }: { customerId: string }) {
 				onClose={() => setImportModalOpen(false)}
 				customerId={customerId}
 				onExecutionStarted={setActiveExecutionId}
+			/>
+
+			<DiscoverProductsModal
+				open={discoverModalOpen}
+				onClose={() => setDiscoverModalOpen(false)}
+				customerId={customerId}
+				run={discoveryRun}
+				existingProductCount={allProducts.filter((p) => p.is_active).length}
 			/>
 
 			<Modal
@@ -820,7 +892,9 @@ function SalesMinerCustomerDetailContent({
 	const detail = detailRes?.data;
 	const updateCustomer = useUpdateSalesMinerCustomer(customerId);
 
-	const [form] = Form.useForm<{ displayName: string; isActive: boolean }>();
+	const [form] = Form.useForm<
+		{ displayName: string; isActive: boolean } & ProductDiscoverySettings
+	>();
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
 
@@ -860,6 +934,7 @@ function SalesMinerCustomerDetailContent({
 		form.setFieldsValue({
 			displayName: detail.display_name,
 			isActive: detail.is_active,
+			...readDiscoverySettings(detail.settings),
 		});
 	}, [detail, editModalOpen, form]);
 
@@ -869,6 +944,17 @@ function SalesMinerCustomerDetailContent({
 			await updateCustomer.mutateAsync({
 				displayName: v.displayName,
 				isActive: v.isActive,
+				// settings is a shared blob and the PATCH replaces it wholesale,
+				// so anything else in there has to be carried across.
+				settings: mergeDiscoverySettings(detail?.settings, {
+					unit: v.unit,
+					subset_rule: v.subset_rule,
+					target_urls: v.target_urls,
+					source_of_truth_urls: v.source_of_truth_urls,
+					aliases: v.aliases,
+					portfolio_type: v.portfolio_type,
+					taxonomy: v.taxonomy,
+				}),
 			});
 			message.success("Customer updated");
 			return true;
@@ -877,7 +963,7 @@ function SalesMinerCustomerDetailContent({
 			message.error(apiErr(err));
 		}
 		return false;
-	}, [form, message, updateCustomer]);
+	}, [form, message, updateCustomer, detail?.settings]);
 
 	if (boot) {
 		return (
@@ -1025,6 +1111,99 @@ function SalesMinerCustomerDetailContent({
 							</Form.Item>
 							<Form.Item name="isActive" label="Active" valuePropName="checked">
 								<Switch />
+							</Form.Item>
+
+							<Divider titlePlacement="start" style={{ marginTop: 8 }}>
+								<Text type="secondary" style={{ fontSize: 13 }}>
+									AI product discovery
+								</Text>
+							</Divider>
+							<Paragraph type="secondary" style={{ fontSize: 12 }}>
+								All optional. A company that sells its whole catalogue from one
+								website needs none of this. A business unit inside a larger
+								company needs at least the unit name — without it, discovery
+								searches the parent company and returns the wrong portfolio.
+							</Paragraph>
+
+							<Form.Item
+								name="unit"
+								label="Business unit"
+								tooltip="Narrows the company to one portfolio, e.g. 'Security Hub Extended' inside AWS. The single highest-value field here."
+							>
+								<Input placeholder="e.g. Security Hub Extended" />
+							</Form.Item>
+							<Form.Item
+								name="target_urls"
+								label="Catalogue pages"
+								tooltip="Where the portfolio actually lives. Defaults to the company URL, which for a business unit is usually too broad."
+							>
+								<Select
+									mode="tags"
+									tokenSeparators={[",", " "]}
+									placeholder="https://aws.amazon.com/security-hub/"
+									open={false}
+									suffixIcon={null}
+								/>
+							</Form.Item>
+							<Form.Item
+								name="source_of_truth_urls"
+								label="Source-of-truth pages"
+								tooltip="Pages that enumerate the catalogue authoritatively — a pricing or partners page. These outrank the crawler's own judgement about what to read."
+							>
+								<Select
+									mode="tags"
+									tokenSeparators={[",", " "]}
+									placeholder="https://aws.amazon.com/security-hub/pricing/"
+									open={false}
+									suffixIcon={null}
+								/>
+							</Form.Item>
+							<Form.Item
+								name="subset_rule"
+								label="What counts as in scope"
+								tooltip="Plain English. Used to decide whether something found on the site belongs in this portfolio."
+							>
+								<Input placeholder="e.g. curated partner solutions available through the Extended plan" />
+							</Form.Item>
+							<Form.Item
+								name="aliases"
+								label="Other names"
+								tooltip="Abbreviations and former names, e.g. 'SHX' or 'Dresser-Rand'. Used to tell whether a page is really about this portfolio."
+							>
+								<Select
+									mode="tags"
+									tokenSeparators={[","]}
+									placeholder="SHX"
+									open={false}
+									suffixIcon={null}
+								/>
+							</Form.Item>
+							<Form.Item
+								name="portfolio_type"
+								label="Portfolio type"
+								tooltip="Sets sane defaults for how products are found and grouped. Leave blank unless the customer clearly matches one."
+							>
+								<Select
+									allowClear
+									placeholder="(default)"
+									options={PORTFOLIO_TYPES.map((t) => ({
+										value: t,
+										label: t.replace(/_/g, " "),
+									}))}
+								/>
+							</Form.Item>
+							<Form.Item
+								name="taxonomy"
+								label="Their own hierarchy"
+								tooltip="If the customer already has a product hierarchy, give it as 'Group > Sub-group' lines and discovery files into it instead of inventing one. Filing into a supplied hierarchy is roughly twice as accurate as proposing one."
+							>
+								<Select
+									mode="tags"
+									tokenSeparators={["\n"]}
+									placeholder="Endpoint Security > EDR / XDR"
+									open={false}
+									suffixIcon={null}
+								/>
 							</Form.Item>
 						</Form>
 					</Modal>
