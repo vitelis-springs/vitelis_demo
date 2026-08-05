@@ -2563,6 +2563,10 @@ model report_company_signal_scope {
   company_id           Int
   signal_definition_id BigInt
   is_active            Boolean            @default(true)
+  /// Set by optimizeSignalScope on selected rows: 'winner' | 'random'. Cleared to null when Optimize deactivates the row; also null if never touched by Optimize (Reset / manual toggle / pre-column rows).
+  selection_reason     String?            @db.VarChar(20)
+  /// Frozen signal_efficiency_pct snapshot from the Optimize run that set selection_reason — null for cold-start candidates, deactivated rows, or rows never touched by Optimize. Drifts from the always-live value shown in the UI as new runs complete.
+  selection_efficiency_pct Decimal?       @db.Decimal(5, 2)
   created_at           DateTime           @default(now()) @db.Timestamptz(6)
   updated_at           DateTime           @default(now()) @db.Timestamptz(6)
   companies            companies          @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)

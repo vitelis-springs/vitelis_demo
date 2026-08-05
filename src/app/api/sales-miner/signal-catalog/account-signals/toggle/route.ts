@@ -3,9 +3,8 @@ import { extractAdminFromRequest } from "../../../../../../lib/auth";
 import prisma from "../../../../../../lib/prisma";
 
 export async function PATCH(request: NextRequest) {
-	const admin = await extractAdminFromRequest(request);
-	if (!admin)
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	const auth = extractAdminFromRequest(request);
+	if (!auth.success) return auth.response;
 
 	const body = (await request.json()) as
 		| { type: "signal"; scopeId: string; isActive: boolean }

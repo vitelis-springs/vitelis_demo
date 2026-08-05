@@ -1,9 +1,16 @@
 "use client";
 
-import { InfoCircleOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+	InfoCircleOutlined,
+	ReloadOutlined,
+	ThunderboltOutlined,
+} from "@ant-design/icons";
 import {
 	App,
 	Button,
+	Checkbox,
+	Collapse,
+	InputNumber,
 	Modal,
 	Space,
 	Spin,
@@ -19,6 +26,7 @@ import {
 	type CostForecastStep,
 	useAccountSignals,
 	useCostForecast,
+	useOptimizeSignalScope,
 	useResetToDefaultSignals,
 } from "../../hooks/api/useSalesMinerSignalCatalogService";
 import AccountTierTable from "./account-tier-table";
@@ -189,7 +197,14 @@ export default function AccountSignalsTable({
 	const { data, isLoading, isFetching, error } = useAccountSignals(reportId);
 	const { data: forecastData } = useCostForecast(reportId);
 	const resetMutation = useResetToDefaultSignals();
+	const optimizeMutation = useOptimizeSignalScope();
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [optimizeOpen, setOptimizeOpen] = useState(false);
+	const [targetCount, setTargetCount] = useState<number | null>(30);
+	const [minSampleThreshold, setMinSampleThreshold] = useState<number | null>(
+		5,
+	);
+	const [useProductTagFilter, setUseProductTagFilter] = useState(false);
 	const [breakdownCompany, setBreakdownCompany] = useState<CompanyRow | null>(
 		null,
 	);
@@ -228,6 +243,40 @@ export default function AccountSignalsTable({
 		}
 	};
 
+	const handleOptimize = async () => {
+		if (!targetCount || targetCount <= 0) return;
+		try {
+			const res = await optimizeMutation.mutateAsync({
+				reportId,
+				targetCount,
+				minSampleThreshold: minSampleThreshold ?? undefined,
+				useProductTagFilter,
+			});
+			const d = res.data;
+			setOptimizeOpen(false);
+			const totalWinners = d.companySummaries.reduce(
+				(s, c) => s + c.winnersCount,
+				0,
+			);
+			const totalLosers = d.companySummaries.reduce(
+				(s, c) => s + c.losersCount,
+				0,
+			);
+			const totalColdStart = d.companySummaries.reduce(
+				(s, c) => s + c.coldStartInLosersCount,
+				0,
+			);
+			message.success(
+				`Optimized ${d.companySummaries.length} ${d.companySummaries.length === 1 ? "company" : "companies"}: ` +
+					`${totalWinners} top performers, ${totalLosers} explore picks (${totalColdStart} cold-start), ` +
+					`${d.deactivatedCount} deactivated`,
+			);
+		} catch (err: unknown) {
+			const axiosErr = err as { response?: { data?: { error?: string } } };
+			message.error(axiosErr.response?.data?.error ?? "Optimize failed");
+		}
+	};
+
 	return (
 		<>
 			<div
@@ -252,9 +301,20 @@ export default function AccountSignalsTable({
 				) : (
 					<span />
 				)}
-				<Button icon={<ReloadOutlined />} onClick={() => setConfirmOpen(true)}>
-					Reset to default
-				</Button>
+				<Space>
+					<Button
+						icon={<ThunderboltOutlined />}
+						onClick={() => setOptimizeOpen(true)}
+					>
+						Optimize signals
+					</Button>
+					<Button
+						icon={<ReloadOutlined />}
+						onClick={() => setConfirmOpen(true)}
+					>
+						Reset to default
+					</Button>
+				</Space>
 			</div>
 
 			<Modal
@@ -286,6 +346,90 @@ export default function AccountSignalsTable({
 					<Text type="secondary" style={{ fontSize: 12 }}>
 						Signals not matching the default model will be deactivated.
 						Previously deactivated default signals will be reactivated.
+					</Text>
+				</Space>
+			</Modal>
+
+			<Modal
+				title="Optimize signal scope"
+				open={optimizeOpen}
+				onCancel={() => setOptimizeOpen(false)}
+				footer={[
+					<Button key="cancel" onClick={() => setOptimizeOpen(false)}>
+						Cancel
+					</Button>,
+					<Button
+						key="confirm"
+						type="primary"
+						loading={optimizeMutation.isPending}
+						disabled={!targetCount || targetCount <= 0}
+						onClick={() => {
+							void handleOptimize();
+						}}
+					>
+						Optimize
+					</Button>,
+				]}
+			>
+				<Space direction="vertical" size={12} style={{ width: "100%" }}>
+					<Text>
+						For every company in this report, reduces the active signal set to a
+						target count: 80% the best historical performers (Production/POC
+						runs only, scoped to the company&apos;s GICS industry — walking up
+						to the parent industry when a level lacks enough history), 20%
+						randomly sampled from the rest, so currently-unfavored or brand-new
+						signals keep collecting data.
+					</Text>
+					<Space direction="vertical" size={4}>
+						<Text style={{ fontSize: 12 }}>
+							Target signal count per company
+						</Text>
+						<InputNumber
+							min={1}
+							max={90}
+							value={targetCount}
+							onChange={(v) => setTargetCount(v)}
+							style={{ width: 160 }}
+						/>
+					</Space>
+					<Collapse
+						size="small"
+						items={[
+							{
+								key: "advanced",
+								label: "Advanced",
+								children: (
+									<Space
+										direction="vertical"
+										size={12}
+										style={{ width: "100%" }}
+									>
+										<Space direction="vertical" size={4}>
+											<Text style={{ fontSize: 12 }}>
+												Minimum sample threshold (runs) before trusting a GICS
+												level&apos;s stats
+											</Text>
+											<InputNumber
+												min={1}
+												value={minSampleThreshold}
+												onChange={(v) => setMinSampleThreshold(v)}
+												style={{ width: 160 }}
+											/>
+										</Space>
+										<Checkbox
+											checked={useProductTagFilter}
+											onChange={(e) => setUseProductTagFilter(e.target.checked)}
+										>
+											Only count history from runs matching this customer&apos;s
+											product tags
+										</Checkbox>
+									</Space>
+								),
+							},
+						]}
+					/>
+					<Text type="secondary" style={{ fontSize: 12 }}>
+						Re-running reshuffles the random 20% — this is expected, not a bug.
 					</Text>
 				</Space>
 			</Modal>

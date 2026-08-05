@@ -17,7 +17,7 @@ export interface SalesMinerStatsFilters {
 	capabilityTagIds: bigint[];
 }
 
-function buildScopedRunsCte(
+export function buildScopedRunsCte(
 	filters: Pick<
 		SalesMinerStatsFilters,
 		"customerIds" | "targetGicsCodes" | "classifierIds"

@@ -11,9 +11,8 @@ export interface AccountSignalRow {
 }
 
 export async function GET(request: NextRequest) {
-	const admin = await extractAdminFromRequest(request);
-	if (!admin)
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	const auth = extractAdminFromRequest(request);
+	if (!auth.success) return auth.response;
 
 	const reportIdParam = request.nextUrl.searchParams.get("reportId");
 	const reportId = reportIdParam ? parseInt(reportIdParam, 10) : NaN;
