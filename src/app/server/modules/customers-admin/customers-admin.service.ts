@@ -1,4 +1,4 @@
-import { Prisma } from "../../../../generated/prisma";
+import type { Prisma } from "../../../../generated/prisma";
 import {
 	CustomersAdminRepository,
 	type ProductImportItem,
@@ -289,6 +289,12 @@ export class CustomersAdminService {
 					scale_anchor: raw.scaleAnchor ?? null,
 					cross_portfolio_connection: raw.crossPortfolioConnection ?? null,
 				},
+				// Provenance from an automated discovery run: confidence,
+				// evidence URLs, which strategies found it. Kept out of
+				// additional_data because that mirrors catalogue columns, and
+				// this describes how the row was produced. Absent for XLSX
+				// imports, which is itself the signal that a human supplied it.
+				...(isRecord(raw.discovery) ? { discovery: raw.discovery } : {}),
 			};
 
 			return {
