@@ -586,6 +586,7 @@ model reports {
   company_level_report_state                      company_level_report_state[]
   generated_company_reports                       generated_company_reports[]
   n8n_tasks                                       n8n_tasks[]
+  notification_deliveries                         notification_deliveries[]
   opportunities_sales                             opportunities_sales[]
   report_companies                                report_companies[]
   report_company_signal_scope                     report_company_signal_scope[]
@@ -594,6 +595,7 @@ model reports {
   report_data_collection_query_completions        report_data_collection_query_completions[]
   report_data_point_results                       report_data_point_results[]
   report_data_points                              report_data_points[]
+  report_notification_subscriptions               report_notification_subscriptions[]
   report_orhestrator                              report_orhestrator?
   report_results                                  report_results[]
   report_signal_definitions                       report_signal_definitions[]
@@ -602,10 +604,10 @@ model reports {
   report_steps                                    report_steps[]
   report_url_candidates                           report_url_candidates[]
   report_validation_rules                         report_validation_rules[]
+  report_classifiers                              report_classifiers?                               @relation(fields: [report_classifier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   report_settings                                 report_settings?                                  @relation(fields: [report_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   source_validation_settings                      source_validation_settings?                       @relation(fields: [source_validation_settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   use_cases                                       use_cases?                                        @relation(fields: [use_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  report_classifiers                              report_classifiers?                               @relation(fields: [report_classifier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   research_runs                                   research_runs[]
   sales_report_step_intermediate_results          sales_report_step_intermediate_results[]
   sm_m_monitoring_cycle_runs_deprecated           sm_m_monitoring_cycle_runs_deprecated[]
@@ -619,12 +621,12 @@ model reports {
 }
 
 model report_classifiers {
-  id               Int       @id @default(autoincrement())
-  name             String    @unique @db.VarChar(255)
-  exported_to_dop  Boolean   @default(false)
-  created_at       DateTime  @default(now()) @db.Timestamp(6)
-  updated_at       DateTime  @default(now()) @db.Timestamp(6)
-  reports          reports[]
+  id              Int       @id @default(autoincrement())
+  name            String    @unique @db.VarChar(255)
+  exported_to_dop Boolean   @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamp(6)
+  updated_at      DateTime  @default(now()) @db.Timestamp(6)
+  reports         reports[]
 }
 
 model scape_url_candidates {
@@ -1285,18 +1287,19 @@ model customer_products {
 }
 
 model customers {
-  id                  BigInt                @id @default(autoincrement())
-  company_id          Int                   @unique
-  display_name        String
-  is_active           Boolean               @default(true)
-  settings            Json                  @default("{}")
-  created_at          DateTime              @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
-  customer_accounts   customer_accounts[]
-  customer_info_items customer_info_items[]
-  customer_products   customer_products[]
-  companies           companies             @relation(fields: [company_id], references: [id], onUpdate: NoAction)
-  research_runs       research_runs[]
+  id                     BigInt                   @id @default(autoincrement())
+  company_id             Int                      @unique
+  display_name           String
+  is_active              Boolean                  @default(true)
+  settings               Json                     @default("{}")
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  customer_accounts      customer_accounts[]
+  customer_info_items    customer_info_items[]
+  customer_products      customer_products[]
+  companies              companies                @relation(fields: [company_id], references: [id], onUpdate: NoAction)
+  product_discovery_runs product_discovery_runs[]
+  research_runs          research_runs[]
 
   @@index([is_active], map: "idx_customers_is_active")
 }
@@ -4045,6 +4048,60 @@ model source_kpi_links {
   @@index([source_id], map: "idx_source_kpi_links_source")
 }
 
+/// Schema contract only. Runtime code reads/writes this table through raw SQL
+/// ($queryRaw / $executeRaw), not the generated Prisma model API — see
+/// REPORT_NOTIFICATIONS_PLAN.md section 4.
+model report_notification_subscriptions {
+  id              BigInt   @id @default(autoincrement())
+  report_id       Int
+  recipient_email String
+  event_type      String
+  channel         String   @default("email")
+  enabled         Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  reports         reports  @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "report_notification_subscriptions_report_fk")
+
+  @@unique([report_id, recipient_email, event_type, channel], map: "report_notification_subscriptions_unique")
+}
+
+/// Schema contract only. Runtime code reads/writes this table through raw SQL
+/// ($queryRaw / $executeRaw), not the generated Prisma model API — see
+/// REPORT_NOTIFICATIONS_PLAN.md section 4.
+model notification_deliveries {
+  id              BigInt    @id @default(autoincrement())
+  report_id       Int
+  recipient_email String
+  event_type      String
+  channel         String    @default("email")
+  status          String    @default("pending")
+  dedupe_key      String    @unique(map: "notification_deliveries_dedupe_key_unique")
+  payload         Json
+  attempt_count   Int       @default(0)
+  last_attempt_at DateTime? @db.Timestamptz(6)
+  last_error      String?
+  dispatched_at   DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  reports         reports   @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notification_deliveries_report_fk")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model product_discovery_runs {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customer_id BigInt
+  status      String    @default("queued") @db.VarChar(16)
+  config      Json      @default("{}")
+  summary     Json?
+  products    Json?
+  error       String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  finished_at DateTime? @db.Timestamptz(6)
+  customers   customers @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([customer_id, created_at(sort: Desc)], map: "idx_pd_runs_customer_created")
+}
+
 enum report_generation_step_dependency_enum {
   rdp
   kpi
@@ -4081,40 +4138,4 @@ enum signal_search_task_status_enum {
   completed
   failed
   cancelled
-}
-
-/// Schema contract only. Runtime code reads/writes this table through raw SQL
-/// ($queryRaw / $executeRaw), not the generated Prisma model API — see
-/// REPORT_NOTIFICATIONS_PLAN.md section 4.
-model report_notification_subscriptions {
-  id              BigInt   @id @default(autoincrement())
-  report_id       Int
-  recipient_email String
-  event_type      String
-  channel         String   @default("email")
-  enabled         Boolean  @default(true)
-  created_at      DateTime @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime @default(now()) @db.Timestamptz(6)
-
-  @@unique([report_id, recipient_email, event_type, channel])
-}
-
-/// Schema contract only. Runtime code reads/writes this table through raw SQL
-/// ($queryRaw / $executeRaw), not the generated Prisma model API — see
-/// REPORT_NOTIFICATIONS_PLAN.md section 4.
-model notification_deliveries {
-  id              BigInt    @id @default(autoincrement())
-  report_id       Int
-  recipient_email String
-  event_type      String
-  channel         String    @default("email")
-  status          String    @default("pending")
-  dedupe_key      String    @unique
-  payload         Json
-  attempt_count   Int       @default(0)
-  last_attempt_at DateTime? @db.Timestamptz(6)
-  last_error      String?
-  dispatched_at   DateTime? @db.Timestamptz(6)
-  created_at      DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
 }
