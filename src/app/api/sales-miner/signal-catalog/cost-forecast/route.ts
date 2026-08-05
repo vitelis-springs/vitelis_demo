@@ -15,9 +15,8 @@ export interface CostForecastResult {
 }
 
 export async function GET(request: NextRequest) {
-	const admin = await extractAdminFromRequest(request);
-	if (!admin)
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	const auth = extractAdminFromRequest(request);
+	if (!auth.success) return auth.response;
 
 	const reportId = Number(request.nextUrl.searchParams.get("reportId"));
 	if (!reportId || isNaN(reportId)) {

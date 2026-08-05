@@ -617,6 +617,15 @@ export interface AccountSignalDetail {
 	categoryId: string;
 	categoryCode: string;
 	categoryName: string;
+	/** Groups signal_definition variants that are the same statistical/decision unit (e.g. an old and a new catalog wording of the same subcategory) — efficiency and winner/random are decided at this granularity, not per signal_definition_id. */
+	subcategoryId: string;
+	/** Production/POC signal_efficiency_pct, GICS-scoped to this company (same resolution as optimizeSignalScope) — null if no level ever cleared the sample threshold. */
+	signalEfficiencyPct: number | null;
+	efficiencySampleSize: number | null;
+	/** 'winner' | 'random' | null — set only by the last Optimize signals run; null if never touched by it. */
+	selectionReason: string | null;
+	/** Frozen signal_efficiency_pct snapshot from the Optimize run that set selectionReason — null for cold-start candidates or rows never touched by Optimize. */
+	selectionEfficiencyPct: number | null;
 }
 
 export function useAccountSignals(reportId: number) {
@@ -647,6 +656,48 @@ export function useResetToDefaultSignals() {
 				{ reportId },
 			);
 			return res.data as { data: ResetToDefaultResult };
+		},
+		onSuccess: () => {
+			void qc.invalidateQueries({ queryKey: [...baseKey, "account-signals"] });
+			void qc.invalidateQueries({
+				queryKey: [...baseKey, "account-signal-details"],
+			});
+		},
+	});
+}
+
+export interface OptimizeSignalScopeCompanySummary {
+	companyId: number;
+	candidateCount: number;
+	winnersCount: number;
+	losersCount: number;
+	coldStartInLosersCount: number;
+}
+
+export interface OptimizeSignalScopeResult {
+	sourceRowsCount: number;
+	insertedCount: number;
+	reactivatedCount: number;
+	deactivatedCount: number;
+	companySummaries: OptimizeSignalScopeCompanySummary[];
+}
+
+export interface OptimizeSignalScopePayload {
+	reportId: number;
+	targetCount: number;
+	minSampleThreshold?: number;
+	useProductTagFilter?: boolean;
+}
+
+export function useOptimizeSignalScope() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: async (payload: OptimizeSignalScopePayload) => {
+			const res = await api.post(
+				"/sales-miner/signal-catalog/account-signals/optimize",
+				payload,
+			);
+			return res.data as { data: OptimizeSignalScopeResult };
 		},
 		onSuccess: () => {
 			void qc.invalidateQueries({ queryKey: [...baseKey, "account-signals"] });

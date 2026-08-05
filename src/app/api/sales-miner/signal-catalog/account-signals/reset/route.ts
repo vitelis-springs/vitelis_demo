@@ -3,9 +3,8 @@ import { extractAdminFromRequest } from "../../../../../../lib/auth";
 import { resetToDefaultSignalScope } from "../../../../../../lib/sm-reset-default-signals";
 
 export async function POST(request: NextRequest) {
-	const admin = await extractAdminFromRequest(request);
-	if (!admin)
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	const auth = extractAdminFromRequest(request);
+	if (!auth.success) return auth.response;
 
 	const body = (await request.json()) as { reportId: number };
 	const { reportId } = body;

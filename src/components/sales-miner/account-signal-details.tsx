@@ -1,6 +1,6 @@
 "use client";
 
-import { Spin, Switch, Table, Typography } from "antd";
+import { Spin, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
 	type AccountSignalDetail,
@@ -16,6 +16,30 @@ const BG = "#111";
 interface FlatRow extends AccountSignalDetail {
 	_rowKey: string;
 	_categorySpan: number;
+	_subcategorySpan: number;
+	/** 'winner' if any *active* signal_definition variant in this subcategory group was picked as winner, else 'random' if any was, else null — decided per subcategory_id among currently in-scope rows only. */
+	_groupSelectionReason: string | null;
+	/** The frozen selectionEfficiencyPct from the active variant Optimize stamped — inactive rows are ignored. */
+	_groupSelectionEfficiencyPct: number | null;
+}
+
+function groupSelectionReason(group: AccountSignalDetail[]): string | null {
+	// Only active rows are "currently in scope"; inactive variants may still
+	// carry a stale stamp until the next Optimize clears them (or after a
+	// manual toggle that doesn't touch selection_*).
+	const active = group.filter((d) => d.isActive);
+	if (active.some((d) => d.selectionReason === "winner")) return "winner";
+	if (active.some((d) => d.selectionReason === "random")) return "random";
+	return null;
+}
+
+function groupSelectionEfficiencyPct(
+	group: AccountSignalDetail[],
+): number | null {
+	return (
+		group.find((d) => d.isActive && d.selectionEfficiencyPct != null)
+			?.selectionEfficiencyPct ?? null
+	);
 }
 
 function buildFlatRows(details: AccountSignalDetail[]): FlatRow[] {
@@ -23,17 +47,33 @@ function buildFlatRows(details: AccountSignalDetail[]): FlatRow[] {
 	let i = 0;
 	while (i < details.length) {
 		const catId = details[i]!.categoryId;
-		let j = i;
-		while (j < details.length && details[j]!.categoryId === catId) j++;
-		const span = j - i;
-		for (let k = i; k < j; k++) {
-			result.push({
-				...details[k]!,
-				_rowKey: details[k]!.signalId,
-				_categorySpan: k === i ? span : 0,
-			});
+		let catEnd = i;
+		while (catEnd < details.length && details[catEnd]!.categoryId === catId)
+			catEnd++;
+
+		let k = i;
+		while (k < catEnd) {
+			const subId = details[k]!.subcategoryId;
+			let subEnd = k;
+			while (subEnd < catEnd && details[subEnd]!.subcategoryId === subId)
+				subEnd++;
+			const subSpan = subEnd - k;
+			const group = details.slice(k, subEnd);
+			const reason = groupSelectionReason(group);
+			const selectionEfficiencyPct = groupSelectionEfficiencyPct(group);
+			for (let m = k; m < subEnd; m++) {
+				result.push({
+					...details[m]!,
+					_rowKey: details[m]!.signalId,
+					_categorySpan: m === i ? catEnd - i : 0,
+					_subcategorySpan: m === k ? subSpan : 0,
+					_groupSelectionReason: reason,
+					_groupSelectionEfficiencyPct: selectionEfficiencyPct,
+				});
+			}
+			k = subEnd;
 		}
-		i = j;
+		i = catEnd;
 	}
 	return result;
 }
@@ -88,6 +128,100 @@ function SignalDetailsTable({
 					</Text>
 				</span>
 			),
+		},
+		{
+			title: (
+				<Tooltip title="Why this subcategory is currently in scope (shared across any old/new catalog wording variants of the same subcategory — decided at that level, not per signal_definition): 'Winner' — top signal_efficiency_pct performer the last time Optimize signals ran. 'Random' — sampled from the explore pool (lower-ranked or cold-start). Blank — never touched by Optimize (e.g. only Reset to default has run, or it was toggled manually).">
+					Pick
+				</Tooltip>
+			),
+			key: "selectionReason",
+			width: 90,
+			align: "center",
+			onCell: (row) => ({ rowSpan: row._subcategorySpan }),
+			render: (_: unknown, row: FlatRow) => {
+				if (row._groupSelectionReason === "winner") {
+					return (
+						<Tag color="gold" style={{ fontSize: 10, marginRight: 0 }}>
+							Winner
+						</Tag>
+					);
+				}
+				if (row._groupSelectionReason === "random") {
+					return (
+						<Tag color="blue" style={{ fontSize: 10, marginRight: 0 }}>
+							Random
+						</Tag>
+					);
+				}
+				return (
+					<Text type="secondary" style={{ fontSize: 11 }}>
+						—
+					</Text>
+				);
+			},
+		},
+		{
+			title: (
+				<Tooltip title="Frozen signal_efficiency_pct from the Optimize run that produced the current Pick — null if never touched by Optimize, or if this was a cold-start random pick with no historical data at the time.">
+					At Selection
+				</Tooltip>
+			),
+			key: "selectionEfficiency",
+			width: 100,
+			align: "right",
+			onCell: (row) => ({ rowSpan: row._subcategorySpan }),
+			render: (_: unknown, row: FlatRow) => {
+				if (row._groupSelectionEfficiencyPct == null) {
+					return (
+						<Text type="secondary" style={{ fontSize: 11 }}>
+							—
+						</Text>
+					);
+				}
+				return (
+					<Text style={{ fontSize: 11, color: "#8c8c8c" }}>
+						{row._groupSelectionEfficiencyPct.toFixed(1)}%
+					</Text>
+				);
+			},
+		},
+		{
+			title: (
+				<Tooltip title="Computed with default settings (min. 5 Production/POC runs, no product-tag filter) — always live, not necessarily the exact settings used the last time Optimize signals ran. Compare against 'At Selection' to see how much this has drifted since.">
+					Current
+				</Tooltip>
+			),
+			key: "efficiency",
+			width: 130,
+			align: "right",
+			onCell: (row) => ({ rowSpan: row._subcategorySpan }),
+			render: (_: unknown, row: FlatRow) => {
+				if (row.signalEfficiencyPct == null) {
+					return (
+						<Text type="secondary" style={{ fontSize: 11 }}>
+							—
+						</Text>
+					);
+				}
+				const color =
+					row.signalEfficiencyPct >= 50
+						? "#52c41a"
+						: row.signalEfficiencyPct >= 25
+							? "#d4b106"
+							: "#8c8c8c";
+				return (
+					<Tooltip
+						title={`Based on ${row.efficiencySampleSize ?? 0} Production/POC ${
+							row.efficiencySampleSize === 1 ? "run" : "runs"
+						} at the best-matching GICS level`}
+					>
+						<Text style={{ fontSize: 11, color }}>
+							{row.signalEfficiencyPct.toFixed(1)}%
+						</Text>
+					</Tooltip>
+				);
+			},
 		},
 		{
 			title: "Est. Cost",
