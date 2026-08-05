@@ -73,15 +73,30 @@ export class ProductDiscoveryError extends Error {
 	}
 }
 
+/**
+ * Where the excel-merger service lives.
+ *
+ * The scheme is required and is not defaulted. Railway hands you a bare
+ * hostname in its dashboard, and a bare hostname makes `fetch` throw a URL
+ * parse error before any request leaves the process — which surfaces as an
+ * opaque 500 with nothing in the service's logs. Better to say so here.
+ */
 function serviceUrl(): string {
-	const url = process.env.EXCEL_MERGER_URL;
+	const url = process.env.VITELIS_EXCEL_MERGER_URL;
 	if (!url) {
 		throw new ProductDiscoveryError(
-			"EXCEL_MERGER_URL is not configured — product discovery is unavailable",
+			"VITELIS_EXCEL_MERGER_URL is not configured — product discovery is unavailable",
 			503,
 		);
 	}
-	return url.replace(/\/+$/, "");
+	const trimmed = url.trim().replace(/\/+$/, "");
+	if (!/^https?:\/\//i.test(trimmed)) {
+		throw new ProductDiscoveryError(
+			`VITELIS_EXCEL_MERGER_URL must include a scheme (https://${trimmed})`,
+			503,
+		);
+	}
+	return trimmed;
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
