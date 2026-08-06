@@ -79,6 +79,8 @@ interface FormValues {
 	windowFrom: dayjs.Dayjs;
 	windowTo: dayjs.Dayjs;
 	maxOpportunityCount: number;
+	signalTotalCount: number;
+	globalCatalogSignalCount: number;
 	language: string;
 	hasHorizon: boolean;
 	createProductSignals: boolean;
@@ -187,6 +189,8 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 				windowFrom: dayjs().subtract(1, "year"),
 				windowTo: dayjs().subtract(1, "day"),
 				maxOpportunityCount: 15,
+				signalTotalCount: 50,
+				globalCatalogSignalCount: 30,
 				language: "en",
 				hasHorizon: false,
 				createProductSignals: true,
@@ -373,6 +377,8 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 				window_from: values.windowFrom.format("YYYY-MM-DD"),
 				window_to: values.windowTo.format("YYYY-MM-DD"),
 				max_opportunity_count: values.maxOpportunityCount,
+				signal_total_count: values.signalTotalCount,
+				global_catalog_signal_count: values.globalCatalogSignalCount,
 				language: values.language,
 				has_horizon: values.hasHorizon,
 				create_product_signals: values.createProductSignals,
@@ -825,6 +831,22 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 									rules={[{ required: true, message: "Required" }]}
 								>
 									<InputNumber min={1} max={100} style={{ width: "100%" }} />
+								</Form.Item>
+
+								<Form.Item
+									name="signalTotalCount"
+									label="Signal Total Count"
+									rules={[{ required: true, message: "Required" }]}
+								>
+									<InputNumber min={1} style={{ width: "100%" }} />
+								</Form.Item>
+
+								<Form.Item
+									name="globalCatalogSignalCount"
+									label="Global Catalog Signal Count"
+									rules={[{ required: true, message: "Required" }]}
+								>
+									<InputNumber min={1} max={90} style={{ width: "100%" }} />
 								</Form.Item>
 
 								<Form.Item

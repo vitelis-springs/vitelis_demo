@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import prisma from "../../../../lib/prisma";
-import { resetToDefaultSignalScope } from "../../../../lib/sm-reset-default-signals";
+import { optimizeSignalScope } from "../../../../lib/sm-optimize-signal-scope";
 
 export async function POST(request: NextRequest) {
 	const auth = extractAdminFromRequest(request);
@@ -116,10 +116,17 @@ export async function POST(request: NextRequest) {
 			})),
 		});
 
-		// Seed the default signal scope (per company GICS code) so the report
-		// starts wired up the same way "Reset to default" on the signal-catalog
-		// page would leave it.
-		await resetToDefaultSignalScope(report.id);
+		// Seed the signal scope via Optimize (same procedure as the "Optimize
+		// signals" button), using the target count supplied on the create-report
+		// form.
+		const globalCatalogSignalCountRaw =
+			extraSettings?.global_catalog_signal_count;
+		const globalCatalogSignalCount =
+			typeof globalCatalogSignalCountRaw === "number" &&
+			globalCatalogSignalCountRaw > 0
+				? globalCatalogSignalCountRaw
+				: 30;
+		await optimizeSignalScope(report.id, globalCatalogSignalCount);
 	}
 
 	return NextResponse.json(
