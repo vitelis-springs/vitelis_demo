@@ -19,7 +19,10 @@ import CreateSMReportModal, {
 	type CreateSMReportModalHandle,
 } from "./create-sm-report-modal";
 import { api } from "../../lib/api-client";
-import { useCreateSalesMinerCustomerAccount } from "../../hooks/api/useSalesMinerCustomersService";
+import {
+	useCreateSalesMinerCustomerAccount,
+	useCustomerProducts,
+} from "../../hooks/api/useSalesMinerCustomersService";
 import { useGicsCodes } from "../../hooks/api/useSalesMinerSignalCatalogService";
 import {
 	useGetCompany,
@@ -196,6 +199,10 @@ export default function ImportAccountsModal({
 
 	const createAccount = useCreateSalesMinerCustomerAccount(customerId);
 	const { data: gicsCodesData } = useGicsCodes();
+	const { data: customerProductsData } = useCustomerProducts(customerId);
+	const hasActiveProducts = (customerProductsData?.data ?? []).some(
+		(p) => p.is_active,
+	);
 
 	const reviewRow = rows.find((r) => r.key === reviewKey) ?? null;
 	const isForceEditing = forceEditKey != null && forceEditKey === reviewKey;
@@ -552,7 +559,12 @@ export default function ImportAccountsModal({
 		const finishAndClose = () => {
 			reset();
 			onClose();
-			if (createReport && !hasUnverified && importedCompanyIds.length > 0) {
+			if (
+				createReport &&
+				!hasUnverified &&
+				hasActiveProducts &&
+				importedCompanyIds.length > 0
+			) {
 				createReportModalRef.current?.open(importedCompanyIds);
 			}
 		};
@@ -730,21 +742,32 @@ export default function ImportAccountsModal({
 					body: { maxHeight: "calc(78vh - 120px)", overflowY: "auto" },
 				}}
 				footer={[
-					<Checkbox
+					<Tooltip
 						key="create-report"
-						checked={createReport && !hasUnverified}
-						disabled={hasUnverified}
-						onChange={(e) => setCreateReport(e.target.checked)}
-						style={{ marginRight: "auto" }}
+						title={
+							!hasUnverified && !hasActiveProducts
+								? "This customer has no active products in their portfolio — add products before creating a report."
+								: undefined
+						}
 					>
-						Create new report
-						{hasUnverified && (
-							<span style={{ color: "#595959" }}>
-								{" "}
-								(verify all companies first)
-							</span>
-						)}
-					</Checkbox>,
+						<Checkbox
+							checked={createReport && !hasUnverified && hasActiveProducts}
+							disabled={hasUnverified || !hasActiveProducts}
+							onChange={(e) => setCreateReport(e.target.checked)}
+							style={{ marginRight: "auto" }}
+						>
+							Create new report
+							{hasUnverified && (
+								<span style={{ color: "#595959" }}>
+									{" "}
+									(verify all companies first)
+								</span>
+							)}
+							{!hasUnverified && !hasActiveProducts && (
+								<span style={{ color: "#595959" }}> (no active products)</span>
+							)}
+						</Checkbox>
+					</Tooltip>,
 					<Button
 						key="pick"
 						onClick={() => fileInputRef.current?.click()}

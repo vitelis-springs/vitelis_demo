@@ -351,6 +351,12 @@ function AccountsTab({
 						void queryClient.invalidateQueries({
 							queryKey: ["sales-miner", "customers", "detail", customerId],
 						});
+						// Verification/name/etc. changes here also affect the company
+						// picker in the "Create Report" modal, which caches its own
+						// copy keyed by customer id — stale otherwise.
+						void queryClient.invalidateQueries({
+							queryKey: ["sales-miner", "customer-companies"],
+						});
 						setEditCompanyId(null);
 					}}
 				/>

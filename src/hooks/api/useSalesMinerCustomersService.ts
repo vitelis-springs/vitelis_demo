@@ -149,6 +149,11 @@ export function useCreateSalesMinerCustomerAccount(customerId: string) {
 		onSuccess: () => {
 			void qc.invalidateQueries({ queryKey: listKey });
 			void qc.invalidateQueries({ queryKey: detailKey(customerId) });
+			// The Create Report modal's company picker (useCustomerCompanies)
+			// only lists active accounts — keep it in sync with this list.
+			void qc.invalidateQueries({
+				queryKey: ["sales-miner", "customer-companies"],
+			});
 		},
 	});
 }
@@ -166,6 +171,11 @@ export function useUpdateSalesMinerCustomerAccount(customerId: string) {
 		onSuccess: () => {
 			void qc.invalidateQueries({ queryKey: listKey });
 			void qc.invalidateQueries({ queryKey: detailKey(customerId) });
+			// Toggling an account active/inactive changes membership of the
+			// Create Report modal's company picker (useCustomerCompanies).
+			void qc.invalidateQueries({
+				queryKey: ["sales-miner", "customer-companies"],
+			});
 		},
 	});
 }
@@ -238,7 +248,7 @@ export interface CustomerProductRow {
 
 export function useCustomerProducts(
 	customerId: string,
-	options?: { refetchInterval?: number | false },
+	options?: { refetchInterval?: number | false; enabled?: boolean },
 ) {
 	return useQuery({
 		queryKey: ["sales-miner", "customer-products", customerId],
@@ -249,6 +259,7 @@ export function useCustomerProducts(
 			return res.data as { success: boolean; data: CustomerProductRow[] };
 		},
 		refetchInterval: options?.refetchInterval,
+		enabled: options?.enabled ?? Boolean(customerId),
 	});
 }
 
