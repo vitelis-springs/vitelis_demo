@@ -445,7 +445,13 @@ type ProductActiveFilter = "active" | "inactive" | "all";
 type ProductLevelFilter = "all" | "l2" | "l3";
 type ProductTreeRow = CustomerProductRow & { children?: CustomerProductRow[] };
 
-function ProductPortfolioTab({ customerId }: { customerId: string }) {
+function ProductPortfolioTab({
+	customerId,
+	customerName,
+}: {
+	customerId: string;
+	customerName?: string;
+}) {
 	const { message } = App.useApp();
 	const queryClient = useQueryClient();
 	const [importModalOpen, setImportModalOpen] = useState(false);
@@ -826,6 +832,7 @@ function ProductPortfolioTab({ customerId }: { customerId: string }) {
 				open={discoverModalOpen}
 				onClose={() => setDiscoverModalOpen(false)}
 				customerId={customerId}
+				customerName={customerName}
 				run={discoveryRun}
 				existingProductCount={allProducts.filter((p) => p.is_active).length}
 			/>
@@ -1091,7 +1098,12 @@ function SalesMinerCustomerDetailContent({
 							{
 								key: "product-portfolio",
 								label: "Product Portfolio",
-								children: <ProductPortfolioTab customerId={customerId} />,
+								children: (
+									<ProductPortfolioTab
+										customerId={customerId}
+										customerName={detail?.display_name}
+									/>
+								),
 							},
 						]}
 					/>
