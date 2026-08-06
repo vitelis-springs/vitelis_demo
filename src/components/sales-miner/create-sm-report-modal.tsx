@@ -250,6 +250,11 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 			"maxOpportunityCount",
 			form,
 		);
+		const signalTotalCountWatched = Form.useWatch("signalTotalCount", form);
+		const globalCatalogSignalCountWatched = Form.useWatch(
+			"globalCatalogSignalCount",
+			form,
+		);
 		const languageWatched = Form.useWatch("language", form);
 		const hasHorizonWatched = Form.useWatch("hasHorizon", form);
 		const createProductSignalsWatched = Form.useWatch(
@@ -269,6 +274,8 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 					? (windowToWatched as dayjs.Dayjs).format("YYYY-MM-DD")
 					: prev.window_to,
 				max_opportunity_count: maxOpportunityCountWatched,
+				signal_total_count: signalTotalCountWatched,
+				global_catalog_signal_count: globalCatalogSignalCountWatched,
 				language: languageWatched,
 				has_horizon: hasHorizonWatched,
 				create_product_signals: createProductSignalsWatched,
@@ -280,6 +287,8 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 			windowFromWatched,
 			windowToWatched,
 			maxOpportunityCountWatched,
+			signalTotalCountWatched,
+			globalCatalogSignalCountWatched,
 			languageWatched,
 			hasHorizonWatched,
 			createProductSignalsWatched,
@@ -310,6 +319,10 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 				message.warning("Select at least one account first");
 				return;
 			}
+			if (!sectionInstructions.commercial_geo_scope?.trim()) {
+				message.warning("Commercial Geo Scope is required");
+				return;
+			}
 			setGeneratedSettings(null);
 			setSettingsObj({});
 			setSettingsJson("{}");
@@ -325,6 +338,10 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 				const generated = await generateReportSettings({
 					customerId: selectedCustomerId,
 					accountIds: selectedCompanyIds,
+					signalTotalCount: form.getFieldValue("signalTotalCount"),
+					globalCatalogSignalCount: form.getFieldValue(
+						"globalCatalogSignalCount",
+					),
 					userInstructions,
 				});
 				const windowFromValue = form.getFieldValue("windowFrom") as
@@ -901,7 +918,9 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 										title={
 											selectedCompanyIds.length === 0
 												? "Select at least one account first"
-												: undefined
+												: !sectionInstructions.commercial_geo_scope?.trim()
+													? "Commercial Geo Scope is required"
+													: undefined
 										}
 									>
 										<span>
@@ -910,7 +929,10 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 												type="primary"
 												icon={<BulbOutlined />}
 												loading={isGeneratingSettings}
-												disabled={selectedCompanyIds.length === 0}
+												disabled={
+													selectedCompanyIds.length === 0 ||
+													!sectionInstructions.commercial_geo_scope?.trim()
+												}
 												onClick={() => {
 													handleGenerateSettings().catch((err) => {
 														console.error(
@@ -950,6 +972,9 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 													marginBottom: 2,
 												}}
 											>
+												{section.key === "commercial_geo_scope" && (
+													<Text style={{ color: "#ff4d4f" }}>* </Text>
+												)}
 												{section.label}
 											</Text>
 											<Input.TextArea

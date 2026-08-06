@@ -11,6 +11,8 @@ export async function generateReportSettings(payload: {
 	customerId: number;
 	accountIds: number[];
 	userInstructions: Record<string, string | null>;
+	signalTotalCount: number;
+	globalCatalogSignalCount: number;
 }): Promise<Record<string, unknown>> {
 	const res = await fetch(SM_GENERATE_RUN_SETTINGS_WEBHOOK_URL, {
 		method: "POST",
@@ -19,6 +21,8 @@ export async function generateReportSettings(payload: {
 			customer_id: payload.customerId,
 			account_ids: payload.accountIds,
 			user_instructions: payload.userInstructions,
+			signal_total_count: payload.signalTotalCount,
+			global_catalog_signal_count: payload.globalCatalogSignalCount,
 		}),
 	});
 	if (!res.ok) {

@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import prisma from "../../../../lib/prisma";
-import { optimizeSignalScope } from "../../../../lib/sm-optimize-signal-scope";
+import {
+	OptimizeSignalScopeError,
+	optimizeSignalScope,
+} from "../../../../lib/sm-optimize-signal-scope";
 
 export async function POST(request: NextRequest) {
 	const auth = extractAdminFromRequest(request);
@@ -62,60 +65,65 @@ export async function POST(request: NextRequest) {
 	const nextRsId = (maxRs._max.id ?? 0) + 1;
 	const nextReportId = (maxReport._max.id ?? 0) + 1;
 	const nextRcId = (maxRc._max.id ?? 0) + 1;
-
-	// Create report_settings
-	const reportSettings = await prisma.report_settings.create({
-		data: {
-			id: nextRsId,
-			name: name.trim(),
-			master_file_id: "",
-			settings: {
-				language: "en",
-				...(extraSettings && typeof extraSettings === "object"
-					? extraSettings
-					: {}),
-				window_from: windowFrom,
-				window_to: windowTo,
-				customer_id: customerId,
-				version,
-				max_opportunity_count: maxOpportunityCount,
-			},
-		},
-	});
-
-	// Create report
-	const report = await prisma.reports.create({
-		data: {
-			id: nextReportId,
-			name: name.trim(),
-			description: description?.trim() || null,
-			report_type: "sales_miner",
-			report_settings_id: reportSettings.id,
-		},
-	});
-
-	// Create report_steps from active template steps
-	if (template.steps.length > 0) {
-		await prisma.report_steps.createMany({
-			data: template.steps.map((s) => ({
-				report_id: report.id,
-				step_id: s.step_id,
-				step_order: s.step_order,
-			})),
-		});
-	}
-
-	// Create report_companies for selected companies
 	const selectedCompanies = Array.isArray(companyIds) ? companyIds : [];
-	if (selectedCompanies.length > 0) {
-		await prisma.report_companies.createMany({
-			data: selectedCompanies.map((companyId, i) => ({
-				id: nextRcId + i,
-				report_id: report.id,
-				company_id: companyId,
-			})),
+
+	// Create report_settings, reports, report_steps, and report_companies as a
+	// single all-or-nothing unit, so a failure partway through (e.g. a bad
+	// step/company row) never leaves an orphaned report behind.
+	const { reportSettings, report } = await prisma.$transaction(async (tx) => {
+		const reportSettings = await tx.report_settings.create({
+			data: {
+				id: nextRsId,
+				name: name.trim(),
+				master_file_id: "",
+				settings: {
+					language: "en",
+					...(extraSettings && typeof extraSettings === "object"
+						? extraSettings
+						: {}),
+					window_from: windowFrom,
+					window_to: windowTo,
+					customer_id: customerId,
+					version,
+					max_opportunity_count: maxOpportunityCount,
+				},
+			},
 		});
 
+		const report = await tx.reports.create({
+			data: {
+				id: nextReportId,
+				name: name.trim(),
+				description: description?.trim() || null,
+				report_type: "sales_miner",
+				report_settings_id: reportSettings.id,
+			},
+		});
+
+		if (template.steps.length > 0) {
+			await tx.report_steps.createMany({
+				data: template.steps.map((s) => ({
+					report_id: report.id,
+					step_id: s.step_id,
+					step_order: s.step_order,
+				})),
+			});
+		}
+
+		if (selectedCompanies.length > 0) {
+			await tx.report_companies.createMany({
+				data: selectedCompanies.map((companyId, i) => ({
+					id: nextRcId + i,
+					report_id: report.id,
+					company_id: companyId,
+				})),
+			});
+		}
+
+		return { reportSettings, report };
+	});
+
+	if (selectedCompanies.length > 0) {
 		// Seed the signal scope via Optimize (same procedure as the "Optimize
 		// signals" button), using the target count supplied on the create-report
 		// form.
@@ -126,6 +134,7 @@ export async function POST(request: NextRequest) {
 			globalCatalogSignalCountRaw > 0
 				? globalCatalogSignalCountRaw
 				: 30;
+
 		await optimizeSignalScope(report.id, globalCatalogSignalCount);
 	}
 
