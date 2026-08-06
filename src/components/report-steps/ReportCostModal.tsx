@@ -142,13 +142,21 @@ function StepTasksExpand({ reportId, stepId }: StepTasksExpandProps) {
 	);
 }
 
-interface ReportCostModalProps {
+interface ReportCostPanelProps {
 	reportId: number;
+	/** Set to false to skip fetching until the panel is actually shown (e.g. an unopened modal). */
+	enabled?: boolean;
 }
 
-export function ReportCostModal({ reportId }: ReportCostModalProps) {
-	const [open, setOpen] = useState(false);
-	const { data, isLoading } = useGetReportCostStats(reportId, open);
+/**
+ * Cost summary + per-step breakdown, shared between the "Cost" modal
+ * triggered from the reports table and the report detail page's Cost tab.
+ */
+export function ReportCostPanel({
+	reportId,
+	enabled = true,
+}: ReportCostPanelProps) {
+	const { data, isLoading } = useGetReportCostStats(reportId, enabled);
 
 	const summary = data?.data.summary;
 	const steps = data?.data.steps ?? [];
@@ -272,6 +280,139 @@ export function ReportCostModal({ reportId }: ReportCostModalProps) {
 		},
 	];
 
+	if (isLoading) {
+		return (
+			<div style={{ textAlign: "center", padding: 40 }}>
+				<Spin />
+			</div>
+		);
+	}
+
+	return (
+		<div>
+			<style>{`
+        .cost-modal-expanded-row > td { background: #141414 !important; padding: 0 !important; }
+      `}</style>
+			{summary && (
+				<div
+					style={{
+						display: "flex",
+						gap: 24,
+						flexWrap: "wrap",
+						padding: "12px 16px",
+						marginBottom: 16,
+						background: "#141414",
+						borderRadius: 6,
+					}}
+				>
+					<div>
+						<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+							TOTAL COST
+						</div>
+						<Text strong style={{ fontSize: 20, color: "#52c41a" }}>
+							{formatCost(summary.totalCost)}
+						</Text>
+					</div>
+					<div>
+						<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+							TOTAL CALLS
+						</div>
+						<Text style={{ fontSize: 16, color: "#d9d9d9" }}>
+							{summary.totalCalls.toLocaleString()}
+						</Text>
+					</div>
+					<div>
+						<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+							TOTAL TOKENS
+						</div>
+						<Tooltip
+							title={`In: ${summary.inputTokens.toLocaleString()} / Out: ${summary.outputTokens.toLocaleString()}`}
+						>
+							<Text style={{ fontSize: 16, color: "#d9d9d9" }}>
+								{formatTokens(summary.totalTokens)}
+							</Text>
+						</Tooltip>
+					</div>
+					<div>
+						<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+							INPUT COST
+						</div>
+						<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
+							{formatCost(summary.inputCost)}
+						</Text>
+					</div>
+					<div>
+						<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+							OUTPUT COST
+						</div>
+						<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
+							{formatCost(summary.outputCost)}
+						</Text>
+					</div>
+					{summary.mcpCost > 0 && (
+						<div>
+							<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+								MCP COST
+							</div>
+							<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
+								{formatCost(summary.mcpCost)}
+							</Text>
+						</div>
+					)}
+					<div>
+						<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+							DURATION
+						</div>
+						<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
+							{formatDuration(summary.durationSec)}
+						</Text>
+					</div>
+					{summary.callsWithoutPricing > 0 && (
+						<div>
+							<div style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}>
+								NO PRICING
+							</div>
+							<Text style={{ fontSize: 14, color: "#faad14" }}>
+								{summary.callsWithoutPricing} calls
+							</Text>
+						</div>
+					)}
+				</div>
+			)}
+
+			{steps.length === 0 ? (
+				<Text style={{ color: "#8c8c8c" }}>
+					No cost data available for this report.
+				</Text>
+			) : (
+				<Table
+					dataSource={steps}
+					columns={stepColumns}
+					rowKey="stepId"
+					size="small"
+					pagination={false}
+					style={{ background: "#1f1f1f" }}
+					expandable={{
+						expandedRowRender: (record: ReportCostStep) => (
+							<div style={{ margin: 0, background: "#141414" }}>
+								<StepTasksExpand reportId={reportId} stepId={record.stepId} />
+							</div>
+						),
+						expandedRowClassName: () => "cost-modal-expanded-row",
+					}}
+				/>
+			)}
+		</div>
+	);
+}
+
+interface ReportCostModalProps {
+	reportId: number;
+}
+
+export function ReportCostModal({ reportId }: ReportCostModalProps) {
+	const [open, setOpen] = useState(false);
+
 	return (
 		<>
 			<Button
@@ -286,9 +427,6 @@ export function ReportCostModal({ reportId }: ReportCostModalProps) {
 				Cost
 			</Button>
 
-			<style>{`
-        .cost-modal-expanded-row > td { background: #141414 !important; padding: 0 !important; }
-      `}</style>
 			<Modal
 				title={`Cost Stats — Report #${reportId}`}
 				open={open}
@@ -302,151 +440,9 @@ export function ReportCostModal({ reportId }: ReportCostModalProps) {
 					content: { background: "#1f1f1f" },
 					header: { background: "#1f1f1f", borderBottom: "1px solid #333" },
 				}}
+				destroyOnHidden
 			>
-				{isLoading ? (
-					<div style={{ textAlign: "center", padding: 40 }}>
-						<Spin />
-					</div>
-				) : (
-					<div>
-						{summary && (
-							<div
-								style={{
-									display: "flex",
-									gap: 24,
-									flexWrap: "wrap",
-									padding: "12px 16px",
-									marginBottom: 16,
-									background: "#141414",
-									borderRadius: 6,
-								}}
-							>
-								<div>
-									<div
-										style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}
-									>
-										TOTAL COST
-									</div>
-									<Text strong style={{ fontSize: 20, color: "#52c41a" }}>
-										{formatCost(summary.totalCost)}
-									</Text>
-								</div>
-								<div>
-									<div
-										style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}
-									>
-										TOTAL CALLS
-									</div>
-									<Text style={{ fontSize: 16, color: "#d9d9d9" }}>
-										{summary.totalCalls.toLocaleString()}
-									</Text>
-								</div>
-								<div>
-									<div
-										style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}
-									>
-										TOTAL TOKENS
-									</div>
-									<Tooltip
-										title={`In: ${summary.inputTokens.toLocaleString()} / Out: ${summary.outputTokens.toLocaleString()}`}
-									>
-										<Text style={{ fontSize: 16, color: "#d9d9d9" }}>
-											{formatTokens(summary.totalTokens)}
-										</Text>
-									</Tooltip>
-								</div>
-								<div>
-									<div
-										style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}
-									>
-										INPUT COST
-									</div>
-									<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
-										{formatCost(summary.inputCost)}
-									</Text>
-								</div>
-								<div>
-									<div
-										style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}
-									>
-										OUTPUT COST
-									</div>
-									<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
-										{formatCost(summary.outputCost)}
-									</Text>
-								</div>
-								{summary.mcpCost > 0 && (
-									<div>
-										<div
-											style={{
-												color: "#8c8c8c",
-												fontSize: 11,
-												marginBottom: 2,
-											}}
-										>
-											MCP COST
-										</div>
-										<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
-											{formatCost(summary.mcpCost)}
-										</Text>
-									</div>
-								)}
-								<div>
-									<div
-										style={{ color: "#8c8c8c", fontSize: 11, marginBottom: 2 }}
-									>
-										DURATION
-									</div>
-									<Text style={{ fontSize: 14, color: "#8c8c8c" }}>
-										{formatDuration(summary.durationSec)}
-									</Text>
-								</div>
-								{summary.callsWithoutPricing > 0 && (
-									<div>
-										<div
-											style={{
-												color: "#8c8c8c",
-												fontSize: 11,
-												marginBottom: 2,
-											}}
-										>
-											NO PRICING
-										</div>
-										<Text style={{ fontSize: 14, color: "#faad14" }}>
-											{summary.callsWithoutPricing} calls
-										</Text>
-									</div>
-								)}
-							</div>
-						)}
-
-						{steps.length === 0 ? (
-							<Text style={{ color: "#8c8c8c" }}>
-								No cost data available for this report.
-							</Text>
-						) : (
-							<Table
-								dataSource={steps}
-								columns={stepColumns}
-								rowKey="stepId"
-								size="small"
-								pagination={false}
-								style={{ background: "#1f1f1f" }}
-								expandable={{
-									expandedRowRender: (record: ReportCostStep) => (
-										<div style={{ margin: 0, background: "#141414" }}>
-											<StepTasksExpand
-												reportId={reportId}
-												stepId={record.stepId}
-											/>
-										</div>
-									),
-									expandedRowClassName: () => "cost-modal-expanded-row",
-								}}
-							/>
-						)}
-					</div>
-				)}
+				<ReportCostPanel reportId={reportId} enabled={open} />
 			</Modal>
 		</>
 	);

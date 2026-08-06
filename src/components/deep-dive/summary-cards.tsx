@@ -21,6 +21,7 @@ import {
 } from "../../hooks/api/useDeepDiveService";
 import { DARK_CARD_STYLE } from "../../config/chart-theme";
 import DeepDiveStatusTag from "./status-tag";
+import StartReportButton from "../sales-miner/start-report-button";
 
 const { Text } = Typography;
 const STATIC_VALIDATION_OK_COLOR = "#52c41a";
@@ -194,17 +195,26 @@ export default function SummaryCards({
 								</Text>
 								<RightOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
 							</Space>
-							<Space align="center" size="small">
-								<SyncOutlined style={{ color: "#58bfce" }} />
-								{orchestratorStatus.isLoading ? (
-									<Text style={{ color: "#8c8c8c" }}>Loading...</Text>
-								) : orchestratorStatus.data?.data.value ? (
-									<DeepDiveStatusTag
-										status={orchestratorStatus.data.data.value}
-									/>
-								) : (
-									<Text style={{ color: "#8c8c8c" }}>—</Text>
-								)}
+							<Space
+								align="center"
+								size="small"
+								style={{ width: "100%", justifyContent: "space-between" }}
+							>
+								<Space align="center" size="small">
+									<SyncOutlined style={{ color: "#58bfce" }} />
+									{orchestratorStatus.isLoading ? (
+										<Text style={{ color: "#8c8c8c" }}>Loading...</Text>
+									) : orchestratorStatus.data?.data.value ? (
+										<DeepDiveStatusTag
+											status={orchestratorStatus.data.data.value}
+										/>
+									) : (
+										<Text style={{ color: "#8c8c8c" }}>—</Text>
+									)}
+								</Space>
+								<div onClick={(event) => event.stopPropagation()}>
+									<StartReportButton reportId={reportId} />
+								</div>
 							</Space>
 						</Space>
 					</Card>

@@ -29,7 +29,10 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useSalesMinerCustomersList } from "../../hooks/api/useSalesMinerCustomersService";
+import {
+	useCustomerProducts,
+	useSalesMinerCustomersList,
+} from "../../hooks/api/useSalesMinerCustomersService";
 import {
 	useCreateSMReport,
 	useCustomerCompanies,
@@ -152,6 +155,24 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 		const { data: companiesData, isLoading: companiesLoading } =
 			useCustomerCompanies(selectedCustomerId);
 		const { mutateAsync: createReport, isPending } = useCreateSMReport();
+
+		// Only meaningful when the modal is scoped to one customer (the trigger
+		// button on that customer's page) — the generic picker has no customer
+		// to check yet, so it's never blocked here.
+		const {
+			data: fixedCustomerProductsData,
+			isLoading: fixedCustomerProductsLoading,
+		} = useCustomerProducts(
+			fixedCustomerId != null ? String(fixedCustomerId) : "",
+			{ enabled: fixedCustomerId != null },
+		);
+		const fixedCustomerHasActiveProducts =
+			fixedCustomerId == null ||
+			(fixedCustomerProductsData?.data ?? []).some((p) => p.is_active);
+		const triggerDisabled =
+			fixedCustomerId != null &&
+			!fixedCustomerProductsLoading &&
+			!fixedCustomerHasActiveProducts;
 
 		const customers = useMemo(
 			() => customersData?.data.items ?? [],
@@ -570,13 +591,24 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 		return (
 			<>
 				{!hideTrigger && (
-					<Button
-						type="primary"
-						icon={<PlusOutlined />}
-						onClick={() => handleOpen()}
+					<Tooltip
+						title={
+							triggerDisabled
+								? "This customer has no active products in their portfolio. Add products before creating a report."
+								: undefined
+						}
 					>
-						Create Report
-					</Button>
+						<span>
+							<Button
+								type="primary"
+								icon={<PlusOutlined />}
+								onClick={() => handleOpen()}
+								disabled={triggerDisabled}
+							>
+								Create Report
+							</Button>
+						</span>
+					</Tooltip>
 				)}
 
 				<Modal

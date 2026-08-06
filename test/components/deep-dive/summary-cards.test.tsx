@@ -20,6 +20,25 @@ jest.mock("../../../src/hooks/api/useDeepDiveService", () => ({
 	})),
 }));
 
+jest.mock("../../../src/hooks/api/useReportStepsService", () => ({
+	useGetOrchestratorStatus: jest.fn(() => ({
+		isLoading: false,
+		data: { data: { status: "DONE" } },
+	})),
+	useEnsureOrchestrator: jest.fn(() => ({
+		mutate: jest.fn(),
+		isPending: false,
+	})),
+	useUpdateOrchestrator: jest.fn(() => ({
+		mutate: jest.fn(),
+		isPending: false,
+	})),
+	useTriggerEngineTick: jest.fn(() => ({
+		mutate: jest.fn(),
+		isPending: false,
+	})),
+}));
+
 import SummaryCards from "../../../src/components/deep-dive/summary-cards";
 import type { DeepDiveCompanyRow } from "../../../src/types/deep-dive.types";
 
