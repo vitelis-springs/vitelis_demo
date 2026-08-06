@@ -808,59 +808,96 @@ export interface CompanyDetail {
 }
 
 export interface ReportCostTask {
-	id: string;
-	taskName: string;
+	task: string;
+	provider: string | null;
 	model: string | null;
+	totalCalls: number;
+	errorCount: number;
 	inputTokens: number;
 	outputTokens: number;
-	cachedInputTokens: number;
+	totalTokens: number;
+	totalResourceUnits: number;
+	avgDurationMs: number | null;
+	inputCost: number;
+	outputCost: number;
+	mcpCost: number;
+	totalCost: number;
+	callsWithoutPricing: number;
+	firstCallAt: string | null;
+	lastCallAt: string | null;
+}
+
+export interface ReportCostStep {
+	stepId: number;
+	stepOrder: number;
+	stepName: string | null;
+	stepStatus: string | null;
+	tasksCount: number;
+	totalCalls: number;
+	callsWithoutPricing: number;
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+	totalResourceUnits: number;
 	inputCost: number;
 	outputCost: number;
 	mcpCost: number;
 	totalCost: number;
 	startedAt: string | null;
 	finishedAt: string | null;
+	durationSec: number | null;
 }
 
-export interface ReportCostStep {
-	stepId: number;
-	stepName: string;
-	taskCount: number;
+export interface ReportCostCompany {
+	companyId: number | null;
+	companyName: string | null;
+	stepsCount: number;
+	tasksCount: number;
+	totalCalls: number;
+	callsWithoutPricing: number;
 	inputTokens: number;
 	outputTokens: number;
-	cachedInputTokens: number;
+	totalTokens: number;
+	totalResourceUnits: number;
 	inputCost: number;
 	outputCost: number;
 	mcpCost: number;
 	totalCost: number;
-	callsWithoutPricing: number;
-	firstCallAt: string | null;
-	lastCallAt: string | null;
+	startedAt: string | null;
+	finishedAt: string | null;
+	durationSec: number | null;
 }
 
 export interface ReportCostSummary {
-	taskCount: number;
+	totalCalls: number;
+	callsWithoutPricing: number;
 	inputTokens: number;
 	outputTokens: number;
-	cachedInputTokens: number;
+	totalTokens: number;
+	totalResourceUnits: number;
 	inputCost: number;
 	outputCost: number;
 	mcpCost: number;
 	totalCost: number;
-	callsWithoutPricing: number;
-	firstCallAt: string | null;
-	lastCallAt: string | null;
+	startedAt: string | null;
+	finishedAt: string | null;
+	durationSec: number | null;
 }
 
 export interface ReportCostStatsResponse {
 	success: boolean;
 	data: {
 		summary: ReportCostSummary | null;
-		steps: ReportCostStep[];
+		companies: ReportCostCompany[];
 	};
 }
 
-export interface StepCostTasksResponse {
+export interface CompanyCostStepsResponse {
+	success: boolean;
+	data: ReportCostStep[];
+}
+
+export interface CompanyStepCostTasksResponse {
 	success: boolean;
 	data: ReportCostTask[];
 }

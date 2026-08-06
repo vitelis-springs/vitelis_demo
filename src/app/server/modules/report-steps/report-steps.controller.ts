@@ -1090,9 +1090,42 @@ export class ReportStepsController {
 		}
 	}
 
-	static async getStepCostTasks(
+	static async getCompanyCostSteps(
 		request: NextRequest,
 		reportIdParam: string,
+		companyIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const reportId = Number(reportIdParam);
+			const companyId = Number(companyIdParam);
+			if (!Number.isFinite(reportId) || !Number.isFinite(companyId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid report id or company id" },
+					{ status: 400 },
+				);
+			}
+
+			const result = await ReportStepsService.getCompanyCostSteps(
+				reportId,
+				companyId,
+			);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error("❌ ReportStepsController.getCompanyCostSteps:", error);
+			return NextResponse.json(
+				{ success: false, error: "Failed to fetch company cost steps" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	static async getCompanyStepCostTasks(
+		request: NextRequest,
+		reportIdParam: string,
+		companyIdParam: string,
 		stepIdParam: string,
 	): Promise<NextResponse> {
 		try {
@@ -1100,23 +1133,29 @@ export class ReportStepsController {
 			if (!auth.success) return auth.response;
 
 			const reportId = Number(reportIdParam);
+			const companyId = Number(companyIdParam);
 			const stepId = Number(stepIdParam);
-			if (!Number.isFinite(reportId) || !Number.isFinite(stepId)) {
+			if (
+				!Number.isFinite(reportId) ||
+				!Number.isFinite(companyId) ||
+				!Number.isFinite(stepId)
+			) {
 				return NextResponse.json(
-					{ success: false, error: "Invalid report id or step id" },
+					{ success: false, error: "Invalid report id, company id or step id" },
 					{ status: 400 },
 				);
 			}
 
-			const result = await ReportStepsService.getStepCostTasks(
+			const result = await ReportStepsService.getCompanyStepCostTasks(
 				reportId,
+				companyId,
 				stepId,
 			);
 			return NextResponse.json(result);
 		} catch (error) {
-			console.error("❌ ReportStepsController.getStepCostTasks:", error);
+			console.error("❌ ReportStepsController.getCompanyStepCostTasks:", error);
 			return NextResponse.json(
-				{ success: false, error: "Failed to fetch step cost tasks" },
+				{ success: false, error: "Failed to fetch company step cost tasks" },
 				{ status: 500 },
 			);
 		}

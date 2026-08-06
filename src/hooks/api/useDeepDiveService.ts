@@ -3,8 +3,10 @@ import { api } from "../../lib/api-client";
 import type {
 	AddCompanyPayload,
 	CategoryProductTagMatrixResponse,
+	CompanyCostStepsResponse,
 	CompanyDetail,
 	CompanySearchResult,
+	CompanyStepCostTasksResponse,
 	CompanyUpdatePayload,
 	CreateCompanyDataPointPayload,
 	CreateCompanyDataPointResponse,
@@ -40,7 +42,6 @@ import type {
 	SignalStatsResponse,
 	SourcesAnalyticsParams,
 	SourcesAnalyticsResponse,
-	StepCostTasksResponse,
 	TryQueryResult,
 	UpdateCompanyDataPointPayload,
 	UpdateCompanyDataPointResponse,
@@ -1213,19 +1214,46 @@ export const useGetReportCostStats = (reportId: number, enabled = true) => {
 	});
 };
 
-export const useGetStepCostTasks = (
+export const useGetCompanyCostSteps = (
 	reportId: number,
+	companyId: number | null,
+) => {
+	return useQuery({
+		queryKey: ["deep-dive", "cost-stats", reportId, "company", companyId],
+		queryFn: async () => {
+			const response = await api.get(
+				`/deep-dive/${reportId}/cost-stats/company/${companyId}`,
+			);
+			return response.data as CompanyCostStepsResponse;
+		},
+		enabled: Number.isFinite(reportId) && companyId !== null,
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+export const useGetCompanyStepCostTasks = (
+	reportId: number,
+	companyId: number | null,
 	stepId: number | null,
 ) => {
 	return useQuery({
-		queryKey: ["deep-dive", "cost-stats", reportId, "step", stepId],
+		queryKey: [
+			"deep-dive",
+			"cost-stats",
+			reportId,
+			"company",
+			companyId,
+			"step",
+			stepId,
+		],
 		queryFn: async () => {
 			const response = await api.get(
-				`/deep-dive/${reportId}/cost-stats/${stepId}`,
+				`/deep-dive/${reportId}/cost-stats/company/${companyId}/step/${stepId}`,
 			);
-			return response.data as StepCostTasksResponse;
+			return response.data as CompanyStepCostTasksResponse;
 		},
-		enabled: Number.isFinite(reportId) && stepId !== null,
+		enabled: Number.isFinite(reportId) && companyId !== null && stepId !== null,
 		staleTime: 60_000,
 		refetchOnWindowFocus: false,
 	});

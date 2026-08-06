@@ -4,10 +4,12 @@ import { DollarOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { Button, Modal, Spin, Table, Tag, Tooltip, Typography } from "antd";
 import { useState } from "react";
 import {
+	type ReportCostCompany,
 	type ReportCostStep,
 	type ReportCostTask,
+	useGetCompanyCostSteps,
+	useGetCompanyStepCostTasks,
 	useGetReportCostStats,
-	useGetStepCostTasks,
 } from "../../hooks/api/useDeepDiveService";
 
 const { Text } = Typography;
@@ -35,11 +37,20 @@ function formatDuration(sec: number | null): string {
 
 interface StepTasksExpandProps {
 	reportId: number;
+	companyId: number;
 	stepId: number;
 }
 
-function StepTasksExpand({ reportId, stepId }: StepTasksExpandProps) {
-	const { data, isLoading } = useGetStepCostTasks(reportId, stepId);
+function StepTasksExpand({
+	reportId,
+	companyId,
+	stepId,
+}: StepTasksExpandProps) {
+	const { data, isLoading } = useGetCompanyStepCostTasks(
+		reportId,
+		companyId,
+		stepId,
+	);
 
 	if (isLoading) return <Spin size="small" />;
 	const tasks = data?.data ?? [];
@@ -137,34 +148,26 @@ function StepTasksExpand({ reportId, stepId }: StepTasksExpandProps) {
 			rowKey={(r) => `${r.task}-${r.provider}-${r.model}`}
 			size="small"
 			pagination={false}
-			style={{ background: "#141414" }}
+			style={{ background: "#0a0a0a" }}
 		/>
 	);
 }
 
-interface ReportCostPanelProps {
+interface CompanyStepsExpandProps {
 	reportId: number;
-	/** Set to false to skip fetching until the panel is actually shown (e.g. an unopened modal). */
-	enabled?: boolean;
+	companyId: number;
 }
 
-/**
- * Cost summary + per-step breakdown, shared between the "Cost" modal
- * triggered from the reports table and the report detail page's Cost tab.
- */
-export function ReportCostPanel({
-	reportId,
-	enabled = true,
-}: ReportCostPanelProps) {
-	const { data, isLoading } = useGetReportCostStats(reportId, enabled);
+function CompanyStepsExpand({ reportId, companyId }: CompanyStepsExpandProps) {
+	const { data, isLoading } = useGetCompanyCostSteps(reportId, companyId);
 
-	const summary = data?.data.summary;
-	const steps = data?.data.steps ?? [];
+	if (isLoading) return <Spin size="small" />;
+	const steps = data?.data ?? [];
 
-	const stepColumns = [
+	const columns = [
 		{
 			title: "#",
-			dataIndex: "stepId",
+			dataIndex: "stepOrder",
 			key: "order",
 			width: 50,
 			render: (v: number) => (
@@ -177,7 +180,7 @@ export function ReportCostPanel({
 			key: "name",
 			render: (v: string | null, r: ReportCostStep) => (
 				<div>
-					<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
+					<Text style={{ color: "#d9d9d9", fontSize: 12 }}>
 						{v ?? `Step ${r.stepId}`}
 					</Text>
 					{r.stepStatus && (
@@ -195,16 +198,6 @@ export function ReportCostPanel({
 						</Tag>
 					)}
 				</div>
-			),
-		},
-		{
-			title: "Companies",
-			dataIndex: "companiesCount",
-			key: "companies",
-			width: 90,
-			align: "right" as const,
-			render: (v: number) => (
-				<Text style={{ color: "#8c8c8c", fontSize: 12 }}>{v}</Text>
 			),
 		},
 		{
@@ -257,6 +250,149 @@ export function ReportCostPanel({
 			width: 90,
 			align: "right" as const,
 			render: (v: number, r: ReportCostStep) => (
+				<Tooltip
+					title={`In: ${formatCost(r.inputCost)} / Out: ${formatCost(r.outputCost)} / MCP: ${formatCost(r.mcpCost)}`}
+				>
+					<Text
+						strong
+						style={{ fontSize: 12, color: v > 0 ? "#52c41a" : "#8c8c8c" }}
+					>
+						{formatCost(v)}
+					</Text>
+				</Tooltip>
+			),
+		},
+		{
+			title: "Duration",
+			dataIndex: "durationSec",
+			key: "duration",
+			width: 90,
+			align: "right" as const,
+			render: (v: number | null) => (
+				<Text style={{ color: "#8c8c8c", fontSize: 12 }}>
+					{formatDuration(v)}
+				</Text>
+			),
+		},
+	];
+
+	return (
+		<Table
+			dataSource={steps}
+			columns={columns}
+			rowKey="stepId"
+			size="small"
+			pagination={false}
+			style={{ background: "#141414" }}
+			expandable={{
+				expandedRowRender: (record: ReportCostStep) => (
+					<div style={{ margin: 0, background: "#0a0a0a" }}>
+						<StepTasksExpand
+							reportId={reportId}
+							companyId={companyId}
+							stepId={record.stepId}
+						/>
+					</div>
+				),
+				expandedRowClassName: () => "cost-modal-expanded-row",
+			}}
+		/>
+	);
+}
+
+interface ReportCostPanelProps {
+	reportId: number;
+	/** Set to false to skip fetching until the panel is actually shown (e.g. an unopened modal). */
+	enabled?: boolean;
+}
+
+/**
+ * Cost summary + per-company breakdown, shared between the "Cost" modal
+ * triggered from the reports table and the report detail page's Cost tab.
+ */
+export function ReportCostPanel({
+	reportId,
+	enabled = true,
+}: ReportCostPanelProps) {
+	const { data, isLoading } = useGetReportCostStats(reportId, enabled);
+
+	const summary = data?.data.summary;
+	const companies = data?.data.companies ?? [];
+
+	const companyColumns = [
+		{
+			title: "Company",
+			dataIndex: "companyName",
+			key: "name",
+			render: (v: string | null, r: ReportCostCompany) => (
+				<Text style={{ color: "#d9d9d9", fontSize: 13 }}>
+					{v ??
+						(r.companyId !== null
+							? `Company #${r.companyId}`
+							: "Report-level (no company)")}
+				</Text>
+			),
+		},
+		{
+			title: "Steps",
+			dataIndex: "stepsCount",
+			key: "steps",
+			width: 70,
+			align: "right" as const,
+			render: (v: number) => (
+				<Text style={{ color: "#8c8c8c", fontSize: 12 }}>{v}</Text>
+			),
+		},
+		{
+			title: "Calls",
+			dataIndex: "totalCalls",
+			key: "calls",
+			width: 70,
+			align: "right" as const,
+			render: (v: number, r: ReportCostCompany) => (
+				<Tooltip
+					title={
+						r.callsWithoutPricing > 0
+							? `${r.callsWithoutPricing} without pricing`
+							: undefined
+					}
+				>
+					<span
+						style={{
+							fontSize: 12,
+							color: r.callsWithoutPricing > 0 ? "#faad14" : "#d9d9d9",
+						}}
+					>
+						{v}
+						{r.callsWithoutPricing > 0 && (
+							<InfoCircleOutlined style={{ marginLeft: 4, fontSize: 11 }} />
+						)}
+					</span>
+				</Tooltip>
+			),
+		},
+		{
+			title: "Tokens",
+			key: "tokens",
+			width: 120,
+			align: "right" as const,
+			render: (_: unknown, r: ReportCostCompany) => (
+				<Tooltip
+					title={`In: ${r.inputTokens.toLocaleString()} / Out: ${r.outputTokens.toLocaleString()}`}
+				>
+					<span style={{ fontSize: 12, color: "#8c8c8c" }}>
+						{formatTokens(r.totalTokens)}
+					</span>
+				</Tooltip>
+			),
+		},
+		{
+			title: "Cost",
+			dataIndex: "totalCost",
+			key: "cost",
+			width: 90,
+			align: "right" as const,
+			render: (v: number, r: ReportCostCompany) => (
 				<Tooltip
 					title={`In: ${formatCost(r.inputCost)} / Out: ${formatCost(r.outputCost)} / MCP: ${formatCost(r.mcpCost)}`}
 				>
@@ -380,24 +516,33 @@ export function ReportCostPanel({
 				</div>
 			)}
 
-			{steps.length === 0 ? (
+			{companies.length === 0 ? (
 				<Text style={{ color: "#8c8c8c" }}>
 					No cost data available for this report.
 				</Text>
 			) : (
 				<Table
-					dataSource={steps}
-					columns={stepColumns}
-					rowKey="stepId"
+					dataSource={companies}
+					columns={companyColumns}
+					rowKey={(r) => r.companyId ?? "unattributed"}
 					size="small"
 					pagination={false}
 					style={{ background: "#1f1f1f" }}
 					expandable={{
-						expandedRowRender: (record: ReportCostStep) => (
-							<div style={{ margin: 0, background: "#141414" }}>
-								<StepTasksExpand reportId={reportId} stepId={record.stepId} />
-							</div>
-						),
+						expandedRowRender: (record: ReportCostCompany) =>
+							record.companyId === null ? (
+								<Text style={{ color: "#8c8c8c", fontSize: 12 }}>
+									No step breakdown for report-level calls (not tied to a
+									company).
+								</Text>
+							) : (
+								<div style={{ margin: 0, background: "#141414" }}>
+									<CompanyStepsExpand
+										reportId={reportId}
+										companyId={record.companyId}
+									/>
+								</div>
+							),
 						expandedRowClassName: () => "cost-modal-expanded-row",
 					}}
 				/>
