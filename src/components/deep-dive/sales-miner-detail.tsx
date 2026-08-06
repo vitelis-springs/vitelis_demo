@@ -44,6 +44,7 @@ import AddCompanyModal from "./add-company-modal";
 import SignalStatsTable from "./signal-stats-table";
 import CompanyListedTag from "./company-listed-tag";
 import SendToDopButton from "../sales-miner/send-to-dop-button";
+import { ReportCostPanel } from "../report-steps/ReportCostModal";
 import {
 	DARK_CARD_STYLE,
 	DARK_CARD_HEADER_STYLE,
@@ -571,6 +572,11 @@ function EntityLevelView({
 								: "Signal Statistics",
 						children: <SignalStatsTable reportId={reportId} />,
 					},
+					{
+						key: "cost",
+						label: "Cost",
+						children: <ReportCostPanel reportId={reportId} />,
+					},
 				]}
 			/>
 
@@ -766,6 +772,11 @@ function AccountLevelView({
 								},
 							]
 						: []),
+					{
+						key: "cost",
+						label: "Cost",
+						children: <ReportCostPanel reportId={reportId} />,
+					},
 				]}
 			/>
 
