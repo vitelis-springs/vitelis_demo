@@ -764,9 +764,9 @@ export class ReportStepsService {
 	// ===== Cost stats =====
 
 	static async getReportCostStats(reportId: number) {
-		const [summary, steps] = await Promise.all([
+		const [summary, companies] = await Promise.all([
 			ReportStepsRepository.getReportCostSummary(reportId),
-			ReportStepsRepository.getReportCostByStep(reportId),
+			ReportStepsRepository.getReportCostByCompany(reportId),
 		]);
 
 		return {
@@ -791,34 +791,67 @@ export class ReportStepsService {
 								: null,
 						}
 					: null,
-				steps: steps.map((s) => ({
-					stepId: Number(s.step_id),
-					stepOrder: Number(s.step_order),
-					stepName: s.step_name,
-					stepStatus: s.step_status,
-					companiesCount: Number(s.companies_count),
-					tasksCount: Number(s.tasks_count),
-					totalCalls: Number(s.total_calls),
-					callsWithoutPricing: Number(s.calls_without_pricing),
-					inputTokens: Number(s.input_tokens),
-					outputTokens: Number(s.output_tokens),
-					totalTokens: Number(s.total_tokens),
-					totalResourceUnits: Number(s.total_resource_units),
-					inputCost: Number(s.input_cost),
-					outputCost: Number(s.output_cost),
-					mcpCost: Number(s.mcp_cost),
-					totalCost: Number(s.total_cost),
-					startedAt: s.started_at?.toISOString() ?? null,
-					finishedAt: s.finished_at?.toISOString() ?? null,
-					durationSec: s.duration_sec ? Number(s.duration_sec) : null,
+				companies: companies.map((c) => ({
+					companyId: c.company_id,
+					companyName: c.company_name,
+					stepsCount: Number(c.steps_count),
+					tasksCount: Number(c.tasks_count),
+					totalCalls: Number(c.total_calls),
+					callsWithoutPricing: Number(c.calls_without_pricing),
+					inputTokens: Number(c.input_tokens),
+					outputTokens: Number(c.output_tokens),
+					totalTokens: Number(c.total_tokens),
+					totalResourceUnits: Number(c.total_resource_units),
+					inputCost: Number(c.input_cost),
+					outputCost: Number(c.output_cost),
+					mcpCost: Number(c.mcp_cost),
+					totalCost: Number(c.total_cost),
+					startedAt: c.started_at?.toISOString() ?? null,
+					finishedAt: c.finished_at?.toISOString() ?? null,
+					durationSec: c.duration_sec ? Number(c.duration_sec) : null,
 				})),
 			},
 		};
 	}
 
-	static async getStepCostTasks(reportId: number, stepId: number) {
-		const rows = await ReportStepsRepository.getReportCostByStepTask(
+	static async getCompanyCostSteps(reportId: number, companyId: number) {
+		const steps = await ReportStepsRepository.getCompanyCostBySteps(
 			reportId,
+			companyId,
+		);
+		return {
+			success: true,
+			data: steps.map((s) => ({
+				stepId: Number(s.step_id),
+				stepOrder: Number(s.step_order),
+				stepName: s.step_name,
+				stepStatus: s.step_status,
+				tasksCount: Number(s.tasks_count),
+				totalCalls: Number(s.total_calls),
+				callsWithoutPricing: Number(s.calls_without_pricing),
+				inputTokens: Number(s.input_tokens),
+				outputTokens: Number(s.output_tokens),
+				totalTokens: Number(s.total_tokens),
+				totalResourceUnits: Number(s.total_resource_units),
+				inputCost: Number(s.input_cost),
+				outputCost: Number(s.output_cost),
+				mcpCost: Number(s.mcp_cost),
+				totalCost: Number(s.total_cost),
+				startedAt: s.started_at?.toISOString() ?? null,
+				finishedAt: s.finished_at?.toISOString() ?? null,
+				durationSec: s.duration_sec ? Number(s.duration_sec) : null,
+			})),
+		};
+	}
+
+	static async getCompanyStepCostTasks(
+		reportId: number,
+		companyId: number,
+		stepId: number,
+	) {
+		const rows = await ReportStepsRepository.getCompanyStepCostTasks(
+			reportId,
+			companyId,
 			stepId,
 		);
 		return {
@@ -829,7 +862,6 @@ export class ReportStepsService {
 				model: r.model,
 				totalCalls: Number(r.total_calls),
 				errorCount: Number(r.error_count),
-				companiesCount: Number(r.companies_count),
 				inputTokens: Number(r.input_tokens),
 				outputTokens: Number(r.output_tokens),
 				totalTokens: Number(r.total_tokens),

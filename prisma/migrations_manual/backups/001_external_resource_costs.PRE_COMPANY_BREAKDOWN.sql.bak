@@ -1,3 +1,14 @@
+-- ROLLBACK SNAPSHOT: state of 001_external_resource_costs.sql before the
+-- company-level cost breakdown change (commit dd55712, branch
+-- fix/sales-miner-report-cost-display). To roll back, re-run this file
+-- with psql — CREATE OR REPLACE VIEW is idempotent and will restore the
+-- old calls_count formula (count(*) instead of resource_units_count) and
+-- drop the company grouping from v_report_cost_by_step_task's grain
+-- (note: v_report_cost_by_company / v_report_cost_by_company_step from the
+-- new version won't be dropped automatically — DROP VIEW those manually
+-- if a full rollback is needed).
+--
+-- Original header below:
 -- Migration: external resource call logs, pricing and cost views
 -- Apply to local DB: psql -U postgres -d vitelis_local -f prisma/migrations_manual/001_external_resource_costs.sql
 
@@ -118,13 +129,7 @@ WITH priced_logs AS (
       WHEN l.completion_tokens > 0   AND NOT (p.id IS NOT NULL AND p.output_price > 0    AND p.output_tokens_count > 0) THEN true
       WHEN l.resource_units_count > 0 AND NOT (p.id IS NOT NULL AND p.mcp_call_price > 0  AND p.mcp_calls_count > 0)   THEN true
       ELSE false
-    END AS missing_pricing,
-    -- For resource-unit-priced calls (e.g. web_search, parallel_search), each log row can bundle
-    -- several billed search units; report that unit count instead of the row count.
-    CASE
-      WHEN l.resource_units_count > 0 THEN l.resource_units_count
-      ELSE 1
-    END AS billed_calls
+    END AS missing_pricing
   FROM external_resource_call_logs l
   LEFT JOIN LATERAL (
     SELECT p_1.id, p_1.provider, p_1.model,
@@ -147,7 +152,7 @@ SELECT
   company_id,
   step_id,
   task,
-  sum(billed_calls)                      AS calls_count,
+  count(*)                               AS calls_count,
   count(*) FILTER (WHERE missing_pricing) AS calls_without_pricing,
   sum(prompt_tokens)                     AS prompt_tokens,
   sum(completion_tokens)                 AS completion_tokens,
@@ -196,21 +201,16 @@ GROUP BY v.report_id, v.step_id, rs.step_order, rgs.name, rss.status;
 
 -- ----
 
--- Column set changed (company_id inserted, companies_count dropped), which
--- CREATE OR REPLACE VIEW does not allow (it only permits appending columns
--- at the end) — the view must be dropped and recreated.
-DROP VIEW IF EXISTS public.v_report_cost_by_step_task;
-
-CREATE VIEW public.v_report_cost_by_step_task AS
+CREATE OR REPLACE VIEW public.v_report_cost_by_step_task AS
 SELECT
   l.report_id,
-  l.company_id,
   l.step_id,
   l.task,
   l.provider,
   l.model,
-  sum(CASE WHEN l.resource_units_count > 0 THEN l.resource_units_count ELSE 1 END) AS total_calls,
+  count(*)                                                          AS total_calls,
   sum(CASE WHEN NOT l.is_success THEN 1 ELSE 0 END)                AS error_count,
+  count(DISTINCT l.company_id)                                     AS companies_count,
   sum(l.prompt_tokens)                                             AS input_tokens,
   sum(l.completion_tokens)                                         AS output_tokens,
   sum(l.prompt_tokens + l.completion_tokens)                       AS total_tokens,
@@ -263,66 +263,7 @@ LEFT JOIN LATERAL (
   ORDER BY p_1.valid_from DESC, p_1.id DESC
   LIMIT 1
 ) p ON true
-GROUP BY l.report_id, l.company_id, l.step_id, l.task, l.provider, l.model,
+GROUP BY l.report_id, l.step_id, l.task, l.provider, l.model,
          p.input_price, p.input_tokens_count,
          p.output_price, p.output_tokens_count,
          p.mcp_call_price, p.mcp_calls_count;
-
--- ----
-
-CREATE OR REPLACE VIEW public.v_report_cost_by_company AS
-SELECT
-  v.report_id,
-  v.company_id,
-  c.name                                AS company_name,
-  count(DISTINCT v.step_id)             AS steps_count,
-  count(DISTINCT v.task)                AS tasks_count,
-  sum(v.calls_count)                    AS total_calls,
-  sum(v.calls_without_pricing)          AS calls_without_pricing,
-  sum(v.prompt_tokens)                  AS input_tokens,
-  sum(v.completion_tokens)              AS output_tokens,
-  sum(v.prompt_tokens + v.completion_tokens) AS total_tokens,
-  sum(v.resource_units_count)           AS total_resource_units,
-  round(sum(v.input_cost), 6)           AS input_cost,
-  round(sum(v.output_cost), 6)          AS output_cost,
-  round(sum(v.mcp_cost), 6)             AS mcp_cost,
-  round(sum(v.total_cost), 6)           AS total_cost,
-  min(v.first_call_at)                  AS started_at,
-  max(v.last_call_at)                   AS finished_at,
-  round(EXTRACT(EPOCH FROM max(v.last_call_at) - min(v.first_call_at)), 1) AS duration_sec
-FROM v_external_resource_costs_by_report_company_step_task v
-LEFT JOIN companies c ON c.id = v.company_id
-GROUP BY v.report_id, v.company_id, c.name;
-
--- ----
-
-CREATE OR REPLACE VIEW public.v_report_cost_by_company_step AS
-SELECT
-  v.report_id,
-  v.company_id,
-  v.step_id,
-  rs.step_order,
-  rgs.name                              AS step_name,
-  rss.status                            AS step_status,
-  count(DISTINCT v.task)                AS tasks_count,
-  sum(v.calls_count)                    AS total_calls,
-  sum(v.calls_without_pricing)          AS calls_without_pricing,
-  sum(v.prompt_tokens)                  AS input_tokens,
-  sum(v.completion_tokens)              AS output_tokens,
-  sum(v.prompt_tokens + v.completion_tokens) AS total_tokens,
-  sum(v.resource_units_count)           AS total_resource_units,
-  round(sum(v.input_cost), 6)           AS input_cost,
-  round(sum(v.output_cost), 6)          AS output_cost,
-  round(sum(v.mcp_cost), 6)             AS mcp_cost,
-  round(sum(v.total_cost), 6)           AS total_cost,
-  min(v.first_call_at)                  AS started_at,
-  max(v.last_call_at)                   AS finished_at,
-  round(EXTRACT(EPOCH FROM max(v.last_call_at) - min(v.first_call_at)), 1) AS duration_sec
-FROM v_external_resource_costs_by_report_company_step_task v
-JOIN report_steps rs
-  ON rs.step_id = v.step_id AND rs.report_id = v.report_id
-LEFT JOIN report_generation_steps rgs
-  ON rgs.id = v.step_id
-LEFT JOIN report_step_statuses rss
-  ON rss.step_id = v.step_id AND rss.report_id = v.report_id AND rss.company_id = v.company_id
-GROUP BY v.report_id, v.company_id, v.step_id, rs.step_order, rgs.name, rss.status;
