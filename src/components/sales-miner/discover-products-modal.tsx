@@ -193,10 +193,16 @@ export default function DiscoverProductsModal({
 			render: (_: unknown, row) => {
 				const urls = row.discovery?.evidence_urls ?? [];
 				if (urls.length === 0) return <Text type="secondary">none</Text>;
+				// Open the offering's own page when there is one. Checking a row
+				// against the hub page it was listed on tells the reviewer
+				// nothing — that same hub backs dozens of other rows.
+				const own = row.discovery?.link_url;
 				return (
-					<Tooltip title={urls.join("\n")}>
-						<a href={urls[0]} target="_blank" rel="noreferrer">
-							{urls.length} source{urls.length > 1 ? "s" : ""}
+					<Tooltip title={[own, ...urls].filter(Boolean).join("\n")}>
+						<a href={own || urls[0]} target="_blank" rel="noreferrer">
+							{own
+								? "own page"
+								: `${urls.length} source${urls.length > 1 ? "s" : ""}`}
 						</a>
 					</Tooltip>
 				);
