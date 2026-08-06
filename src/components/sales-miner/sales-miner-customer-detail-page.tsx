@@ -51,6 +51,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { api } from "../../lib/api-client";
 import {
+	BOOLEAN_DEFAULTS,
 	mergeDiscoverySettings,
 	PORTFOLIO_TYPES,
 	type ProductDiscoverySettings,
@@ -937,10 +938,16 @@ function SalesMinerCustomerDetailContent({
 
 	useEffect(() => {
 		if (!detail || !editModalOpen) return;
+		const discovery = readDiscoverySettings(detail.settings);
 		form.setFieldsValue({
 			displayName: detail.display_name,
 			isActive: detail.is_active,
-			...readDiscoverySettings(detail.settings),
+			...discovery,
+			// Absent means the flag's default; a Switch needs it concrete.
+			include_third_party:
+				discovery.include_third_party ?? BOOLEAN_DEFAULTS.include_third_party,
+			include_documents:
+				discovery.include_documents ?? BOOLEAN_DEFAULTS.include_documents,
 		});
 	}, [detail, editModalOpen, form]);
 
@@ -955,6 +962,8 @@ function SalesMinerCustomerDetailContent({
 				settings: mergeDiscoverySettings(detail?.settings, {
 					unit: v.unit,
 					subset_rule: v.subset_rule,
+					include_third_party: v.include_third_party,
+					include_documents: v.include_documents,
 					target_urls: v.target_urls,
 					source_of_truth_urls: v.source_of_truth_urls,
 					aliases: v.aliases,
@@ -1165,11 +1174,32 @@ function SalesMinerCustomerDetailContent({
 								/>
 							</Form.Item>
 							<Form.Item
+								name="include_third_party"
+								label="Include third-party vendor products"
+								valuePropName="checked"
+								tooltip="On for resellers and marketplaces — third-party rows ARE the catalogue. Off for integrators: only the company's own services and offerings survive, and every excluded vendor row is listed with a reason in the run's rejected section."
+							>
+								<Switch />
+							</Form.Item>
+							<Form.Item
+								name="include_documents"
+								label="Treat datasheets as products"
+								valuePropName="checked"
+								tooltip="Off for almost everyone: a datasheet or service brief describes an offering rather than being one, and a company that sells something gives it a page. On a Trace3 run this rejected 87 rows, including fifteen years of annual marketing playbooks. Turn on only when a catalogue is published entirely as PDFs."
+							>
+								<Switch />
+							</Form.Item>
+							<Form.Item
 								name="subset_rule"
 								label="What counts as in scope"
-								tooltip="Plain English. Used to decide whether something found on the site belongs in this portfolio."
+								tooltip="Plain English, as many sentences as needed. Every discovered product is judged against this rule after extraction, and rejections quote the clause that excluded them — so write it the way you'd brief a colleague."
 							>
-								<Input placeholder="e.g. curated partner solutions available through the Extended plan" />
+								<Input.TextArea
+									autoSize={{ minRows: 2, maxRows: 6 }}
+									placeholder={
+										"e.g. Only offerings the company itself sells or delivers: services, solutions and managed offerings.\nExclude partner vendors' product catalogues unless offered as part of a bundle."
+									}
+								/>
 							</Form.Item>
 							<Form.Item
 								name="aliases"

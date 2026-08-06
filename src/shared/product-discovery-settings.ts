@@ -26,6 +26,20 @@ export type PortfolioType = (typeof PORTFOLIO_TYPES)[number];
 export interface ProductDiscoverySettings {
 	unit?: string;
 	subset_rule?: string;
+	/**
+	 * Whether products made by other companies belong in this catalogue.
+	 * True (the default) fits resellers and marketplaces, whose third-party
+	 * rows ARE the catalogue; false fits integrators, whose rows should be
+	 * their own services rather than their partners' product lines.
+	 */
+	include_third_party?: boolean;
+	/**
+	 * Whether a row whose only link is a datasheet or service brief counts as a
+	 * catalogue entry. False (the default) because a document describes an
+	 * offering rather than being one, and a company that sells something gives
+	 * it a page. True for the rare catalogue published entirely as datasheets.
+	 */
+	include_documents?: boolean;
 	target_urls?: string[];
 	source_of_truth_urls?: string[];
 	aliases?: string[];
@@ -64,6 +78,14 @@ export function readDiscoverySettings(
 	return {
 		unit: text(raw.unit),
 		subset_rule: text(raw.subset_rule),
+		include_third_party:
+			typeof raw.include_third_party === "boolean"
+				? raw.include_third_party
+				: undefined,
+		include_documents:
+			typeof raw.include_documents === "boolean"
+				? raw.include_documents
+				: undefined,
 		target_urls: strings(raw.target_urls),
 		source_of_truth_urls: strings(raw.source_of_truth_urls),
 		aliases: strings(raw.aliases),
@@ -83,6 +105,16 @@ export function readDiscoverySettings(
  * as absent instead of as an empty unit name that would narrow a search to
  * nothing.
  */
+/**
+ * What each flag means when it is absent, mirroring the engine's own defaults
+ * (`DiscoveryConfig`). Kept beside the merge so a stored value and an omitted
+ * one can never disagree about what the customer asked for.
+ */
+export const BOOLEAN_DEFAULTS: Record<string, boolean> = {
+	include_third_party: true,
+	include_documents: false,
+};
+
 export function mergeDiscoverySettings(
 	existing: unknown,
 	next: ProductDiscoverySettings,
@@ -92,6 +124,13 @@ export function mergeDiscoverySettings(
 
 	for (const [key, value] of Object.entries(next)) {
 		if (value == null) continue;
+		if (typeof value === "boolean") {
+			// Only deviations from the default are stored, so a toggled-back
+			// customer reads as absent — the same rule as cleared text fields.
+			// The defaults differ per flag, so they cannot be assumed here.
+			if (value !== BOOLEAN_DEFAULTS[key]) cleaned[key] = value;
+			continue;
+		}
 		if (typeof value === "string") {
 			if (value.trim()) cleaned[key] = value.trim();
 			continue;
