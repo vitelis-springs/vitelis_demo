@@ -23,6 +23,7 @@ import {
 import dayjs from "dayjs";
 import {
 	forwardRef,
+	useCallback,
 	useEffect,
 	useImperativeHandle,
 	useMemo,
@@ -78,7 +79,10 @@ interface FormValues {
 	templateId: number;
 	windowFrom: dayjs.Dayjs;
 	windowTo: dayjs.Dayjs;
+	useOptimizedSignalCatalog: boolean;
 	maxOpportunityCount: number;
+	signalTotalCount: number;
+	globalCatalogSignalCount: number;
 	language: string;
 	hasHorizon: boolean;
 	createProductSignals: boolean;
@@ -181,17 +185,34 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 		const templates = useMemo(() => templatesData?.data ?? [], [templatesData]);
 		const companies = companiesData?.data ?? [];
 
+		// Resolve the Select value for known orchestrator presets ("2" = full
+		// catalog, "3" = optimized). Prefer stable unique `code`, but fall back
+		// to stringified `id` — in some environments the preset was seeded with
+		// id 2/3 while `code` is a different slug, and matching only by code
+		// left templateId unset (hidden required field → Create appeared dead).
+		const findTemplateIdByCode = useCallback(
+			(code: "2" | "3") =>
+				templates.find((t) => t.code === code || String(t.id) === code)?.id,
+			[templates],
+		);
+
 		const handleOpen = (initialCompanyIds?: number[]) => {
 			form.resetFields();
+			const defaultTemplateId = findTemplateIdByCode("2");
 			form.setFieldsValue({
 				windowFrom: dayjs().subtract(1, "year"),
 				windowTo: dayjs().subtract(1, "day"),
+				useOptimizedSignalCatalog: false,
 				maxOpportunityCount: 15,
+				signalTotalCount: 50,
+				globalCatalogSignalCount: 30,
 				language: "en",
 				hasHorizon: false,
 				createProductSignals: true,
 				useForStatistics: true,
-				...(templates[0] ? { templateId: templates[0].id } : {}),
+				...(defaultTemplateId !== undefined
+					? { templateId: defaultTemplateId }
+					: {}),
 				...(fixedCustomerId != null ? { customerId: fixedCustomerId } : {}),
 			});
 			setSelectedCustomerId(fixedCustomerId ?? null);
@@ -210,14 +231,19 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 			open: (initialCompanyIds) => handleOpen(initialCompanyIds),
 		}));
 
-		// Templates may still be loading when the modal is first opened — apply
-		// the default (first active template by id) as soon as they arrive.
+		// Templates may still be loading when the modal is first opened (so
+		// handleOpen couldn't resolve an id yet) — apply the default implied by
+		// the optimized-catalog checkbox as soon as they arrive.
 		useEffect(() => {
 			if (!open) return;
 			if (templates.length === 0) return;
 			if (form.getFieldValue("templateId") != null) return;
-			form.setFieldValue("templateId", templates[0]!.id);
-		}, [open, templates, form]);
+			const useOptimized = form.getFieldValue("useOptimizedSignalCatalog");
+			const defaultTemplateId = findTemplateIdByCode(useOptimized ? "3" : "2");
+			if (defaultTemplateId !== undefined) {
+				form.setFieldValue("templateId", defaultTemplateId);
+			}
+		}, [open, templates, form, findTemplateIdByCode]);
 
 		// Suggest a report name from the customer + template version, e.g.
 		// "Klarna Group report July 2026" — customer + current month/year.
@@ -246,6 +272,11 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 			"maxOpportunityCount",
 			form,
 		);
+		const signalTotalCountWatched = Form.useWatch("signalTotalCount", form);
+		const globalCatalogSignalCountWatched = Form.useWatch(
+			"globalCatalogSignalCount",
+			form,
+		);
 		const languageWatched = Form.useWatch("language", form);
 		const hasHorizonWatched = Form.useWatch("hasHorizon", form);
 		const createProductSignalsWatched = Form.useWatch(
@@ -265,6 +296,8 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 					? (windowToWatched as dayjs.Dayjs).format("YYYY-MM-DD")
 					: prev.window_to,
 				max_opportunity_count: maxOpportunityCountWatched,
+				signal_total_count: signalTotalCountWatched,
+				global_catalog_signal_count: globalCatalogSignalCountWatched,
 				language: languageWatched,
 				has_horizon: hasHorizonWatched,
 				create_product_signals: createProductSignalsWatched,
@@ -276,11 +309,18 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 			windowFromWatched,
 			windowToWatched,
 			maxOpportunityCountWatched,
+			signalTotalCountWatched,
+			globalCatalogSignalCountWatched,
 			languageWatched,
 			hasHorizonWatched,
 			createProductSignalsWatched,
 			useForStatisticsWatched,
 		]);
+
+		const useOptimizedSignalCatalogWatched = Form.useWatch(
+			"useOptimizedSignalCatalog",
+			form,
+		);
 
 		const handleCustomerChange = (value: number) => {
 			setSelectedCustomerId(value);
@@ -306,6 +346,10 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 				message.warning("Select at least one account first");
 				return;
 			}
+			if (!sectionInstructions.commercial_geo_scope?.trim()) {
+				message.warning("Commercial Geo Scope is required");
+				return;
+			}
 			setGeneratedSettings(null);
 			setSettingsObj({});
 			setSettingsJson("{}");
@@ -321,6 +365,10 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 				const generated = await generateReportSettings({
 					customerId: selectedCustomerId,
 					accountIds: selectedCompanyIds,
+					signalTotalCount: form.getFieldValue("signalTotalCount"),
+					globalCatalogSignalCount: form.getFieldValue(
+						"globalCatalogSignalCount",
+					),
 					userInstructions,
 				});
 				const windowFromValue = form.getFieldValue("windowFrom") as
@@ -354,24 +402,31 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 		};
 
 		const handleSubmit = async (values: FormValues) => {
-			let generatedFinal: Record<string, unknown> | null = null;
-			if (generatedSettings) {
-				if (settingsMode === "json") {
-					generatedFinal = parseSettingsJson(settingsJson);
-					if (!generatedFinal) {
-						message.error("Invalid JSON in generated settings");
-						return;
-					}
-				} else {
-					generatedFinal = settingsObj;
+			if (!generatedSettings) {
+				message.warning("Generate report settings first");
+				return;
+			}
+
+			let generatedFinal: Record<string, unknown>;
+			if (settingsMode === "json") {
+				const parsed = parseSettingsJson(settingsJson);
+				if (!parsed) {
+					message.error("Invalid JSON in generated settings");
+					return;
 				}
+				generatedFinal = parsed;
+			} else {
+				generatedFinal = settingsObj;
 			}
 
 			const settings: Record<string, unknown> = {
-				...(generatedFinal ?? {}),
+				...generatedFinal,
 				customer_id: values.customerId,
 				window_from: values.windowFrom.format("YYYY-MM-DD"),
 				window_to: values.windowTo.format("YYYY-MM-DD"),
+				use_optimized_signal_catalog: values.useOptimizedSignalCatalog,
+				signal_total_count: values.signalTotalCount,
+				global_catalog_signal_count: values.globalCatalogSignalCount,
 				max_opportunity_count: values.maxOpportunityCount,
 				language: values.language,
 				has_horizon: values.hasHorizon,
@@ -789,21 +844,6 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 								</Form.Item>
 
 								<Form.Item
-									name="templateId"
-									label="Orchestrator Steps"
-									rules={[{ required: true, message: "Required" }]}
-								>
-									<Select
-										placeholder="Select template"
-										loading={templatesLoading}
-										options={templates.map((t) => ({
-											value: t.id,
-											label: `${t.name} (${t.code})`,
-										}))}
-									/>
-								</Form.Item>
-
-								<Form.Item
 									name="windowFrom"
 									label="Window From"
 									rules={[{ required: true, message: "Required" }]}
@@ -820,46 +860,142 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 								</Form.Item>
 
 								<Form.Item
-									name="maxOpportunityCount"
-									label="Max Opportunity Count"
-									rules={[{ required: true, message: "Required" }]}
+									name="useOptimizedSignalCatalog"
+									valuePropName="checked"
+									style={{ marginBottom: 4 }}
 								>
-									<InputNumber min={1} max={100} style={{ width: "100%" }} />
+									<Checkbox
+										onChange={(e) => {
+											const nextTemplateId = findTemplateIdByCode(
+												e.target.checked ? "3" : "2",
+											);
+											if (nextTemplateId !== undefined) {
+												form.setFieldValue("templateId", nextTemplateId);
+											}
+										}}
+									>
+										Use optimized signal catalog based on statistics
+									</Checkbox>
 								</Form.Item>
-
-								<Form.Item
-									name="language"
-									label="Language"
-									style={{ marginBottom: 8 }}
+								<Text
+									type="secondary"
+									style={{
+										fontSize: 12,
+										display: "block",
+										marginTop: -8,
+										marginBottom: 12,
+									}}
 								>
-									<Select
-										style={{ width: 140 }}
-										options={[
-											{ value: "en", label: "English" },
-											{ value: "de", label: "German" },
-										]}
-									/>
-								</Form.Item>
+									If disabled, the full catalog of 90 signals is used. If
+									enabled, an optimized catalog is selected based on historical
+									signal performance statistics.
+								</Text>
 
-								<Space size="middle" wrap style={{ marginBottom: 0 }}>
-									<Form.Item name="hasHorizon" valuePropName="checked" noStyle>
-										<Checkbox>Has horizon</Checkbox>
-									</Form.Item>
-									<Form.Item
-										name="createProductSignals"
-										valuePropName="checked"
-										noStyle
-									>
-										<Checkbox>Create product signals</Checkbox>
-									</Form.Item>
-									<Form.Item
-										name="useForStatistics"
-										valuePropName="checked"
-										noStyle
-									>
-										<Checkbox>Use for statistics</Checkbox>
-									</Form.Item>
-								</Space>
+								{useOptimizedSignalCatalogWatched && (
+									<>
+										<Form.Item
+											name="signalTotalCount"
+											label="Signal Total Count"
+											rules={[{ required: true, message: "Required" }]}
+										>
+											<InputNumber min={1} style={{ width: "100%" }} />
+										</Form.Item>
+
+										<Form.Item
+											name="globalCatalogSignalCount"
+											label="Global Catalog Signal Count"
+											rules={[{ required: true, message: "Required" }]}
+										>
+											<InputNumber min={1} max={90} style={{ width: "100%" }} />
+										</Form.Item>
+									</>
+								)}
+
+								<Collapse
+									size="small"
+									style={{ marginTop: 8 }}
+									items={[
+										{
+											key: "advanced",
+											label: "Advanced settings",
+											// Collapse only mounts panel content once expanded by
+											// default — the Form.Items inside (templateId etc.)
+											// would then never register with the Form, and their
+											// values would be silently dropped from submit if the
+											// panel is never opened. Force it to always mount
+											// (hidden via CSS while collapsed) instead.
+											forceRender: true,
+											children: (
+												<>
+													<Form.Item
+														name="templateId"
+														label="Orchestrator Steps"
+														rules={[{ required: true, message: "Required" }]}
+													>
+														<Select
+															placeholder="Select template"
+															loading={templatesLoading}
+															options={templates.map((t) => ({
+																value: t.id,
+																label: `${t.name} (${t.code})`,
+															}))}
+														/>
+													</Form.Item>
+
+													<Form.Item
+														name="maxOpportunityCount"
+														label="Max Opportunity Count"
+														rules={[{ required: true, message: "Required" }]}
+													>
+														<InputNumber
+															min={1}
+															max={100}
+															style={{ width: "100%" }}
+														/>
+													</Form.Item>
+
+													<Form.Item
+														name="language"
+														label="Language"
+														style={{ marginBottom: 8 }}
+													>
+														<Select
+															style={{ width: 140 }}
+															options={[
+																{ value: "en", label: "English" },
+																{ value: "de", label: "German" },
+															]}
+														/>
+													</Form.Item>
+
+													<Space size="middle" wrap style={{ marginBottom: 0 }}>
+														<Form.Item
+															name="hasHorizon"
+															valuePropName="checked"
+															noStyle
+														>
+															<Checkbox>Has horizon</Checkbox>
+														</Form.Item>
+														<Form.Item
+															name="createProductSignals"
+															valuePropName="checked"
+															noStyle
+														>
+															<Checkbox>Create product signals</Checkbox>
+														</Form.Item>
+														<Form.Item
+															name="useForStatistics"
+															valuePropName="checked"
+															noStyle
+														>
+															<Checkbox>Use for statistics</Checkbox>
+														</Form.Item>
+													</Space>
+												</>
+											),
+										},
+									]}
+								/>
 							</div>
 
 							{/* ── AI-generated settings ── */}
@@ -879,7 +1015,9 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 										title={
 											selectedCompanyIds.length === 0
 												? "Select at least one account first"
-												: undefined
+												: !sectionInstructions.commercial_geo_scope?.trim()
+													? "Commercial Geo Scope is required"
+													: undefined
 										}
 									>
 										<span>
@@ -888,7 +1026,10 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 												type="primary"
 												icon={<BulbOutlined />}
 												loading={isGeneratingSettings}
-												disabled={selectedCompanyIds.length === 0}
+												disabled={
+													selectedCompanyIds.length === 0 ||
+													!sectionInstructions.commercial_geo_scope?.trim()
+												}
 												onClick={() => {
 													handleGenerateSettings().catch((err) => {
 														console.error(
@@ -928,6 +1069,9 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 													marginBottom: 2,
 												}}
 											>
+												{section.key === "commercial_geo_scope" && (
+													<Text style={{ color: "#ff4d4f" }}>* </Text>
+												)}
 												{section.label}
 											</Text>
 											<Input.TextArea
@@ -965,9 +1109,24 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 							<Button onClick={() => setOpen(false)} style={{ marginRight: 8 }}>
 								Cancel
 							</Button>
-							<Button type="primary" htmlType="submit" loading={isPending}>
-								Create
-							</Button>
+							<Tooltip
+								title={
+									!generatedSettings
+										? "Generate report settings first"
+										: undefined
+								}
+							>
+								<span>
+									<Button
+										type="primary"
+										htmlType="submit"
+										loading={isPending}
+										disabled={!generatedSettings}
+									>
+										Create
+									</Button>
+								</span>
+							</Tooltip>
 						</div>
 					</Form>
 				</Modal>
