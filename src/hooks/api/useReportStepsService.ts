@@ -79,12 +79,21 @@ export interface StepsMatrixRow {
 	}>;
 }
 
+export interface StepsMatrixTiming {
+	/** Wall-clock from first start to last end (or now if running); includes pauses. */
+	elapsedSeconds: number | null;
+	/** Union of run intervals (overlaps merged) — active time, no double-counting. */
+	activeSeconds: number | null;
+	running: boolean;
+}
+
 export interface StepsMatrixResponse {
 	success: boolean;
 	data: {
 		companies: StepsMatrixCompany[];
 		steps: StepsMatrixStep[];
 		matrix: StepsMatrixRow[];
+		timing: StepsMatrixTiming;
 	};
 }
 

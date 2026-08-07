@@ -83,6 +83,44 @@
 	background: #6b6b6b;
 }
 
+.timeStats {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.timeStat {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 5px 12px;
+	background: #141414;
+	border: 1px solid #2a2a2a;
+	border-radius: 8px;
+	cursor: help;
+}
+
+.timeVal {
+	color: #e8e8e8;
+	font-size: 16px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.15;
+}
+
+.timeLive {
+	color: #8fb4e0;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.timeLabel {
+	color: #8c8c8c;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+}
+
 .filters {
 	display: flex;
 	gap: 8px;

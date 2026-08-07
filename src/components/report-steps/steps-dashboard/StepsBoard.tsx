@@ -1,7 +1,16 @@
 "use client";
 
 import { CloseOutlined, SearchOutlined } from "@ant-design/icons";
-import { App, Button, Grid, Input, Popconfirm, Popover, Select } from "antd";
+import {
+	App,
+	Button,
+	Grid,
+	Input,
+	Popconfirm,
+	Popover,
+	Select,
+	Tooltip,
+} from "antd";
 import { type ReactNode, useMemo, useState } from "react";
 import {
 	type StepStatus,
@@ -13,6 +22,7 @@ import { useStepsMatrixFilters } from "../use-steps-matrix-filters";
 import CellDetails from "./CellDetails";
 import CellHoverCard from "./CellHoverCard";
 import { deriveProgressSummary, STATUS_ORDER } from "./progress";
+import { formatDuration } from "./run-format";
 import StatusCell, { STATUS_META } from "./StatusCell";
 import styles from "./steps-board.module.css";
 
@@ -72,6 +82,10 @@ export default function StepsBoard({
 	const isMobile = screens.md === false;
 
 	const bulkUpdate = useBulkUpdateReportStepStatuses(reportId);
+
+	// Report-wide run timing across ALL company×step runs, computed by the matrix
+	// endpoint (already fetched here) and refreshed with it. See StepsMatrixTiming.
+	const timing = matrix.timing;
 
 	const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
 	const [lastClicked, setLastClicked] = useState<{
@@ -175,6 +189,33 @@ export default function StepsBoard({
 					))}
 				</div>
 			</div>
+
+			{timing.elapsedSeconds != null && (
+				<div className={styles.timeStats}>
+					<Tooltip title="Time during which any step was running, across all companies (overlaps merged) — idle/paused gaps excluded.">
+						<div className={styles.timeStat}>
+							<span className={styles.timeVal}>
+								{formatDuration(timing.activeSeconds)}
+								{timing.running && (
+									<span className={styles.timeLive}> ·live</span>
+								)}
+							</span>
+							<span className={styles.timeLabel}>Total step time</span>
+						</div>
+					</Tooltip>
+					<Tooltip title="Wall-clock from the first step's start to the last step's end (or now) — includes any pauses.">
+						<div className={styles.timeStat}>
+							<span className={styles.timeVal}>
+								{formatDuration(timing.elapsedSeconds)}
+								{timing.running && (
+									<span className={styles.timeLive}> ·live</span>
+								)}
+							</span>
+							<span className={styles.timeLabel}>Since first run</span>
+						</div>
+					</Tooltip>
+				</div>
+			)}
 
 			<div className={styles.filters}>
 				<Input

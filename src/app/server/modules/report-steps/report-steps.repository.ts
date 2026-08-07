@@ -1,6 +1,80 @@
 import { Prisma, report_status_enum } from "../../../../generated/prisma";
 import prisma from "../../../../lib/prisma";
 
+export interface RunTimingSummary {
+	/** Wall-clock from first start to last end (or now if running); includes pauses. */
+	elapsedSeconds: number | null;
+	/** Union of run intervals (overlaps merged) — active time, no double-counting. */
+	activeSeconds: number | null;
+	running: boolean;
+}
+
+/**
+ * Roll every company×step run into two report-wide numbers. Overlapping runs
+ * (parallel companies) are merged for `activeSeconds`, so it never exceeds the
+ * wall-clock `elapsedSeconds`; their difference is idle/paused time. A running
+ * step (no end_time yet) is measured to `now`.
+ */
+function computeRunTiming(
+	statuses: Array<{
+		status: string | null;
+		start_time: Date | null;
+		end_time: Date | null;
+	}>,
+): RunTimingSummary {
+	const now = Date.now();
+	const running = statuses.some((s) => s.status === "PROCESSING");
+
+	const intervals: Array<{ start: number; end: number }> = [];
+	for (const s of statuses) {
+		if (!s.start_time) continue;
+		const start = s.start_time.getTime();
+		const end = s.end_time
+			? s.end_time.getTime()
+			: s.status === "PROCESSING"
+				? now
+				: null;
+		if (end == null || end < start) continue;
+		intervals.push({ start, end });
+	}
+
+	if (intervals.length === 0) {
+		return { elapsedSeconds: null, activeSeconds: null, running };
+	}
+
+	let firstStart = Number.POSITIVE_INFINITY;
+	let lastEnd = Number.NEGATIVE_INFINITY;
+	for (const iv of intervals) {
+		if (iv.start < firstStart) firstStart = iv.start;
+		if (iv.end > lastEnd) lastEnd = iv.end;
+	}
+
+	// Union of intervals: merge overlaps so parallel companies aren't double-counted.
+	const sorted = [...intervals].sort((a, b) => a.start - b.start);
+	let unionMs = 0;
+	let curStart: number | null = null;
+	let curEnd = 0;
+	for (const iv of sorted) {
+		if (curStart === null) {
+			curStart = iv.start;
+			curEnd = iv.end;
+		} else if (iv.start > curEnd) {
+			unionMs += curEnd - curStart;
+			curStart = iv.start;
+			curEnd = iv.end;
+		} else if (iv.end > curEnd) {
+			curEnd = iv.end;
+		}
+	}
+	if (curStart !== null) unionMs += curEnd - curStart;
+
+	return {
+		elapsedSeconds: Math.max(0, (lastEnd - firstStart) / 1000),
+		activeSeconds: unionMs / 1000,
+		running,
+	};
+}
+
 export class ReportStepsRepository {
 	// ===== report_generation_steps (довідник) =====
 
@@ -192,6 +266,24 @@ export class ReportStepsRepository {
 			statusMap.set(`${s.company_id}_${s.step_id}`, s.status);
 		}
 
+		// Report-wide run timing across ALL company×step runs. `elapsed` is the
+		// wall-clock span (first start → last end, includes pauses); `active` is
+		// the union of run intervals (overlaps merged — parallel companies don't
+		// double-count), so `elapsed − active` is idle/paused time.
+		// start_time/end_time are not on the Prisma model, so read them raw.
+		const timingRows = await prisma.$queryRaw<
+			Array<{
+				status: string | null;
+				start_time: Date | null;
+				end_time: Date | null;
+			}>
+		>`
+			SELECT status::text AS status, start_time, end_time
+			FROM report_step_statuses
+			WHERE report_id = ${reportId}
+		`;
+		const timing = computeRunTiming(timingRows);
+
 		return {
 			companies: companies
 				.filter((c) => c.companies)
@@ -218,6 +310,7 @@ export class ReportStepsRepository {
 							report_status_enum.PENDING,
 					})),
 				})),
+			timing,
 		};
 	}
 
