@@ -1,10 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import prisma from "../../../../lib/prisma";
-import {
-	OptimizeSignalScopeError,
-	optimizeSignalScope,
-} from "../../../../lib/sm-optimize-signal-scope";
+import { optimizeSignalScope } from "../../../../lib/sm-optimize-signal-scope";
+import { resetToDefaultSignalScope } from "../../../../lib/sm-reset-default-signals";
 
 export async function POST(request: NextRequest) {
 	const auth = extractAdminFromRequest(request);
@@ -70,7 +68,7 @@ export async function POST(request: NextRequest) {
 	// Create report_settings, reports, report_steps, and report_companies as a
 	// single all-or-nothing unit, so a failure partway through (e.g. a bad
 	// step/company row) never leaves an orphaned report behind.
-	const { reportSettings, report } = await prisma.$transaction(async (tx) => {
+	const { report } = await prisma.$transaction(async (tx) => {
 		const reportSettings = await tx.report_settings.create({
 			data: {
 				id: nextRsId,
@@ -124,18 +122,27 @@ export async function POST(request: NextRequest) {
 	});
 
 	if (selectedCompanies.length > 0) {
-		// Seed the signal scope via Optimize (same procedure as the "Optimize
-		// signals" button), using the target count supplied on the create-report
-		// form.
-		const globalCatalogSignalCountRaw =
-			extraSettings?.global_catalog_signal_count;
-		const globalCatalogSignalCount =
-			typeof globalCatalogSignalCountRaw === "number" &&
-			globalCatalogSignalCountRaw > 0
-				? globalCatalogSignalCountRaw
-				: 30;
+		const useOptimizedSignalCatalog =
+			extraSettings?.use_optimized_signal_catalog === true;
 
-		await optimizeSignalScope(report.id, globalCatalogSignalCount);
+		if (useOptimizedSignalCatalog) {
+			// Seed the signal scope via Optimize (same procedure as the "Optimize
+			// signals" button), using the target count supplied on the
+			// create-report form.
+			const globalCatalogSignalCountRaw =
+				extraSettings?.global_catalog_signal_count;
+			const globalCatalogSignalCount =
+				typeof globalCatalogSignalCountRaw === "number" &&
+				globalCatalogSignalCountRaw > 0
+					? globalCatalogSignalCountRaw
+					: 30;
+
+			await optimizeSignalScope(report.id, globalCatalogSignalCount);
+		} else {
+			// Seed the full default signal catalog (same procedure as the "Reset
+			// to default" button) — no statistics-based trimming.
+			await resetToDefaultSignalScope(report.id);
+		}
 	}
 
 	return NextResponse.json(
