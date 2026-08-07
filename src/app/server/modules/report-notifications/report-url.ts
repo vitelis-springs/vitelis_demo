@@ -1,6 +1,7 @@
+const APP_BASE_URL = "https://vitelis-demo.vercel.app";
+
 function baseUrl(): string {
-	const url = process.env.APP_BASE_URL || "http://localhost:3000";
-	return url.endsWith("/") ? url.slice(0, -1) : url;
+	return APP_BASE_URL;
 }
 
 /** Route resolver for report deep-links embedded in notification payloads. */
