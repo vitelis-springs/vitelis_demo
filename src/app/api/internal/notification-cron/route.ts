@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
 	const unauthorized = verifyInternalCronSecret(request);
 	if (unauthorized) return unauthorized;
 
+	console.log("[NotificationScheduler] tick received");
 	try {
 		await ReportNotificationsService.runNotificationCronOnce();
 		return NextResponse.json({ success: true });

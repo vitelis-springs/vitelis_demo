@@ -13,8 +13,10 @@ export async function POST(request: NextRequest) {
 	const unauthorized = verifyInternalCronSecret(request);
 	if (unauthorized) return unauthorized;
 
+	console.log("[OrchestratorCron] tick received");
 	try {
 		await N8NTasksService.runCycle();
+		console.log("[OrchestratorCron] cycle complete");
 		return NextResponse.json({ success: true });
 	} catch (error) {
 		console.error("[OrchestratorCron] cycle failed:", error);
