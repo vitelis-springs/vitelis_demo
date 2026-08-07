@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
 	Alert,
@@ -32,6 +33,8 @@ interface Props {
 	open: boolean;
 	onClose: () => void;
 	customerId: string;
+	/** Names the downloaded workbook; falls back to a generic filename. */
+	customerName?: string;
 	run: ProductDiscoveryRun | null;
 	existingProductCount: number;
 	onApplied?: () => void;
@@ -90,6 +93,7 @@ export default function DiscoverProductsModal({
 	open,
 	onClose,
 	customerId,
+	customerName,
 	run,
 	existingProductCount,
 	onApplied,
@@ -97,6 +101,7 @@ export default function DiscoverProductsModal({
 	const { message } = App.useApp();
 	const queryClient = useQueryClient();
 	const [isApplying, setIsApplying] = useState(false);
+	const [isExporting, setIsExporting] = useState(false);
 	const [edits, setEdits] = useState<Record<string, DiscoveredProductPayload>>(
 		{},
 	);
@@ -193,10 +198,16 @@ export default function DiscoverProductsModal({
 			render: (_: unknown, row) => {
 				const urls = row.discovery?.evidence_urls ?? [];
 				if (urls.length === 0) return <Text type="secondary">none</Text>;
+				// Open the offering's own page when there is one. Checking a row
+				// against the hub page it was listed on tells the reviewer
+				// nothing — that same hub backs dozens of other rows.
+				const own = row.discovery?.link_url;
 				return (
-					<Tooltip title={urls.join("\n")}>
-						<a href={urls[0]} target="_blank" rel="noreferrer">
-							{urls.length} source{urls.length > 1 ? "s" : ""}
+					<Tooltip title={[own, ...urls].filter(Boolean).join("\n")}>
+						<a href={own || urls[0]} target="_blank" rel="noreferrer">
+							{own
+								? "own page"
+								: `${urls.length} source${urls.length > 1 ? "s" : ""}`}
 						</a>
 					</Tooltip>
 				);
@@ -213,13 +224,56 @@ export default function DiscoverProductsModal({
 		},
 	];
 
-	const handleApply = async () => {
-		const products = rows
+	/** The curated working set: selected rows, carrying any unsaved edits. */
+	const selectedPayloads = (): DiscoveredProductPayload[] =>
+		rows
 			.filter((r) => selected.includes(r.key))
 			.map((r) => {
 				const { key: _key, ...payload } = { ...rowFor(r), key: r.key };
 				return payload;
 			});
+
+	const handleDownload = async () => {
+		const products = selectedPayloads();
+		if (products.length === 0) return;
+
+		setIsExporting(true);
+		try {
+			// Built in the browser rather than fetched: the rows worth exporting
+			// are the ones on screen, edits and deselections included, and none
+			// of that exists on the server until Apply.
+			const { buildDiscoveredProductsWorkbook, safeFileName } = await import(
+				"../../shared/products-export-xlsx"
+			);
+			const blob = await buildDiscoveredProductsWorkbook({
+				products,
+				rejected: run?.summary?.rejected ?? [],
+			});
+			const url = window.URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = `${safeFileName(
+				customerName ?? "discovered-products",
+				"discovered-products",
+			)}-discovered-products.xlsx`;
+			document.body.appendChild(link);
+			link.click();
+			link.remove();
+			window.URL.revokeObjectURL(url);
+		} catch (err) {
+			message.error(
+				`Could not build the workbook: ${
+					err instanceof Error ? err.message : "unknown error"
+				}`,
+				8,
+			);
+		} finally {
+			setIsExporting(false);
+		}
+	};
+
+	const handleApply = async () => {
+		const products = selectedPayloads();
 		if (products.length === 0) return;
 
 		setIsApplying(true);
@@ -256,6 +310,16 @@ export default function DiscoverProductsModal({
 			footer={
 				<Space>
 					<Button onClick={onClose}>Cancel</Button>
+					<Tooltip title="A workbook the Import products dialog can read back, plus a sheet of confidence and evidence and one of what the run excluded.">
+						<Button
+							icon={<DownloadOutlined />}
+							loading={isExporting}
+							disabled={selected.length === 0}
+							onClick={() => void handleDownload()}
+						>
+							Download XLSX
+						</Button>
+					</Tooltip>
 					<Button
 						type="primary"
 						loading={isApplying}

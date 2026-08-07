@@ -267,6 +267,13 @@ export class ReportNotificationsService {
 	}
 
 	static async runNotificationCronOnce(): Promise<void> {
+		if (process.env.NOTIFICATIONS_SCHEDULER_ENABLED !== "true") {
+			console.log(
+				"[NotificationScheduler] disabled: NOTIFICATIONS_SCHEDULER_ENABLED is not set to true",
+			);
+			return;
+		}
+
 		await ReportNotificationsService.enqueueDueReportEvents();
 		await ReportNotificationsService.dispatchPendingDeliveries();
 	}

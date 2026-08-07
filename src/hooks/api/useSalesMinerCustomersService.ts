@@ -290,6 +290,13 @@ export interface DiscoveredProductPayload {
 	discovery: {
 		confidence: number;
 		evidence_urls: string[];
+		/**
+		 * The offering's own page, when discovery found one. This is what a
+		 * reviewer opens to check a row — unlike `evidence_urls[0]`, which for a
+		 * row read off a hub page is that hub, identical across dozens of rows.
+		 * Null when the row was grounded some other way.
+		 */
+		link_url?: string | null;
 		strategies: string[];
 		variants: string[];
 		retrieved_at: string | null;
