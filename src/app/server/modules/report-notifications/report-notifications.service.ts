@@ -274,7 +274,11 @@ export class ReportNotificationsService {
 			return;
 		}
 
-		await ReportNotificationsService.enqueueDueReportEvents();
-		await ReportNotificationsService.dispatchPendingDeliveries();
+		const enqueued = await ReportNotificationsService.enqueueDueReportEvents();
+		const { dispatched, failed } =
+			await ReportNotificationsService.dispatchPendingDeliveries();
+		console.log(
+			`[NotificationScheduler] cycle complete: enqueued=${enqueued} dispatched=${dispatched} failed=${failed}`,
+		);
 	}
 }
