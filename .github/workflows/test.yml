@@ -4,11 +4,11 @@ jobs:
   page_components_test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
-      - run: npm install -g pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+          node-version: '22.x'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: yarn test
