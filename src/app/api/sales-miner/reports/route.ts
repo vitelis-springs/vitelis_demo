@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
 				typeof globalCatalogSignalCountRaw === "number" &&
 				globalCatalogSignalCountRaw > 0
 					? globalCatalogSignalCountRaw
-					: 30;
+					: 25;
 
 			await optimizeSignalScope(report.id, globalCatalogSignalCount);
 		} else {

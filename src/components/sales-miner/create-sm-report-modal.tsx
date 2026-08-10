@@ -205,7 +205,7 @@ const CreateSMReportModal = forwardRef<CreateSMReportModalHandle, Props>(
 				useOptimizedSignalCatalog: false,
 				maxOpportunityCount: 15,
 				signalTotalCount: 50,
-				globalCatalogSignalCount: 30,
+				globalCatalogSignalCount: 25,
 				language: "en",
 				hasHorizon: false,
 				createProductSignals: true,
