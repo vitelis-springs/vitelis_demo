@@ -23,23 +23,6 @@ function apiErr(err: unknown): string {
 
 const { Text, Paragraph } = Typography;
 
-const PREVIEW_FIELDS = [
-	["Org Unit", "orgUnit"],
-	["Group/Category", "groupCategory"],
-	["Sub-Category", "subCategory"],
-	["Internal Description", "internalDescription"],
-	["Value Proposition", "valueProposition"],
-	["Customer Pain Point", "painPoint"],
-	["Markets", "markets"],
-	["Geographies", "geographies"],
-	["Price", "price"],
-	["Buying Trigger Signals", "buyingTriggerSignals"],
-	["Land Anchor", "landAnchor"],
-	["Expand Anchor", "expandAnchor"],
-	["Scale Anchor", "scaleAnchor"],
-	["Cross-Portfolio Connection", "crossPortfolioConnection"],
-] as const satisfies ReadonlyArray<[string, keyof ParsedProductRow]>;
-
 interface Props {
 	open: boolean;
 	onClose: () => void;
@@ -56,7 +39,7 @@ export default function ImportProductsModal({
 	onImported,
 	onExecutionStarted,
 }: Props) {
-	const { message } = App.useApp();
+	const { message, modal } = App.useApp();
 	const queryClient = useQueryClient();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [rows, setRows] = useState<ParsedProductRow[]>([]);
@@ -72,13 +55,27 @@ export default function ImportProductsModal({
 		if (fileInputRef.current) fileInputRef.current.value = "";
 	};
 
+	/** Validation errors need a click-to-dismiss modal, not a toast — the
+	 * whole point is giving the user time to actually read what's wrong. */
+	const showValidationError = (errorMessage: string) => {
+		modal.error({
+			title: "Import validation failed",
+			width: 600,
+			content: (
+				<Paragraph style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
+					{errorMessage}
+				</Paragraph>
+			),
+		});
+	};
+
 	const handleFileChange = async (file: File) => {
 		setIsParsing(true);
 		reset();
 		try {
 			const wb = await parseProductsWorkbook(file);
 			if (!wb.rows) {
-				message.error(
+				showValidationError(
 					`Sheet "product-table" not found. Found: ${wb.allSheetNames.join(", ")}`,
 				);
 				return;
@@ -93,7 +90,7 @@ export default function ImportProductsModal({
 				`Parsed ${wb.rows.length} products from "${wb.sheetName}"`,
 			);
 		} catch (err) {
-			message.error(
+			showValidationError(
 				err instanceof Error ? err.message : "Failed to parse XLSX",
 			);
 		} finally {
@@ -123,6 +120,7 @@ export default function ImportProductsModal({
 						expandAnchor: r.expandAnchor,
 						scaleAnchor: r.scaleAnchor,
 						crossPortfolioConnection: r.crossPortfolioConnection,
+						rawColumns: r.rawColumns,
 					})),
 				},
 			);
@@ -166,7 +164,7 @@ export default function ImportProductsModal({
 			reset();
 			onClose();
 		} catch (err) {
-			message.error(apiErr(err));
+			showValidationError(apiErr(err));
 		} finally {
 			setIsImporting(false);
 		}
@@ -174,10 +172,9 @@ export default function ImportProductsModal({
 
 	const columns: ColumnsType<ParsedProductRow> = [
 		{ title: "#", dataIndex: "rowNumber", width: 48 },
-		{ title: "Org Unit", dataIndex: "orgUnit", width: 110 },
 		{ title: "Group/Category", dataIndex: "groupCategory", width: 160 },
-		{ title: "Sub-Category", dataIndex: "subCategory", width: 160 },
 		{ title: "Product name", dataIndex: "productName" },
+		{ title: "Internal Description", dataIndex: "internalDescription" },
 		{
 			title: "",
 			key: "actions",
@@ -297,13 +294,13 @@ export default function ImportProductsModal({
 			>
 				{previewRow && (
 					<Space direction="vertical" size="middle" style={{ width: "100%" }}>
-						{PREVIEW_FIELDS.map(([label, key]) => (
-							<div key={key}>
+						{Object.entries(previewRow.rawColumns).map(([label, value]) => (
+							<div key={label}>
 								<Text strong style={{ display: "block", marginBottom: 4 }}>
 									{label}
 								</Text>
 								<Paragraph style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
-									{previewRow[key] || <Text type="secondary">—</Text>}
+									{value || <Text type="secondary">—</Text>}
 								</Paragraph>
 							</div>
 						))}

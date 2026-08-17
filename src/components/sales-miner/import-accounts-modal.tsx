@@ -231,13 +231,29 @@ export default function ImportAccountsModal({
 		if (fileInputRef.current) fileInputRef.current.value = "";
 	};
 
+	/** Validation errors need a click-to-dismiss modal, not a toast — the
+	 * whole point is giving the user time to actually read what's wrong. */
+	const showValidationError = (errorMessage: string) => {
+		modal.error({
+			title: "Import validation failed",
+			width: 600,
+			content: (
+				<Typography.Paragraph
+					style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}
+				>
+					{errorMessage}
+				</Typography.Paragraph>
+			),
+		});
+	};
+
 	const handleFileChange = async (file: File) => {
 		setIsParsing(true);
 		reset();
 		try {
 			const wb = await parseAccountsWorkbook(file);
 			if (!wb.rows) {
-				message.error(
+				showValidationError(
 					`Sheet "target-accounts" not found. Found: ${wb.allSheetNames.join(", ")}`,
 				);
 				return;
@@ -367,7 +383,7 @@ export default function ImportAccountsModal({
 				}),
 			);
 		} catch (err) {
-			message.error(
+			showValidationError(
 				err instanceof Error ? err.message : "Failed to parse XLSX",
 			);
 		} finally {

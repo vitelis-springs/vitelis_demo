@@ -131,6 +131,35 @@ function getCell(cellMap: Map<number, string>, col: number): string | null {
 	return trimmed;
 }
 
+function normalizeHeader(value: string): string {
+	return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function columnLetter(index: number): string {
+	return String.fromCharCode(65 + index);
+}
+
+/**
+ * Column order is load-bearing: parseAccountsSheet reads cells by index, not
+ * by header name. A user-supplied sheet with reordered/renamed/missing
+ * columns would otherwise parse "successfully" while silently shuffling
+ * data into the wrong fields.
+ */
+function validateHeaderRow(cellMap: Map<number, string>): void {
+	const mismatches = EXPECTED_ACCOUNTS_HEADERS.map((expected, index) => {
+		const actual = cellMap.get(index)?.trim() ?? "";
+		return normalizeHeader(actual) === normalizeHeader(expected)
+			? null
+			: `column ${columnLetter(index)}: expected "${expected}", found "${actual || "(empty)"}"`;
+	}).filter((m): m is string => m !== null);
+
+	if (mismatches.length > 0) {
+		throw new Error(
+			`The "target-accounts" sheet's columns don't match the expected template. ${mismatches.join("; ")}`,
+		);
+	}
+}
+
 function parseAccountsSheet(
 	worksheetXml: string,
 	sharedStrings: string[],
@@ -138,6 +167,16 @@ function parseAccountsSheet(
 	const doc = parseXmlDoc(worksheetXml);
 	const rowNodes = Array.from(doc.getElementsByTagName("row"));
 	const rows: ParsedAccountRow[] = [];
+
+	const headerRowNode = rowNodes.find(
+		(rowNode) => Number(rowNode.getAttribute("r") ?? "0") === 1,
+	);
+	if (!headerRowNode) {
+		throw new Error(
+			'Could not find the header row (row 1) in the "target-accounts" sheet.',
+		);
+	}
+	validateHeaderRow(parseRowCells(headerRowNode, sharedStrings));
 
 	for (const rowNode of rowNodes) {
 		const rowNumber = Number(rowNode.getAttribute("r") ?? "0");
