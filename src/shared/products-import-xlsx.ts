@@ -19,6 +19,17 @@ export const EXPECTED_PRODUCTS_HEADERS = [
 	"Cross-Portfolio Connection (Land → Expand → Scale)",
 ] as const;
 
+/**
+ * Columns are matched by header text, not position — a user's sheet can put
+ * them in any order. Only these three are actually required to import a row;
+ * everything else in EXPECTED_PRODUCTS_HEADERS is optional (null if absent).
+ */
+export const REQUIRED_PRODUCTS_HEADERS = [
+	"(Product) Group/Category",
+	"Product name",
+	"Internal Description",
+] as const;
+
 export interface ParsedProductRow {
 	rowNumber: number;
 	orgUnit: string | null;
@@ -36,6 +47,10 @@ export interface ParsedProductRow {
 	expandAnchor: string | null;
 	scaleAnchor: string | null;
 	crossPortfolioConnection: string | null;
+	/** Every column in the row, keyed by its header text — including any
+	 * columns beyond the known template fields above, so nothing the user
+	 * imported is silently dropped. */
+	rawColumns: Record<string, string | null>;
 }
 
 export interface ProductsWorkbook {
@@ -141,6 +156,49 @@ function getCell(cellMap: Map<number, string>, col: number): string | null {
 	return v && v.trim() ? v.trim() : null;
 }
 
+function normalizeHeader(value: string): string {
+	return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+interface HeaderRef {
+	index: number;
+	text: string;
+}
+
+/** Maps normalized header text -> the column index and original header text it was found at. */
+function buildHeaderIndex(
+	cellMap: Map<number, string>,
+): Map<string, HeaderRef> {
+	const byNormalized = new Map<string, HeaderRef>();
+	cellMap.forEach((value, index) => {
+		const text = value.trim();
+		if (!text) return;
+		const key = normalizeHeader(text);
+		// First occurrence wins if a header is duplicated.
+		if (!byNormalized.has(key)) byNormalized.set(key, { index, text });
+	});
+	return byNormalized;
+}
+
+function missingRequiredHeaders(headerIndex: Map<string, HeaderRef>): string[] {
+	return REQUIRED_PRODUCTS_HEADERS.filter(
+		(h) => !headerIndex.has(normalizeHeader(h)),
+	);
+}
+
+/** How header-row-like a row looks, so a "missing column" error can point at
+ * the row most likely to be the real header row rather than an arbitrary one. */
+function countKnownHeaderMatches(headerIndex: Map<string, HeaderRef>): number {
+	return EXPECTED_PRODUCTS_HEADERS.filter((h) =>
+		headerIndex.has(normalizeHeader(h)),
+	).length;
+}
+
+/**
+ * Columns are matched by header text, so position doesn't matter — a
+ * user-supplied sheet can reorder, drop, or add columns freely as long as
+ * the required headers are present somewhere with the exact expected text.
+ */
 function parseProductsSheet(
 	worksheetXml: string,
 	sharedStrings: string[],
@@ -149,34 +207,91 @@ function parseProductsSheet(
 	const rowNodes = Array.from(doc.getElementsByTagName("row"));
 	const rows: ParsedProductRow[] = [];
 
-	for (const rowNode of rowNodes) {
+	const rowsWithHeaderIndex = rowNodes.map((rowNode) => ({
+		rowNode,
+		headerIndex: buildHeaderIndex(parseRowCells(rowNode, sharedStrings)),
+	}));
+	if (rowsWithHeaderIndex.length === 0) {
+		throw new Error('The "product-table" sheet has no rows.');
+	}
+
+	const headerRowEntry =
+		rowsWithHeaderIndex.find(
+			({ headerIndex }) => missingRequiredHeaders(headerIndex).length === 0,
+		) ??
+		rowsWithHeaderIndex.reduce((best, candidate) =>
+			countKnownHeaderMatches(candidate.headerIndex) >
+			countKnownHeaderMatches(best.headerIndex)
+				? candidate
+				: best,
+		);
+
+	const missing = missingRequiredHeaders(headerRowEntry.headerIndex);
+	if (missing.length > 0) {
+		throw new Error(
+			`The "product-table" sheet is missing required column(s): ${missing.map((h) => `"${h}"`).join(", ")}.`,
+		);
+	}
+
+	const headerIndex = headerRowEntry.headerIndex;
+
+	const colOf = (headerName: string): number =>
+		headerIndex.get(normalizeHeader(headerName))?.index ?? -1;
+	const optional = (
+		cellMap: Map<number, string>,
+		headerName: string,
+	): string | null => {
+		const col = colOf(headerName);
+		return col === -1 ? null : getCell(cellMap, col);
+	};
+
+	const productNameCol = colOf("Product name");
+	const groupCategoryCol = colOf("(Product) Group/Category");
+
+	// Only rows below the header can be data — a preamble/instructions row
+	// above it could otherwise land in the same "Product name" column by
+	// coincidence and get misread as a product.
+	const headerRowPosition = rowNodes.indexOf(headerRowEntry.rowNode);
+	const dataRowNodes = rowNodes.slice(headerRowPosition + 1);
+
+	let rowCounter = 0;
+	for (const rowNode of dataRowNodes) {
 		const cellMap = parseRowCells(rowNode, sharedStrings);
 
-		// The template has a numeric "#" column for every real data row;
-		// header and description rows leave it blank or non-numeric.
-		const rowIndexRaw = getCell(cellMap, 0);
-		if (!rowIndexRaw || !/^\d+$/.test(rowIndexRaw)) continue;
-
-		const productName = getCell(cellMap, 4);
+		const productName = getCell(cellMap, productNameCol);
 		if (!productName) continue;
 
+		rowCounter += 1;
+
+		const rawColumns: Record<string, string | null> = {};
+		headerIndex.forEach(({ index, text }) => {
+			rawColumns[text] = getCell(cellMap, index);
+		});
+
 		rows.push({
-			rowNumber: Number(rowIndexRaw),
-			orgUnit: getCell(cellMap, 1),
-			groupCategory: getCell(cellMap, 2),
-			subCategory: getCell(cellMap, 3),
+			rowNumber: rowCounter,
+			orgUnit: optional(cellMap, "Org Unit"),
+			groupCategory: getCell(cellMap, groupCategoryCol) ?? "",
+			subCategory: optional(cellMap, "Sub-Category"),
 			productName,
-			internalDescription: getCell(cellMap, 5),
-			valueProposition: getCell(cellMap, 6),
-			painPoint: getCell(cellMap, 7),
-			markets: getCell(cellMap, 8),
-			geographies: getCell(cellMap, 9),
-			price: getCell(cellMap, 10),
-			buyingTriggerSignals: getCell(cellMap, 11),
-			landAnchor: getCell(cellMap, 12),
-			expandAnchor: getCell(cellMap, 13),
-			scaleAnchor: getCell(cellMap, 14),
-			crossPortfolioConnection: getCell(cellMap, 15),
+			internalDescription: optional(cellMap, "Internal Description"),
+			valueProposition: optional(cellMap, "Product Value proposition"),
+			painPoint: optional(
+				cellMap,
+				"Customer Pain point - resolved by the product/service",
+			),
+			markets: optional(cellMap, "Markets"),
+			geographies: optional(cellMap, "Geographies"),
+			price: optional(cellMap, "Price"),
+			buyingTriggerSignals: optional(cellMap, "Buying Trigger Signals"),
+			landAnchor: optional(cellMap, "Land Anchor"),
+			expandAnchor: optional(cellMap, "Expand Anchor"),
+			scaleAnchor: optional(cellMap, "Scale Anchor"),
+			crossPortfolioConnection: optional(
+				cellMap,
+				"Cross-Portfolio Connection (Land → Expand → Scale)",
+			),
+			rawColumns,
 		});
 	}
 

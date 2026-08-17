@@ -254,6 +254,7 @@ export class CustomersAdminService {
 
 		const missingGroup: number[] = [];
 		const missingName: number[] = [];
+		const missingDescription: number[] = [];
 		const items: ProductImportItem[] = body.products.map((raw, index) => {
 			if (!isRecord(raw)) {
 				throw new CustomersAdminValidationError(
@@ -264,12 +265,16 @@ export class CustomersAdminService {
 				typeof raw.groupCategory === "string" ? raw.groupCategory.trim() : "";
 			const name =
 				typeof raw.productName === "string" ? raw.productName.trim() : "";
+			const internalDescription =
+				typeof raw.internalDescription === "string"
+					? raw.internalDescription.trim()
+					: "";
 			if (!group) missingGroup.push(index);
 			if (!name) missingName.push(index);
+			if (!internalDescription) missingDescription.push(index);
 
 			const description =
-				(typeof raw.internalDescription === "string" &&
-					raw.internalDescription.trim()) ||
+				internalDescription ||
 				(typeof raw.valueProposition === "string" &&
 					raw.valueProposition.trim()) ||
 				"";
@@ -295,6 +300,10 @@ export class CustomersAdminService {
 				// this describes how the row was produced. Absent for XLSX
 				// imports, which is itself the signal that a human supplied it.
 				...(isRecord(raw.discovery) ? { discovery: raw.discovery } : {}),
+				// The full imported row, keyed by the XLSX's own header text —
+				// not just the fields additional_data mirrors. Preserves any
+				// columns the template doesn't have a dedicated field for.
+				...(isRecord(raw.rawColumns) ? { source_row: raw.rawColumns } : {}),
 			};
 
 			return {
@@ -313,6 +322,11 @@ export class CustomersAdminService {
 		if (missingName.length > 0) {
 			throw new CustomersAdminValidationError(
 				`products missing productName at rows: ${missingName.join(", ")}`,
+			);
+		}
+		if (missingDescription.length > 0) {
+			throw new CustomersAdminValidationError(
+				`products missing internalDescription at rows: ${missingDescription.join(", ")}`,
 			);
 		}
 
