@@ -1160,6 +1160,11 @@ export class DeepDiveRepository {
 				company_name: string | null;
 				company_logo_url: string | null;
 				is_approved: boolean | null;
+				lead_product_id: bigint | null;
+				lead_product_name: string | null;
+				lead_product_level: string | null;
+				lead_l2_product_id: bigint | null;
+				lead_l2_product_name: string | null;
 			}>
 		>`
       WITH latest_run AS (
@@ -1190,9 +1195,16 @@ export class DeepDiveRepository {
 	           WHERE pv.opportunity_id = oc.id) AS deep_dive_property_count,
 	        c.name AS company_name,
 	        c.logo_url AS company_logo_url,
-	        oc.is_approved AS is_approved
+	        oc.is_approved AS is_approved,
+	        oc.lead_product_id AS lead_product_id,
+	        lp.name AS lead_product_name,
+	        lp.product_level::text AS lead_product_level,
+	        oc.lead_l2_product_id AS lead_l2_product_id,
+	        l2.name AS lead_l2_product_name
       FROM public.opportunity_candidates oc
       JOIN public.companies c ON c.id = oc.company_id
+      LEFT JOIN public.customer_products lp ON lp.id = oc.lead_product_id
+      LEFT JOIN public.customer_products l2 ON l2.id = oc.lead_l2_product_id
       WHERE oc.research_run_id = (SELECT id FROM latest_run)
       ORDER BY oc.rank_position NULLS LAST, oc.id
     `;
@@ -1228,6 +1240,11 @@ export class DeepDiveRepository {
 				notes: string | null;
 				competitive_awareness: Prisma.JsonValue | null;
 				quality_json: Prisma.JsonValue | null;
+				lead_product_id: bigint | null;
+				lead_product_name: string | null;
+				lead_product_level: string | null;
+				lead_l2_product_id: bigint | null;
+				lead_l2_product_name: string | null;
 			}>
 		>`
       WITH latest_run AS (
@@ -1261,10 +1278,19 @@ export class DeepDiveRepository {
         oc.why_now,
         oc.notes,
         oc.competitive_awareness,
-        oc.meta::jsonb -> 'quality' AS quality_json
+        oc.meta::jsonb -> 'quality' AS quality_json,
+        oc.lead_product_id AS lead_product_id,
+        lp.name AS lead_product_name,
+        lp.product_level::text AS lead_product_level,
+        oc.lead_l2_product_id AS lead_l2_product_id,
+        l2.name AS lead_l2_product_name
       FROM public.opportunity_candidates oc
       JOIN public.companies c
         ON c.id = oc.company_id
+      LEFT JOIN public.customer_products lp
+        ON lp.id = oc.lead_product_id
+      LEFT JOIN public.customer_products l2
+        ON l2.id = oc.lead_l2_product_id
       WHERE oc.company_id = ${companyId}
         AND oc.id = ${opportunityId}
         AND oc.research_run_id = (SELECT id FROM latest_run)

@@ -1088,6 +1088,20 @@ export interface OpportunityCardStat {
 	raw: string | number | null;
 }
 
+/**
+ * The lead product this opportunity sells — `opportunity_candidates.lead_product_id`
+ * resolved against `customer_products`, with its L2 family for context.
+ */
+export interface OpportunityLeadProduct {
+	id: string;
+	name: string;
+	/** Catalogue level of the lead product ("l1" | "l2" | "l3"), when recorded. */
+	level: string | null;
+	/** The L2 family the lead product rolls up to, when recorded. */
+	l2Id: string | null;
+	l2Name: string | null;
+}
+
 export interface OpportunityCard {
 	id: string;
 	title: string;
@@ -1105,6 +1119,8 @@ export interface OpportunityCard {
 	stats: OpportunityCardStat[];
 	stakeholderCount: number;
 	productCount: number;
+	/** Null when the opportunity has no lead product recorded. */
+	leadProduct: OpportunityLeadProduct | null;
 	isApproved: boolean;
 }
 
@@ -1155,6 +1171,8 @@ export interface OpportunityDetailResponse {
 			priorityScore: number;
 			confidenceScore: number;
 			isApproved: boolean;
+			/** Null when the opportunity has no lead product recorded. */
+			leadProduct: OpportunityLeadProduct | null;
 		};
 		baseFields: OpportunityNarrativeField[];
 		deepDiveFields: OpportunityNarrativeField[];
