@@ -75,6 +75,23 @@ export default function OpportunityCard({
 
 			<div className={styles.menuTitle}>{card.title}</div>
 
+			{card.leadProduct && (
+				<div className={styles.menuProduct}>
+					<div className={styles.menuProductHead}>
+						<span className={styles.menuProductEyebrow}>Product</span>
+						<span className={styles.menuProductId}>
+							ID {card.leadProduct.id}
+						</span>
+					</div>
+					<div className={styles.menuProductName}>{card.leadProduct.name}</div>
+					{card.leadProduct.l2Name && (
+						<div className={styles.menuProductFamily}>
+							{card.leadProduct.l2Name}
+						</div>
+					)}
+				</div>
+			)}
+
 			<div className={styles.menuInfo}>
 				<MenuRow label="Company" value={card.companyName ?? "—"} />
 				<MenuRow
@@ -86,7 +103,7 @@ export default function OpportunityCard({
 				<MenuRow label="Status" value={card.status ?? "—"} />
 				<MenuRow label="Deal size" value={card.dealSize ?? "—"} />
 				<MenuRow label="Stakeholders" value={String(card.stakeholderCount)} />
-				<MenuRow label="Products" value={String(card.productCount)} />
+				<MenuRow label="Bundle items" value={String(card.productCount)} />
 			</div>
 
 			{onToggleApproval && (
@@ -201,6 +218,28 @@ export default function OpportunityCard({
 						</div>
 
 						<div className={styles.title}>{card.title}</div>
+
+						{card.leadProduct && (
+							<Tooltip
+								title={
+									card.leadProduct.l2Name
+										? `${card.leadProduct.name} — ID ${card.leadProduct.id} · ${card.leadProduct.l2Name}`
+										: `${card.leadProduct.name} — ID ${card.leadProduct.id}`
+								}
+							>
+								<div className={styles.productPlate}>
+									<div className={styles.productHead}>
+										<span className={styles.productEyebrow}>Product</span>
+										<span className={styles.productId}>
+											{card.leadProduct.id}
+										</span>
+									</div>
+									<div className={styles.productName}>
+										{card.leadProduct.name}
+									</div>
+								</div>
+							</Tooltip>
+						)}
 
 						{card.dealSize && (
 							<span className={styles.dealRibbon}>{card.dealSize}</span>

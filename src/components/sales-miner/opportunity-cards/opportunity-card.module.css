@@ -3,8 +3,13 @@
 	--fut: polygon(6% 0, 94% 0, 100% 6%, 100% 92%, 50% 100%, 0 92%, 0 6%);
 	position: relative;
 	width: 100%;
-	max-width: 264px;
-	aspect-ratio: 3 / 4;
+	max-width: 300px;
+	/* Taller than the 3/4 trading-card default: the product plate is a full
+	   block, not a chip. The min-height holds the floor when the grid column
+	   narrows — the aspect ratio alone would shrink the box while the text
+	   inside only grows taller. */
+	aspect-ratio: 3 / 4.7;
+	min-height: 440px;
 	padding: 4px;
 	clip-path: var(--fut);
 	background: linear-gradient(160deg, #3a3a3a, #111 55%, #2a2a2a);
@@ -32,7 +37,8 @@
 	width: 100%;
 	height: 100%;
 	clip-path: var(--fut);
-	padding: 16px 16px 30px;
+	/* Bottom padding clears the chevron, which is 8% of a now-taller card. */
+	padding: 16px 16px 42px;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -188,6 +194,7 @@
 }
 
 .header {
+	flex: 0 0 auto;
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
@@ -249,6 +256,49 @@
 	line-height: 1.4;
 }
 
+/* Product block in the popover — same plate idea, theme-aware via antd tokens. */
+.menuProduct {
+	padding: 8px 10px;
+	border-left: 3px solid currentColor;
+	border-radius: 0 4px 4px 0;
+	background: rgba(127, 127, 127, 0.12);
+}
+
+.menuProductHead {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.menuProductEyebrow {
+	font-size: 9px;
+	font-weight: 800;
+	letter-spacing: 1.4px;
+	text-transform: uppercase;
+	opacity: 0.6;
+}
+
+.menuProductId {
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+	font-size: 10.5px;
+	font-weight: 700;
+	opacity: 0.75;
+}
+
+.menuProductName {
+	margin-top: 2px;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.3;
+}
+
+.menuProductFamily {
+	margin-top: 3px;
+	font-size: 11px;
+	opacity: 0.65;
+}
+
 .menuInfo {
 	display: flex;
 	flex-direction: column;
@@ -302,6 +352,7 @@
 }
 
 .crest {
+	flex: 0 0 auto;
 	margin-top: 8px;
 	font-size: 12px;
 	font-weight: 600;
@@ -316,8 +367,12 @@
 	opacity: 0.55;
 }
 
+/* flex-shrink stays off for every block above the stats: the card is a fixed
+   aspect box, and a shrinking -webkit-box collapses to zero height instead of
+   clipping — which silently swallowed the opportunity title. */
 .title {
-	margin-top: 10px;
+	flex: 0 0 auto;
+	margin-top: 9px;
 	font-size: 13.5px;
 	font-weight: 700;
 	line-height: 1.3;
@@ -328,6 +383,7 @@
 }
 
 .dealRibbon {
+	flex: 0 0 auto;
 	margin-top: 10px;
 	align-self: flex-start;
 	font-size: 11px;
@@ -338,18 +394,76 @@
 	background: rgba(0, 0, 0, 0.22);
 }
 
+/* ---- Product plate: the opportunity's "club" ----
+   In the FUT language a player carries a club crest; here the lead product is
+   what an opportunity belongs to, so it gets the same treatment — a squared
+   plate with a struck left edge, not a soft pill. The catalogue ID sits in the
+   header line because that is the handle sellers look the product up by. */
+.productPlate {
+	flex: 0 0 auto;
+	margin-top: 9px;
+	padding: 5px 8px 6px;
+	border-left: 3px solid currentColor;
+	border-radius: 0 3px 3px 0;
+	background: rgba(0, 0, 0, 0.26);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+	cursor: help;
+}
+
+/* The ghost card drops the metallic fill; soften the plate to match. */
+.rejected .productPlate {
+	background: rgba(255, 255, 255, 0.05);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.productHead {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 6px;
+}
+
+.productEyebrow {
+	font-size: 8px;
+	font-weight: 800;
+	letter-spacing: 1.4px;
+	text-transform: uppercase;
+	opacity: 0.72;
+}
+
+.productId {
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+	font-size: 9.5px;
+	font-weight: 700;
+	letter-spacing: 0.4px;
+	opacity: 0.85;
+}
+
+.productName {
+	margin-top: 1px;
+	font-size: 11.5px;
+	font-weight: 800;
+	line-height: 1.22;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
 .divider {
 	height: 1px;
-	margin: 11px 0 9px;
+	margin: 10px 0 9px;
 	background: currentColor;
 	opacity: 0.3;
 }
 
 .stats {
+	flex: 0 0 auto;
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 8px 18px;
 	margin-top: auto;
+	padding-top: 2px;
 }
 
 .stat {

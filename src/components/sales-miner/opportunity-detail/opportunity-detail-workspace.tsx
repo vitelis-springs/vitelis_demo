@@ -17,6 +17,7 @@ import ConvictionSpine from "./conviction-spine";
 import DiscoveryQuestions from "./discovery-questions";
 import DossierSection from "./dossier-section";
 import ExportPreviewSection from "./export-preview/export-preview-section";
+import LeadProduct from "./lead-product";
 import { parseMeddpicc } from "./meddpicc";
 import MeddpiccDetail from "./meddpicc-detail";
 import NarrativeFieldEditor from "./narrative-field-editor";
@@ -324,6 +325,8 @@ export default function OpportunityDetailWorkspace({
 				horizonName={header.horizonName}
 				rankPosition={header.rankPosition}
 			/>
+
+			<LeadProduct product={header.leadProduct} />
 
 			<ConvictionSpine
 				priorityScore={header.priorityScore}

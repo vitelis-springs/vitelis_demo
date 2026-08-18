@@ -23,6 +23,7 @@ import type {
 	OpportunityCardTier,
 	OpportunityCardsResponse,
 	OpportunityDetailResponse,
+	OpportunityLeadProduct,
 	OpportunityNarrativeField,
 	OpportunityNarrativeFieldSource,
 	UpdateOpportunityNarrativeFieldPayload,
@@ -3367,6 +3368,29 @@ export class DeepDiveService {
 		}
 	}
 
+	/**
+	 * Resolve the joined lead-product columns into the view shape. Returns null
+	 * when the opportunity has no lead product, or the join found no row.
+	 */
+	private static buildLeadProduct(row: {
+		lead_product_id: bigint | null;
+		lead_product_name: string | null;
+		lead_product_level: string | null;
+		lead_l2_product_id: bigint | null;
+		lead_l2_product_name: string | null;
+	}): OpportunityLeadProduct | null {
+		if (row.lead_product_id == null) return null;
+		const name = row.lead_product_name?.trim();
+		if (!name) return null;
+		return {
+			id: row.lead_product_id.toString(),
+			name,
+			level: row.lead_product_level?.trim() || null,
+			l2Id: row.lead_l2_product_id?.toString() ?? null,
+			l2Name: row.lead_l2_product_name?.trim() || null,
+		};
+	}
+
 	private static tierForScore(overall: number): OpportunityCardTier {
 		if (overall >= 75) return "gold";
 		if (overall >= 50) return "silver";
@@ -3390,6 +3414,11 @@ export class DeepDiveService {
 		company_name: string | null;
 		company_logo_url: string | null;
 		is_approved: boolean | null;
+		lead_product_id: bigint | null;
+		lead_product_name: string | null;
+		lead_product_level: string | null;
+		lead_l2_product_id: bigint | null;
+		lead_l2_product_name: string | null;
 	}): OpportunityCard {
 		const overall = DeepDiveService.clampStat(row.priority_score);
 		const confidencePct = Math.round((row.confidence_score ?? 0) * 100);
@@ -3460,6 +3489,7 @@ export class DeepDiveService {
 			stats,
 			stakeholderCount: row.stakeholder_count,
 			productCount: row.product_count,
+			leadProduct: DeepDiveService.buildLeadProduct(row),
 			isApproved: row.is_approved ?? false,
 		};
 	}
@@ -3723,6 +3753,7 @@ export class DeepDiveService {
 					priorityScore,
 					confidenceScore: base.confidence_score,
 					isApproved: base.is_approved ?? false,
+					leadProduct: DeepDiveService.buildLeadProduct(base),
 				},
 				baseFields: DeepDiveService.buildOpportunityBaseFields(base),
 				deepDiveFields:

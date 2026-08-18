@@ -143,6 +143,111 @@
 	color: var(--signal);
 }
 
+/* ---- Lead product ----
+   What the opportunity actually sells. The catalogue ID is set large and
+   monospaced on an accent slab so it reads as a part number, not a footnote —
+   sellers quote it into the CRM. The slab is the only saturated block above
+   the spine, which is what makes the product impossible to miss without
+   adding a second accent colour to the page. */
+.leadProduct {
+	display: flex;
+	align-items: stretch;
+	gap: 18px;
+	padding: 16px 20px;
+	border-radius: 16px;
+	border: 1px solid color-mix(in srgb, var(--signal) 30%, var(--hair));
+	background: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--signal) 10%, var(--surface)),
+		var(--surface) 62%
+	);
+}
+
+.leadProductId {
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: flex-start;
+	gap: 2px;
+	padding: 8px 14px;
+	border-radius: 12px;
+	background: var(--signal);
+	/* Fixed white, not var(--surface): the slab keeps the indigo in both themes,
+	   so the text on it must not follow the container background. */
+	color: #fff;
+}
+
+.leadProductIdLabel {
+	font-size: 9.5px;
+	font-weight: 800;
+	letter-spacing: 1.6px;
+	text-transform: uppercase;
+	opacity: 0.8;
+}
+
+.leadProductIdValue {
+	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+	font-size: clamp(20px, 2vw, 26px);
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.5px;
+}
+
+.leadProductText {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 4px;
+}
+
+.leadProductEyebrow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--signal);
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 1.6px;
+	text-transform: uppercase;
+}
+
+.leadProductLevel {
+	padding: 1px 6px;
+	border-radius: 4px;
+	border: 1px solid color-mix(in srgb, var(--signal) 45%, transparent);
+	font-size: 9.5px;
+	letter-spacing: 1px;
+}
+
+.leadProductName {
+	margin: 0;
+	font-size: clamp(17px, 1.6vw, 21px);
+	font-weight: 800;
+	line-height: 1.24;
+	color: var(--ink);
+}
+
+.leadProductFamily {
+	color: var(--ink-3);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+@media (max-width: 560px) {
+	.leadProduct {
+		flex-direction: column;
+		gap: 12px;
+	}
+	.leadProductId {
+		flex-direction: row;
+		align-items: baseline;
+		gap: 8px;
+		align-self: flex-start;
+	}
+}
+
 /* ---- Signature: conviction spine ---- */
 .spine {
 	display: flex;
