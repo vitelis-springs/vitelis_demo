@@ -168,4 +168,32 @@ describe("opportunity export sheets", () => {
 
 		expect(sheet).toBeNull();
 	});
+
+	it("lists source reports on the overview sheet for a multi-report export", () => {
+		const sheet = buildOverview(
+			[
+				{ opportunity_candidate_id: 1, account: "Ford" },
+				{ opportunity_candidate_id: 2, account: "BMW Group" },
+			],
+			[
+				{ id: 217, name: "IoT products", opportunities: 13 },
+				{ id: 164, name: "TMUS dynamic", opportunities: 120 },
+			],
+		);
+
+		const table = sheet.overviewTables?.[0];
+		expect(table?.title).toBe("Reports included");
+		expect(table?.rows).toEqual([
+			{ id: 217, name: "IoT products", opportunities: 13 },
+			{ id: 164, name: "TMUS dynamic", opportunities: 120 },
+		]);
+	});
+
+	it("omits the reports table when exporting a single report", () => {
+		const sheet = buildOverview([
+			{ opportunity_candidate_id: 1, account: "Ford" },
+		]);
+
+		expect(sheet.overviewTables).toBeUndefined();
+	});
 });

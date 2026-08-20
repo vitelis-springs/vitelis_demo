@@ -1,3 +1,4 @@
+-- Active: 1726427046767@@127.0.0.1@5432@sm-engine-prototip@public
 -- Migration: external resource call logs, pricing and cost views
 -- Apply to local DB: psql -U postgres -d vitelis_local -f prisma/migrations_manual/001_external_resource_costs.sql
 

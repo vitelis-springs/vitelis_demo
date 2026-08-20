@@ -42,11 +42,24 @@ export async function resolveRankingVersion(
 	return rows[0]?.ranking_version ?? null;
 }
 
+/**
+ * Which opportunities to include by their export approval flag.
+ * "approved" is the default and matches what the report export has always done.
+ */
+export type ApprovalFilter = "approved" | "unapproved" | "all";
+
+const APPROVAL_SQL: Record<ApprovalFilter, string> = {
+	approved: "AND oc.is_approved IS TRUE",
+	unapproved: "AND oc.is_approved IS NOT TRUE",
+	all: "",
+};
+
 export type LoadRawExportOptions = {
 	reportId: number;
 	companyIds?: number[];
 	researchRunIds?: number[];
 	rankingVersion?: string | null;
+	approval?: ApprovalFilter;
 };
 
 /**
@@ -66,7 +79,11 @@ export async function loadRawExport(
 	const sql = OPPS_QUERY_SQL.replace("{{REPORT_IDS}}", sqlIntArray([reportId]))
 		.replace("{{COMPANY_IDS}}", sqlIntArray(options.companyIds ?? []))
 		.replace("{{RESEARCH_RUN_IDS}}", sqlIntArray(options.researchRunIds ?? []))
-		.replace("{{RANKING_VERSION}}", sqlTextOrNull(rankingVersion));
+		.replace("{{RANKING_VERSION}}", sqlTextOrNull(rankingVersion))
+		.replace(
+			"{{APPROVAL_FILTER}}",
+			APPROVAL_SQL[options.approval ?? "approved"],
+		);
 
 	const rows = await prisma.$queryRawUnsafe<RawRow[]>(sql);
 	return { rows, rankingVersion, sql };

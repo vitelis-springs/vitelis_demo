@@ -1205,3 +1205,43 @@ export interface UpdateOpportunityNarrativeFieldResponse {
 		field: OpportunityNarrativeField;
 	};
 }
+
+// --- Customer-wide opportunities export ---------------------------------
+
+/** Which opportunities to include, by their "selected for DOP export" flag. */
+export type OpportunityExportApproval = "approved" | "unapproved" | "all";
+
+export interface CustomerExportScopeAccount {
+	companyId: number;
+	companyName: string;
+	totalOpportunities: number;
+	approvedOpportunities: number;
+}
+
+export interface CustomerExportScopeReport {
+	reportId: number;
+	reportName: string;
+	createdAt: string | null;
+	accounts: CustomerExportScopeAccount[];
+	totalOpportunities: number;
+	approvedOpportunities: number;
+}
+
+export interface CustomerExportScopeResponse {
+	success: boolean;
+	data: {
+		customerId: number;
+		reports: CustomerExportScopeReport[];
+	};
+}
+
+/** One report's slice of an export request; empty accounts means all of them. */
+export interface CustomerExportRequestReport {
+	reportId: number;
+	companyIds?: number[];
+}
+
+export interface CustomerExportOpportunitiesPayload {
+	reports: CustomerExportRequestReport[];
+	approval?: OpportunityExportApproval;
+}
