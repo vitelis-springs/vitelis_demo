@@ -18,6 +18,8 @@ import {
 import { ReportStepsRepository } from "../report-steps/report-steps.repository";
 import { DeepDiveRepository } from "./deep-dive.repository";
 import type {
+	CustomerExportScopeReport,
+	CustomerExportScopeResponse,
 	OpportunityCard,
 	OpportunityCardStat,
 	OpportunityCardTier,
@@ -3691,6 +3693,49 @@ export class DeepDiveService {
 			DeepDiveService.resolveOpportunityReviewField(source, field)?.label ??
 			field
 		);
+	}
+
+	/**
+	 * Reports a customer owns, each with its accounts and opportunity counts —
+	 * the picker behind the customer-wide opportunities export.
+	 */
+	static async getCustomerOpportunityExportScope(
+		customerId: number,
+	): Promise<CustomerExportScopeResponse> {
+		const rows =
+			await DeepDiveRepository.getCustomerOpportunityExportScope(customerId);
+
+		const byReport = new Map<number, CustomerExportScopeReport>();
+		for (const row of rows) {
+			let report = byReport.get(row.report_id);
+			if (!report) {
+				report = {
+					reportId: row.report_id,
+					reportName: row.report_name?.trim() || `Report #${row.report_id}`,
+					createdAt: row.report_created_at?.toISOString() ?? null,
+					accounts: [],
+					totalOpportunities: 0,
+					approvedOpportunities: 0,
+				};
+				byReport.set(row.report_id, report);
+			}
+			report.accounts.push({
+				companyId: row.company_id,
+				companyName: row.company_name?.trim() || `Company #${row.company_id}`,
+				totalOpportunities: row.total_opportunities,
+				approvedOpportunities: row.approved_opportunities,
+			});
+			report.totalOpportunities += row.total_opportunities;
+			report.approvedOpportunities += row.approved_opportunities;
+		}
+
+		return {
+			success: true,
+			data: {
+				customerId,
+				reports: Array.from(byReport.values()),
+			},
+		};
 	}
 
 	static async getOpportunityDetail(

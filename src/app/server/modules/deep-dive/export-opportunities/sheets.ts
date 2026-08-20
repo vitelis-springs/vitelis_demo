@@ -773,7 +773,17 @@ export function buildWhyNow(propertyRows: RawRow[]): SheetData | null {
 	};
 }
 
-export function buildOverview(rows: RawRow[]): SheetData {
+/** One source report in a multi-report export, listed on the Overview sheet. */
+export type OverviewReport = {
+	id: number;
+	name: string;
+	opportunities: number;
+};
+
+export function buildOverview(
+	rows: RawRow[],
+	reportsIncluded?: OverviewReport[],
+): SheetData {
 	const accounts = new Set(
 		rows.map((r) => asString(getField(r, "account"))).filter(Boolean),
 	);
@@ -804,6 +814,23 @@ export function buildOverview(rows: RawRow[]): SheetData {
 		required: true,
 		columns: [],
 		rows: [],
+		overviewTables: reportsIncluded?.length
+			? [
+					{
+						title: "Reports included",
+						columns: [
+							{ field: "id", title: "Report ID" },
+							{ field: "name", title: "Report" },
+							{ field: "opportunities", title: "Opportunities" },
+						],
+						rows: reportsIncluded.map((r) => ({
+							id: r.id,
+							name: r.name,
+							opportunities: r.opportunities,
+						})),
+					},
+				]
+			: undefined,
 		metricBlocks: [
 			{
 				title: "Summary metrics",

@@ -3799,4 +3799,53 @@ export class DeepDiveRepository {
 				: []),
 		]);
 	}
+
+	/**
+	 * Sales Miner reports belonging to a customer, one row per report account,
+	 * with opportunity counts. Customer ownership lives in the report settings
+	 * JSON (`settings.customer_id`), not in a foreign key.
+	 *
+	 * Counts apply the same `include_in_final_pack` rule the export query uses,
+	 * so what the picker promises matches what the workbook contains.
+	 */
+	static async getCustomerOpportunityExportScope(customerId: number) {
+		return prisma.$queryRaw<
+			Array<{
+				report_id: number;
+				report_name: string | null;
+				report_created_at: Date | null;
+				company_id: number;
+				company_name: string | null;
+				total_opportunities: number;
+				approved_opportunities: number;
+			}>
+		>`
+      WITH customer_reports AS (
+        SELECT r.id, r.name, r.created_at
+        FROM public.reports r
+        JOIN public.report_settings rs
+          ON rs.id = r.report_settings_id
+        WHERE NULLIF(rs.settings->>'customer_id', '')::bigint = ${customerId}
+          AND r.report_type = 'sales_miner'
+      )
+      SELECT
+        cr.id AS report_id,
+        cr.name AS report_name,
+        cr.created_at AS report_created_at,
+        c.id AS company_id,
+        c.name AS company_name,
+        COUNT(oc.id)::int AS total_opportunities,
+        COUNT(*) FILTER (WHERE oc.is_approved IS TRUE)::int AS approved_opportunities
+      FROM customer_reports cr
+      JOIN public.research_runs rr
+        ON rr.report_id = cr.id
+      JOIN public.companies c
+        ON c.id = rr.company_id
+      LEFT JOIN public.opportunity_candidates oc
+        ON oc.research_run_id = rr.id
+       AND COALESCE((oc.meta::jsonb->>'include_in_final_pack')::boolean, true) = true
+      GROUP BY cr.id, cr.name, cr.created_at, c.id, c.name
+      ORDER BY cr.created_at DESC NULLS LAST, cr.id DESC, c.name
+    `;
+	}
 }

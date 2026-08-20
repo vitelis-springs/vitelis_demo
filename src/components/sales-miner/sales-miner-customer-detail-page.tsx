@@ -50,6 +50,7 @@ import {
 } from "../../hooks/api/useSalesMinerCustomersService";
 import { useAuth } from "../../hooks/useAuth";
 import { api } from "../../lib/api-client";
+import CustomerOpportunitiesExportModal from "./customer-opportunities-export-modal";
 import {
 	BOOLEAN_DEFAULTS,
 	mergeDiscoverySettings,
@@ -911,6 +912,7 @@ function SalesMinerCustomerDetailContent({
 	>();
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
+	const [oppExportOpen, setOppExportOpen] = useState(false);
 
 	const handleExport = async () => {
 		setIsExporting(true);
@@ -1047,6 +1049,9 @@ function SalesMinerCustomerDetailContent({
 							<Switch checked={detail.is_active} disabled size="small" />
 							<Button loading={isExporting} onClick={() => void handleExport()}>
 								Export to XLSX
+							</Button>
+							<Button onClick={() => setOppExportOpen(true)}>
+								Export opportunities
 							</Button>
 							<Button onClick={() => setEditModalOpen(true)}>Edit</Button>
 						</Space>
@@ -1255,6 +1260,13 @@ function SalesMinerCustomerDetailContent({
 							</Form.Item>
 						</Form>
 					</Modal>
+
+					<CustomerOpportunitiesExportModal
+						open={oppExportOpen}
+						onClose={() => setOppExportOpen(false)}
+						customerId={Number(customerId)}
+						customerName={detail.display_name}
+					/>
 				</>
 			)}
 		</DeepDivePageLayout>

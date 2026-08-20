@@ -1888,6 +1888,153 @@ export class DeepDiveController {
 		}
 	}
 
+	static async getCustomerOpportunityExportScope(
+		request: NextRequest,
+		customerIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const customerId = Number(customerIdParam);
+			if (!Number.isFinite(customerId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid customer id" },
+					{ status: 400 },
+				);
+			}
+
+			const result =
+				await DeepDiveService.getCustomerOpportunityExportScope(customerId);
+			return NextResponse.json(result);
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.getCustomerOpportunityExportScope:",
+				error,
+			);
+			return NextResponse.json(
+				{ success: false, error: "Failed to load export scope" },
+				{ status: 500 },
+			);
+		}
+	}
+
+	/**
+	 * Customer-wide opportunities workbook. POST because the report/account
+	 * selection is a body, not something to hang off a URL.
+	 */
+	static async exportCustomerOpportunitiesXlsx(
+		request: NextRequest,
+		customerIdParam: string,
+	): Promise<NextResponse> {
+		try {
+			const auth = extractAdminFromRequest(request);
+			if (!auth.success) return auth.response;
+
+			const customerId = Number(customerIdParam);
+			if (!Number.isFinite(customerId)) {
+				return NextResponse.json(
+					{ success: false, error: "Invalid customer id" },
+					{ status: 400 },
+				);
+			}
+
+			const body = (await request.json().catch(() => null)) as {
+				reports?: Array<{ reportId?: unknown; companyIds?: unknown }>;
+				approval?: unknown;
+			} | null;
+
+			const reports = (body?.reports ?? [])
+				.map((entry) => ({
+					reportId: Number(entry?.reportId),
+					companyIds: Array.isArray(entry?.companyIds)
+						? entry.companyIds
+								.map((id) => Number(id))
+								.filter((id) => Number.isFinite(id))
+						: undefined,
+				}))
+				.filter((entry) => Number.isFinite(entry.reportId));
+
+			if (reports.length === 0) {
+				return NextResponse.json(
+					{ success: false, error: "Select at least one report" },
+					{ status: 400 },
+				);
+			}
+
+			const approval =
+				body?.approval === "unapproved" || body?.approval === "all"
+					? body.approval
+					: "approved";
+
+			// The picker is client-side, so re-check that every requested report
+			// actually belongs to this customer before reading its opportunities.
+			const scope =
+				await DeepDiveService.getCustomerOpportunityExportScope(customerId);
+			const ownedReportIds = new Set(
+				scope.data.reports.map((report) => report.reportId),
+			);
+			const foreign = reports.filter(
+				(entry) => !ownedReportIds.has(entry.reportId),
+			);
+			if (foreign.length > 0) {
+				return NextResponse.json(
+					{
+						success: false,
+						error: `Reports not owned by this customer: ${foreign
+							.map((entry) => entry.reportId)
+							.join(", ")}`,
+					},
+					{ status: 403 },
+				);
+			}
+
+			const { default: prisma } = await import("../../../../lib/prisma");
+			const { exportOpportunitiesWorkbook } = await import(
+				"./export-opportunities"
+			);
+
+			const { buffer, diagnostics } = await exportOpportunitiesWorkbook(
+				prisma,
+				{
+					reports,
+					approval,
+				},
+			);
+
+			if (diagnostics.rawRowCount === 0) {
+				return NextResponse.json(
+					{
+						success: false,
+						error: "No opportunities match the selected reports and filter",
+					},
+					{ status: 404 },
+				);
+			}
+
+			return new NextResponse(buffer, {
+				headers: {
+					"Content-Type":
+						"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					"Content-Disposition": `attachment; filename="opportunities_customer_${customerId}.xlsx"`,
+				},
+			});
+		} catch (error) {
+			console.error(
+				"❌ DeepDiveController.exportCustomerOpportunitiesXlsx:",
+				error,
+			);
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to export opportunities";
+			return NextResponse.json(
+				{ success: false, error: message },
+				{ status: 500 },
+			);
+		}
+	}
+
 	static async exportOpportunitiesXlsx(
 		request: NextRequest,
 		reportIdParam: string,

@@ -14,6 +14,8 @@ import type {
 	CreateReportModelItemPayload,
 	CreateReportPayload,
 	CreateValidationRulePayload,
+	CustomerExportOpportunitiesPayload,
+	CustomerExportScopeResponse,
 	DeepDiveCompaniesResponse,
 	DeepDiveCompanyResponse,
 	DeepDiveDetailResponse,
@@ -1381,6 +1383,73 @@ export const useExportOpportunitiesXlsx = () => {
 			const safeReportName = sanitizeFileNameSegment(reportName, "report");
 			const exportDate = formatSalesMinerExportDate(new Date());
 			a.download = `salesminer_${reportId}_${safeReportName}_${exportDate}.xlsx`;
+			a.click();
+			URL.revokeObjectURL(url);
+		},
+	});
+};
+
+/** Reports a customer owns, with their accounts and opportunity counts. */
+export const useGetCustomerExportScope = (
+	customerId: number,
+	enabled = true,
+) => {
+	return useQuery({
+		queryKey: ["sales-miner", "customer-export-scope", customerId],
+		queryFn: async () => {
+			const response = await api.get(
+				`/sales-miner/customers/${customerId}/opportunities-export/scope`,
+			);
+			return response.data as CustomerExportScopeResponse;
+		},
+		enabled: enabled && Number.isFinite(customerId),
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+	});
+};
+
+/**
+ * A blob response type applies to errors too, so a 400/403/404 arrives as a
+ * Blob holding JSON. Unwrap it so the caller sees the server's message instead
+ * of a generic request failure.
+ */
+async function readBlobError(error: unknown): Promise<string | null> {
+	const payload = (error as { response?: { data?: unknown } })?.response?.data;
+	if (!(payload instanceof Blob)) return null;
+	try {
+		const parsed = JSON.parse(await payload.text()) as { error?: string };
+		return parsed.error ?? null;
+	} catch {
+		return null;
+	}
+}
+
+export const useExportCustomerOpportunitiesXlsx = () => {
+	return useMutation({
+		mutationFn: async ({
+			customerId,
+			customerName,
+			...payload
+		}: CustomerExportOpportunitiesPayload & {
+			customerId: number;
+			customerName?: string | null;
+		}) => {
+			const response = await api
+				.post(
+					`/sales-miner/customers/${customerId}/opportunities-export`,
+					payload,
+					{ responseType: "blob" },
+				)
+				.catch(async (error: unknown) => {
+					const message = await readBlobError(error);
+					throw message ? new Error(message) : error;
+				});
+			const url = URL.createObjectURL(response.data as Blob);
+			const a = document.createElement("a");
+			a.href = url;
+			const safeName = sanitizeFileNameSegment(customerName, "customer");
+			const exportDate = formatSalesMinerExportDate(new Date());
+			a.download = `salesminer_customer_${customerId}_${safeName}_${exportDate}.xlsx`;
 			a.click();
 			URL.revokeObjectURL(url);
 		},

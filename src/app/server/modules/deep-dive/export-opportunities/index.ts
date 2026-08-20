@@ -1,3 +1,4 @@
+import type { ApprovalFilter } from "./opps-query";
 import { loadDeepDivePropertyValues, loadRawExport } from "./opps-query";
 import { asNumber, getField } from "./parsers";
 import {
@@ -22,7 +23,12 @@ import {
 	buildWhyNow,
 	detectMissingColumns,
 } from "./sheets";
-import type { ExportDiagnostics, ParseWarningBucket, SheetData } from "./types";
+import type {
+	ExportDiagnostics,
+	ParseWarningBucket,
+	RawRow,
+	SheetData,
+} from "./types";
 import { writeWorkbook } from "./workbook";
 
 type QueryClient = {
@@ -37,15 +43,91 @@ export type ExportOpportunitiesResult = {
 	diagnostics: ExportDiagnostics;
 };
 
+/** One report in the export, optionally narrowed to some of its accounts. */
+export type ExportScopeReport = {
+	reportId: number;
+	/** Empty or omitted means every account in the report. */
+	companyIds?: number[];
+};
+
+export type ExportOpportunitiesScope = {
+	reports: ExportScopeReport[];
+	approval?: ApprovalFilter;
+};
+
+/** A plain report id keeps the original single-report call sites working. */
+function normalizeScope(
+	scope: number | ExportOpportunitiesScope,
+): ExportOpportunitiesScope {
+	return typeof scope === "number" ? { reports: [{ reportId: scope }] } : scope;
+}
+
 /**
- * Builds the multi-sheet opportunities workbook for a Sales Miner report.
- * Public entry point used by DeepDiveController.exportOpportunitiesXlsx.
+ * Reads report names for the Overview breakdown. Kept separate from the heavy
+ * OPPS_QUERY so a missing name never fails the export.
+ */
+async function loadReportNames(
+	prisma: QueryClient,
+	reportIds: number[],
+): Promise<Map<number, string>> {
+	if (reportIds.length === 0) return new Map();
+	const ids = reportIds.map((id) => Math.trunc(id)).join(",");
+	const rows = await prisma.$queryRawUnsafe<
+		Array<{ id: number; name: string | null }>
+	>(`SELECT id, name FROM public.reports WHERE id = ANY(ARRAY[${ids}]::int[])`);
+	return new Map(rows.map((r) => [Number(r.id), r.name?.trim() || ""]));
+}
+
+/**
+ * Builds the multi-sheet opportunities workbook for one or more Sales Miner
+ * reports. Each report is queried on its own — ranking_version is resolved per
+ * report, so reports on different ranking versions still each contribute their
+ * current opportunities — and the rows are then merged through the same sheet
+ * builders the single-report export uses.
  */
 export async function exportOpportunitiesWorkbook(
 	prisma: QueryClient,
-	reportId: number,
+	scope: number | ExportOpportunitiesScope,
 ): Promise<ExportOpportunitiesResult> {
-	const { rows, rankingVersion } = await loadRawExport(prisma, { reportId });
+	const { reports, approval } = normalizeScope(scope);
+	if (reports.length === 0) {
+		throw new Error("No reports selected for export");
+	}
+
+	const rows: RawRow[] = [];
+	const perReport: Array<{
+		reportId: number;
+		rowCount: number;
+		rankingVersion: string | null;
+	}> = [];
+
+	for (const report of reports) {
+		const loaded = await loadRawExport(prisma, {
+			reportId: report.reportId,
+			companyIds: report.companyIds,
+			approval,
+		});
+		rows.push(...loaded.rows);
+		perReport.push({
+			reportId: report.reportId,
+			rowCount: loaded.rows.length,
+			rankingVersion: loaded.rankingVersion,
+		});
+	}
+
+	// Single-report exports keep reporting one version, as they always have.
+	const rankingVersion =
+		perReport.length === 1
+			? (perReport[0]?.rankingVersion ?? null)
+			: Array.from(
+					new Set(
+						perReport
+							.map((r) => r.rankingVersion)
+							.filter((v): v is string => Boolean(v)),
+					),
+				)
+					.sort()
+					.join(", ") || null;
 
 	const warnings: ParseWarningBucket = {};
 	const missingColumns = detectMissingColumns(rows);
@@ -113,7 +195,25 @@ export async function exportOpportunitiesWorkbook(
 	if (whyNow) mid.push(whyNow);
 	mid.push(raw);
 
-	const overview = buildOverview(rows);
+	// Rows from different reports are indistinguishable once merged, so a
+	// multi-report export names its sources in the Overview sheet.
+	const reportNames =
+		perReport.length > 1
+			? await loadReportNames(
+					prisma,
+					perReport.map((r) => r.reportId),
+				)
+			: new Map<number, string>();
+	const overview = buildOverview(
+		rows,
+		perReport.length > 1
+			? perReport.map((r) => ({
+					id: r.reportId,
+					name: reportNames.get(r.reportId) || `Report #${r.reportId}`,
+					opportunities: r.rowCount,
+				}))
+			: undefined,
+	);
 	const ordered: SheetData[] = [overview, ...mid];
 
 	// exceljs is a runtime dependency; types may be absent in incomplete installs
@@ -147,7 +247,8 @@ export async function exportOpportunitiesWorkbook(
 	};
 
 	console.info("[export-opportunities] completed", {
-		reportId,
+		reports: perReport,
+		approval: approval ?? "approved",
 		rankingVersion,
 		rawRowCount: diagnostics.rawRowCount,
 		sheetCount: diagnostics.sheets.length,
