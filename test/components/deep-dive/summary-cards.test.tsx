@@ -37,6 +37,20 @@ jest.mock("../../../src/hooks/api/useReportStepsService", () => ({
 		mutate: jest.fn(),
 		isPending: false,
 	})),
+	// The Start/Pause button reads these to decide which orchestrator it is
+	// talking to. n8n here keeps these cards' assertions about the old path.
+	useGetOrchestratorController: jest.fn(() => ({
+		isLoading: false,
+		isError: false,
+		data: { data: { controller: "n8n" } },
+	})),
+	useGetEngineRun: jest.fn(() => ({
+		isLoading: false,
+		isError: false,
+		data: { data: { run: null } },
+	})),
+	useStartEngineRun: jest.fn(() => ({ mutate: jest.fn(), isPending: false })),
+	usePauseEngineRun: jest.fn(() => ({ mutate: jest.fn(), isPending: false })),
 }));
 
 import SummaryCards from "../../../src/components/deep-dive/summary-cards";
