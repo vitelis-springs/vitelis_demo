@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { report_status_enum } from "../../../../generated/prisma";
 import { extractAdminFromRequest } from "../../../../lib/auth";
 import { ReportStepsService } from "./report-steps.service";
+import { requireController } from "../sm-engine";
 
 function parseStatus(value: string | null) {
 	if (!value) return null;
@@ -946,6 +947,9 @@ export class ReportStepsController {
 				// Body може бути пустим
 			}
 
+			const mandate = await requireController("n8n", "start the orchestrator");
+			if (!mandate.ok) return mandate.response;
+
 			const result = await ReportStepsService.startOrchestrator(reportId, {
 				parallel_limit: body.parallel_limit,
 			});
@@ -987,6 +991,9 @@ export class ReportStepsController {
 					{ status: 400 },
 				);
 			}
+
+			const mandate = await requireController("n8n", "trigger an engine tick");
+			if (!mandate.ok) return mandate.response;
 
 			const result = await ReportStepsService.triggerEngineTick(
 				reportId,
@@ -1037,6 +1044,17 @@ export class ReportStepsController {
 					{ success: false, error: "Invalid status value" },
 					{ status: 400 },
 				);
+			}
+
+			// Only the status is n8n's to set. The metadata on this row — the
+			// per-report parallel limit — is read by whoever is driving, and the
+			// settings editor stays open under both orchestrators.
+			if (status) {
+				const mandate = await requireController(
+					"n8n",
+					"set the orchestrator status",
+				);
+				if (!mandate.ok) return mandate.response;
 			}
 
 			const result = await ReportStepsService.updateOrchestrator(

@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api-client";
+import { isControllerChanged } from "../../lib/orchestrator/engine-error-message";
+import type {
+	SmEngineController,
+	SmEngineExecutionState,
+	SmEngineRun,
+	SmEngineStartAction,
+} from "../../types/sm-engine.types";
 
 // ===== Types =====
 
@@ -131,6 +138,33 @@ export interface EnsureOrchestratorResponse {
 		status: StepStatus;
 		metadata: unknown;
 	};
+}
+
+// ===== SM Engine run control =====
+
+// Re-exported under the names the components already use; the shapes
+// themselves live beside the server client, so the browser and the engine
+// cannot end up describing a run differently.
+export type OrchestratorController = SmEngineController;
+export type EngineExecutionState = SmEngineExecutionState;
+export type EngineRun = SmEngineRun;
+export type EngineStartAction = SmEngineStartAction;
+
+export interface OrchestratorControllerResponse {
+	success: boolean;
+	data: { controller: OrchestratorController };
+}
+
+/** `run` is the report's latest run, and null only when it has never had one. */
+export interface EngineRunResponse {
+	success: boolean;
+	data: { run: EngineRun | null };
+}
+
+/** `action` is present on start only — pause has just the one outcome. */
+export interface EngineRunActionResponse {
+	success: boolean;
+	data: { run: EngineRun; action?: EngineStartAction };
 }
 
 export interface StepPresetSummary {
@@ -415,6 +449,31 @@ const reportStepsApi = {
 			`/deep-dive/${reportId}/orchestrator/trigger`,
 			{ instance },
 		);
+		return response.data;
+	},
+
+	// ===== SM Engine run control =====
+	// Only reached when the orchestrator is sm_engine. Under n8n the calls
+	// above stay the whole story, untouched.
+
+	async getOrchestratorController(): Promise<OrchestratorControllerResponse> {
+		const response = await api.get(`/orchestrator/controller`);
+		return response.data;
+	},
+
+	async getEngineRun(reportId: number): Promise<EngineRunResponse> {
+		const response = await api.get(`/deep-dive/${reportId}/run`);
+		return response.data;
+	},
+
+	/** Triggers a new run or resumes a paused one — the server decides which. */
+	async startEngineRun(reportId: number): Promise<EngineRunActionResponse> {
+		const response = await api.post(`/deep-dive/${reportId}/run/start`);
+		return response.data;
+	},
+
+	async pauseEngineRun(reportId: number): Promise<EngineRunActionResponse> {
+		const response = await api.post(`/deep-dive/${reportId}/run/pause`);
 		return response.data;
 	},
 };
@@ -852,14 +911,109 @@ export const useUpdateOrchestrator = (reportId: number) => {
 					console.error("Failed to invalidate query", error);
 				});
 		},
+		onError: (error) => refreshControllerIfChanged(queryClient, error),
 	});
 };
 
 export const useTriggerEngineTick = (reportId: number) => {
+	const queryClient = useQueryClient();
+
 	return useMutation({
 		mutationFn: (instance: number) =>
 			reportStepsApi.triggerEngineTick(reportId, instance),
+		onError: (error) => refreshControllerIfChanged(queryClient, error),
 	});
 };
+
+// ===== SM Engine run control =====
+
+/**
+ * Which orchestrator is driving reports. An operator setting that changes
+ * about never — but when it does, a page that cached it forever keeps
+ * offering the losing orchestrator's controls, so it is re-read on a slow
+ * poll. That only fixes what the page shows: every action re-checks the
+ * value server-side and refuses if it moved, because no interval is short
+ * enough to close that window on its own.
+ */
+export const useGetOrchestratorController = () => {
+	return useQuery({
+		queryKey: ["orchestrator-controller"],
+		queryFn: () => reportStepsApi.getOrchestratorController(),
+		staleTime: 60000,
+		refetchInterval: 60000,
+		retry: false,
+	});
+};
+
+export const useGetEngineRun = (
+	reportId: number | null,
+	options?: { enabled?: boolean; refetchInterval?: number },
+) => {
+	return useQuery({
+		queryKey: ["engine-run", reportId],
+		queryFn: () => reportStepsApi.getEngineRun(reportId!),
+		enabled:
+			options?.enabled !== undefined ? options.enabled : reportId !== null,
+		refetchInterval: options?.refetchInterval ?? 20000,
+	});
+};
+
+export const useStartEngineRun = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: () => reportStepsApi.startEngineRun(reportId),
+		onSuccess: () => invalidateRunViews(queryClient, reportId),
+		onError: (error) => refreshControllerIfChanged(queryClient, error),
+	});
+};
+
+export const usePauseEngineRun = (reportId: number) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: () => reportStepsApi.pauseEngineRun(reportId),
+		onSuccess: () => invalidateRunViews(queryClient, reportId),
+		onError: (error) => refreshControllerIfChanged(queryClient, error),
+	});
+};
+
+/**
+ * The engine mirrors run state onto the orchestrator status the rest of the
+ * page reads, so both views have to be refreshed after an action — otherwise
+ * the button updates and the status card beside it stays stale.
+ */
+/**
+ * The server refuses an action aimed at the orchestrator that no longer
+ * drives reports. That answer is also the news that this page is out of
+ * date, so the controller is re-read at once and the controls re-render as
+ * the other orchestrator's rather than waiting out the poll.
+ */
+function refreshControllerIfChanged(
+	queryClient: ReturnType<typeof useQueryClient>,
+	error: unknown,
+): void {
+	if (!isControllerChanged(error)) return;
+
+	queryClient
+		.invalidateQueries({ queryKey: ["orchestrator-controller"] })
+		.catch((invalidationError) => {
+			console.error("Failed to invalidate query", invalidationError);
+		});
+}
+
+function invalidateRunViews(
+	queryClient: ReturnType<typeof useQueryClient>,
+	reportId: number,
+): void {
+	for (const queryKey of [
+		["engine-run", reportId],
+		["orchestrator", reportId],
+	]) {
+		queryClient.invalidateQueries({ queryKey }).catch((error) => {
+			console.error("Failed to invalidate query", error);
+		});
+	}
+}
 
 export default reportStepsApi;

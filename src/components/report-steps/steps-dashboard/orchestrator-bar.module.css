@@ -66,8 +66,18 @@
 		background 0.15s ease;
 }
 
-.pill:hover {
+/*
+ * Hover belongs to the pills you can actually click. The engine owns its own
+ * status, so that pill is a readout (.pillStatic) — without the exclusion it
+ * keeps the button's cursor and highlight and invites a click that does
+ * nothing, and its state colour is overwritten on hover besides.
+ */
+.pill:not(.pillStatic):hover {
 	border-color: #58bfce;
+}
+
+.pillStatic {
+	cursor: default;
 }
 
 .pill:focus-visible {
